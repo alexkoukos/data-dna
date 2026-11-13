@@ -46,6 +46,7 @@ from brain.detection.entities import EntityDetector
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
 from brain.detection.pipeline import Finder, inspect_text
+from brain.detection.yara_rules import find_yara
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy.engine import Decision
 from brain.policy.store import PolicyError, PolicyStore
@@ -64,7 +65,7 @@ def _finders() -> list[Finder]:
     global _client_store
     if _client_store is None or _client_store.engine is not policy_store.engine:
         _client_store = ClientStore(policy_store.engine)
-    return [entity_detector.find, _client_store.find]
+    return [find_yara, entity_detector.find, _client_store.find]
 
 
 @asynccontextmanager
