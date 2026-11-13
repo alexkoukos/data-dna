@@ -7,13 +7,13 @@ Owners: every technical item is Alexandros. Vasilis and Konstantinos keep the da
 Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 
 ## 1. Break it (red team)
-- [ ] **X1** P1 "Try to break it" page: type anything, see the decision, the reasons and which layer caught it. Playwright test with 10 evasions. Owner: Alexandros.
-- [ ] **X2** P1 Attack file `data/eval/attacks.csv`, 80 rows with the expected result. Feeds `make eval` and the page. Owner: Vasilis and Konstantinos (data); Alexandros wires it into eval.
+- [x] **X1** P1 "Try to break it" page: type anything, see the decision, the reasons and which layer caught it. Playwright test with 10 evasions. Owner: Alexandros.
+- [x] **X2** P1 Attack file `data/eval/attacks.csv`, 80 rows with the expected result. Feeds `make eval` and the page. Owner: Vasilis and Konstantinos (data); Alexandros wires it into eval.
 - [ ] **X3** P2 Table of the judges' attempts during the demo (in memory). Owner: Alexandros.
 
 ## 2. Detection depth
-- [ ] **X4** P1 Honeytokens: fake keys and details planted in confidential documents. If one shows up in a prompt, raise an alarm with no false alarms. Owner: Alexandros.
-- [ ] **X5** P1 Greeklish and mixed scripts: names and AFM in Latin letters, or with look-alike characters (A/Α, o/ο). Target recall at least 80%. Owner: Alexandros.
+- [x] **X4** P1 Honeytokens: fake keys and details planted in confidential documents. If one shows up in a prompt, raise an alarm with no false alarms. Owner: Alexandros.
+- [x] **X5** P1 Greeklish and mixed scripts: names and AFM in Latin letters, or with look-alike characters (A/Α, o/ο). Target recall at least 80%. Owner: Alexandros.
 - [ ] **X6** P1 More Greek identifiers: ADT, number plates, +30 phones, GEMI, passport. Owner: Alexandros.
 - [ ] **X7** P1 Check the model's answers for leaks before they reach the user. Owner: Alexandros.
 - [ ] **X8** P2 Images and screenshots: OCR, then the same checks (RapidOCR, ONNX). Owner: Alexandros.

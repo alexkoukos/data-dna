@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from "react-router-dom";
+import BreakItPage from "./pages/BreakItPage";
 import ChatPage from "./pages/ChatPage";
 import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
@@ -16,6 +17,7 @@ const links = [
   { to: "/chat", label: "Company Chat" },
   { to: "/connect", label: "Connect a tool" },
   { to: "/security", label: "Security" },
+  { to: "/break-it", label: "Try to break it" },
 ];
 
 export default function App() {
@@ -42,6 +44,7 @@ export default function App() {
         <Route path="/" element={<Placeholder title="Data DNA" note="Pick a screen above." />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/connect" element={<ConnectPage />} />
+        <Route path="/break-it" element={<BreakItPage />} />
         <Route path="/security" element={<SecurityLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />

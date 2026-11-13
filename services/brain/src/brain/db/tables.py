@@ -98,6 +98,16 @@ counters_daily = sa.Table(
     sa.Column("llm_tokens", sa.Integer, server_default="0"),
 )
 
+honeytokens = sa.Table(
+    "honeytokens",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id", ondelete="CASCADE")),
+    sa.Column("kind", sa.Text, nullable=False),
+    sa.Column("value", sa.Text, nullable=False, unique=True),
+    sa.Column("created_at", sa.DateTime(timezone=True)),
+)
+
 reveal_requests = sa.Table(
     "reveal_requests",
     metadata,
