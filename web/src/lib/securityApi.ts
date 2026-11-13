@@ -99,3 +99,29 @@ export async function savePolicy(
   }
   return (await res.json()) as Policy;
 }
+
+export interface Preset {
+  id: string;
+  question: string;
+}
+
+export interface Answer {
+  id: string;
+  question: string;
+  sql: string;
+  parameters: Record<string, string>;
+  columns: string[];
+  rows: (string | number | null)[][];
+}
+
+export const fetchPresets = () => get<Preset[]>("/v1/ask/presets");
+
+export async function askPreset(preset: string): Promise<Answer> {
+  const res = await fetch("/api/v1/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ preset }),
+  });
+  if (!res.ok) throw new Error("We could not get the answer. Try again in a moment.");
+  return (await res.json()) as Answer;
+}

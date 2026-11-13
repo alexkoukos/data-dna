@@ -120,3 +120,37 @@ def test_user_seen_is_false_until_the_gateway_checked_a_request(client: TestClie
         },
     )
     assert client.get("/v1/users/demo-newbie/seen").json() == {"seen": True}
+
+
+def test_preset_questions_are_listed(client: TestClient) -> None:
+    presets = client.get("/v1/ask/presets").json()
+    assert len(presets) == 5
+    assert any("unapproved AI tools and also had client data" in p["question"] for p in presets)
+
+
+def test_every_preset_runs_and_shows_its_sql(client: TestClient) -> None:
+    for p in client.get("/v1/ask/presets").json():
+        out = client.post("/v1/ask", json={"preset": p["id"]}).json()
+        assert out["sql"].lstrip().startswith("SELECT")
+        assert out["columns"] and out["parameters"]["since"]
+        assert all(len(row) == len(out["columns"]) for row in out["rows"])
+
+
+def test_client_data_question_finds_the_storyline(client: TestClient) -> None:
+    out = client.post("/v1/ask", json={"preset": "top_tools"}).json()
+    assert out["rows"], "the demo company has tool usage in the last 7 days"
+    assert out["columns"] == ["tool", "approval", "requests"]
+    requests = [row[2] for row in out["rows"]]
+    assert requests == sorted(requests, reverse=True)
+
+
+def test_unknown_preset_gets_a_plain_404(client: TestClient) -> None:
+    r = client.post("/v1/ask", json={"preset": "drop_tables"})
+    assert r.status_code == 404
+    assert "preset" in r.json()["detail"]
+
+
+def test_ask_says_so_without_a_database(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "policy_store", PolicyStore(None))
+    r = TestClient(main.app).post("/v1/ask", json={"preset": "top_tools"})
+    assert r.status_code == 503

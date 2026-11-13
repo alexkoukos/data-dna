@@ -10,6 +10,7 @@ const ROUTES = [
   "/security/incidents",
   "/security/documents",
   "/security/policies",
+  "/security/ask",
 ];
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
@@ -120,4 +121,12 @@ test("connect page turns to Connected after a real request with the shown key", 
   await expect(page.getByText(/Connected\. The gateway has checked/)).toBeVisible({
     timeout: 10_000,
   });
+});
+
+test("ask: a preset question shows a table and the SQL", async ({ page }) => {
+  await page.goto("/security/ask");
+  await page.getByRole("button", { name: /Which AI tools are used most/ }).click();
+  await expect(page.getByRole("table")).toBeVisible();
+  await page.getByText("Show the SQL behind this answer").click();
+  await expect(page.getByLabel("SQL for this answer")).toContainText("SELECT");
 });

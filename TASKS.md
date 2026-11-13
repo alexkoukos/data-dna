@@ -33,7 +33,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [ ] **O3** P1 Employee simulator (`scripts/simulate.py`, compose profile `sim`) (PRD 21a). Owner: Stelios.
 - [ ] **N1** P1 DNA marks: propose, approve, issue copies, attribution with confidence (PRD 12). Owner: Stelios.
 - [ ] **N2** P1 Sealed identity + two-person reveal + audit log (PRD 12). Owner: Alexandros.
-- [ ] **A1** P1 Analyst preset questions with SQL shown (PRD 13). Owner: Alexandros.
+- [x] **A1** P1 Analyst preset questions with SQL shown (PRD 13). Owner: Alexandros.
 - [ ] **A2** P2 Free-text analyst questions over read-only views (PRD 13). Owner: Alexandros.
 
 ## Web (PRD 16)

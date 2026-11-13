@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -135,3 +136,21 @@ class DocumentOut(BaseModel):
 
 class SeenOut(BaseModel):
     seen: bool
+
+
+class PresetOut(BaseModel):
+    id: str
+    question: str
+
+
+class AskRequest(BaseModel):
+    preset: str
+
+
+class AskOut(BaseModel):
+    id: str
+    question: str
+    sql: str
+    parameters: dict[str, str]
+    columns: list[str]
+    rows: list[list[Any]]

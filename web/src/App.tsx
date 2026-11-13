@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
+import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
 
 import ConnectPage from "./pages/ConnectPage";
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="incidents" element={<IncidentsPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="policies" element={<PoliciesPage />} />
+          <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
     </div>

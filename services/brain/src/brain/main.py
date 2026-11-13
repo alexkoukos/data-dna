@@ -11,6 +11,8 @@ from fastapi import FastAPI, HTTPException
 
 from brain import queries
 from brain.api.schemas import (
+    AskOut,
+    AskRequest,
     DocumentOut,
     FindingOut,
     IncidentPage,
@@ -24,11 +26,13 @@ from brain.api.schemas import (
     MetricsOut,
     PolicyOut,
     PolicyUpdate,
+    PresetOut,
     SeenOut,
     ToolOut,
     UnmaskRequest,
     UnmaskResponse,
 )
+from brain.ask.presets import BY_ID, PRESETS, run_preset
 from brain.config import settings
 from brain.db import tables as t
 from brain.db.engine import make_engine
@@ -211,6 +215,32 @@ def list_incidents(
 @app.get("/v1/documents", response_model=list[DocumentOut])
 def get_documents() -> list[DocumentOut]:
     return _read(queries.documents)
+
+
+@app.get("/v1/ask/presets", response_model=list[PresetOut])
+def ask_presets() -> list[PresetOut]:
+    return [PresetOut(id=p.id, question=p.question) for p in PRESETS]
+
+
+@app.post("/v1/ask", response_model=AskOut)
+def ask(req: AskRequest) -> AskOut:
+    preset = BY_ID.get(req.preset)
+    if preset is None:
+        raise HTTPException(
+            status_code=404,
+            detail="That question is not on the list. Pick one of the preset questions.",
+        )
+    engine = policy_store.engine
+    if engine is None:
+        raise HTTPException(
+            status_code=503, detail="The database is not connected. Try again soon."
+        )
+    try:
+        return AskOut(**run_preset(engine, preset))
+    except sa.exc.SQLAlchemyError as err:
+        raise HTTPException(
+            status_code=503, detail="The data could not be read. Try again soon."
+        ) from err
 
 
 @app.get("/v1/inventory", response_model=list[ToolOut])

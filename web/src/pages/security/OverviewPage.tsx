@@ -115,6 +115,24 @@ export default function OverviewPage() {
         </div>
       ) : null}
       <Kpis m={metrics} />
+      <section
+        aria-labelledby="ask-h"
+        className="mt-10 rounded-2xl border border-ink-200 bg-white p-4"
+      >
+        <h2 id="ask-h" className="text-lg font-semibold text-ink-900">
+          Ask a question
+        </h2>
+        <p className="mt-1 max-w-prose text-ink-600">
+          For example: which teams used unapproved AI tools and also had client data caught this
+          week? You get a table and the SQL behind it.
+        </p>
+        <Link
+          to="/security/ask"
+          className="mt-3 inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-semibold text-brand-700 underline"
+        >
+          Open the questions
+        </Link>
+      </section>
       <Recent page={page} />
     </>
   );
