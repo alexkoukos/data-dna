@@ -62,6 +62,23 @@ services:
       gateway:
         condition: service_healthy
 
+  # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
+  sim:
+    profiles: ["sim"]
+    image: data-dna-brain
+    entrypoint: ["python", "/scripts/simulate.py"]
+    command: ["--count", "60"]
+    environment:
+      BRAIN_URL: http://brain:8001
+      GATEWAY_URL: http://gateway:4000
+      DATA_DIR: /data
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./data:/data:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+
 volumes:
   dbdata:
   models:

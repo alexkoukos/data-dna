@@ -47,6 +47,9 @@ fmt: ## Auto-format code
 test-gateway: ## Integration test through the gateway (needs `make up`)
 	cd services/brain && uv run pytest tests/test_gateway_live.py -p no:cacheprovider --no-cov
 
+simulate: ## Simulated employees chat through the gateway so the dashboard moves (needs `make up`)
+	docker compose --profile sim run --rm sim
+
 validate: ## Check the team's data files (prompts, AI tools, org)
 	cd services/brain && uv run python ../../scripts/validate_data.py
 
@@ -58,4 +61,4 @@ e2e: ## End-to-end + accessibility (needs `make up` first)
 eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
 	cd services/brain && uv run python -m brain.eval.run
 
-.PHONY: test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+.PHONY: simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
