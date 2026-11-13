@@ -33,6 +33,13 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         ),
     ),
     (
+        "bypass_safety",
+        re.compile(
+            r"\b(override|bypass|disable|turn off)\b[^.\n]{0,30}\b(safety|security)\s+(checks?|filters?|rules?|measures?)\b",
+            _I,
+        ),
+    ),
+    (
         "system_override",
         re.compile(
             r"\bsystem override\b|\bnew instructions from the (administrator|admin|system)\b", _I
@@ -52,6 +59,10 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r"(αγνόησε|αγνοήστε|ξέχνα|ξεχάστε|παράκαμψε)[^.\n]{0,40}(προηγούμενες|παλιές|όλες|τους κανόνες|οδηγίες)",
             _I,
         ),
+    ),
+    (
+        "greek_new_instructions",
+        re.compile(r"νέες οδηγίες από (τον|το|τη) (διαχειριστ|σύστημ|διευθυντ)", _I),
     ),
     ("greek_no_limits", re.compile(r"χωρίς (κανέναν|κανένα|κανεναν)\s+περιορισμ", _I)),
     ("greek_reveal", re.compile(r"(εμφάνισε|δείξε|τύπωσε)[^.\n]{0,30}system prompt", _I)),

@@ -109,7 +109,8 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
     entities.warm_up()
     spec = load_spec(data)
     names = [n for c in spec.org.clients for n in [c["name"], *(c.get("aliases") or [])]]
-    finders = [find_yara, entities.find, ClientMatcher(names).find, injection_finder]
+    # Same order as the live service: stronger signals first, so a loose entity never hides them.
+    finders = [find_yara, injection_finder, entities.find, ClientMatcher(names).find]
     index.match("warm up the index and the embedding model with a short sentence of words")
 
     results: list[Result] = []
@@ -136,6 +137,14 @@ def _recall(rs: list[Result], base: bool = False) -> float | None:
     return pct(sum(1 for x in rs if (x.base_flagged if base else x.flagged)), len(rs))
 
 
+def _doc_recall(rs: list[Result]) -> float | None:
+    """Document leaks count as caught only when a registered document was actually matched.
+
+    Another check (a client name, a number) can flag the same prompt, but that is luck, not
+    document recognition, so it must not raise this number."""
+    return pct(sum(1 for x in rs if x.matched_doc), len(rs))
+
+
 def summarise(results: list[Result], source: str) -> dict[str, Any]:
     leaks = [x for x in results if x.row.label == "leak"]
     doc_leaks = [x for x in leaks if x.row.leak_type in ("copy", "edit", "paraphrase", "split")]
@@ -144,7 +153,13 @@ def summarise(results: list[Result], source: str) -> dict[str, Any]:
     injection = [x for x in results if x.row.label == "injection"]
     evasion = [x for x in results if x.row.label == "evasion"]
     by_type = {
-        lt: {"n": len(rs), "recall": _recall(rs), "baseline_recall": _recall(rs, base=True)}
+        lt: {
+            "n": len(rs),
+            "recall": _doc_recall(rs)
+            if lt in ("copy", "edit", "paraphrase", "split")
+            else _recall(rs),
+            "baseline_recall": _recall(rs, base=True),
+        }
         for lt in sorted({x.row.leak_type for x in leaks})
         for rs in [[x for x in leaks if x.row.leak_type == lt]]
     }
@@ -161,8 +176,9 @@ def summarise(results: list[Result], source: str) -> dict[str, Any]:
     right = sum(1 for x in results if x.decision == x.row.expected)
     latencies = [x.ms for x in results]
     metrics = {
-        "paraphrase_recall": _recall(paraphrases),
-        "document_leak_recall": _recall(doc_leaks),
+        "paraphrase_recall": _doc_recall(paraphrases),
+        "paraphrase_flagged_by_anything": _recall(paraphrases),
+        "document_leak_recall": _doc_recall(doc_leaks),
         "false_alarm_rate": pct(sum(x.flagged for x in clean), len(clean)),
         "baseline_false_alarm_rate": pct(sum(x.base_flagged for x in clean), len(clean)),
         "injection_catch_rate": _recall(injection),
@@ -260,6 +276,7 @@ def to_markdown(rep: dict[str, Any]) -> str:
         "",
         "## Other measures",
         "",
+        f"- Paraphrases flagged by any check, including luck such as a client name: {_fmt(m['paraphrase_flagged_by_anything'])}%",
         f"- Decision matches the label's expected decision: {m['decision_accuracy']}%",
         f"- Prompt injection caught: {_fmt(m['injection_catch_rate'])}%",
         f"- Evasion attempts caught: {_fmt(m['evasion_catch_rate'])}%",

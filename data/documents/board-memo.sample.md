@@ -1,5 +1,0 @@
----
-title: "Board memo: expansion into the Balkans"
-sensitivity: restricted
----
-Strictly confidential. Board of Directors, Aegean Meridian Consulting. Subject: expansion into the Balkans. The management team recommends opening offices in Sofia and Belgrade during the second quarter of 2027. The plan assumes an initial investment of four million euros, financed from retained earnings, with break even expected after twenty two months. We intend to acquire a small Sofia firm, Danube Advisory, for one and a half million euros, which gives us an existing client base in banking and telecommunications. The main risks are currency exposure, the difficulty of hiring senior consultants in Belgrade, and a possible reaction from our largest competitor, who has already approached two of the same targets. Until the board has approved this plan, nobody outside the executive committee may discuss the acquisition, the budget or the timeline, internally or externally. The vote is scheduled for the March meeting, and a final decision on the Danube Advisory offer must be made before the fifteenth of April.
