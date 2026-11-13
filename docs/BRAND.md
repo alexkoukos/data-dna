@@ -1,107 +1,187 @@
-# Pyli brand guide
+# Pyli brand
 
-The one-page sheet is [brand/brand-sheet.png](brand/brand-sheet.png). This file is the text version, with the values to copy into code.
+Pyli (πύλη, "gate") is the company AI gateway. The brand is a gatekeeper: calm, exact, and always ready to say why.
 
-Pyli (Greek: πύλη, "gate") is the brand name of Data DNA, the company AI gateway.
-Tagline: **Every prompt passes the gate.**
+One-page overview: [`docs/brand/brand-sheet.png`](brand/brand-sheet.png) (source: `brand-sheet.html`).
 
-## Brand idea
+## Idea
 
-A closed gate with a lit lamp. The gate is shut by default, which means protected. The lamp means someone is on duty. Pyli is the calm gatekeeper between the company and the AI tools outside.
+**A closed gate with a lit lamp.** Two stone pillars, an arched iron gate between them, one lamp on top. The gate is shut by default; the lamp shows someone is on duty. The lamp is the only brand-colored part of the mark, and it returns as the dot on the wordmark's *i* and as the mascot's light.
 
-Personality: calm, precise, trustworthy, a little witty. It explains itself and never shouts. It is not a scary fortress and not a cute toy.
-
-Three materials, no glow effects:
-- **Verdigris**: the blue-green patina of old bronze gates. Built to last, not to flash.
-- **Marble**: warm off-white stone, the pillars.
-- **Iron ink**: near-black warm iron, the bars and outlines.
-
-Cultural story: the **θυρωρός**, the doorman of every Athenian πολυκατοικία. He knows who lives there, lets the right people in, keeps strangers out, and never raises his voice.
-
-Visual style: flat shapes, one ink outline, rounded corners, no gradients, no 3D, no gloss. No lock, shield or padlock clichés, no circuit boards, no robots.
+Material palette: verdigris (the green patina old bronze gates get after years outside), marble and iron ink. Nothing glows, nothing has a gradient.
 
 ## Logo
 
-- **Mark:** front-facing iron gate between two stone pillars, drawn on a 32 × 32 grid. Pillars have a capital slab and an onion-shaped finial. Between them an arched gate with three bars and one rail. The **lamp** (solid circle on a short stem at the arch apex) is the only part in brand color.
-- **Wordmark:** "Pyli" in Commissioner SemiBold 600, flair axis 100, tracking -2%. The dot of the **i** is the lamp circle in verdigris. Text converted to outlines.
-- **Lockup:** mark left, wordmark right, gate bottom on the text baseline, finials rise above the letters.
-- **App icon:** mark on a brand-700 tile, radius about 22%.
-- **Favicon:** drawn by hand on a 16 px grid, not scaled down. brand-700 tile, marble gate, two bars, no finials, 2 × 2 px lamp in brand-300.
+| File | Use |
+|---|---|
+| `brand/logo/pyli-logo.svg` / `-dark.svg` | Primary lockup, light / dark backgrounds |
+| `brand/logo/pyli-mark.svg` / `-dark.svg` | Mark alone (nav, avatars, slides) |
+| `brand/logo/pyli-mark-mono.svg` | One color, uses `currentColor` |
+| `brand/logo/pyli-wordmark.svg` / `-dark.svg` | Wordmark alone |
+| `brand/logo/pyli-app-icon.svg` | Mark on a verdigris tile (OS icons, social) |
+| `brand/favicon/favicon.svg`, `.ico`, `favicon-16/32/48.png`, `apple-touch-icon.png`, `icon-512.png` | Browser and device icons |
 
-Usage:
-- Clear space: at least 1/4 of the mark height on every side.
-- Minimum size: 96 px wide for the lockup, 24 px for the mark. Below that, use the favicon drawing.
-- Never recolor the gate with outcome colors, stretch, rotate, outline it, or add shadows or gradients. Do not place the dark logo on mid-tone photos.
+All text is converted to outlines. PNGs are exported at 256 px and 512 px height (`@2x`).
+
+The wordmark is Commissioner SemiBold with the flair axis at 100, tracked -2%. The dot of the *i* is replaced by the lamp.
+
+**Favicon.** Below 24 px the full mark turns to mush, so the favicon is drawn separately on a 16 px pixel grid: two bars instead of three, no finials. It sits on a verdigris tile, so it works on light and dark browser chrome.
+
+```html
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+```
+
+**Clear space:** at least 1/4 of the mark height on every side (roughly one pillar width).
+**Minimum size:** lockup 96 px wide; mark 24 px; below that, the favicon drawing.
+
+Do
+- Use ink on light, marble on dark. Keep the lamp verdigris.
+- Use the app icon tile when the background is busy or mid-tone.
+
+Don't
+- Recolor the gate with outcome colors. The lamp shows decisions in the mascot, not in the logo.
+- Stretch, rotate, outline, add shadows or gradients.
+- Rebuild the wordmark from a live font. Use the outlined file.
 
 ## Mascot: Thyro
 
-Thyro is the gate itself, the logo come alive. Named after the θυρωρός. No arms, no legs, no body. Two marble pillars with verdigris finials, an iron arch, a marble medallion face, the lamp with a soft halo, two gate leaves, a faint ground shadow. One ink outline weight (5 px at 240 px), flat fills only.
+Thyro is the gate itself: two stone pillars with verdigris finials, an arched iron gate, a round marble medallion with his face, and the lamp on top. Named after the θυρωρός, the doorman Athenian apartment blocks used to have. He knows who lives there, lets the right people in, and never raises his voice.
 
-He shows each decision three ways at once (gate leaves, face, lamp color), and the text label always sits next to him.
+He shows a decision three ways at once, so it never depends on color: the gate leaves (open, ajar, shut), his face, and the lamp color. The outcome label always sits next to him.
 
-| Pose | Gate leaves | Face | Lamp |
+| File | Gate | Face | Lamp |
 |---|---|---|---|
-| Master | Shut | Calm small smile | brand-400 |
-| Allow | Fully open, dotted path through | Closed-arc eyes, open grin | allow solid |
-| Warn | Ajar | One brow raised, wavy mouth | warn solid |
-| Mask | Ajar | Winks, smile | mask solid, ink tape across lamp |
-| Local | Shut | Looks up at lamp, smile | local solid, dotted arrow circling |
-| Block | Shut, red latch bar | Half-lidded eyes, level brows, flat mouth | block solid |
-| Empty state | Shut | Glances aside, no mouth | Unlit (ink-300, no halo) |
-| Avatar | Square crop of medallion and lamp | Calm smile | brand-400 |
+| `brand/mascot/thyro-master.svg` | Shut | Calm smile | brand-400 |
+| `thyro-allow.svg` | Wide open, path dots | Happy eyes, grin | allow |
+| `thyro-warn.svg` | Ajar | One brow up, "hmm" | warn |
+| `thyro-mask.svg` | Ajar | Wink | mask, taped over |
+| `thyro-local.svg` | Shut | Looks up at the lamp | local, circling home |
+| `thyro-block.svg` | Shut and latched | Calm, level brows, flat mouth | block |
+| `thyro-empty.svg` | Shut | Glances to the side, waiting | Unlit (ink-300) |
+| `thyro-avatar.svg` | Crop | Medallion and lamp | brand-400 |
 
-Rules: never childish, never scary. No sweat drops, no exclamation marks, no flashing red. Block is a shut gate, not a siren. Use at 96 px or larger (avatar down to 48 px). Empty states get the pose, one sentence and one action.
+PNG exports (720 px) are in `brand/mascot/png/`.
+
+Rules
+- Never show an outcome with Thyro alone. The badge with its label goes next to him.
+- No alarm: no sweat drops, no shouting, no flashing. Block is a shut gate, not a siren.
+- Use him at 96 px or larger. Below that, use the avatar (48 px minimum) or just the badge.
+- Empty states: pose, one sentence, one action. "Nothing has come through the gate yet. Connect a tool to start."
+- Same line weight everywhere (5 px at 240 px). Don't add arms, shading or gradients.
 
 ## Color
 
-Page background ink-50, cards white, borders ink-200. Text: ink-900 primary, ink-600 secondary, ink-500 tertiary. Primary button: brand-600 with white text (6.67:1), hover brand-700. On dark surfaces (ink-900): ink-50 text, brand-300 for lamp and accents.
+Tokens live in `web/src/index.css` under `@theme static`. Names are unchanged; paste the values from `web/src/pyli-tokens.css`.
 
-brand-50 to 400 and ink-50 to 400 are never used for text on white. Text needs 4.5:1, so brand-500+ and ink-500+ only.
+**brand** (verdigris)
 
-| Step | brand (verdigris) | ratio on white | ink (warm marble) | ratio on white |
+| 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 |
+|---|---|---|---|---|---|---|---|---|---|
+| `#ecfaf8` | `#d6f4f0` | `#aee6df` | `#7bd0c6` | `#3bada2` | `#008278` | `#006860` | `#004f49` | `#003632` | `#00201d` |
+
+**ink** (warm marble greys)
+
+| 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 |
+|---|---|---|---|---|---|---|---|---|---|
+| `#faf7f4` | `#f1efec` | `#e3dfd9` | `#ccc8c3` | `#a5a19b` | `#74706b` | `#5f5c57` | `#47433e` | `#312d29` | `#1a1713` |
+
+**Outcomes**
+
+| Outcome | bg | fg | solid | Meaning |
 |---|---|---|---|---|
-| 50 | #ecfaf8 | 1.07 | #faf7f4 | 1.07 |
-| 100 | #d6f4f0 | 1.16 | #f1efec | 1.15 |
-| 200 | #aee6df | 1.38 | #e3dfd9 | 1.33 |
-| 300 | #7bd0c6 | 1.80 | #ccc8c3 | 1.66 |
-| 400 | #3bada2 | 2.73 | #a5a19b | 2.57 |
-| 500 | #008278 | 4.70 | #74706b | 4.92 |
-| 600 | #006860 | 6.67 | #5f5c57 | 6.66 |
-| 700 | #004f49 | 9.48 | #47433e | 9.81 |
-| 800 | #003632 | 13.34 | #312d29 | 13.65 |
-| 900 | #00201d | 17.15 | #1a1713 | 17.86 |
+| allow | `#e5f6e3` | `#245420` | `#30752a` | Nothing sensitive, sent as is |
+| warn | `#f9efda` | `#704500` | `#915b00` | Sent, with a note to the user |
+| mask | `#f4ecff` | `#553674` | `#764aa2` | Sensitive parts replaced, rest sent |
+| local | `#e5f2ff` | `#154a7a` | `#1666aa` | Answered by a local model, nothing left |
+| block | `#ffebe9` | `#7e2122` | `#b02a2d` | Not sent, reason shown |
 
-Outcomes. Badges use fg on bg, strong markers use white on solid. Every outcome always carries its text label and icon, never color alone.
+Rules
+- Every outcome carries its label (and ideally the dot or icon). Color is never the only signal.
+- Badge on tint: `fg` on `bg`. Strong badge or row marker: white on `solid`.
+- Primary button: `brand-600` (hover `brand-700`), white text. One per screen.
+- Body text `ink-900`, secondary `ink-600`, tertiary `ink-500`. Page `ink-50`, cards white, borders `ink-200`.
+- Brand and outcome hues are spaced apart on purpose (verdigris 186°, allow 142°, local 250°), so a brand button never reads as a decision.
 
-| Outcome | bg | fg | solid | fg/bg | white/solid |
-|---|---|---|---|---|---|
-| Allow | #e5f6e3 | #245420 | #30752a | 7.9 | 5.7 |
-| Warn | #f9efda | #704500 | #915b00 | 7.2 | 5.7 |
-| Mask | #f4ecff | #553674 | #764aa2 | 8.4 | 6.4 |
-| Local | #e5f2ff | #154a7a | #1666aa | 8.1 | 6.0 |
-| Block | #ffebe9 | #7e2122 | #b02a2d | 8.6 | 6.5 |
+### Contrast (WCAG 2.1)
 
-## Typography
+Normal text needs 4.5:1, large text and UI graphics 3:1.
 
-Both fonts are free (OFL), self-hostable via Fontsource, and support Greek.
+| Pair | Ratio | Use |
+|---|---:|---|
+| white on brand-500 | 4.70 | min for text |
+| white on brand-600 | 6.67 | buttons, links |
+| white on brand-700 | 9.48 | buttons, links |
+| white on brand-800 | 13.34 | headings, dark surfaces |
+| white on brand-900 | 17.15 | headings, dark surfaces |
+| ink-500 on white | 4.92 | tertiary text, placeholders |
+| ink-600 on white | 6.66 | secondary text |
+| ink-700 on white | 9.81 | body on tinted |
+| ink-900 on white | 17.86 | primary text |
+| ink-500 on ink-50 | 4.61 | page background |
+| ink-600 on ink-50 | 6.24 | page background |
+| ink-900 on ink-50 | 16.73 | page background |
+| ink-50 on ink-900 | 16.73 | dark surfaces |
+| brand-300 on ink-900 | 9.93 | dark-mode accent |
+| allow: fg on bg / fg on white / white on solid / solid vs bg | 7.88 / 8.88 / 5.67 / 5.03 | badges, rows, banners |
+| warn: fg on bg / fg on white / white on solid / solid vs bg | 7.24 / 8.27 / 5.68 / 4.97 | badges, rows, banners |
+| mask: fg on bg / fg on white / white on solid / solid vs bg | 8.44 / 9.69 / 6.42 / 5.59 | badges, rows, banners |
+| local: fg on bg / fg on white / white on solid / solid vs bg | 8.06 / 9.16 / 5.97 / 5.26 | badges, rows, banners |
+| block: fg on bg / fg on white / white on solid / solid vs bg | 8.61 / 9.87 / 6.53 / 5.70 | badges, rows, banners |
 
-- **Commissioner** (variable) for UI and display. Flair axis `FLAR` 0 for UI text, 100 for display (30 px and up) and the wordmark. Display tracking -2%.
-- **JetBrains Mono** (variable) for code, IDs and redacted values.
+Avoid as text: `brand-50..400` and `ink-50..400` on white (all under 3:1). Use them for fills, borders and disabled states.
 
-| Size (px) | 12 | 14 | 16 | 18 | 20 | 24 | 30 | 36 | 48 | 60 | 72 |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| Line height | 16 | 20 | 24 | 28 | 28 | 32 | 36 | 44 | 52 | 64 | 76 |
-| Weight | 500 | 400/600 | 400 | 500 | 600 | 600 | 600 | 600 | 600 | 600 | 700 |
+## Type
 
-Weights: 400 body, 500 labels, 600 headings and buttons, 700 for one hero only. Eyebrows: 12 px ALL CAPS, +8% tracking, brand-700. Body lines 45 to 75 characters.
+| Role | Font | Notes |
+|---|---|---|
+| UI and display | **Commissioner** (variable, OFL) | By Greek type designer Kostas Bartsokas. Full Greek. Flair axis `FLAR` 0 for UI, 100 for display (30 px and up) |
+| Code, IDs, redactions | **JetBrains Mono** (variable, OFL) | Full Greek |
+
+Self-hosted through npm and bundled by Vite. No runtime network calls.
+
+```bash
+npm i @fontsource-variable/commissioner @fontsource-variable/jetbrains-mono
+```
+```ts
+// web/src/main.tsx
+import '@fontsource-variable/commissioner/flar.css'; // weight + flair, Latin + Greek
+import '@fontsource-variable/jetbrains-mono';
+```
+
+Scale (px, size / line height / weight)
+
+| Token | Size | Line height | Weight | Use |
+|---|---|---|---|---|
+| text-xs | 12 | 16 | 500 | Labels, captions, ALL CAPS eyebrows (+8% tracking) |
+| text-sm | 14 | 20 | 400 / 600 | Table cells, badges, secondary text |
+| text-base | 16 | 24 | 400 | Body |
+| text-lg | 18 | 28 | 500 | Lead text, card titles |
+| text-xl | 20 | 28 | 600 | Section titles in the app |
+| text-2xl | 24 | 32 | 600 | Page titles in the app |
+| text-3xl | 30 | 36 | 600 | Display starts here, flair 100 |
+| text-4xl | 36 | 44 | 600 | |
+| text-5xl | 48 | 52 | 600 | Slide titles |
+| text-6xl | 60 | 64 | 600 | Hero |
+| text-7xl | 72 | 76 | 700 | One per page at most |
+
+Weights: 400 body, 500 labels, 600 headings and buttons, 700 only for one hero. Display sizes get -2% tracking. Body stays at 45 to 75 characters per line.
 
 ## Shape
 
-Corners are always rounded: 6 px (badges, chips), 10 px (buttons, inputs), 14 px (cards), 20 px (dialogs), about 22% for the app icon tile. Touch targets at least 44 px. Depth comes from spacing and white cards on ink-50 first, then soft low shadows.
+- Radius: 6 px (badges, chips), 10 px (buttons, inputs), 14 px (cards), 20 px (dialogs). Never mix with square corners.
+- Touch targets at least 44 px tall. Default button height 44 px, padding 16 px horizontal.
+- Shadows stay soft and low; separate with spacing and white cards on `ink-50` before adding borders.
 
 ## Voice
 
-Calm, precise, explains itself. Short sentences, strong verbs. Say what happened, then why, then the next step. Name the real thing ("2 card numbers", "customer records", "ChatGPT"). No buzzwords, no exclamation marks, no "Oops", no fear-mongering.
+Calm, precise, a guardian that explains itself and never shouts.
+
+- Short sentences. Strong verbs. Say what happened, then why.
+- Name the thing: "2 card numbers", "customer records", "ChatGPT".
+- Offer the next step when the user is stuck.
+- No buzzwords, no exclamation marks, no "Oops".
 
 | Say | Not |
 |---|---|
@@ -111,67 +191,4 @@ Calm, precise, explains itself. Short sentences, strong verbs. Say what happened
 | Heads up: this looks like source code. Sent anyway. | Warning: potential policy violation. |
 | Found 3 AI tools nobody told us about. | Shadow AI risk surface identified. |
 
-Greek:
-- Έκρυψα 2 αριθμούς κάρτας. Τα υπόλοιπα στάλθηκαν.
-- Απαντήθηκε τοπικά. Τίποτα δεν βγήκε έξω.
-
-## Brand stories (pitch and About page)
-
-1. **Why a gate.** Every AI tool an employee uses is a door out of the company. Pyli puts one calm gatekeeper at all of them.
-2. **The doorman.** The θυρωρός didn't stop life in the building, he made it safe. Thyro is that doorman for your prompts.
-3. **The lamp.** A lit lamp means someone is on duty. Pyli's lamp takes the color of each decision, and it always comes with words.
-4. **Verdigris.** Bronze turns green after years of standing guard. The color says this was built to last.
-5. **The five decisions.** Most prompts aren't good or bad. They are mostly fine, with one line that shouldn't leave. So Pyli has five answers.
-
-## Tokens for `web/src/index.css`
-
-Not applied yet. The app still uses the old indigo tokens. When a task adopts the brand, replace the `@theme` block with this one and add Commissioner and JetBrains Mono through Fontsource (`npm install`, commit the lock file).
-
-```css
-@theme static {
-  --font-sans: Commissioner, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
-
-  --color-brand-50: #ecfaf8;
-  --color-brand-100: #d6f4f0;
-  --color-brand-200: #aee6df;
-  --color-brand-300: #7bd0c6;
-  --color-brand-400: #3bada2;
-  --color-brand-500: #008278;
-  --color-brand-600: #006860;
-  --color-brand-700: #004f49;
-  --color-brand-800: #003632;
-  --color-brand-900: #00201d;
-
-  --color-ink-50: #faf7f4;
-  --color-ink-100: #f1efec;
-  --color-ink-200: #e3dfd9;
-  --color-ink-300: #ccc8c3;
-  --color-ink-400: #a5a19b;
-  --color-ink-500: #74706b;
-  --color-ink-600: #5f5c57;
-  --color-ink-700: #47433e;
-  --color-ink-800: #312d29;
-  --color-ink-900: #1a1713;
-
-  --color-allow-bg: #e5f6e3;
-  --color-allow-fg: #245420;
-  --color-allow-solid: #30752a;
-  --color-warn-bg: #f9efda;
-  --color-warn-fg: #704500;
-  --color-warn-solid: #915b00;
-  --color-mask-bg: #f4ecff;
-  --color-mask-fg: #553674;
-  --color-mask-solid: #764aa2;
-  --color-local-bg: #e5f2ff;
-  --color-local-fg: #154a7a;
-  --color-local-solid: #1666aa;
-  --color-block-bg: #ffebe9;
-  --color-block-fg: #7e2122;
-  --color-block-solid: #b02a2d;
-}
-```
-
-## Still missing
-
-The sheet shows the design. These files from the original brief are not in the repo yet: `docs/brand/logo/`, `docs/brand/favicon/`, `docs/brand/mascot/` (SVG and PNG exports of the mark, wordmark, Thyro poses and favicon).
+Tagline: **Every prompt passes the gate.**

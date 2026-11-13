@@ -1,35 +1,105 @@
 @import "tailwindcss";
 
-/* Design tokens. Pick only from these scales (see CLAUDE.md, frontend rules). */
-@theme {
-  --font-sans: Inter, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+/* Pyli brand tokens (docs/BRAND.md). Pick only from these scales (see CLAUDE.md, frontend rules). */
+@theme static {
+  /* Pyli brand tokens. Paste inside the existing "@theme static" block in web/src/index.css.
+   Token names are unchanged; only values are new. */
 
-  --color-ink-900: #111827;
-  --color-ink-700: #374151;
-  --color-ink-600: #4b5563;
-  --color-ink-500: #6b7280;
-  --color-ink-300: #d1d5db;
-  --color-ink-200: #e5e7eb;
-  --color-ink-100: #f3f4f6;
-  --color-ink-50: #f9fafb;
+  /* Brand: verdigris, the patina on old bronze gates */
+  --color-brand-50: #ecfaf8;
+  --color-brand-100: #d6f4f0;
+  --color-brand-200: #aee6df;
+  --color-brand-300: #7bd0c6;
+  --color-brand-400: #3bada2;
+  --color-brand-500: #008278;
+  --color-brand-600: #006860;
+  --color-brand-700: #004f49;
+  --color-brand-800: #003632;
+  --color-brand-900: #00201d;
 
-  --color-brand-700: #3730a3;
-  --color-brand-600: #4338ca;
-  --color-brand-500: #4f46e5;
-  --color-brand-100: #e0e7ff;
-  --color-brand-50: #eef2ff;
+  /* Ink: warm marble greys */
+  --color-ink-50: #faf7f4;
+  --color-ink-100: #f1efec;
+  --color-ink-200: #e3dfd9;
+  --color-ink-300: #ccc8c3;
+  --color-ink-400: #a5a19b;
+  --color-ink-500: #74706b;
+  --color-ink-600: #5f5c57;
+  --color-ink-700: #47433e;
+  --color-ink-800: #312d29;
+  --color-ink-900: #1a1713;
 
-  /* Outcome colors. Always pair with an icon and a text label. */
-  --color-allow-bg: #dcfce7;
-  --color-allow-fg: #166534;
-  --color-mask-bg: #dbeafe;
-  --color-mask-fg: #1e40af;
-  --color-local-bg: #ccfbf1;
-  --color-local-fg: #115e59;
-  --color-warn-bg: #fef3c7;
-  --color-warn-fg: #92400e;
-  --color-block-bg: #fee2e2;
-  --color-block-fg: #991b1b;
+  /* Outcomes. Always paired with a text label. */
+  --color-allow-bg: #e5f6e3;
+  --color-allow-fg: #245420;
+  --color-allow-solid: #30752a;
+  --color-warn-bg: #f9efda;
+  --color-warn-fg: #704500;
+  --color-warn-solid: #915b00;
+  --color-mask-bg: #f4ecff;
+  --color-mask-fg: #553674;
+  --color-mask-solid: #764aa2;
+  --color-local-bg: #e5f2ff;
+  --color-local-fg: #154a7a;
+  --color-local-solid: #1666aa;
+  --color-block-bg: #ffebe9;
+  --color-block-fg: #7e2122;
+  --color-block-solid: #b02a2d;
+
+  /* Type */
+  --font-sans:
+    "Commissioner Variable", "Commissioner", system-ui, -apple-system, "Segoe UI", "Noto Sans",
+    sans-serif;
+  --font-mono:
+    "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem; /* 12/16 */
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem; /* 14/20 */
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem; /* 16/24 */
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem; /* 18/28 */
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem; /* 20/28 */
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem; /* 24/32 */
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem; /* 30/36 */
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: 2.75rem; /* 36/44 */
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 3.25rem; /* 48/52 */
+  --text-6xl: 3.75rem;
+  --text-6xl--line-height: 4rem; /* 60/64 */
+  --text-7xl: 4.5rem;
+  --text-7xl--line-height: 4.75rem; /* 72/76 */
+
+  /* Corners: one family, scaled by size */
+  --radius-sm: 6px; /* chips, badges, inputs inner */
+  --radius-md: 10px; /* buttons, inputs */
+  --radius-lg: 14px; /* cards, panels */
+  --radius-xl: 20px; /* dialogs, sheets */
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-ink-900);
+    background: var(--color-ink-50);
+  }
+  /* Display voice: headings 30px and up get the flared, chisel-cut terminals */
+  .font-display,
+  h1,
+  h2 {
+    font-variation-settings: "FLAR" 100;
+    letter-spacing: -0.02em;
+  }
+  code,
+  kbd,
+  pre {
+    font-family: var(--font-mono);
+  }
 }
 
 body {

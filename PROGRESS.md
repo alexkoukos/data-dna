@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-14, Alexandros, brand (Pyli)
+**Done:** Pyli brand pack added and wired into the web app. `docs/BRAND.md` (guide), `docs/brand/` (brand sheet PNG and HTML, `logo/`, `favicon/`, `mascot/` with SVG and PNG), brand tokens in `web/src/index.css` (`@theme static`: new brand and ink ramps, five outcome colors with a `solid` shade, Commissioner and JetBrains Mono, type scale, radii), favicon and apple-touch icon in `web/public/` and `web/index.html`, Pyli logo in the nav bar, page title "Pyli".
+**State:** branch `task/BRAND-guide`. Web checks green (tsc, oxlint, 54 tests, prettier, build). `make up` and e2e not run.
+**Next step:** run `npm install` in `web` and `make up`; run `make e2e` (the axe test may report contrast issues on screens that still use old color choices); use `docs/brand/mascot/*.svg` for empty and outcome states during the UI polish pass; adopt the `-solid` outcome colors for strong markers.
+**Problems / decisions needed:** new dependencies `@fontsource-variable/commissioner` and `@fontsource-variable/jetbrains-mono` (lock file updated). Mask is now purple and local is blue (was the other way around), so any screenshot in the slides or video needs a refresh. The product is still called "Data DNA" in the PRD; the brand name is Pyli.
+**Files touched:** docs/BRAND.md, docs/brand/*, web/{index.html,package.json,package-lock.json,public/*,src/{index.css,main.tsx,App.tsx}}, PROGRESS.md
+
+---
+
 ## 2026-11-14 03:00, Alexandros, tasks T1-T4 (data), E2, D6, W7, better paraphrase matching
 **Done:**
 - **T1 to T4 synthetic data** (invented, promoted from the samples): `data/org/org.yaml` (200 people, 8 teams, clients, 14-day storyline), `data/ai_tools.csv` (15 tools), three documents in `data/documents/*.md` (board memo, Delphi contract with a Greek clause, Greek salary bands, 340 to 510 words), and `data/eval/prompts.csv` (195 labelled prompts: 50 identifier leaks, 12 copies, 15 edits, 40 hand-written paraphrases in English and Greek, 6 fragments, 48 clean of which 28 same-topic, 15 injections, 9 evasions). Regenerate with `scripts/gen_eval_set.py`. **A person still has to check that no real company is called "Aegean Meridian Consulting".** Konstantinos and Vasilis can edit all of these.

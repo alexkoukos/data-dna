@@ -25,7 +25,7 @@ export default function App() {
         aria-label="Main"
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
       >
-        <span className="mr-4 py-2 font-bold">Data DNA</span>
+        <img src="/pyli-logo.svg" alt="Pyli" className="mr-4 h-8 self-center" />
         {links.map((l) => (
           <NavLink
             key={l.to}
