@@ -122,3 +122,7 @@ class ToolOut(BaseModel):
     requests: int
     trend: list[int]
     first_seen: str | None
+
+
+class SeenOut(BaseModel):
+    seen: bool

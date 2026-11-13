@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
+import ConnectPage from "./pages/ConnectPage";
 import IncidentsPage from "./pages/security/IncidentsPage";
 import OverviewPage from "./pages/security/OverviewPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
@@ -35,10 +36,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Placeholder title="Data DNA" note="Pick a screen above." />} />
         <Route path="/chat" element={<ChatPage />} />
-        <Route
-          path="/connect"
-          element={<Placeholder title="Connect a tool" note="See TASKS.md: web/connect." />}
-        />
+        <Route path="/connect" element={<ConnectPage />} />
         <Route path="/security" element={<SecurityLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />

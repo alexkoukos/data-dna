@@ -99,3 +99,17 @@ def test_read_endpoints_say_so_without_a_database(monkeypatch: pytest.MonkeyPatc
         r = c.get(path)
         assert r.status_code == 503
         assert "database" in r.json()["detail"]
+
+
+def test_user_seen_is_false_until_the_gateway_checked_a_request(client: TestClient) -> None:
+    assert client.get("/v1/users/demo-newbie/seen").json() == {"seen": False}
+    client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "demo-newbie",
+            "team": "general",
+            "model": "m",
+            "messages": [{"role": "user", "content": "hello"}],
+        },
+    )
+    assert client.get("/v1/users/demo-newbie/seen").json() == {"seen": True}

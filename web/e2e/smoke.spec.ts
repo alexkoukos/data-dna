@@ -77,3 +77,20 @@ test("chat holds a risky message and asks before sending", async ({ page }) => {
   await page.getByRole("button", { name: "Send anyway" }).click();
   await expect(page.getByText(/passed the safety check/)).toBeVisible();
 });
+
+test("connect page turns to Connected after a real request with the shown key", async ({
+  page,
+}) => {
+  await page.goto("/connect");
+  await expect(page.getByText(/Waiting for first request/)).toBeVisible();
+  await page.getByRole("button", { name: "Show personal key" }).click();
+  const key = await page.getByRole("textbox", { name: "Personal key" }).inputValue();
+  const res = await page.request.post("http://localhost:4000/v1/chat/completions", {
+    headers: { Authorization: `Bearer ${key}` },
+    data: { model: "demo-mock", messages: [{ role: "user", content: "Hello" }] },
+  });
+  expect(res.ok()).toBe(true);
+  await expect(page.getByText(/Connected\. The gateway has checked/)).toBeVisible({
+    timeout: 10_000,
+  });
+});
