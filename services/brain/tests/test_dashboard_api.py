@@ -312,7 +312,7 @@ def test_a_docx_upload_is_registered_and_then_recognised(
     from tests.test_extract import docx_bytes
 
     monkeypatch.setattr(main, "embedder", HashingEmbedder())
-    body = " ".join(f"tender{i} price{i % 9} lot{i % 4}" for i in range(40))
+    body = " ".join(f"tender{i} price{i * 7} lot{i * 11}" for i in range(80))
     made = client.post(
         "/v1/documents",
         data={"title": "Tender", "sensitivity": "confidential"},
@@ -325,7 +325,7 @@ def test_a_docx_upload_is_registered_and_then_recognised(
             "user_id": "u-x",
             "team": "Sales",
             "model": "m",
-            "messages": [{"role": "user", "content": body[:300]}],
+            "messages": [{"role": "user", "content": " ".join(body.split()[:22])}],
         },
     ).json()
     assert r["decision"] == "local"

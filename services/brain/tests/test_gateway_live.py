@@ -4,6 +4,7 @@ Run with: make test-gateway
 """
 
 import os
+import uuid
 
 import httpx
 import pytest
@@ -32,7 +33,7 @@ def client() -> OpenAI:
         f"{GATEWAY}/key/generate",
         headers=admin,
         json={
-            "user_id": "u-itest",
+            "user_id": f"u-itest-{uuid.uuid4().hex[:8]}",
             "team_id": "itest",
             "models": ["demo-mock", "demo-echo", "demo-leaky", "local"],
         },
