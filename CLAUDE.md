@@ -47,8 +47,5 @@ Refactoring UI, Baranov's typography, Nielsen's 10 heuristics, Better Stories co
 - WCAG AA contrast, visible keyboard focus, labels on every control, `aria-label` on icon buttons, touch targets at least 44 px.
 - Works at 390 px wide. Loading (skeletons), empty, error and success states designed for every screen.
 
-## Team learning rule
-After finishing a feature with a user, ask them 3 "why" questions about the design, one at a time, and wait for their answer before revealing yours. Skip if they say skip.
-
 ## Commands
 `make help` lists everything. Most used: `make setup`, `make up`, `make check`, `make test`, `make validate`, `make e2e`, `make down`.
