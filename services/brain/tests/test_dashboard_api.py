@@ -99,3 +99,10 @@ def test_read_endpoints_say_so_without_a_database(monkeypatch: pytest.MonkeyPatc
         r = c.get(path)
         assert r.status_code == 503
         assert "database" in r.json()["detail"]
+
+
+def test_documents_register_lists_sensitivity_and_incident_counts(client: TestClient) -> None:
+    docs = client.get("/v1/documents").json()
+    assert len(docs) == 3
+    assert {d["sensitivity"] for d in docs} <= {"internal", "confidential", "restricted"}
+    assert all(d["title"] and isinstance(d["incidents"], int) for d in docs)

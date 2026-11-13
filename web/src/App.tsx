@@ -1,7 +1,9 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
+import DocumentsPage from "./pages/security/DocumentsPage";
 import IncidentsPage from "./pages/security/IncidentsPage";
 import OverviewPage from "./pages/security/OverviewPage";
+import PoliciesPage from "./pages/security/PoliciesPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 import { Placeholder } from "./pages/Placeholder";
@@ -43,6 +45,8 @@ export default function App() {
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />
           <Route path="incidents" element={<IncidentsPage />} />
+          <Route path="documents" element={<DocumentsPage />} />
+          <Route path="policies" element={<PoliciesPage />} />
         </Route>
       </Routes>
     </div>

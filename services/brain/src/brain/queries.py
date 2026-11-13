@@ -6,7 +6,7 @@ from typing import Any
 
 import sqlalchemy as sa
 
-from brain.api.schemas import IncidentOut, IncidentPage, MetricsOut, ToolOut
+from brain.api.schemas import DocumentOut, IncidentOut, IncidentPage, MetricsOut, ToolOut
 from brain.db import tables as t
 
 
@@ -135,3 +135,24 @@ def inventory(conn: sa.Connection) -> list[ToolOut]:
             )
         )
     return out
+
+
+def documents(conn: sa.Connection) -> list[DocumentOut]:
+    counted = conn.execute(
+        sa.select(t.incidents.c.document_id, sa.func.count())
+        .where(t.incidents.c.document_id.is_not(None))
+        .group_by(t.incidents.c.document_id)
+    ).all()
+    hits: dict[int, int] = {int(doc_id): int(n) for doc_id, n in counted}
+    rows = conn.execute(sa.select(t.documents).order_by(t.documents.c.title)).mappings()
+    return [
+        DocumentOut(
+            id=r["id"],
+            title=r["title"],
+            sensitivity=r["sensitivity"],
+            dna_enabled=bool(r["dna_enabled"]),
+            created_at=r["created_at"],
+            incidents=int(hits.get(r["id"], 0)),
+        )
+        for r in rows
+    ]

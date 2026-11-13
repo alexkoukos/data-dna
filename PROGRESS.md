@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-13 19:00, Alexandros, task W5
+**Done:** `/security/policies`: every data category and document sensitivity in plain words with its current outcome chip, a select for the new action, a plain-words preview of what will happen, and Save (only when changed) or Cancel. Saves through `PUT /v1/policies` (takes effect within seconds), shows "Nothing was changed" if saving fails, warns when a category is set to Allow. `/security/documents`: register with sensitivity, incident count, per-copy marks status ("Not set up yet" until N1). New `GET /v1/documents`. No database change. Both pages are tabs in the Security frame.
+**State:** branch `task/W5-policies-documents`, PR open. `make check` green (83 brain tests, 31 web tests); `make e2e` 21 passed (axe, 390 px, 44 px targets on both new routes, plus a real change-and-restore of the client names policy). Branched from `main`, so it does not include PRs #10 to #12.
+**Next step:** W3 (incident detail), A1 (preset questions) or N2 (sealed identity). Documents page gets marks, approval and issued copies when N1 exists.
+**Problems / decisions needed:** the policy editor has no login, so anyone who can reach the dashboard can change policies (every change is written to `audit_log` as `dashboard`). Document upload and DNA marks are not on this page yet (D3, D4, N1). The "preview of effect" is a description of the action, not a count of past messages that would change.
+**Files touched:** services/brain/src/brain/{main.py,queries.py,api/schemas.py}, services/brain/tests/test_dashboard_api.py, web/src/{pages/security/{PoliciesPage,DocumentsPage,Policies.test,SecurityLayout}.tsx,lib/{policyText.ts,securityApi.ts},App.tsx}, web/e2e/smoke.spec.ts, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-14 05:00, Alexandros, tasks O1, O2, W2, W6 and project summary
 **Done (this entry):**
 - **O1 seed:** the demo company is generated and loaded when the brain starts on an empty database (`services/brain/src/brain/seed/`). 200 users (Greek names, pseudonyms `u-xxxxxxxx`), 8 teams, 10 clients, 3 documents, 14 days of gateway counters, about 660 incidents, and the storyline (tool spike, API key paste, contract paste, salary questions, memo rebuilt over days). Deterministic: `--seed 42` plus the anchor date. CLI: `uv run python ../../scripts/gen_org.py` from `services/brain`, or `python -m brain.seed`.

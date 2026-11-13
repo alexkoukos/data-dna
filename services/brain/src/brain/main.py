@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 
 from brain import queries
 from brain.api.schemas import (
+    DocumentOut,
     FindingOut,
     IncidentPage,
     InspectOutputRequest,
@@ -189,6 +190,11 @@ def list_incidents(
 ) -> IncidentPage:
     limit = max(1, min(limit, 100))
     return _read(lambda c: queries.incidents(c, decision, team, limit, max(offset, 0)))
+
+
+@app.get("/v1/documents", response_model=list[DocumentOut])
+def get_documents() -> list[DocumentOut]:
+    return _read(queries.documents)
 
 
 @app.get("/v1/inventory", response_model=list[ToolOut])

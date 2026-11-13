@@ -1,7 +1,16 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-const ROUTES = ["/", "/chat", "/connect", "/security", "/security/tools", "/security/incidents"];
+const ROUTES = [
+  "/",
+  "/chat",
+  "/connect",
+  "/security",
+  "/security/tools",
+  "/security/incidents",
+  "/security/documents",
+  "/security/policies",
+];
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
   { name: "phone 390 px", width: 390, height: 800 },
@@ -76,4 +85,22 @@ test("chat holds a risky message and asks before sending", async ({ page }) => {
   await page.getByLabel(/Say why/).fill("needed for an audit");
   await page.getByRole("button", { name: "Send anyway" }).click();
   await expect(page.getByText(/passed the safety check/)).toBeVisible();
+});
+
+test("policies: change one, see it saved, then put it back", async ({ page }) => {
+  await page.goto("/security/policies");
+  const select = page.getByLabel("What happens to client names");
+  const original = await select.inputValue();
+  const other = original === "block" ? "warn" : "block";
+  try {
+    await select.selectOption(other);
+    await page.getByRole("button", { name: "Save client names" }).click();
+    await expect(page.getByText(/Last changed by dashboard/).first()).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel("What happens to client names")).toHaveValue(other);
+  } finally {
+    await page.request.put("http://localhost:8001/v1/policies", {
+      data: { scope: "category", key: "client_name", action: original, updated_by: "e2e" },
+    });
+  }
 });
