@@ -1,4 +1,7 @@
+import os
 import random
+
+os.environ["DATABASE_URL"] = ""  # unit tests never need Postgres
 
 import pytest
 

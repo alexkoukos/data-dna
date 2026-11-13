@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from brain.detection.normalize import normalise
 from brain.detection.patterns import Finding, find_patterns, mask
 from brain.policy.engine import Decision, Verdict, decide
+from brain.policy.store import PolicySet
 
 
 @dataclass
@@ -16,14 +17,19 @@ class InspectResult:
     evasion_signals: list[str]
 
 
-def inspect_text(text: str) -> InspectResult:
+def inspect_text(text: str, policies: PolicySet | None = None) -> InspectResult:
     norm = normalise(text)
     findings = find_patterns(norm.text)
     hidden: list[Finding] = []
     for view in norm.extra_views:
         hidden.extend(find_patterns(view))
     categories = [f.category for f in findings + hidden]
-    verdict = decide(categories, evasion_signals=norm.evasion_signals)
+    verdict = decide(
+        categories,
+        evasion_signals=norm.evasion_signals,
+        category_actions=policies.categories if policies else None,
+        sensitivity_actions=policies.sensitivity if policies else None,
+    )
     # Evasion that hides an identifier cannot be masked in place: escalate to warn.
     if hidden and verdict.decision == Decision.MASK:
         verdict.decision = Decision.WARN

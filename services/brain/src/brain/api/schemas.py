@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -49,3 +51,18 @@ class InspectOutputResponse(BaseModel):
     text: str
     changed: bool = False
     findings: list[FindingOut] = Field(default_factory=list)
+
+
+class PolicyOut(BaseModel):
+    scope: str
+    key: str
+    action: str
+    updated_by: str | None = None
+    updated_at: datetime | None = None
+
+
+class PolicyUpdate(BaseModel):
+    scope: str
+    key: str
+    action: str
+    updated_by: str

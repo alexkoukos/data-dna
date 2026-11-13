@@ -1,0 +1,21 @@
+# Seed for the policy table (PRD section 10). Used only when the table is empty;
+# after that the database is the source of truth and the dashboard edits it.
+defaults:
+  on_gateway_down: { restricted: fail_closed, other: fail_open }
+categories:
+  greek_id: mask
+  iban: mask
+  card: mask
+  secret: mask
+  person_email_phone: mask
+  client_name: warn
+  source_code: warn
+  injection: block
+documents:
+  sensitivity:
+    internal: local
+    confidential: local
+    restricted: block # crown-jewel
+session:
+  rebuild_coverage_block: 0.4
+  max_prompts_per_restricted_doc: 3
