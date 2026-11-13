@@ -15,6 +15,20 @@ Template:
 
 ---
 
+## 2026-11-14 12:00, Alexandros, extra features X23, X11, X17, X2
+**Done:**
+- **X23 why-trace:** every `/v1/inspect` answer has `trace` (layers that fired, scores). Stored on `incidents.trace`, shown on the incident page ("Why this decision").
+- **X11 shadow mode:** `GET/PUT /v1/shadow-mode`. When on, the gateway gets `allow` and the incident is stored with the would-be decision and `shadow = true`. Switch and "would have" counts are on the Policies page. Stored in the new `settings` table; every change goes to `audit_log`.
+- **X17 compliance report:** `GET /v1/compliance-report.pdf` (reportlab), table in `services/brain/src/brain/compliance.py` and `docs/business/compliance-mapping.md` (Vasilis should check the article references with a lawyer).
+- **X2 attack set:** `data/eval/attacks.csv` (80 rows, made by `scripts/gen_attacks.py`), scored in `make eval`. First run 58 of 80; after reading more encodings it is **77 of 80**. New in the normaliser: look-alike letters folded inside mixed-alphabet words, hex, %-escapes, reversed IBAN, ROT13, leetspeak and s p a c e d letters. Decoded views now also go through the YARA and injection checks (`view_finders`). New rules: JWT, JSON-quoted keys, markdown-image exfiltration, "repeat the words above". Known misses: Greek letters standing in for G R of an IBAN, a look-alike domain in an email, Greeklish injection.
+- PRD targets still pass (recall 92.5%, false alarms 0%, p95 36 ms in process).
+**State:** branch `task/X-first-four`. **Database changed: run `make reset` then `make up`** (new `infra/db/04-trace-shadow.sql`; the brain also adds the columns at start, so an old volume works too). New dependency: reportlab (image rebuild).
+**Next step:** X1 "Try to break it" page (uses attacks.csv), then X4 honeytokens, X5 Greeklish, X6 Greek identifiers, X7 answer checks, X12, X13, X24.
+**Problems / decisions needed:** the arm64 CI check once hung for an hour on #28; cancelling and re-running fixed it.
+**Files touched:** brain (`trace.py`, `settings_store.py`, `compliance.py`, `detection/normalize.py`, `detection/pipeline.py`, `main.py`, `records.py`, `queries.py`, schemas, eval), `infra/db/04-trace-shadow.sql`, web (WhyPanel, ShadowCard, Policies and incident pages), `data/eval/attacks.csv`, docs.
+
+---
+
 ## 2026-11-14 06:00, Alexandros, tasks G4, M1, A2, D7 (evaluated) and better paraphrase matching
 **Done:**
 - **Security gap found and closed (G4):** LiteLLM also serves `/v1/messages` (Anthropic format, used by Claude Code), `/v1/responses` and `/v1/embeddings`, and our guardrail only looked at chat completions, so those doors **bypassed every check** (an injection and an IBAN went straight through). Now all four are checked: the Anthropic and responses shapes are flattened to text (tool results included, because secrets live there), masked text is written back, a secret inside a file or tool result cannot be masked in place so it asks first (409), embeddings cannot be routed to the local model (403), and any other kind of request (images, audio, pass-through) is refused. Anthropic answers are filtered too (not streamed answers: those are buffered and passed on as they are). Connect page has real Claude Code and MCP setup text.
