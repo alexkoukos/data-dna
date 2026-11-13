@@ -15,6 +15,23 @@ Template:
 
 ---
 
+## 2026-11-13 21:00, Alexandros, tasks A1, W3, N2 (and merge of E4, S2, W4, W5)
+**Done:**
+- **Merged to `main`:** E4 (#10) and W5 (#13, which also carries the S2 and W4 work, merged into it to save three slow CI runs; #11 and #12 were closed as included).
+- **A1:** `/security/ask`. Five preset questions as fixed SQL (`brain/ask/presets.py`), a table plus "Show the SQL behind this answer". `GET /v1/ask/presets`, `POST /v1/ask`. A short "Ask a question" box on the Overview links to it. The PRD question "teams that sent client data to unapproved tools" cannot be answered literally: the gateway only sees approved tools and logs show unapproved tools without content. The preset is therefore "Which teams used unapproved AI tools and also had client data caught this week?" (joins the two).
+- **W3:** `/security/incidents/:id` (an "Open details" link on every incident). Shows what happened in plain words, the masked preview, the matched document and marked copy when there is one, and the same person's other incidents. `GET /v1/incidents/{id}`. The real name is never in this response.
+- **N2:** sealed identity. One person requests a reveal with a reason (at least 10 characters), a different person approves or denies, then the name can be shown. Requester cannot approve their own request (case-insensitive). Every step is written to `audit_log` (`reveal.requested`, `reveal.approved|denied`, `identity.revealed`). Endpoints: `POST /v1/reveal-requests`, `/{id}/approve`, `/{id}/deny`, `GET /v1/incidents/{id}/identity`. No database change (`reveal_requests` was already in `init.sql`).
+**State:** branch `task/A1-analyst-presets` (contains A1, W3, N2), PR open. `make check` green (99 brain tests, 50 web tests); `make e2e` 26 passed against `make up`.
+**Next step:** Stelios: D1 to D4 (detection), E1 (`make eval`), L1 (local model). Alexandros: S2 on Linux and WSL (needs those machines), R4 freeze Thu 19 Nov 20:00. Konstantinos and Vasilis: T1 to T4, R1 text. After D3 and N1 exist, add the puzzle view (leaked chunks, percent rebuilt) and copy attribution to the incident page; today it only shows the document match, score and copy code when the incident has them.
+**Problems / decisions needed:**
+- **No login:** "person" in the reveal flow is a name typed into a box, so the two-person rule is only as strong as that honesty until there is sign-in. Anyone who can reach the dashboard can also change policies. Say so in the README limits.
+- Reveal requests accumulate in the database; the e2e test picks an incident with none. `make reset` clears them.
+- The seeded dashboard shows no incidents on unapproved tools with content (see A1 above).
+- Free-text questions (A2, P2) are not built.
+**Files touched:** services/brain/src/brain/{ask/presets.py,reveal.py,queries.py,main.py,api/schemas.py,db/tables.py}, services/brain/tests/test_dashboard_api.py, web/src/{pages/security/{AskPage,IncidentDetailPage}.tsx,pages/security/{Ask,IncidentDetail}.test.tsx,pages/security/OverviewPage.tsx,pages/security/SecurityLayout.tsx,components/{SealedIdentity,IncidentRow}.tsx,lib/securityApi.ts,App.tsx}, web/e2e/smoke.spec.ts, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-13 19:00, Alexandros, task W5
 **Done:** `/security/policies`: every data category and document sensitivity in plain words with its current outcome chip, a select for the new action, a plain-words preview of what will happen, and Save (only when changed) or Cancel. Saves through `PUT /v1/policies` (takes effect within seconds), shows "Nothing was changed" if saving fails, warns when a category is set to Allow. `/security/documents`: register with sensitivity, incident count, per-copy marks status ("Not set up yet" until N1). New `GET /v1/documents`. No database change. Both pages are tabs in the Security frame.
 **State:** branch `task/W5-policies-documents`, PR open. `make check` green (83 brain tests, 31 web tests); `make e2e` 21 passed (axe, 390 px, 44 px targets on both new routes, plus a real change-and-restore of the client names policy). Branched from `main`, so it does not include PRs #10 to #12.

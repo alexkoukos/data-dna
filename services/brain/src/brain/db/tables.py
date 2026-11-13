@@ -96,3 +96,15 @@ counters_daily = sa.Table(
     sa.Column("zero_llm", sa.Integer, server_default="0"),
     sa.Column("llm_tokens", sa.Integer, server_default="0"),
 )
+
+reveal_requests = sa.Table(
+    "reveal_requests",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("incident_id", _ID, sa.ForeignKey("incidents.id")),
+    sa.Column("requested_by", sa.Text, nullable=False),
+    sa.Column("reason", sa.Text, nullable=False),
+    sa.Column("approved_by", sa.Text),
+    sa.Column("status", sa.Text, server_default="pending"),
+    sa.Column("ts", sa.DateTime(timezone=True)),
+)

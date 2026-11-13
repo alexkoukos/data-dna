@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 import brain.main as main
 from brain.db import tables as t
 from brain.policy.store import PolicyStore
+from brain.policy.store import metadata as policy_metadata
 from brain.seed.load import run_seed
 
 IBAN = "GR1601101250000000012300695"
@@ -20,6 +21,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
         "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
     t.metadata.create_all(engine)
+    policy_metadata.create_all(engine)
     run_seed(engine, log_dir=tmp_path, anchor=datetime.now(UTC).date())
     monkeypatch.setattr(main, "policy_store", PolicyStore(engine, ttl_seconds=0))
     return TestClient(main.app)
@@ -137,3 +139,131 @@ def test_inspect_warns_when_a_seeded_client_name_is_in_the_message(client: TestC
     ).json()
     assert r["decision"] == "warn"
     assert any(f["category"] == "client_name" for f in r["findings"])
+
+
+def test_preset_questions_are_listed(client: TestClient) -> None:
+    presets = client.get("/v1/ask/presets").json()
+    assert len(presets) == 5
+    assert any("unapproved AI tools and also had client data" in p["question"] for p in presets)
+
+
+def test_every_preset_runs_and_shows_its_sql(client: TestClient) -> None:
+    for p in client.get("/v1/ask/presets").json():
+        out = client.post("/v1/ask", json={"preset": p["id"]}).json()
+        assert out["sql"].lstrip().startswith("SELECT")
+        assert out["columns"] and out["parameters"]["since"]
+        assert all(len(row) == len(out["columns"]) for row in out["rows"])
+
+
+def test_client_data_question_finds_the_storyline(client: TestClient) -> None:
+    out = client.post("/v1/ask", json={"preset": "top_tools"}).json()
+    assert out["rows"], "the demo company has tool usage in the last 7 days"
+    assert out["columns"] == ["tool", "approval", "requests"]
+    requests = [row[2] for row in out["rows"]]
+    assert requests == sorted(requests, reverse=True)
+
+
+def test_unknown_preset_gets_a_plain_404(client: TestClient) -> None:
+    r = client.post("/v1/ask", json={"preset": "drop_tables"})
+    assert r.status_code == 404
+    assert "preset" in r.json()["detail"]
+
+
+def test_ask_says_so_without_a_database(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "policy_store", PolicyStore(None))
+    r = TestClient(main.app).post("/v1/ask", json={"preset": "top_tools"})
+    assert r.status_code == 503
+
+
+def _an_incident_id(client: TestClient) -> int:
+    return int(client.get("/v1/incidents?limit=1").json()["items"][0]["id"])
+
+
+def test_incident_detail_shows_a_pseudonym_and_the_same_persons_timeline(
+    client: TestClient,
+) -> None:
+    detail = client.get(f"/v1/incidents/{_an_incident_id(client)}").json()
+    assert detail["incident"]["user"].startswith("u-")
+    assert "display_name" not in str(detail)
+    assert all(i["user"] == detail["incident"]["user"] for i in detail["timeline"])
+    assert detail["reveals"] == []
+
+
+def test_unknown_incident_is_a_plain_404(client: TestClient) -> None:
+    r = client.get("/v1/incidents/99999999")
+    assert r.status_code == 404
+    assert "does not exist" in r.json()["detail"]
+
+
+def test_identity_stays_sealed_until_a_second_person_approves(client: TestClient) -> None:
+    inc = _an_incident_id(client)
+    asked = client.post(
+        "/v1/reveal-requests",
+        json={"incident_id": inc, "requested_by": "Anna", "reason": "Pasted a client contract"},
+    ).json()
+    assert asked["status"] == "pending"
+    # Sealed while pending.
+    sealed = client.get(f"/v1/incidents/{inc}/identity?request_id={asked['id']}&viewer=Anna")
+    assert sealed.status_code == 403
+    # The requester cannot approve their own request.
+    own = client.post(f"/v1/reveal-requests/{asked['id']}/approve", json={"decided_by": " anna "})
+    assert own.status_code == 422
+    assert "second person" in own.json()["detail"]
+    # A different person can.
+    ok = client.post(f"/v1/reveal-requests/{asked['id']}/approve", json={"decided_by": "Nikos"})
+    assert ok.json()["status"] == "approved"
+    seen = client.get(f"/v1/incidents/{inc}/identity?request_id={asked['id']}&viewer=Anna").json()
+    assert seen["pseudonym"].startswith("u-")
+    assert seen["display_name"]
+    # Every step is in the audit log.
+    assert main.policy_store.engine is not None
+    with main.policy_store.engine.connect() as conn:
+        actions = [
+            r[0]
+            for r in conn.execute(
+                sa.text(
+                    "SELECT action FROM audit_log WHERE action LIKE 'reveal.%' "
+                    "OR action LIKE 'identity.%' ORDER BY id"
+                )
+            )
+        ]
+    assert actions == ["reveal.requested", "reveal.approved", "identity.revealed"]
+
+
+def test_denied_request_never_reveals_and_cannot_be_decided_twice(client: TestClient) -> None:
+    inc = _an_incident_id(client)
+    asked = client.post(
+        "/v1/reveal-requests",
+        json={"incident_id": inc, "requested_by": "Anna", "reason": "Just curious about this"},
+    ).json()
+    denied = client.post(f"/v1/reveal-requests/{asked['id']}/deny", json={"decided_by": "Nikos"})
+    assert denied.json()["status"] == "denied"
+    again = client.post(f"/v1/reveal-requests/{asked['id']}/approve", json={"decided_by": "Eva"})
+    assert again.status_code == 422
+    sealed = client.get(f"/v1/incidents/{inc}/identity?request_id={asked['id']}")
+    assert sealed.status_code == 403
+
+
+def test_reveal_needs_a_real_reason_and_only_one_pending_request(client: TestClient) -> None:
+    inc = _an_incident_id(client)
+    short = client.post(
+        "/v1/reveal-requests", json={"incident_id": inc, "requested_by": "Anna", "reason": "hi"}
+    )
+    assert short.status_code == 422
+    body = {"incident_id": inc, "requested_by": "Anna", "reason": "Pasted a client contract"}
+    assert client.post("/v1/reveal-requests", json=body).status_code == 200
+    dup = client.post("/v1/reveal-requests", json=body)
+    assert dup.status_code == 422
+    assert "already waiting" in dup.json()["detail"]
+
+
+def test_an_approval_for_one_incident_does_not_open_another(client: TestClient) -> None:
+    items = client.get("/v1/incidents?limit=2").json()["items"]
+    a, b = items[0]["id"], items[1]["id"]
+    asked = client.post(
+        "/v1/reveal-requests",
+        json={"incident_id": a, "requested_by": "Anna", "reason": "Pasted a client contract"},
+    ).json()
+    client.post(f"/v1/reveal-requests/{asked['id']}/approve", json={"decided_by": "Nikos"})
+    r = client.get(f"/v1/incidents/{b}/identity?request_id={asked['id']}")
+    assert r.status_code == 403
