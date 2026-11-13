@@ -28,8 +28,8 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **P1** P0 Policies from DB + `policies.yaml` seed, editable (PRD 10). Owner: Alexandros.
 
 ## Shadow AI, DNA, analyst
-- [ ] **O1** P0 `scripts/gen_org.py --seed 42` from `data/org/org.yaml`: users, keys, clients, documents, Squid + Zeek logs, incidents (PRD 21a). Owner: Stelios.
-- [ ] **O2** P0 Log ingest + AI tool inventory from `data/ai_tools.csv` (PRD 11). Owner: Stelios.
+- [x] **O1** P0 `scripts/gen_org.py --seed 42` from `data/org/org.yaml`: users, keys, clients, documents, Squid + Zeek logs, incidents (PRD 21a). Owner: Stelios.
+- [x] **O2** P0 Log ingest + AI tool inventory from `data/ai_tools.csv` (PRD 11). Owner: Stelios.
 - [ ] **O3** P1 Employee simulator (`scripts/simulate.py`, compose profile `sim`) (PRD 21a). Owner: Stelios.
 - [ ] **N1** P1 DNA marks: propose, approve, issue copies, attribution with confidence (PRD 12). Owner: Stelios.
 - [ ] **N2** P1 Sealed identity + two-person reveal + audit log (PRD 12). Owner: Alexandros.

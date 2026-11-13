@@ -83,6 +83,10 @@ class PolicyStore:
         self._lock = threading.Lock()
         self._seed = load_seed()
 
+    @property
+    def engine(self) -> Engine | None:
+        return self._engine
+
     def invalidate(self) -> None:
         with self._lock:
             self._cached = None

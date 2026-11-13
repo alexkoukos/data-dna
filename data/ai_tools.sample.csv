@@ -1,0 +1,16 @@
+name,vendor,domains,category,approval,risk,reason,alternative
+Company AI,Data DNA gateway,gateway.local,chat,approved,low,"All traffic is checked by the gateway",
+Claude Code (gateway),Anthropic via gateway,gateway.claude.local,coding,approved,low,"Runs through the company gateway",
+GitHub Copilot,GitHub,api.githubcopilot.com;copilot-proxy.githubusercontent.com,coding,approved,medium,"Company licence, code stays in the tenant",
+Microsoft Copilot,Microsoft,copilot.microsoft.com,chat,approved,medium,"Company tenant with data protection",
+ChatGPT (personal),OpenAI,chatgpt.com;chat.openai.com,chat,unapproved,high,"Personal accounts keep prompts and may train on them",Company AI
+Claude.ai,Anthropic,claude.ai,chat,tolerated,medium,"Consumer product outside the company tenant",Company AI
+Gemini,Google,gemini.google.com,chat,unapproved,high,"Personal Google accounts, prompts are retained",Company AI
+DeepSeek,DeepSeek,chat.deepseek.com;api.deepseek.com,chat,unapproved,high,"Data is processed outside the EU with no agreement",Company AI
+Perplexity,Perplexity AI,perplexity.ai,search,tolerated,medium,"Queries are retained, no company agreement",Company AI
+Otter.ai,Otter.ai,otter.ai,transcription,unapproved,high,"Records and stores meeting audio and transcripts",Company AI
+Grammarly,Grammarly,grammarly.com;app.grammarly.com,writing,tolerated,medium,"Text is sent to a third party for suggestions",
+DeepL,DeepL,deepl.com;api.deepl.com,translation,tolerated,medium,"Free tier keeps text, Pro does not",Company AI
+Midjourney,Midjourney,midjourney.com,image,tolerated,low,"Images only, no company data expected",
+Canva,Canva,canva.com,design,tolerated,low,"Design tool with AI features",
+Character.AI,Character Technologies,character.ai,entertainment,unapproved,medium,"No business use",
