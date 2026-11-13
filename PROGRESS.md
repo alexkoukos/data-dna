@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-13 17:00, Alexandros, task G1
+**Done:** LiteLLM gateway (`ghcr.io/berriai/litellm:v1.109.1`) in compose on :4000. Custom guardrail `infra/gateway/dna_guardrail.py` calls `brain /v1/inspect` before every request: mask replaces the messages, warn returns 409 (the `X-DNA-Ack` header lets it through), block returns 403, local reroutes to model `local`. Fails closed with 503 if the brain is down. Virtual keys work (needs a team first: `POST /team/new`, then `/key/generate`). Offline model `demo-mock` answers without an OpenAI key. LiteLLM has its own database `litellm` (`infra/db/02-litellm.sql`, created on a fresh volume only, so run `make reset` once after pulling).
+**State:** branch `task/G1-gateway`, PR open. `make check` green (30 brain tests, 94% coverage). `make test-gateway` (4 live tests through the OpenAI SDK, needs `make up`) green locally.
+**Next step:** G3 (warn/block polish) and G2 (unmask + `/v1/inspect-output`). The brain has no `/v1/unmask` yet, so mask answers still show placeholders. Add `LITELLM_MASTER_KEY=sk-admin-change-me` to `.env.example` (compose has the default already).
+**Problems / decisions needed:** Model `local` is not defined until L1 (Ollama), so a `local` decision currently fails. Key creation by the brain (`/v1/keys`) is not built yet.
+**Files touched:** infra/gateway/*, infra/db/02-litellm.sql, infra/db/Dockerfile, docker-compose.yml, Makefile, services/brain/tests/test_gateway_*.py, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-13 15:30, Alexandros, task S1
 **Done:** `make setup` and `make up` run on macOS (OrbStack). Only fix needed: web healthcheck used `localhost`, which resolves to IPv6 in Alpine while nginx listens on IPv4, so the container stayed unhealthy. Now uses `127.0.0.1`. Verified: http://localhost:3000 returns 200, brain on :8001 healthy, `make check` green. Repo created private at github.com/alexkoukos/data-dna, `main` protected (PR + checks brain, web, smoke, secrets).
 **State:** branch `task/S1-make-up`, PR open. CI smoke on GitHub not yet seen.
