@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-14 00:00, Alexandros, task G2 (streaming)
+**Done:** Streaming answers (`stream: true`) are now filtered and unmasked like normal ones. The gateway collects the whole streamed answer first (a secret or a placeholder such as `[IBAN_1]` can be split across chunks, and a half-seen value cannot be filtered), cleans it through `/v1/inspect-output` and `/v1/unmask`, and sends it in the first text chunk; role, finish and usage chunks pass through in order. If the brain is down nothing is shown (503). G2 is complete.
+**State:** branch `task/G2-streaming`, PR open. `make check` green (63 brain tests); `make test-gateway` 8 live tests green (2 are streaming).
+**Next step:** W6 (axe + 390 px on every route, so far only `/chat` is real) or W2 (Security overview + inventory + incidents list, needs O1/O2 data from Stelios). Ask which first.
+**Problems / decisions needed:** The stream arrives as one text chunk, so the typing effect is lost for streamed answers. A chunk-by-chunk version (hold back text after an unclosed `[`, filter per sentence) is possible later if the demo needs it. The chat page does not stream yet. The `x-dna-decision` header is not set on streamed responses.
+**Files touched:** infra/gateway/{dna_inspect.py,dna_guardrail.py}, services/brain/tests/{test_gateway_logic.py,test_gateway_live.py}, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-13 23:00, Alexandros, task W1
 **Done:** Company Chat at `/chat`. On first visit the page asks the brain for a personal key (`POST /v1/keys`, new, demo mode only, creates the team and key in LiteLLM) and keeps it in localStorage. Messages go through nginx `/gateway/` to the gateway. The gateway now sends `x-dna-decision` and `x-dna-reasons` headers, so each message shows an outcome chip with icon and text (Allowed, Masked, Answered locally, Warned, Blocked) and a "Why?" disclosure in plain words. Warn shows a card (Edit message is primary, Send anyway needs a reason and is sent as `X-DNA-Ack`, Cancel). Block shows the reasons and the approved alternative. Loading skeleton, empty state with three starter prompts, friendly errors with retry. Chips now have icons everywhere. Works at 390 px, no horizontal scroll, axe clean. Tests: 14 web unit tests, 2 new Playwright flows through the real stack, 5 new brain tests.
 **State:** branch `task/W1-company-chat`, PR open. `make check` green; `make e2e` 6 passed against `make up`. No database change. Run `make up` again after pulling (nginx, compose env and gateway changed).

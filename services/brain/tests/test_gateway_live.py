@@ -80,3 +80,21 @@ def test_masked_value_is_restored_in_the_answer(client: OpenAI) -> None:
 def test_secret_in_a_model_answer_is_masked(client: OpenAI) -> None:
     answer = _ask(client, "How do I deploy?", model="demo-leaky")
     assert "AKIAIOSFODNN7EXAMPLE" not in answer
+
+
+def _stream(client: OpenAI, text: str, model: str) -> str:
+    stream = client.chat.completions.create(
+        model=model, messages=[{"role": "user", "content": text}], stream=True
+    )
+    return "".join(c.choices[0].delta.content or "" for c in stream if c.choices)
+
+
+def test_streamed_answer_gets_masked_value_back(client: OpenAI) -> None:
+    answer = _stream(client, "Check IBAN GR1601101250000000012300695", "demo-echo")
+    assert "GR1601101250000000012300695" in answer
+    assert "[IBAN_1]" not in answer
+
+
+def test_streamed_answer_is_filtered(client: OpenAI) -> None:
+    answer = _stream(client, "How do I deploy?", "demo-leaky")
+    assert "AKIAIOSFODNN7EXAMPLE" not in answer

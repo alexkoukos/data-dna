@@ -132,3 +132,52 @@ def test_finalize_withholds_answer_when_brain_is_down() -> None:
     with pytest.raises(dna.GatewayError) as err:
         _finalize(handler, "sid")
     assert err.value.status_code == 503
+
+
+class _Obj:
+    def __init__(self, **kw: Any) -> None:
+        self.__dict__.update(kw)
+
+
+def _chunk(content: str | None, finish: str | None = None) -> _Obj:
+    return _Obj(choices=[_Obj(delta=_Obj(content=content), finish_reason=finish)])
+
+
+def _stream(chunks: list[_Obj], transform: Any) -> list[_Obj]:
+    async def source() -> Any:
+        for c in chunks:
+            yield c
+
+    async def go() -> list[_Obj]:
+        return [c async for c in dna.rewrite_stream(source(), transform)]
+
+    return asyncio.run(go())
+
+
+def test_stream_cleans_text_split_across_chunks() -> None:
+    seen: list[str] = []
+
+    async def transform(text: str) -> str:
+        seen.append(text)
+        return text.replace("[IBAN_1]", "GR16")
+
+    out = _stream([_chunk("Check [IB"), _chunk("AN_1] ok"), _chunk(None, "stop")], transform)
+    assert seen == ["Check [IBAN_1] ok"]
+    assert [c.choices[0].delta.content for c in out] == ["Check GR16 ok", None]
+    assert out[-1].choices[0].finish_reason == "stop"
+
+
+def test_stream_without_text_passes_through() -> None:
+    async def transform(text: str) -> str:
+        raise AssertionError("should not be called")
+
+    out = _stream([_chunk(None, "stop")], transform)
+    assert len(out) == 1
+
+
+def test_stream_withholds_everything_when_check_fails() -> None:
+    async def transform(text: str) -> str:
+        raise dna.GatewayError(503, {"type": "unavailable"})
+
+    with pytest.raises(dna.GatewayError):
+        _stream([_chunk("secret")], transform)
