@@ -5,7 +5,12 @@
 Runs inside the brain image so the file lands in the `models` volume the brain reads.
 """
 
-from huggingface_hub import snapshot_download
+import os
+
+# The brain image is offline by default (its embedding model is baked in); this one download is not.
+os.environ["HF_HUB_OFFLINE"] = "0"
+
+from huggingface_hub import snapshot_download  # noqa: E402
 
 snapshot_download(
     "protectai/deberta-v3-base-prompt-injection-v2",
