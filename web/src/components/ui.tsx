@@ -23,7 +23,7 @@ export function ErrorPanel({ what, onRetry }: { what: string; onRetry: () => voi
       className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Thyro pose="empty" />
+        <Thyro pose="empty" size={176} />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">We could not load {what}.</p>
           <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
@@ -43,7 +43,7 @@ export function ErrorPanel({ what, onRetry }: { what: string; onRetry: () => voi
 export function EmptyPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-6 rounded-lg border border-dashed border-ink-300 bg-white p-6">
-      <Thyro pose="empty" />
+      <Thyro pose="empty" size={208} />
       <div className="min-w-0 flex-1">
         <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
         <div className="mt-1 max-w-prose text-ink-600">{children}</div>

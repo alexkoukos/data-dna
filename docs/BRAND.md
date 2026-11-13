@@ -4,6 +4,19 @@ Pyli (πύλη, "gate") is the company AI gateway. The brand is a gatekeeper: ca
 
 One-page overview: [`docs/brand/brand-sheet.png`](brand/brand-sheet.png) (source: `brand-sheet.html`).
 
+## Name
+
+The product is **Pyli** (πύλη), and in plain words it is **the gate**. Say it that way everywhere: in the UI, the README, the pitch and the video.
+
+| Say | Not |
+|---|---|
+| Pyli, the gate | Data DNA, the gateway |
+| Every prompt passes the gate. | Every request goes through the gateway. |
+| The gate masked 2 card numbers. | The system sanitized the data. |
+| Gate address | Gateway URL |
+
+"Gateway" stays only inside code and API paths (`gateway/`, `/gateway/v1`). Anything a person reads says "the gate". The repo and some internal names still say Data DNA; they are being renamed as files are touched.
+
 ## Idea
 
 **A closed gate with a lit lamp.** Two stone pillars, an arched iron gate between them, one lamp on top. The gate is shut by default; the lamp shows someone is on duty. The lamp is the only brand-colored part of the mark, and it returns as the dot on the wordmark's *i* and as the mascot's light.
@@ -66,10 +79,33 @@ PNG exports (720 px) are in `brand/mascot/png/`.
 
 Rules
 - Never show an outcome with Thyro alone. The badge with its label goes next to him.
+- **Make him big.** He is the face of the product: 160 px at the very least, 200 to 360 px on empty states, errors, the home screen and decision cards. The avatar is the only small version (48 px minimum).
+- **He always moves** (see Motion). The SVG files are animated; use them as `<img>`, no script needed.
 - No alarm: no sweat drops, no shouting, no flashing. Block is a shut gate, not a siren.
-- Use him at 96 px or larger. Below that, use the avatar (48 px minimum) or just the badge.
 - Empty states: pose, one sentence, one action. "Nothing has come through the gate yet. Connect a tool to start."
 - Same line weight everywhere (5 px at 240 px). Don't add arms, shading or gradients.
+
+## Motion
+
+Animation is part of the brand, everywhere: calm, purposeful, and it always answers something (a decision, a touch, a state change).
+
+**Thyro (inside each SVG).** On load he pops in, the gate leaves swing to their pose (open, ajar or shut) and then he idles: a slow float, the lamp breathing with its halo, the finials flickering, a blink every few seconds.
+
+| Pose | What he does |
+|---|---|
+| master | Smiles wider now and then |
+| allow | Gate swings open, path dots flow through, he hops with a grin |
+| warn | Gate half open, eyebrow rises, eyes glance, head tilts: "hmm" |
+| mask | Tape slides over the lamp, he winks |
+| local | Lamp circled by a dotted ring that keeps orbiting, eyes look up at it |
+| block | Latch drops across the gate, a tiny firm shake, never a siren |
+| empty | Glances left and right, waiting; the lamp stays unlit |
+
+**Interface.** Pages and list items fade up, staggered. Outcome chips pop in when a decision lands. Skeletons shimmer. Buttons lift on hover and press in on click. The nav slides in and the logo sways.
+
+Timing: 0.2 to 0.55 s for interface, 3 to 6 s for idle loops. Easing is a soft ease-out (`cubic-bezier(0.2, 0.8, 0.2, 1)`); one gentle overshoot is allowed on pop-ins.
+
+**Reduced motion.** Everything stops under `prefers-reduced-motion: reduce` and the final frame stays. Never rely on motion alone to carry meaning: the label is always there.
 
 ## Color
 

@@ -3,7 +3,7 @@
 This repo is shared by four people who hand work to each other, often mid-feature, when someone runs out of tokens. Your job is to keep the repo in a state where anyone can pick it up in five minutes.
 
 ## What we are building
-Data DNA, an AI gateway for Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection and Data Protection). The full spec is `docs/PRD.md`. The plain-language version for the whole team is `docs/IDEA_AND_TEAM.md`. Read the PRD section you need before writing code; do not guess the design.
+Pyli (πύλη, "the gate"; the repo and some code still say Data DNA), an AI gate for Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection and Data Protection). The full spec is `docs/PRD.md`. The plain-language version for the whole team is `docs/IDEA_AND_TEAM.md`. Read the PRD section you need before writing code; do not guess the design.
 
 Deadline: Friday 20 Nov 2026, judged from the repo alone. If `docker compose up --build` fails on a judge's machine, the submission is void.
 

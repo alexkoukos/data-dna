@@ -55,7 +55,7 @@ export default function DocumentsPage() {
     body = (
       <EmptyPanel title="No protected documents yet">
         <p>
-          Once a confidential document is registered, the gateway recognises it even when it is
+          Once a confidential document is registered, the gate recognises it even when it is
           rewritten, and it shows up here.
         </p>
       </EmptyPanel>
@@ -64,8 +64,8 @@ export default function DocumentsPage() {
     body = (
       <>
         <p className="max-w-prose text-ink-600">
-          Documents the gateway protects. The sensitivity decides what happens when someone pastes
-          them into an AI tool; change that on the Policies tab.
+          Documents the gate protects. The sensitivity decides what happens when someone pastes them
+          into an AI tool; change that on the Policies tab.
         </p>
         <ul className="mt-4 space-y-3">
           {state.data.map((d) => (

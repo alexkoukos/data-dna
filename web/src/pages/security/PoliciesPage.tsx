@@ -118,7 +118,7 @@ function Group({
   );
 }
 
-/** Container: what the gateway does for each kind of sensitive data. Edits apply within seconds. */
+/** Container: what the gate does for each kind of sensitive data. Edits apply within seconds. */
 export default function PoliciesPage() {
   const [state, reload] = useFetch(fetchPolicies);
   const [saved, setSaved] = useState<Policy[]>([]);
@@ -148,7 +148,7 @@ export default function PoliciesPage() {
   return (
     <>
       <p className="max-w-prose text-ink-600">
-        Choose what happens when the gateway finds each kind of data. When several apply to one
+        Choose what happens when the gate finds each kind of data. When several apply to one
         message, the strictest wins: block, then answer locally, then warn, then mask.
       </p>
       <Group

@@ -39,7 +39,7 @@ const ICONS: Record<Outcome, ReactNode> = {
 export function OutcomeChip({ outcome, detail }: { outcome: Outcome; detail?: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-semibold ${STYLES[outcome]}`}
+      className={`chip-pop inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-semibold ${STYLES[outcome]}`}
     >
       <span aria-hidden="true" className={`size-2 rounded-full ${DOTS[outcome]}`} />
       {ICONS[outcome]}

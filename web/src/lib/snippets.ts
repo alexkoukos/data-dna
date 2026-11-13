@@ -59,7 +59,7 @@ API Key:  ${key}`,
     {
       id: "claude-code",
       label: "Claude Code",
-      note: "Not available yet. Claude Code needs an Anthropic-format address, which the gateway does not offer in this version.",
+      note: "Not available yet. Claude Code needs an Anthropic-format address, which the gate does not offer in this version.",
       code: null,
     },
     {

@@ -20,7 +20,7 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
       className="rounded-lg border border-warn-fg/30 bg-warn-bg p-4 text-warn-fg"
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Thyro pose="warn" />
+        <Thyro pose="warn" size={200} />
         <div className="min-w-0 flex-1">
           <h2 id="warn-title" className="flex items-center gap-2 text-base font-semibold">
             <AlertIcon />

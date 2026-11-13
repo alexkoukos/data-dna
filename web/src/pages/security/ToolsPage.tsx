@@ -106,7 +106,7 @@ export default function ToolsPage() {
   return (
     <>
       <p className="max-w-prose text-ink-600">
-        Every AI tool we can see in network logs and gateway traffic. Unapproved tools come first.
+        Every AI tool we can see in network logs and gate traffic. Unapproved tools come first.
       </p>
       <div role="group" aria-label="Filter by approval" className="mt-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (

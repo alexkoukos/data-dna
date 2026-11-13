@@ -38,7 +38,7 @@ function Detail({ id }: { id: string }) {
         aria-labelledby="what-h"
         className="flex flex-wrap gap-6 rounded-lg border border-ink-200 bg-white p-4"
       >
-        <Thyro pose={incident.decision} size={144} />
+        <Thyro pose={incident.decision} size={240} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <OutcomeChip outcome={incident.decision} />

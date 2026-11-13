@@ -149,7 +149,7 @@ export default function ChatPage() {
           className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
         >
           <div className="flex flex-wrap items-center gap-4">
-            <Thyro pose="empty" />
+            <Thyro pose="empty" size={176} />
             <div className="min-w-0 flex-1">
               <p className="font-semibold">We could not start your chat.</p>
               <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
@@ -181,7 +181,7 @@ export default function ChatPage() {
             )}
             {busy ? (
               <div role="status" className="mt-4 flex items-center gap-3 text-sm text-ink-600">
-                <Thyro pose="master" />
+                <Thyro pose="master" size={160} />
                 Checking and answering…
               </div>
             ) : null}
@@ -201,7 +201,7 @@ export default function ChatPage() {
                 role="alert"
                 className="mt-4 flex items-center gap-3 rounded-lg bg-block-bg p-3 text-sm text-block-fg"
               >
-                <Thyro pose="empty" />
+                <Thyro pose="empty" size={128} />
                 <p>{error} Your message is back in the box.</p>
               </div>
             ) : null}

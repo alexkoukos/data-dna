@@ -33,14 +33,14 @@ function LiveStatus({ userId }: { userId: string }) {
 
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <Thyro pose={seen ? "allow" : "empty"} />
+      <Thyro pose={seen ? "allow" : "empty"} size={224} />
       <p
         role="status"
         className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-semibold ${seen ? "bg-allow-bg text-allow-fg" : "bg-ink-100 text-ink-700"}`}
       >
         {seen ? (
           <>
-            <CheckIcon /> Connected. The gateway has checked a request with this key.
+            <CheckIcon /> Connected. The gate has checked a request with this key.
           </>
         ) : (
           <>
@@ -152,7 +152,7 @@ export default function ConnectPage() {
       {state.status === "ready" && (
         <>
           <div className="mt-6 space-y-4">
-            <CopyField label="Gateway address" value={url} />
+            <CopyField label="Gate address" value={url} />
             <CopyField label="Personal key" value={state.data.key} secret />
             <p className="text-sm text-ink-600">
               This key is yours. Do not share it. The company chat uses the same key.

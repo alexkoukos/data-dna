@@ -11,7 +11,7 @@ model_list:
     litellm_params:
       model: openai/demo-mock
       api_key: not-used
-      mock_response: "Hello from the Data DNA demo model. Your message passed the safety check."
+      mock_response: "Hello from the Pyli demo model. Your message passed the safety check."
 
   # Demo models that let the integration tests prove unmask and output filtering offline.
   - model_name: demo-echo
