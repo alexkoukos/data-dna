@@ -7,3 +7,4 @@ COPY init.sql /docker-entrypoint-initdb.d/01-init.sql
 COPY 02-litellm.sql /docker-entrypoint-initdb.d/02-litellm.sql
 COPY 03-doc-chunk-lang.sql /docker-entrypoint-initdb.d/03-doc-chunk-lang.sql
 COPY 04-trace-shadow.sql /docker-entrypoint-initdb.d/04-trace-shadow.sql
+COPY 05-honeytokens.sql /docker-entrypoint-initdb.d/05-honeytokens.sql

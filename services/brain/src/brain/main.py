@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import binascii
+import csv
 import html
 import logging
 import time
@@ -25,6 +26,8 @@ from brain.api.schemas import (
     DocumentHit,
     DocumentOut,
     FindingOut,
+    HoneytokenOut,
+    HoneytokenRequest,
     IdentityOut,
     IncidentDetail,
     IncidentPage,
@@ -34,6 +37,7 @@ from brain.api.schemas import (
     InspectResponse,
     KeyRequest,
     KeyResponse,
+    LayerOut,
     MarkOut,
     Message,
     MetricsOut,
@@ -52,6 +56,9 @@ from brain.api.schemas import (
     ToolResultRequest,
     ToolResultResponse,
     TraceStep,
+    TryExample,
+    TryOut,
+    TryRequest,
     UnmaskRequest,
     UnmaskResponse,
 )
@@ -62,6 +69,8 @@ from brain.config import settings
 from brain.db import tables as t
 from brain.db.engine import ensure_schema, make_engine
 from brain.detection.entities import EntityDetector
+from brain.detection.greeklish import find_greeklish_names
+from brain.detection.layers import explain
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
 from brain.detection.pipeline import Finder, InspectResult, inspect_text
@@ -73,6 +82,14 @@ from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.registry import DocumentIndex, register_document
 from brain.documents.session import update_coverage
+from brain.honeytokens import (
+    Honeytoken,
+    HoneytokenStore,
+    Owner,
+    generate,
+    plant_block,
+    record_alarm,
+)
 from brain.injection.classifier import InjectionClassifier
 from brain.injection.heuristics import injection_finder
 from brain.keys import KeyError_, create_key, default_model
@@ -88,6 +105,7 @@ policy_store = PolicyStore(make_engine())
 entity_detector = EntityDetector()
 injection_classifier = InjectionClassifier()
 _client_store: ClientStore | None = None
+_honeytoken_store: HoneytokenStore | None = None
 
 
 embedder = E5Embedder()
@@ -101,6 +119,13 @@ def _documents() -> DocumentIndex:
     return _doc_index
 
 
+def _honeytokens() -> HoneytokenStore:
+    global _honeytoken_store
+    if _honeytoken_store is None or _honeytoken_store.engine is not policy_store.engine:
+        _honeytoken_store = HoneytokenStore(policy_store.engine)
+    return _honeytoken_store
+
+
 def _finders() -> list[Finder]:
     """Looser detectors that run after the checksum checks: people, emails, phones, clients."""
     global _client_store
@@ -110,6 +135,7 @@ def _finders() -> list[Finder]:
         find_yara,
         injection_finder,
         injection_classifier.find,
+        find_greeklish_names,
         entity_detector.find,
         _client_store.find,
     ]
@@ -217,6 +243,20 @@ def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
             result.verdict.decision = Decision.BLOCK
 
 
+def _decoy_alarm(result: InspectResult) -> list[Owner]:
+    """A planted decoy in the prompt means a confidential document left the company (X4)."""
+    owners: list[Owner] = []
+    for f in result.findings:
+        owner = _honeytokens().owner(f.value) if f.category == "honeytoken" else None
+        if owner is not None and owner not in owners:
+            owners.append(owner)
+            result.verdict.reasons.append(
+                f"A decoy credential planted in the document '{owner.title}' appeared in this "
+                "message, so that document has left the company. This is recorded as an incident."
+            )
+    return owners
+
+
 @app.post("/v1/inspect", response_model=InspectResponse)
 def inspect(
     req: InspectRequest, background: BackgroundTasks, response: Response
@@ -233,7 +273,9 @@ def inspect(
         _finders(),
         _documents().match,
         view_finders=[find_yara, injection_finder],
+        priority_finder=_honeytokens().find,
     )
+    decoys = _decoy_alarm(result)
     t_checks = time.perf_counter()
     reasons_before = len(result.verdict.reasons)
     _escalate_rebuilds(req, result)
@@ -283,12 +325,20 @@ def inspect(
         categories=[f.category for f in result.findings],
         reasons=result.verdict.reasons,
         masked_preview=result.findings[0].masked_preview if result.findings else None,
-        document_id=result.doc_matches[0].document_id if result.doc_matches else None,
+        document_id=(
+            result.doc_matches[0].document_id
+            if result.doc_matches
+            else decoys[0].document_id
+            if decoys
+            else None
+        ),
         score=result.doc_matches[0].score if result.doc_matches else None,
         copy_code=leaked_copy,
         trace=steps,
         shadow=shadow,
     )
+    for owner in decoys:
+        background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
     return InspectResponse(
         session_id=session_id,
         decision=decision,
@@ -367,6 +417,76 @@ def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> 
     )
     text = result.masked_text if decision == "mask" else ""
     return ToolResultResponse(decision=decision, text=text, reasons=result.verdict.reasons)
+
+
+@app.post("/v1/try", response_model=TryOut)
+def try_to_break(req: TryRequest) -> TryOut:
+    """The "Try to break it" page: run the whole pipeline on any text and say which level caught
+    it. Nothing is stored and no session memory is touched, so nobody's practice shows up as an
+    incident."""
+    result = inspect_text(
+        req.text,
+        policy_store.current(),
+        _finders(),
+        _documents().match,
+        view_finders=[find_yara, injection_finder],
+        priority_finder=_honeytokens().find,
+    )
+    _decoy_alarm(result)
+    layers = explain(result)
+    first = next((x for x in layers if x.fired and x.id != "normalise"), None)
+    return TryOut(
+        decision=str(result.verdict.decision),
+        reasons=result.verdict.reasons,
+        masked_text=result.masked_text,
+        findings=[
+            FindingOut(entity=f.entity, category=f.category, masked_preview=f.masked_preview)
+            for f in result.findings
+        ],
+        evasion_signals=result.evasion_signals,
+        layers=[LayerOut(**x.__dict__) for x in layers],
+        caught_by=first.label if first else None,
+    )
+
+
+@app.get("/v1/try/examples", response_model=list[TryExample])
+def try_examples() -> list[TryExample]:
+    """A few starting attacks, one per kind, taken from data/eval/attacks_scripts.csv."""
+    path = Path(settings.data_dir) / "eval" / "attacks_scripts.csv" if settings.data_dir else None
+    if path is None or not path.exists():
+        return []
+    seen: set[str] = set()
+    out: list[TryExample] = []
+    with path.open(encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            cat, text = row["category"], row["text"]
+            if cat in seen or len(text) > 220 or row["expected_decision"] == "allow":
+                continue
+            seen.add(cat)
+            out.append(TryExample(category=cat, text=text))
+    return out
+
+
+@app.post("/v1/documents/{document_id}/honeytokens", response_model=HoneytokenOut)
+def plant_honeytokens(document_id: int, req: HoneytokenRequest) -> HoneytokenOut:
+    """Create decoy credentials for a document. The reply holds the lines to paste into it."""
+    engine = policy_store.engine
+    if engine is None:
+        raise HTTPException(status_code=503, detail="The database is not connected.")
+    with engine.connect() as conn:
+        title = conn.execute(
+            sa.select(t.documents.c.title).where(t.documents.c.id == document_id)
+        ).scalar_one_or_none()
+    if title is None:
+        raise HTTPException(status_code=404, detail="That document is not registered.")
+    tokens: list[Honeytoken] = generate(req.count)
+    _honeytokens().register(document_id, tokens)
+    return HoneytokenOut(
+        document_id=document_id,
+        title=str(title),
+        plant_block=plant_block(tokens),
+        tokens=len(tokens),
+    )
 
 
 @app.get("/v1/policies", response_model=list[PolicyOut])
