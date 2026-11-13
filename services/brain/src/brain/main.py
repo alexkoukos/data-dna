@@ -1,14 +1,18 @@
 """FastAPI entrypoint for the brain service."""
 
+import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import sqlalchemy as sa
 from fastapi import FastAPI, HTTPException
 
+from brain import queries
 from brain.api.schemas import (
     FindingOut,
+    IncidentPage,
     InspectOutputRequest,
     InspectOutputResponse,
     InspectRequest,
@@ -16,8 +20,10 @@ from brain.api.schemas import (
     KeyRequest,
     KeyResponse,
     Message,
+    MetricsOut,
     PolicyOut,
     PolicyUpdate,
+    ToolOut,
     UnmaskRequest,
     UnmaskResponse,
 )
@@ -29,6 +35,8 @@ from brain.detection.pipeline import inspect_text
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy.engine import Decision
 from brain.policy.store import PolicyError, PolicyStore
+from brain.records import record_decision
+from brain.seed.load import run_seed
 from brain.sessions import sessions
 
 log = logging.getLogger(__name__)
@@ -43,6 +51,17 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             log.info("Seeded %d policies", added)
     except sa.exc.SQLAlchemyError:
         log.warning("Could not seed policies, using the seed file until the database is up")
+    engine = policy_store.engine
+    if engine is not None and settings.demo_mode and settings.seed_on_start:
+        try:
+            await asyncio.to_thread(
+                run_seed,
+                engine,
+                Path(settings.data_dir) if settings.data_dir else None,
+                Path(settings.log_dir),
+            )
+        except Exception:  # the app must still start; the dashboard just shows no demo data
+            log.exception("Seeding the demo company failed")
     yield
 
 
@@ -69,6 +88,15 @@ def inspect(req: InspectRequest) -> InspectResponse:
             for m in req.messages
         ]
         session_id = sessions.create(req.user_id, result.placeholders)
+    record_decision(
+        policy_store.engine,
+        user=req.user_id,
+        team=req.team,
+        decision=str(result.verdict.decision),
+        categories=[f.category for f in result.findings],
+        reasons=result.verdict.reasons,
+        masked_preview=result.findings[0].masked_preview if result.findings else None,
+    )
     return InspectResponse(
         session_id=session_id,
         decision=result.verdict.decision,
@@ -133,3 +161,36 @@ def new_key(req: KeyRequest) -> KeyResponse:
     except KeyError_ as err:
         raise HTTPException(status_code=503, detail=str(err)) from err
     return KeyResponse(key=key, user_id=req.user_id, team=req.team, default_model=default_model())
+
+
+def _read[T](fn: Callable[[sa.Connection], T]) -> T:
+    engine = policy_store.engine
+    if engine is None:
+        raise HTTPException(
+            status_code=503, detail="The database is not connected. Try again soon."
+        )
+    try:
+        with engine.connect() as conn:
+            return fn(conn)
+    except sa.exc.SQLAlchemyError as err:
+        raise HTTPException(
+            status_code=503, detail="The data could not be read. Try again soon."
+        ) from err
+
+
+@app.get("/v1/metrics", response_model=MetricsOut)
+def get_metrics() -> MetricsOut:
+    return _read(lambda c: queries.metrics(c, settings.demo_mode))
+
+
+@app.get("/v1/incidents", response_model=IncidentPage)
+def list_incidents(
+    decision: str | None = None, team: str | None = None, limit: int = 25, offset: int = 0
+) -> IncidentPage:
+    limit = max(1, min(limit, 100))
+    return _read(lambda c: queries.incidents(c, decision, team, limit, max(offset, 0)))
+
+
+@app.get("/v1/inventory", response_model=list[ToolOut])
+def get_inventory() -> list[ToolOut]:
+    return _read(queries.inventory)

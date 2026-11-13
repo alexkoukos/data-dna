@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     embed_model: str = "intfloat/multilingual-e5-small"
     retention_days: int = 30
     demo_mode: bool = True
+    seed_on_start: bool = True
+    data_dir: str = ""
+    log_dir: str = "/var/dna/logs"
 
 
 settings = Settings()

@@ -78,3 +78,47 @@ class KeyResponse(BaseModel):
     user_id: str
     team: str
     default_model: str
+
+
+class MetricsOut(BaseModel):
+    prompts_checked: int
+    zero_llm_share: float | None
+    incidents_7d: int
+    incidents_prev_7d: int
+    unapproved_tools: int
+    demo_data: bool
+    as_of: datetime | None = None
+
+
+class IncidentOut(BaseModel):
+    id: int
+    ts: datetime
+    user: str
+    team: str | None
+    tool: str | None
+    decision: str
+    categories: list[str]
+    reasons: list[str]
+    masked_preview: str | None = None
+    score: float | None = None
+
+
+class IncidentPage(BaseModel):
+    total: int
+    items: list[IncidentOut]
+
+
+class ToolOut(BaseModel):
+    id: int
+    name: str
+    vendor: str | None
+    category: str | None
+    approval: str
+    risk: str
+    reason: str | None
+    alternative: str | None
+    teams: list[str]
+    peak_users: int
+    requests: int
+    trend: list[int]
+    first_seen: str | None

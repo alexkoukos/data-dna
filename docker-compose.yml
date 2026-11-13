@@ -25,9 +25,12 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}
       GATEWAY_URL: http://gateway:4000
       DEMO_MODE: ${DEMO_MODE:-true}
+      DATA_DIR: /data
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
     volumes:
       - models:/models
+      - ./data:/data:ro
+      - logs:/var/dna/logs
     ports:
       - "8001:8001"
     depends_on:
@@ -62,3 +65,4 @@ services:
 volumes:
   dbdata:
   models:
+  logs:
