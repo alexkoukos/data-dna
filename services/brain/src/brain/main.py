@@ -38,6 +38,8 @@ from brain.api.schemas import (
     Message,
     MetricsOut,
     PolicyOut,
+    PolicyPreview,
+    PolicyPreviewRequest,
     PolicyUpdate,
     PresetOut,
     ProposeOut,
@@ -64,7 +66,13 @@ from brain.db.engine import ensure_schema, make_engine
 from brain.detection.entities import EntityDetector
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
-from brain.detection.pipeline import Finder, InspectResult, inspect_text
+from brain.detection.pipeline import (
+    HIGH_CONFIDENCE,
+    Finder,
+    InspectResult,
+    _add_without_overlap,
+    inspect_text,
+)
 from brain.detection.yara_rules import find_yara
 from brain.dna import store as dna_store
 from brain.dna.marks import Mark, propose_marks
@@ -77,6 +85,7 @@ from brain.injection.classifier import InjectionClassifier
 from brain.injection.heuristics import injection_finder
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy.engine import Decision
+from brain.policy.preview import preview as policy_preview
 from brain.policy.store import PolicyError, PolicyStore
 from brain.records import record_decision, user_row_id
 from brain.seed.load import run_seed
@@ -325,13 +334,37 @@ def unmask_answer(req: UnmaskRequest) -> UnmaskResponse:
     return UnmaskResponse(text=unmask(req.text, mapping), restored=restored)
 
 
+WITHHELD_NOTICE = "[Removed: this answer repeated text from a protected company document.]"
+
+
 @app.post("/v1/inspect-output", response_model=InspectOutputResponse)
 def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
-    """Mask sensitive values a model put in its answer (echoed secrets, identifiers)."""
-    findings = find_patterns(normalise(req.text).text)
+    """Check what a model said before the person sees it (X7).
+
+    Echoed secrets and identifiers are masked. An answer that reproduces a protected document is
+    withheld whole, because a masked copy of a board memo is still the board memo.
+    """
+    text = normalise(req.text).text
+    matches = [
+        m
+        for m in _documents().match(text)
+        if m.kind == "copy" or m.score >= HIGH_CONFIDENCE
+        if m.sensitivity in ("restricted", "confidential")
+    ]
+    if matches:
+        return InspectOutputResponse(
+            text=WITHHELD_NOTICE,
+            changed=True,
+            withheld=True,
+            findings=[
+                FindingOut(entity="DOCUMENT", category="document", masked_preview=m.title)
+                for m in matches
+            ],
+        )
+    findings = _add_without_overlap(find_patterns(text), find_yara(text))
     if not findings:
         return InspectOutputResponse(text=req.text)
-    masked, _ = mask(normalise(req.text).text, findings)
+    masked, _ = mask(text, findings)
     return InspectOutputResponse(
         text=masked,
         changed=True,
@@ -372,6 +405,19 @@ def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> 
 @app.get("/v1/policies", response_model=list[PolicyOut])
 def list_policies() -> list[PolicyOut]:
     return [PolicyOut(**vars(row)) for row in policy_store.list_rows()]
+
+
+@app.post("/v1/policies/preview", response_model=PolicyPreview)
+def preview_policy(req: PolicyPreviewRequest) -> PolicyPreview:
+    """What a change would have done to the last 14 days, without saving it."""
+    try:
+        action = Decision(req.action)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Unknown action.") from None
+    if req.scope not in ("category", "sensitivity"):
+        raise HTTPException(status_code=422, detail="Unknown scope.")
+    out = _read(lambda c: policy_preview(c, policy_store.current(), req.scope, req.key, action))
+    return PolicyPreview(**out)  # type: ignore[arg-type]
 
 
 @app.put("/v1/policies", response_model=PolicyOut)

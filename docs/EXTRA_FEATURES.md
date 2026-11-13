@@ -14,15 +14,15 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 ## 2. Detection depth
 - [ ] **X4** P1 Honeytokens: fake keys and details planted in confidential documents. If one shows up in a prompt, raise an alarm with no false alarms. Owner: Alexandros.
 - [ ] **X5** P1 Greeklish and mixed scripts: names and AFM in Latin letters, or with look-alike characters (A/Α, o/ο). Target recall at least 80%. Owner: Alexandros.
-- [ ] **X6** P1 More Greek identifiers: ADT, number plates, +30 phones, GEMI, passport. Owner: Alexandros.
-- [ ] **X7** P1 Check the model's answers for leaks before they reach the user. Owner: Alexandros.
+- [x] **X6** P1 More Greek identifiers: ADT, number plates, +30 phones, GEMI, passport. Owner: Alexandros.
+- [x] **X7** P1 Check the model's answers for leaks before they reach the user. Owner: Alexandros.
 - [ ] **X8** P2 Images and screenshots: OCR, then the same checks (RapidOCR, ONNX). Owner: Alexandros.
 - [ ] **X9** P2 Code leaks: source-code fingerprints (winnowing) on top of YARA. Owner: Alexandros.
 - [ ] **X10** P2 Document matching also in German and French for international clients. Owner: Alexandros.
 
 ## 3. Policy and operations
 - [x] **X11** P1 Shadow mode: the policy records what it would have done without blocking, with a "would have blocked N" view. Owner: Alexandros.
-- [ ] **X12** P1 Try a new policy on the last 14 days of prompts before saving it. Owner: Alexandros.
+- [x] **X12** P1 Try a new policy on the last 14 days of prompts before saving it. Owner: Alexandros.
 - [ ] **X13** P1 Policies per group and role (HR sees salaries, Sales does not). Owner: Alexandros.
 - [ ] **X14** P2 Rate and spend limits per user key. Owner: Alexandros.
 - [ ] **X15** P2 Slack or Teams webhook alerts for critical incidents, off by default. Owner: Alexandros.

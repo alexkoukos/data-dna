@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PreviewResult } from "../../components/PreviewResult";
 import { ShadowCard } from "../../components/ShadowCard";
 import { OutcomeChip } from "../../components/OutcomeChip";
 import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
@@ -7,6 +8,8 @@ import {
   COMPLIANCE_REPORT_URL,
   fetchPolicies,
   fetchShadow,
+  previewPolicy,
+  type PolicyPreview,
   savePolicy,
   saveShadow,
   type Decision,
@@ -22,6 +25,20 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
   const text = textFor(policy.scope, policy.key);
   const id = `${policy.scope}-${policy.key}`;
   const changed = draft !== policy.action;
+  const [preview, setPreview] = useState<PolicyPreview | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  async function tryIt() {
+    setPreviewing(true);
+    setError(null);
+    try {
+      setPreview(await previewPolicy(policy.scope, policy.key, draft));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The preview could not be made.");
+    } finally {
+      setPreviewing(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -87,9 +104,18 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
           </button>
           <button
             type="button"
+            onClick={tryIt}
+            disabled={previewing}
+            className="min-h-11 rounded-lg border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
+          >
+            {previewing ? "Trying…" : "Try on the last 14 days"}
+          </button>
+          <button
+            type="button"
             onClick={() => {
               setDraft(policy.action);
               setError(null);
+              setPreview(null);
             }}
             className="min-h-11 rounded-md px-4 text-sm font-medium text-ink-700 hover:bg-ink-100"
           >
@@ -97,6 +123,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
           </button>
         </div>
       ) : null}
+      {changed && preview ? <PreviewResult preview={preview} /> : null}
       {policy.updated_by && policy.updated_at ? (
         <p className="mt-2 text-xs text-ink-600">
           Last changed by {policy.updated_by} on {policy.updated_at.slice(0, 10)}.

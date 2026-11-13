@@ -284,3 +284,31 @@ export async function saveShadow(enabled: boolean): Promise<ShadowStatus> {
 }
 
 export const COMPLIANCE_REPORT_URL = "/api/v1/compliance-report.pdf";
+
+export interface PolicyPreview {
+  days: number;
+  incidents_checked: number;
+  changed: number;
+  stricter: number;
+  looser: number;
+  moves: { from: Decision; to: Decision; count: number }[];
+}
+
+export async function previewPolicy(
+  scope: string,
+  key: string,
+  action: Decision,
+): Promise<PolicyPreview> {
+  let res: Response;
+  try {
+    res = await fetch("/api/v1/policies/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope, key, action }),
+    });
+  } catch {
+    throw new Error("We could not reach the server. Check your connection and try again.");
+  }
+  if (!res.ok) throw new Error("The preview could not be made. Try again in a moment.");
+  return (await res.json()) as PolicyPreview;
+}

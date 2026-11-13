@@ -76,6 +76,7 @@ class InspectOutputRequest(BaseModel):
 class InspectOutputResponse(BaseModel):
     text: str
     changed: bool = False
+    withheld: bool = False
     findings: list[FindingOut] = Field(default_factory=list)
 
 
@@ -284,3 +285,24 @@ class ShadowOut(BaseModel):
 class ShadowIn(BaseModel):
     enabled: bool
     updated_by: str = Field(min_length=1, max_length=80)
+
+
+class PolicyPreviewRequest(BaseModel):
+    scope: str
+    key: str
+    action: str
+
+
+class PolicyMove(BaseModel):
+    from_: str = Field(alias="from")
+    to: str
+    count: int
+
+
+class PolicyPreview(BaseModel):
+    days: int
+    incidents_checked: int
+    changed: int
+    stricter: int
+    looser: int
+    moves: list[PolicyMove]

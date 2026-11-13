@@ -25,6 +25,17 @@ Template:
 **Next step:** run `npm install` in `web` and `make up`; run `make e2e` (the axe test may report contrast issues on screens that still use old color choices); use `docs/brand/mascot/*.svg` for empty and outcome states during the UI polish pass; adopt the `-solid` outcome colors for strong markers.
 **Problems / decisions needed:** new dependencies `@fontsource-variable/commissioner` and `@fontsource-variable/jetbrains-mono` (lock file updated). Mask is now purple and local is blue (was the other way around), so any screenshot in the slides or video needs a refresh. The product is still called "Data DNA" in the PRD; the brand name is Pyli.
 **Files touched:** docs/BRAND.md, docs/brand/*, web/{index.html,package.json,package-lock.json,public/*,src/{index.css,main.tsx,App.tsx}}, PROGRESS.md
+## 2026-11-14 18:00, Alexandros, extra features X6, X7, X12
+**Done:**
+- **X6:** ADT, number plates, GR phones (+30 optional), passport and GEMI (only next to their names) in `detection/patterns.py`, with tests for the shapes and for ordinary numbers that must stay alone.
+- **X7:** `/v1/inspect-output` also runs the YARA rules and withholds an answer that reproduces a restricted or confidential document (`withheld: true`).
+- **X12:** `POST /v1/policies/preview` replays the last 14 days of incidents (categories and matched document) under a proposed change; button "Try on the last 14 days" on the Policies page.
+**State:** branch `task/X6-X7-X12`, PR open. No database or dependency change.
+**Next step:** X13 policies per group and role, X24 history per employee and document, X18 ROI view, then the P2 items.
+**Problems / decisions needed:** X1, X4, X5 (and an X2 of their own) are being built in parallel by someone else; when that branch lands, reconcile `data/eval/attacks.csv` and the normaliser.
+**Files touched:** `detection/patterns.py`, `main.py`, `policy/preview.py`, schemas, web Policies page, `PreviewResult`, tests, README.
+
+---
 
 ## 2026-11-14 12:00, Alexandros, extra features X23, X11, X17, X2
 **Done:**
