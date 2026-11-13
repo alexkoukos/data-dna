@@ -32,6 +32,20 @@ def _add_without_overlap(base: list[Finding], extra: list[Finding]) -> list[Find
     return sorted(out, key=lambda f: f.start)
 
 
+HIGH_CONFIDENCE = 0.91  # a rewrite scoring below this is a likely match, not a certain one
+
+
+def _effective_sensitivity(m: DocMatch) -> str:
+    """A likely (not certain) rewrite of a restricted document is answered locally, not blocked.
+
+    Copies and near copies still block. The data stays inside either way, so a wrong guess costs
+    the person a slower local answer instead of a refusal.
+    """
+    if m.sensitivity == "restricted" and m.kind == "paraphrase" and m.score < HIGH_CONFIDENCE:
+        return "confidential"
+    return m.sensitivity
+
+
 def inspect_text(
     text: str,
     policies: PolicySet | None = None,
@@ -49,7 +63,7 @@ def inspect_text(
     doc_matches = doc_matcher(norm.text) if doc_matcher else []
     verdict = decide(
         categories,
-        document_sensitivities=[m.sensitivity for m in doc_matches],
+        document_sensitivities=[_effective_sensitivity(m) for m in doc_matches],
         evasion_signals=norm.evasion_signals,
         category_actions=policies.categories if policies else None,
         sensitivity_actions=policies.sensitivity if policies else None,

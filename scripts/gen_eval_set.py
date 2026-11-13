@@ -164,7 +164,8 @@ P = [
  ("el", "pay", "Συγκρίνεται το εύρος 28 με 35 χιλιάδες με την αγορά; Έχω μπροστά μου την κλίμακα του 2027 για τους junior developers."),
 ]
 for lang, key, text in P:
-    add(lang, text, "leak", "paraphrase", DOC[key], "", EXPECT[key])
+    # A likely rewrite of a restricted document is answered locally; only copies and near copies block.
+    add(lang, text, "leak", "paraphrase", DOC[key], "", "local")
 
 # ---------------------------------------------- fragments (one piece of a document at a time)
 for key, n in [("memo", 3), ("msa", 3), ("pay", 3)]:

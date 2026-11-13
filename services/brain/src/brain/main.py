@@ -62,7 +62,7 @@ from brain.detection.pipeline import Finder, InspectResult, inspect_text
 from brain.detection.yara_rules import find_yara
 from brain.dna import store as dna_store
 from brain.dna.marks import Mark, propose_marks
-from brain.documents.embeddings import FastEmbedder
+from brain.documents.embeddings import E5Embedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.registry import DocumentIndex, register_document
@@ -81,7 +81,7 @@ entity_detector = EntityDetector()
 _client_store: ClientStore | None = None
 
 
-embedder = FastEmbedder()
+embedder = E5Embedder()
 _doc_index: DocumentIndex | None = None
 
 

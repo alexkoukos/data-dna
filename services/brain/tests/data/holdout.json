@@ -1,0 +1,37 @@
+{
+  "note": "Written after the matcher settings were chosen, never used to tune them. Rewrites of the three documents in data/documents plus same-topic questions that are not copies.",
+  "positives": [
+    {"doc": "Board memo: expansion into the Balkans", "text": "Reminder for the exec team: the whole Balkan project, including the Sofia purchase and the money, stays inside the committee until the directors have voted."},
+    {"doc": "Board memo: expansion into the Balkans", "text": "We plan to fill the Belgrade office to roughly twelve staff in year one, starting with people relocated from Greece and a local head hired by end of March."},
+    {"doc": "Board memo: expansion into the Balkans", "text": "Danube Advisory made about 210 thousand euros pre-tax last year and the founders promised to stay on for three years after we buy them."},
+    {"doc": "Board memo: expansion into the Balkans", "text": "The sellers of the Bulgarian firm won't wait past April fifteenth, which is why the board needs to settle the offer by that date."},
+    {"doc": "Board memo: expansion into the Balkans", "text": "Εκτιμούμε ότι θα χρειαστεί να πληρώνουμε 15% πάνω από την τιμή αγοράς στους ανώτερους συμβούλους του Βελιγραδίου τα δύο πρώτα χρόνια."},
+    {"doc": "Board memo: expansion into the Balkans", "text": "Το γραφείο της Σόφιας θα ανοίξει την 1η Ιουλίου και το προσωπικό θα ενημερωθεί την πρώτη εβδομάδα του Μαΐου."},
+    {"doc": "Master services agreement: Delphi Insurance", "text": "If we are late with a payment demand, the interest is the ECB rate plus two points, and Delphi has a month to settle every invoice."},
+    {"doc": "Master services agreement: Delphi Insurance", "text": "Neither Delphi nor us can claim for lost profits or indirect damage, and our total exposure is one year of fees apart from confidentiality breaches."},
+    {"doc": "Master services agreement: Delphi Insurance", "text": "Subcontractors that touch Delphi's personal data need the client's written approval first, and everything is processed within the European Union."},
+    {"doc": "Master services agreement: Delphi Insurance", "text": "Η Delphi μπορεί να αποχωρήσει μετά τον πρώτο χρόνο με προειδοποίηση τριών μηνών, πληρώνοντας το μισό από τα τέλη που απομένουν."},
+    {"doc": "Master services agreement: Delphi Insurance", "text": "Both parties must keep policyholder information and the contract terms confidential for the length of the deal and five years after it ends."},
+    {"doc": "Master services agreement: Delphi Insurance", "text": "Monthly platform availability below 99.5 percent triggers service credits of up to 20 percent of the quarterly fee, except planned maintenance told five working days ahead."},
+    {"doc": "Salary bands 2027", "text": "Ο μέσος όρος των αυξήσεων το 2027 μένει κάτω από 4% της μισθολογικής δαπάνης και τις προαγωγές τις εγκρίνουμε στην ίδια φάση με τις αυξήσεις."},
+    {"doc": "Salary bands 2027", "text": "Οι συνεργάτες έχουν δική τους κλίμακα που τη ορίζει μόνο η διοίκηση και δεν την ανακοινώνουμε."},
+    {"doc": "Salary bands 2027", "text": "Our lawyers are paid between 35 and 70 thousand euros, accountants between 26 and 55, and HR staff between 28 and 50."},
+    {"doc": "Salary bands 2027", "text": "No manager may pay someone above the maximum of their band unless management signs off, and heads of department only see the bands of their own roles."},
+    {"doc": "Salary bands 2027", "text": "Ένας διευθυντής έργου κερδίζει από 65 έως 90 χιλιάδες και ένας ανώτερος σύμβουλος από 40 μέχρι 65 χιλιάδες ευρώ τον χρόνο."},
+    {"doc": "Salary bands 2027", "text": "Bonuses can't exceed fifteen percent of base pay and nobody outside HR and the executives should ever see this pay table."}
+  ],
+  "negatives": [
+    {"text": "How should I structure the first ninety days of a new country manager in a market we are entering?"},
+    {"text": "What are common reasons that a small acquisition target walks away during exclusivity?"},
+    {"text": "Draft a polite email asking a client to pay an overdue invoice and mentioning the late payment interest policy in general terms."},
+    {"text": "Explain the difference between a processor and a controller under the GDPR in simple words."},
+    {"text": "What does it usually cost a company to open a small office in Belgrade, roughly, for the first year?"},
+    {"text": "Give me three ideas for how to keep pay discussions fair in a team of consultants."},
+    {"text": "Ποιες είναι οι συνηθισμένες ρήτρες ανανέωσης σε μια τριετή σύμβαση υπηρεσιών;"},
+    {"text": "Πώς γράφουμε μια ανακοίνωση για την έναρξη λειτουργίας ενός νέου γραφείου στο εξωτερικό;"},
+    {"text": "Τι πρέπει να ξέρει ένας υπεύθυνος τμήματος για τις μισθολογικές κλίμακες και την αξιολόγηση της ομάδας του;"},
+    {"text": "How is service availability normally measured and which maintenance windows are excluded?"},
+    {"text": "Summarise the main risks of currency exposure when invoicing clients in a different country."},
+    {"text": "What should a liability clause say about confidentiality breaches in a typical B2B contract?"}
+  ]
+}
