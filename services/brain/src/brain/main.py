@@ -29,12 +29,14 @@ from brain.api.schemas import (
     UnmaskRequest,
     UnmaskResponse,
 )
+from brain.clients import ClientStore
 from brain.config import settings
 from brain.db import tables as t
 from brain.db.engine import make_engine
+from brain.detection.entities import EntityDetector
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
-from brain.detection.pipeline import inspect_text
+from brain.detection.pipeline import Finder, inspect_text
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy.engine import Decision
 from brain.policy.store import PolicyError, PolicyStore
@@ -44,6 +46,16 @@ from brain.sessions import sessions
 
 log = logging.getLogger(__name__)
 policy_store = PolicyStore(make_engine())
+entity_detector = EntityDetector()
+_client_store: ClientStore | None = None
+
+
+def _finders() -> list[Finder]:
+    """Looser detectors that run after the checksum checks: people, emails, phones, clients."""
+    global _client_store
+    if _client_store is None or _client_store.engine is not policy_store.engine:
+        _client_store = ClientStore(policy_store.engine)
+    return [entity_detector.find, _client_store.find]
 
 
 @asynccontextmanager
@@ -54,6 +66,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             log.info("Seeded %d policies", added)
     except sa.exc.SQLAlchemyError:
         log.warning("Could not seed policies, using the seed file until the database is up")
+    try:
+        await asyncio.to_thread(entity_detector.warm_up)
+    except Exception:  # the pattern checks still work without the language models
+        log.exception("Could not load the language models; people and phones are not detected")
     engine = policy_store.engine
     if engine is not None and settings.demo_mode and settings.seed_on_start:
         try:
@@ -82,7 +98,7 @@ def inspect(req: InspectRequest) -> InspectResponse:
     last = next((m for m in reversed(req.messages) if m.role == "user"), None)
     if last is None:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
-    result = inspect_text(last.content, policy_store.current())
+    result = inspect_text(last.content, policy_store.current(), _finders())
     masked = None
     session_id = None
     if result.verdict.decision == Decision.MASK:

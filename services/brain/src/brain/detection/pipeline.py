@@ -1,5 +1,6 @@
 """Run all checks on one prompt, cheapest first. Document checks plug in here later."""
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from brain.detection.normalize import normalise
@@ -17,9 +18,25 @@ class InspectResult:
     evasion_signals: list[str]
 
 
-def inspect_text(text: str, policies: PolicySet | None = None) -> InspectResult:
+Finder = Callable[[str], list[Finding]]
+
+
+def _add_without_overlap(base: list[Finding], extra: list[Finding]) -> list[Finding]:
+    """Checksum-validated findings win: a looser finder never replaces or splits them."""
+    out = list(base)
+    for f in extra:
+        if not any(f.start < b.end and b.start < f.end for b in out):
+            out.append(f)
+    return sorted(out, key=lambda f: f.start)
+
+
+def inspect_text(
+    text: str, policies: PolicySet | None = None, finders: Sequence[Finder] = ()
+) -> InspectResult:
     norm = normalise(text)
     findings = find_patterns(norm.text)
+    for finder in finders:
+        findings = _add_without_overlap(findings, finder(norm.text))
     hidden: list[Finding] = []
     for view in norm.extra_views:
         hidden.extend(find_patterns(view))

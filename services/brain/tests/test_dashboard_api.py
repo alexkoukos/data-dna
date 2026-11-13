@@ -120,3 +120,20 @@ def test_user_seen_is_false_until_the_gateway_checked_a_request(client: TestClie
         },
     )
     assert client.get("/v1/users/demo-newbie/seen").json() == {"seen": True}
+
+
+def test_inspect_warns_when_a_seeded_client_name_is_in_the_message(client: TestClient) -> None:
+    assert main.policy_store.engine is not None
+    with main.policy_store.engine.connect() as conn:
+        name = conn.execute(sa.text("SELECT name FROM clients LIMIT 1")).scalar_one()
+    r = client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "u-x",
+            "team": "Sales",
+            "model": "m",
+            "messages": [{"role": "user", "content": f"Draft a renewal email for {name.upper()}"}],
+        },
+    ).json()
+    assert r["decision"] == "warn"
+    assert any(f["category"] == "client_name" for f in r["findings"])
