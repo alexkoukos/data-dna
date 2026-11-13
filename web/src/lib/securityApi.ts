@@ -99,3 +99,88 @@ export async function savePolicy(
   }
   return (await res.json()) as Policy;
 }
+
+export interface Preset {
+  id: string;
+  question: string;
+}
+
+export interface Answer {
+  id: string;
+  question: string;
+  sql: string;
+  parameters: Record<string, string>;
+  columns: string[];
+  rows: (string | number | null)[][];
+}
+
+export const fetchPresets = () => get<Preset[]>("/v1/ask/presets");
+
+export async function askPreset(preset: string): Promise<Answer> {
+  const res = await fetch("/api/v1/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ preset }),
+  });
+  if (!res.ok) throw new Error("We could not get the answer. Try again in a moment.");
+  return (await res.json()) as Answer;
+}
+
+export interface Reveal {
+  id: number;
+  incident_id: number;
+  requested_by: string;
+  reason: string;
+  approved_by: string | null;
+  status: "pending" | "approved" | "denied";
+  ts: string | null;
+}
+
+export interface IncidentDetail {
+  incident: Incident;
+  copy_code: string | null;
+  document: { id: number; title: string; sensitivity: string } | null;
+  timeline: Incident[];
+  reveals: Reveal[];
+}
+
+export const fetchIncidentDetail = (id: string) => get<IncidentDetail>(`/v1/incidents/${id}`);
+
+async function send<T>(path: string, method: "POST" | "GET", body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("We could not reach the server. Check your connection and try again.");
+  }
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = String(((await res.json()) as { detail?: unknown }).detail ?? "");
+    } catch {
+      // fall through to the generic message
+    }
+    throw new Error(
+      res.status === 422 || res.status === 403 || res.status === 404
+        ? detail || "That was not allowed."
+        : "Something went wrong on our side. Nothing was changed. Try again in a moment.",
+    );
+  }
+  return (await res.json()) as T;
+}
+
+export const requestReveal = (incident_id: number, requested_by: string, reason: string) =>
+  send<Reveal>("/v1/reveal-requests", "POST", { incident_id, requested_by, reason });
+export const decideReveal = (id: number, decided_by: string, approve: boolean) =>
+  send<Reveal>(`/v1/reveal-requests/${id}/${approve ? "approve" : "deny"}`, "POST", {
+    decided_by,
+  });
+export const fetchIdentity = (incident: number, request: number, viewer: string) =>
+  send<{ pseudonym: string; display_name: string | null }>(
+    `/v1/incidents/${incident}/identity?request_id=${request}&viewer=${encodeURIComponent(viewer)}`,
+    "GET",
+  );

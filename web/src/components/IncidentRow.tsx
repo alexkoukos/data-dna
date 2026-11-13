@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { explainReason } from "../lib/explain";
 import { formatDateTime } from "../lib/format";
 import type { Incident } from "../lib/securityApi";
@@ -41,6 +42,13 @@ export function IncidentRow({ incident }: { incident: Incident }) {
           </div>
         ) : null}
       </dl>
+      <Link
+        to={`/security/incidents/${incident.id}`}
+        aria-label={`Open details of incident ${incident.id}`}
+        className="mt-2 inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-semibold text-brand-700 underline"
+      >
+        Open details
+      </Link>
     </li>
   );
 }
