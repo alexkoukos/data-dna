@@ -22,6 +22,7 @@ from sqlalchemy.pool import StaticPool
 
 from brain.db import tables as t
 from brain.detection.entities import ClientMatcher, EntityDetector
+from brain.detection.greeklish import find_greeklish_names
 from brain.detection.patterns import find_patterns
 from brain.detection.pipeline import inspect_text
 from brain.detection.yara_rules import find_yara
@@ -36,6 +37,7 @@ from brain.dna.marks import (
 from brain.documents.embeddings import E5Embedder
 from brain.documents.loader import load_documents, parse
 from brain.documents.registry import DocumentIndex
+from brain.honeytokens import HoneytokenStore
 from brain.injection.heuristics import injection_finder
 from brain.seed.spec import load as load_spec
 
@@ -88,6 +90,85 @@ def load_rows(data_dir: Path) -> tuple[list[Row], str]:
         if len(rows) >= MIN_ROWS:
             return rows, name
     raise SystemExit("No evaluation prompts found. See TASKS.md T3 and scripts/gen_eval_sample.py.")
+
+
+@dataclass
+class Attack:
+    id: str
+    category: str
+    text: str
+    expected: str
+    notes: str
+
+
+@dataclass
+class AttackResult:
+    attack: Attack
+    decision: str
+
+    @property
+    def caught(self) -> bool:
+        return self.decision != "allow"
+
+
+# What counts as "caught" for each kind of attack. The clean look-alikes must stay allowed.
+SCRIPT_TRICKS = ("look_alike", "other_digits", "greeklish")
+
+
+def load_attacks(data_dir: Path) -> list[Attack]:
+    """The red-team file (X2). Missing is fine: the report just has no attack section."""
+    path = data_dir / "eval" / "attacks.csv"
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8", newline="") as f:
+        return [
+            Attack(r["id"], r["category"], r["text"], r["expected_decision"], r.get("notes", ""))
+            for r in csv.DictReader(f)
+            if r.get("text")
+        ]
+
+
+def summarise_attacks(results: list[AttackResult]) -> dict[str, Any] | None:
+    if not results:
+        return None
+    hostile = [x for x in results if x.attack.expected != "allow"]
+    clean = [x for x in results if x.attack.expected == "allow"]
+    cats: dict[str, Any] = {}
+    for cat in sorted({x.attack.category for x in results}):
+        rs = [x for x in results if x.attack.category == cat]
+        cats[cat] = {
+            "n": len(rs),
+            "caught": pct(sum(x.caught for x in rs), len(rs)) if cat != "clean_lookalike" else None,
+            "decision_matches": pct(sum(x.decision == x.attack.expected for x in rs), len(rs)),
+            "false_alarms": pct(sum(x.caught for x in rs), len(rs))
+            if cat == "clean_lookalike"
+            else None,
+        }
+    tricks = [x for x in hostile if x.attack.category in SCRIPT_TRICKS]
+    decoys = [x for x in hostile if x.attack.category == "honeytoken"]
+    return {
+        "n": len(results),
+        "caught": pct(sum(x.caught for x in hostile), len(hostile)),
+        "decision_matches": pct(
+            sum(x.decision == x.attack.expected for x in results), len(results)
+        ),
+        "false_alarms": pct(sum(x.caught for x in clean), len(clean)),
+        "script_trick_recall": pct(sum(x.caught for x in tricks), len(tricks)),
+        "honeytoken_catch": pct(sum(x.decision == "block" for x in decoys), len(decoys)),
+        "categories": cats,
+        "gaps": [
+            {
+                "id": x.attack.id,
+                "category": x.attack.category,
+                "expected": x.attack.expected,
+                "got": x.decision,
+                "text": x.attack.text[:90],
+                "notes": x.attack.notes,
+            }
+            for x in results
+            if x.decision != x.attack.expected
+        ],
+    }
 
 
 def baseline_flags(text: str) -> bool:
@@ -156,13 +237,20 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
     spec = load_spec(data)
     names = [n for c in spec.org.clients for n in [c["name"], *(c.get("aliases") or [])]]
     # Same order as the live service: stronger signals first, so a loose entity never hides them.
-    finders = [find_yara, injection_finder, entities.find, ClientMatcher(names).find]
+    finders = [
+        find_yara,
+        injection_finder,
+        find_greeklish_names,
+        entities.find,
+        ClientMatcher(names).find,
+    ]
+    decoys = HoneytokenStore(engine, ttl_seconds=3600).find
     index.match("warm up the index and the embedding model with a short sentence of words")
 
     results: list[Result] = []
     for r in rows:
         start = time.perf_counter()
-        out = inspect_text(r.text, finders=finders, doc_matcher=index.match)
+        out = inspect_text(r.text, finders=finders, doc_matcher=index.match, priority_finder=decoys)
         ms = (time.perf_counter() - start) * 1000
         decision = str(out.verdict.decision)
         results.append(
@@ -176,7 +264,13 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
                 out.verdict.reasons,
             )
         )
-    return summarise(results, source, attribution_accuracy(data))
+    attacks = [
+        AttackResult(
+            a, str(inspect_text(a.text, None, finders, index.match, decoys).verdict.decision)
+        )
+        for a in load_attacks(data)
+    ]
+    return summarise(results, source, attribution_accuracy(data), summarise_attacks(attacks))
 
 
 def _recall(rs: list[Result], base: bool = False) -> float | None:
@@ -192,7 +286,10 @@ def _doc_recall(rs: list[Result]) -> float | None:
 
 
 def summarise(
-    results: list[Result], source: str, attribution: float | None = None
+    results: list[Result],
+    source: str,
+    attribution: float | None = None,
+    attacks: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     leaks = [x for x in results if x.row.label == "leak"]
     doc_leaks = [x for x in leaks if x.row.leak_type in ("copy", "edit", "paraphrase", "split")]
@@ -255,6 +352,27 @@ def summarise(
             lambda v: v >= 90,
         ),
     ]
+    if attacks is not None:
+        targets += [
+            (
+                "Greeklish, look-alike and foreign-digit attacks caught (X5)",
+                ">= 80%",
+                attacks["script_trick_recall"],
+                lambda v: v >= 80,
+            ),
+            (
+                "Decoy credentials raise the alarm (X4)",
+                "100%",
+                attacks["honeytoken_catch"],
+                lambda v: v >= 100,
+            ),
+            (
+                "False alarms on clean look-alikes (X2)",
+                "<= 5%",
+                attacks["false_alarms"],
+                lambda v: v <= 5,
+            ),
+        ]
     verdicts = [
         {"metric": n, "target": tg, "value": v, "pass": None if v is None else bool(ok(v))}
         for n, tg, v, ok in targets
@@ -278,6 +396,7 @@ def summarise(
         "by_language": by_lang,
         "targets": verdicts,
         "misses": misses,
+        "attacks": attacks,
     }
 
 
@@ -347,6 +466,43 @@ def to_markdown(rep: dict[str, Any]) -> str:
             lines.append(f"| {x['id']} | {x['type']} | {x['expected']} | {x['got']} | {text} |")
     else:
         lines.append("None.")
+    atk = rep.get("attacks")
+    if atk:
+        lines += [
+            "",
+            "## Red team: data/eval/attacks.csv (X2)",
+            "",
+            f"{atk['n']} attacks. Caught (any action but allow): {_fmt(atk['caught'])}%. "
+            f"Exact decision as expected: {_fmt(atk['decision_matches'])}%. "
+            f"False alarms on the clean look-alikes: {_fmt(atk['false_alarms'])}%.",
+            "",
+            "| Kind | Attacks | Caught % | Decision as expected % |",
+            "| --- | --- | --- | --- |",
+        ]
+        for k, v in atk["categories"].items():
+            shown = (
+                f"false alarms {_fmt(v['false_alarms'])}"
+                if v["caught"] is None
+                else _fmt(v["caught"])
+            )
+            lines.append(f"| {k} | {v['n']} | {shown} | {_fmt(v['decision_matches'])} |")
+        lines += [
+            "",
+            "Attacks whose outcome differs from the expectation (known gaps stay on purpose):",
+            "",
+        ]
+        if atk["gaps"]:
+            lines += [
+                "| Id | Kind | Expected | Got | Text | Note |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ]
+            for x in atk["gaps"]:
+                text = x["text"].replace("|", "/").replace("\n", " ")
+                lines.append(
+                    f"| {x['id']} | {x['category']} | {x['expected']} | {x['got']} | {text} | {x['notes']} |"
+                )
+        else:
+            lines.append("None.")
     return "\n".join(lines) + "\n"
 
 

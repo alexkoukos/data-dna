@@ -26,6 +26,13 @@ def ensure_schema(engine: Engine) -> None:
         return
     with engine.begin() as conn:
         conn.execute(sa.text("ALTER TABLE doc_chunks ADD COLUMN IF NOT EXISTS lang TEXT"))
+        conn.execute(
+            sa.text(
+                "CREATE TABLE IF NOT EXISTS honeytokens (id SERIAL PRIMARY KEY, "
+                "document_id INT REFERENCES documents(id) ON DELETE CASCADE, kind TEXT NOT NULL, "
+                "value TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ DEFAULT now())"
+            )
+        )
     from brain.ask.free import create_views
 
     create_views(engine)

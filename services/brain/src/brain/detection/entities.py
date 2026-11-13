@@ -75,7 +75,11 @@ class EntityDetector:
                 for r in analyzer.analyze(
                     text=text, language=lang, entities=list(_ENTITY_NAMES), score_threshold=0.3
                 ):
-                    if r.score >= _MIN_SCORE[r.entity_type] and not _stray_word(text, r):
+                    if (
+                        r.score >= _MIN_SCORE[r.entity_type]
+                        and not _stray_word(text, r)
+                        and not _cyrillic_name(text, r)
+                    ):
                         found.append(
                             Finding(
                                 _ENTITY_NAMES[r.entity_type],
@@ -88,6 +92,14 @@ class EntityDetector:
         for m in _GREEK_PHONE.finditer(text):
             found.append(Finding("PHONE", "person_email_phone", m.start(), m.end(), m.group(0)))
         return _merge(found)
+
+
+_CYRILLIC = re.compile("[Ѐ-ӿ]")
+
+
+def _cyrillic_name(text: str, r: Any) -> bool:
+    """Neither language model reads Russian: it calls "Доброе утро" a person. Skip those."""
+    return r.entity_type == "PERSON" and bool(_CYRILLIC.search(text[r.start : r.end]))
 
 
 def _stray_word(text: str, r: Any) -> bool:

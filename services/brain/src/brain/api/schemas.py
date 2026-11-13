@@ -262,3 +262,41 @@ class ToolResultResponse(BaseModel):
     decision: str
     text: str
     reasons: list[str] = Field(default_factory=list)
+
+
+class TryRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+
+
+class LayerOut(BaseModel):
+    id: str
+    level: int
+    label: str
+    fired: bool
+    detail: str = ""
+
+
+class TryOut(BaseModel):
+    decision: str
+    reasons: list[str]
+    masked_text: str
+    findings: list[FindingOut]
+    evasion_signals: list[str]
+    layers: list[LayerOut]
+    caught_by: str | None = None
+
+
+class TryExample(BaseModel):
+    category: str
+    text: str
+
+
+class HoneytokenRequest(BaseModel):
+    count: int = Field(default=2, ge=1, le=6)
+
+
+class HoneytokenOut(BaseModel):
+    document_id: int
+    title: str
+    plant_block: str
+    tokens: int
