@@ -4,6 +4,7 @@ Run with: make test-gateway
 """
 
 import os
+from collections.abc import Iterator
 
 import httpx
 import pytest
@@ -11,6 +12,7 @@ from openai import OpenAI, PermissionDeniedError
 
 GATEWAY = os.environ.get("GATEWAY_URL", "http://localhost:4000")
 MASTER = os.environ.get("LITELLM_MASTER_KEY", "sk-admin-change-me")
+BRAIN = os.environ.get("BRAIN_URL", "http://localhost:8001")
 
 
 def _gateway_up() -> bool:
@@ -33,7 +35,7 @@ def client() -> OpenAI:
         json={
             "user_id": "u-itest",
             "team_id": "itest",
-            "models": ["demo-mock", "demo-echo", "demo-leaky"],
+            "models": ["demo-mock", "demo-echo", "demo-leaky", "local"],
         },
     )
     resp.raise_for_status()
@@ -98,3 +100,84 @@ def test_streamed_answer_gets_masked_value_back(client: OpenAI) -> None:
 def test_streamed_answer_is_filtered(client: OpenAI) -> None:
     answer = _stream(client, "How do I deploy?", "demo-leaky")
     assert "AKIAIOSFODNN7EXAMPLE" not in answer
+
+
+# --- E4: all five outcomes with the decision header (PRD section 19) -------------------------
+# Local and block cannot be triggered by detectors yet (documents D3, injection D6), so these
+# tests remap a category with the policy API and put it back afterwards.
+
+CARD = "Please check card 4111 1111 1111 1111"
+IBAN = "Check IBAN GR1601101250000000012300695"
+
+
+def _decision(
+    client: OpenAI, text: str, model: str = "demo-mock", **headers: str
+) -> tuple[str, str]:
+    """Send one message and return (decision header, answer text)."""
+    raw = client.chat.completions.with_raw_response.create(
+        model=model,
+        messages=[{"role": "user", "content": text}],
+        extra_headers=headers or None,
+    )
+    return raw.headers.get("x-dna-decision", ""), raw.parse().choices[0].message.content or ""
+
+
+@pytest.fixture
+def policy() -> Iterator[object]:
+    """Set a category action for one test; the original action is restored at the end."""
+    changed: dict[str, str] = {}
+
+    def setter(key: str, action: str) -> None:
+        if key not in changed:
+            rows = httpx.get(f"{BRAIN}/v1/policies").json()
+            changed[key] = next(
+                r["action"] for r in rows if r["scope"] == "category" and r["key"] == key
+            )
+        httpx.put(
+            f"{BRAIN}/v1/policies",
+            json={"scope": "category", "key": key, "action": action, "updated_by": "itest"},
+        ).raise_for_status()
+
+    yield setter
+    for key, action in changed.items():
+        httpx.put(
+            f"{BRAIN}/v1/policies",
+            json={"scope": "category", "key": key, "action": action, "updated_by": "itest"},
+        )
+
+
+def test_outcome_allowed(client: OpenAI) -> None:
+    decision, _ = _decision(client, "Summarize our meeting notes")
+    assert decision == "allow"
+
+
+def test_outcome_masked(client: OpenAI) -> None:
+    decision, answer = _decision(client, IBAN)
+    assert decision == "mask"
+    assert "safety check" in answer
+
+
+def test_outcome_warned(client: OpenAI) -> None:
+    risky = "AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695"
+    with pytest.raises(Exception) as err:
+        _decision(client, risky)
+    assert getattr(err.value, "status_code", None) == 409
+    decision, _ = _decision(client, risky, **{"X-DNA-Ack": "audit"})
+    assert decision == "warn"
+
+
+def test_outcome_answered_locally(client: OpenAI, policy: object) -> None:
+    policy("card", "local")  # type: ignore[operator]
+    decision, answer = _decision(client, CARD)
+    assert decision == "local"
+    assert "on this machine" in answer
+
+
+def test_outcome_blocked(client: OpenAI, policy: object) -> None:
+    policy("iban", "block")  # type: ignore[operator]
+    with pytest.raises(PermissionDeniedError) as err:
+        _decision(client, IBAN)
+    body = err.value.body
+    assert isinstance(body, dict)
+    assert body.get("type") == "block" or "protected data" in str(body)
+    assert "alternative" in str(body)
