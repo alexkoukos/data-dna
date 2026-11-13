@@ -50,7 +50,7 @@ export function SealedIdentity({ incidentId, pseudonym, latest, onChanged }: Pro
 
   const status = latest?.status;
   return (
-    <section aria-labelledby="who-h" className="rounded-2xl border border-ink-200 bg-white p-4">
+    <section aria-labelledby="who-h" className="rounded-lg border border-ink-200 bg-white p-4">
       <h2 id="who-h" className="text-lg font-semibold text-ink-900">
         Who
       </h2>

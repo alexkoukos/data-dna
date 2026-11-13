@@ -7,7 +7,7 @@ import { OutcomeChip } from "./OutcomeChip";
 /** Presentational: one incident. No raw prompt is ever shown, only the masked preview. */
 export function IncidentRow({ incident }: { incident: Incident }) {
   return (
-    <li className="rounded-2xl border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-white p-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <OutcomeChip outcome={incident.decision} />
         <time dateTime={incident.ts} className="text-sm text-ink-600">

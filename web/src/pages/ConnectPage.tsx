@@ -33,7 +33,7 @@ function LiveStatus({ userId }: { userId: string }) {
   return (
     <p
       role="status"
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${seen ? "bg-allow-bg text-allow-fg" : "bg-ink-100 text-ink-700"}`}
+      className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-semibold ${seen ? "bg-allow-bg text-allow-fg" : "bg-ink-100 text-ink-700"}`}
     >
       {seen ? (
         <>
@@ -94,7 +94,7 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
         role="tabpanel"
         id="snippet-panel"
         aria-labelledby={`tab-${current.id}`}
-        className="mt-3 rounded-2xl border border-ink-200 bg-white p-4"
+        className="mt-3 rounded-lg border border-ink-200 bg-white p-4"
       >
         <p className="text-ink-700">{current.note}</p>
         {current.code && (
@@ -126,6 +126,7 @@ export default function ConnectPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
+      <p className="eyebrow">Pyli</p>
       <h1 className="text-2xl font-semibold text-ink-900">Connect a tool</h1>
       <p className="mt-1 max-w-prose text-ink-600">
         Point any tool that speaks the OpenAI format at the address below, with your personal key.

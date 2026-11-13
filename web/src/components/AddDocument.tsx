@@ -37,7 +37,7 @@ export function AddDocument({ onAdded }: { onAdded: () => void }) {
   }
 
   return (
-    <details className="mb-4 rounded-2xl border border-ink-200 bg-white p-4">
+    <details className="mb-4 rounded-lg border border-ink-200 bg-white p-4">
       <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-ink-900">
         Add a document
       </summary>

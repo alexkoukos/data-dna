@@ -14,6 +14,7 @@ export default function SecurityLayout() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-6">
       <header>
+        <p className="eyebrow">Pyli</p>
         <h1 className="text-2xl font-semibold text-ink-900">Security</h1>
         <nav
           aria-label="Security sections"

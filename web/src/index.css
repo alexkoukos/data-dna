@@ -111,3 +111,13 @@ body {
   outline: 2px solid var(--color-brand-600);
   outline-offset: 2px;
 }
+
+/* Eyebrow: 12 px caps, +8% tracking, brand-700 (docs/BRAND.md). */
+.eyebrow {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-brand-700);
+}

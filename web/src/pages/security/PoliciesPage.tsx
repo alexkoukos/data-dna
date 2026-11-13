@@ -26,7 +26,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
   }
 
   return (
-    <li className="rounded-2xl border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-ink-900">{text.label}</h3>

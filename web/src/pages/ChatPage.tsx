@@ -133,6 +133,7 @@ export default function ChatPage() {
   return (
     <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl flex-col px-4 py-6">
       <header className="mb-4">
+        <p className="eyebrow">Pyli</p>
         <h1 className="text-2xl font-semibold text-ink-900">Company Chat</h1>
         <p className="mt-1 text-ink-600">
           Your questions stay inside. We check each message first.
@@ -144,7 +145,7 @@ export default function ChatPage() {
       {setup.status === "failed" ? (
         <div
           role="alert"
-          className="rounded-2xl border border-block-fg/30 bg-block-bg p-4 text-block-fg"
+          className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
         >
           <p className="font-semibold">We could not start your chat.</p>
           <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
@@ -189,7 +190,7 @@ export default function ChatPage() {
               </div>
             ) : null}
             {error ? (
-              <p role="alert" className="mt-4 rounded-xl bg-block-bg p-3 text-sm text-block-fg">
+              <p role="alert" className="mt-4 rounded-lg bg-block-bg p-3 text-sm text-block-fg">
                 {error} Your message is back in the box.
               </p>
             ) : null}

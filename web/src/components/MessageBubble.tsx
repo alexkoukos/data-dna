@@ -18,7 +18,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
   return (
     <li className={`flex ${mine ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 ${mine ? "bg-brand-600 text-white" : "border border-ink-200 bg-white text-ink-900"}`}
+        className={`max-w-[85%] rounded-lg px-4 py-3 ${mine ? "bg-brand-600 text-white" : "border border-ink-200 bg-white text-ink-900"}`}
       >
         <p className="whitespace-pre-wrap break-words text-base leading-relaxed">{message.text}</p>
         {message.outcome ? (

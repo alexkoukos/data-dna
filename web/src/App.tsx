@@ -39,7 +39,12 @@ export default function App() {
         ))}
       </nav>
       <Routes>
-        <Route path="/" element={<Placeholder title="Data DNA" note="Pick a screen above." />} />
+        <Route
+          path="/"
+          element={
+            <Placeholder title="Every prompt passes the gate." note="Pick a screen above." />
+          }
+        />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/connect" element={<ConnectPage />} />
         <Route path="/security" element={<SecurityLayout />}>

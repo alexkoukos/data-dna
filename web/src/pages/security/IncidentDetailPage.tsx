@@ -33,7 +33,7 @@ function Detail({ id }: { id: string }) {
   const { incident, document, copy_code, timeline, reveals } = state.data;
   return (
     <div className="space-y-6">
-      <section aria-labelledby="what-h" className="rounded-2xl border border-ink-200 bg-white p-4">
+      <section aria-labelledby="what-h" className="rounded-lg border border-ink-200 bg-white p-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <OutcomeChip outcome={incident.decision} />
           <time dateTime={incident.ts} className="text-sm text-ink-600">
@@ -67,7 +67,7 @@ function Detail({ id }: { id: string }) {
         </dl>
       </section>
 
-      <section aria-labelledby="doc-h" className="rounded-2xl border border-ink-200 bg-white p-4">
+      <section aria-labelledby="doc-h" className="rounded-lg border border-ink-200 bg-white p-4">
         <h2 id="doc-h" className="text-lg font-semibold text-ink-900">
           Document match
         </h2>
@@ -105,7 +105,7 @@ function Detail({ id }: { id: string }) {
             {timeline.map((t) => (
               <li
                 key={t.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ink-200 bg-white p-3"
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-ink-200 bg-white p-3"
               >
                 <OutcomeChip outcome={t.decision} />
                 <time dateTime={t.ts} className="text-sm text-ink-600">

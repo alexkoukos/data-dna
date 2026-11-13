@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { explainReason } from "../lib/explain";
 import { AlertIcon } from "./icons";
+import { Thyro } from "./Thyro";
 
 interface Props {
   reasons: string[];
@@ -16,17 +17,22 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
   return (
     <section
       aria-labelledby="warn-title"
-      className="rounded-2xl border border-warn-fg/30 bg-warn-bg p-4 text-warn-fg"
+      className="rounded-lg border border-warn-fg/30 bg-warn-bg p-4 text-warn-fg"
     >
-      <h2 id="warn-title" className="flex items-center gap-2 text-base font-semibold">
-        <AlertIcon />
-        Check before this goes out
-      </h2>
-      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-        {reasons.map((r) => (
-          <li key={r}>{explainReason(r)}</li>
-        ))}
-      </ul>
+      <div className="flex flex-wrap items-center gap-4">
+        <Thyro pose="warn" />
+        <div className="min-w-0 flex-1">
+          <h2 id="warn-title" className="flex items-center gap-2 text-base font-semibold">
+            <AlertIcon />
+            Check before this goes out
+          </h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+            {reasons.map((r) => (
+              <li key={r}>{explainReason(r)}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
       <label htmlFor="warn-reason" className="mt-4 block text-sm font-medium">
         Need to send it as it is? Say why (this is saved with the message).
       </label>

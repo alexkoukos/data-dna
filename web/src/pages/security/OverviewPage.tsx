@@ -117,7 +117,7 @@ export default function OverviewPage() {
       <Kpis m={metrics} />
       <section
         aria-labelledby="ask-h"
-        className="mt-10 rounded-2xl border border-ink-200 bg-white p-4"
+        className="mt-10 rounded-lg border border-ink-200 bg-white p-4"
       >
         <h2 id="ask-h" className="text-lg font-semibold text-ink-900">
           Ask a question
