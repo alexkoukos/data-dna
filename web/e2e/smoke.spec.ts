@@ -1,17 +1,58 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-for (const path of ["/", "/chat", "/connect", "/security"]) {
-  test(`${path} loads and has no serious accessibility issues`, async ({ page }) => {
-    await page.goto(path);
-    await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
-    const results = await new AxeBuilder({ page }).analyze();
-    const serious = results.violations.filter((v) =>
-      ["serious", "critical"].includes(v.impact ?? ""),
-    );
-    expect(serious).toEqual([]);
-  });
+const ROUTES = ["/", "/chat", "/connect", "/security", "/security/tools", "/security/incidents"];
+const VIEWPORTS = [
+  { name: "desktop", width: 1280, height: 800 },
+  { name: "phone 390 px", width: 390, height: 800 },
+];
+
+async function seriousViolations(page: Page) {
+  const results = await new AxeBuilder({ page }).analyze();
+  return results.violations.filter((v) => ["serious", "critical"].includes(v.impact ?? ""));
 }
+
+// W6: every route is accessible, fits a 390 px phone and has touch targets of at least 44 px.
+for (const vp of VIEWPORTS) {
+  for (const path of ROUTES) {
+    test(`${path} on ${vp.name}: accessible, no sideways scroll, big touch targets`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto(path);
+      await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      expect(await seriousViolations(page)).toEqual([]);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth,
+      );
+      expect(overflow).toBe(false);
+      const small = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>("button, nav a, select, textarea, input")]
+          .filter((el) => el.offsetParent !== null)
+          .map((el) => ({ el: el.outerHTML.slice(0, 80), h: el.getBoundingClientRect().height }))
+          .filter((x) => x.h < 44),
+      );
+      expect(small).toEqual([]);
+    });
+  }
+}
+
+test("security overview shows the demo company and links to incidents", async ({ page }) => {
+  await page.goto("/security");
+  await expect(page.getByText("Prompts checked")).toBeVisible();
+  await expect(page.getByText("Demo data")).toBeVisible();
+  await page.getByRole("link", { name: /Review all/ }).click();
+  await expect(page.getByRole("heading", { name: "Security" })).toBeVisible();
+  await expect(page.getByText(/newest first/)).toBeVisible();
+});
+
+test("AI tools lists unapproved tools first and can filter", async ({ page }) => {
+  await page.goto("/security/tools");
+  await expect(page.getByRole("heading", { level: 3 }).first()).toBeVisible();
+  await page.getByRole("button", { name: /^Approved/ }).click();
+  await expect(page.getByText("Unapproved", { exact: true })).toHaveCount(0);
+});
 
 test("chat masks a bank account number and still answers", async ({ page }) => {
   await page.goto("/chat");

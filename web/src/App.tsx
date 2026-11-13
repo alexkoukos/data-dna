@@ -1,5 +1,9 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
+import IncidentsPage from "./pages/security/IncidentsPage";
+import OverviewPage from "./pages/security/OverviewPage";
+import SecurityLayout from "./pages/security/SecurityLayout";
+import ToolsPage from "./pages/security/ToolsPage";
 import { Placeholder } from "./pages/Placeholder";
 
 const links = [
@@ -35,10 +39,11 @@ export default function App() {
           path="/connect"
           element={<Placeholder title="Connect a tool" note="See TASKS.md: web/connect." />}
         />
-        <Route
-          path="/security"
-          element={<Placeholder title="Security overview" note="See TASKS.md: web/security." />}
-        />
+        <Route path="/security" element={<SecurityLayout />}>
+          <Route index element={<OverviewPage />} />
+          <Route path="tools" element={<ToolsPage />} />
+          <Route path="incidents" element={<IncidentsPage />} />
+        </Route>
       </Routes>
     </div>
   );
