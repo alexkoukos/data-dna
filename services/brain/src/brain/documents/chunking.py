@@ -40,3 +40,12 @@ def rebuild_text(chunks: list[str], step: int = STEP_WORDS) -> str:
         ws = c.split()
         out.extend(ws if i == len(chunks) - 1 else ws[:step])
     return " ".join(out)
+
+
+_GREEK = re.compile(r"[Ͱ-Ͽἀ-῿]")
+_LATIN = re.compile(r"[A-Za-z]")
+
+
+def language(text: str) -> str:
+    """'el' when Greek letters outnumber Latin ones, otherwise 'en'."""
+    return "el" if len(_GREEK.findall(text)) > len(_LATIN.findall(text)) else "en"

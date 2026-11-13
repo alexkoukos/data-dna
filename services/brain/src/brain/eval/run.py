@@ -8,6 +8,7 @@ Writes eval/report.md and eval/report.json at the repo root.
 
 import csv
 import json
+import random
 import statistics
 import sys
 import time
@@ -24,8 +25,16 @@ from brain.detection.entities import ClientMatcher, EntityDetector
 from brain.detection.patterns import find_patterns
 from brain.detection.pipeline import inspect_text
 from brain.detection.yara_rules import find_yara
+from brain.dna.marks import (
+    assign_vectors,
+    attribute,
+    copy_code,
+    propose_marks,
+    render,
+    sentences,
+)
 from brain.documents.embeddings import E5Embedder
-from brain.documents.loader import load_documents
+from brain.documents.loader import load_documents, parse
 from brain.documents.registry import DocumentIndex
 from brain.injection.heuristics import injection_finder
 from brain.seed.spec import load as load_spec
@@ -95,6 +104,43 @@ def percentile(values: list[float], q: float) -> float:
     return s[min(len(s) - 1, int(q * len(s)))] if s else 0.0
 
 
+def attribution_accuracy(data: Path, copies: int = 8, trials: int = 40) -> float | None:
+    """Issue copies of each document, "leak" random excerpts of them, and check the right copy is
+    named. Only excerpts that still carry at least 3 marks count (PRD 17). Excerpts are shouted
+    or stripped of punctuation first, the way a careless leaker might."""
+    rng = random.Random(7)
+    hits = total = 0
+    for path in sorted((data / "documents").glob("*.md")):
+        parsed = parse(path.read_text(encoding="utf-8"))
+        if parsed is None:
+            continue
+        text = parsed[1]
+        try:
+            marks = propose_marks(text)
+        except ValueError:
+            continue
+        vectors = assign_vectors([], copies, len(marks))
+        issued = {copy_code(1, v): v for v in vectors}
+        for _ in range(trials):
+            code, vec = rng.choice(list(issued.items()))
+            sents = sentences(render(text, marks, vec))
+            start = rng.randrange(0, max(1, len(sents) // 3))
+            end = (
+                rng.randrange(start + max(2, len(sents) // 2), len(sents) + 1)
+                if len(sents) > 3
+                else len(sents)
+            )
+            excerpt = " ".join(sents[start:end])
+            if rng.random() < 0.5:
+                excerpt = excerpt.upper()
+            seen = attribute(excerpt, marks, issued)
+            if seen is None or seen.marks_found < 3:
+                continue
+            total += 1
+            hits += seen.copy_code == code
+    return None if total == 0 else round(100.0 * hits / total, 1)
+
+
 def run(data_dir: Path | None = None) -> dict[str, Any]:
     data = data_dir or REPO / "data"
     rows, source = load_rows(data)
@@ -116,7 +162,12 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
     results: list[Result] = []
     for r in rows:
         start = time.perf_counter()
-        out = inspect_text(r.text, finders=finders, doc_matcher=index.match)
+        out = inspect_text(
+            r.text,
+            finders=finders,
+            doc_matcher=index.match,
+            view_finders=[find_yara, injection_finder],
+        )
         ms = (time.perf_counter() - start) * 1000
         decision = str(out.verdict.decision)
         results.append(
@@ -130,7 +181,49 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
                 out.verdict.reasons,
             )
         )
-    return summarise(results, source)
+    rep = summarise(results, source, attribution_accuracy(data))
+    rep["attacks"] = run_attacks(data / "eval" / "attacks.csv", finders, index)
+    return rep
+
+
+def run_attacks(path: Path, finders: list[Any], index: DocumentIndex) -> dict[str, Any] | None:
+    """X2: the red-team file. An attack is caught when the decision is one of the accepted ones."""
+    if not path.exists():
+        return None
+    by: dict[str, list[int]] = {}
+    misses: list[dict[str, str]] = []
+    with path.open(encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            out = inspect_text(
+                r["text"],
+                finders=finders,
+                doc_matcher=index.match,
+                view_finders=[find_yara, injection_finder],
+            )
+            got = str(out.verdict.decision)
+            ok = got in r["expected"].split("|")
+            tally = by.setdefault(r["technique"], [0, 0])
+            tally[0] += int(ok)
+            tally[1] += 1
+            if not ok:
+                misses.append(
+                    {
+                        "id": r["id"],
+                        "technique": r["technique"],
+                        "expected": r["expected"],
+                        "got": got,
+                        "text": r["text"][:90],
+                    }
+                )
+    total = sum(v[1] for v in by.values())
+    caught = sum(v[0] for v in by.values())
+    return {
+        "total": total,
+        "caught": caught,
+        "rate": round(100 * caught / total, 1) if total else None,
+        "by_technique": {k: {"caught": v[0], "total": v[1]} for k, v in by.items()},
+        "misses": misses,
+    }
 
 
 def _recall(rs: list[Result], base: bool = False) -> float | None:
@@ -145,7 +238,9 @@ def _doc_recall(rs: list[Result]) -> float | None:
     return pct(sum(1 for x in rs if x.matched_doc), len(rs))
 
 
-def summarise(results: list[Result], source: str) -> dict[str, Any]:
+def summarise(
+    results: list[Result], source: str, attribution: float | None = None
+) -> dict[str, Any]:
     leaks = [x for x in results if x.row.label == "leak"]
     doc_leaks = [x for x in leaks if x.row.leak_type in ("copy", "edit", "paraphrase", "split")]
     paraphrases = [x for x in leaks if x.row.leak_type == "paraphrase"]
@@ -188,7 +283,7 @@ def summarise(results: list[Result], source: str) -> dict[str, Any]:
         "latency_p95_ms": round(percentile(latencies, 0.95), 1),
         "zero_llm_share": 100.0,
         "llm_tokens": 0,
-        "copy_attribution_accuracy": None,
+        "copy_attribution_accuracy": attribution,
     }
     targets: list[tuple[str, str, float | None, Callable[[float], bool]]] = [
         (
@@ -200,7 +295,12 @@ def summarise(results: list[Result], source: str) -> dict[str, Any]:
         ("False alarms on clean prompts", "<= 5%", metrics["false_alarm_rate"], lambda v: v <= 5),
         ("Added latency p95", "< 100 ms", metrics["latency_p95_ms"], lambda v: v < 100),
         ("Prompts with zero LLM tokens", ">= 90%", metrics["zero_llm_share"], lambda v: v >= 90),
-        ("Correct copy named (needs DNA marks, N1)", ">= 90%", None, lambda v: v >= 90),
+        (
+            "Correct copy named (leaks with 3 or more marks)",
+            ">= 90%",
+            metrics["copy_attribution_accuracy"],
+            lambda v: v >= 90,
+        ),
     ]
     verdicts = [
         {"metric": n, "target": tg, "value": v, "pass": None if v is None else bool(ok(v))}
@@ -294,6 +394,32 @@ def to_markdown(rep: dict[str, Any]) -> str:
             lines.append(f"| {x['id']} | {x['type']} | {x['expected']} | {x['got']} | {text} |")
     else:
         lines.append("None.")
+    atk = rep.get("attacks")
+    if atk:
+        lines += [
+            "",
+            "## Attack set (data/eval/attacks.csv)",
+            "",
+            f"{atk['caught']} of {atk['total']} attacks handled as expected ({atk['rate']}%).",
+            "",
+            "| Technique | Handled | Of |",
+            "| --- | --- | --- |",
+        ]
+        for k, v in atk["by_technique"].items():
+            lines.append(f"| {k} | {v['caught']} | {v['total']} |")
+        if atk["misses"]:
+            lines += [
+                "",
+                "Missed:",
+                "",
+                "| Id | Technique | Expected | Got | Text |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+            for x in atk["misses"]:
+                text = x["text"].replace("|", "/").replace("\n", " ")
+                lines.append(
+                    f"| {x['id']} | {x['technique']} | {x['expected']} | {x['got']} | {text} |"
+                )
     return "\n".join(lines) + "\n"
 
 

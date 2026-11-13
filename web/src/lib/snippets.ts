@@ -59,14 +59,19 @@ API Key:  ${key}`,
     {
       id: "claude-code",
       label: "Claude Code",
-      note: "Not available yet. Claude Code needs an Anthropic-format address, which the gate does not offer in this version.",
-      code: null,
+      note: "Claude Code talks to the gate through the Anthropic messages address. Requests are checked the same way.",
+      code: `export ANTHROPIC_BASE_URL="${url.replace(/\/v1$/, "")}"
+export ANTHROPIC_AUTH_TOKEN="${key}"
+export ANTHROPIC_MODEL="${model}"
+export ANTHROPIC_SMALL_FAST_MODEL="${model}"
+claude`,
     },
     {
       id: "mcp",
       label: "MCP",
-      note: "Not available yet. The MCP proxy is planned for a later version.",
-      code: null,
+      note: "Put the proxy in front of any MCP server. Text coming back from its tools is checked for hidden instructions and secrets before the AI sees it. Run it from the project folder.",
+      code: `# Replace the last part with your MCP server command
+BRAIN_URL=${url.replace(/:4000\/v1$/, ":8001")} python scripts/mcp_proxy.py -- npx -y @modelcontextprotocol/server-filesystem ./docs`,
     },
   ];
 }

@@ -10,6 +10,13 @@ export interface Metrics {
 
 export type Decision = "allow" | "mask" | "warn" | "local" | "block";
 
+export interface TraceStep {
+  layer: string;
+  fired: boolean;
+  score: number | null;
+  detail: string;
+}
+
 export interface Incident {
   id: number;
   ts: string;
@@ -21,6 +28,8 @@ export interface Incident {
   reasons: string[];
   masked_preview: string | null;
   score: number | null;
+  shadow?: boolean;
+  trace?: TraceStep[];
 }
 
 export interface IncidentPage {
@@ -240,3 +249,38 @@ export const approveMarks = (id: number, marks: ProposedMark[]) =>
 export const issueCopies = (id: number, recipients: string[]) =>
   postJson<IssuedCopy[]>(`/v1/documents/${id}/copies`, { recipients });
 export const fetchDnaState = (id: number) => get<DnaState>(`/v1/documents/${id}/dna`);
+
+export async function askFree(question: string): Promise<Answer> {
+  const res = await fetch("/api/v1/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+  if (!res.ok) throw await detail(res, "We could not get the answer. Try again in a moment.");
+  return (await res.json()) as Answer;
+}
+
+export interface ShadowStatus {
+  enabled: boolean;
+  would_have: Partial<Record<Decision, number>>;
+  total: number;
+}
+
+export const fetchShadow = () => get<ShadowStatus>("/v1/shadow-mode");
+
+export async function saveShadow(enabled: boolean): Promise<ShadowStatus> {
+  let res: Response;
+  try {
+    res = await fetch("/api/v1/shadow-mode", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled, updated_by: "dashboard" }),
+    });
+  } catch {
+    throw new Error("We could not reach the server. Check your connection and try again.");
+  }
+  if (!res.ok) throw new Error("Shadow mode was not changed. Try again in a moment.");
+  return (await res.json()) as ShadowStatus;
+}
+
+export const COMPLIANCE_REPORT_URL = "/api/v1/compliance-report.pdf";

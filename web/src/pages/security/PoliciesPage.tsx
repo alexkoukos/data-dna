@@ -1,8 +1,18 @@
 import { useState } from "react";
+import { ShadowCard } from "../../components/ShadowCard";
 import { OutcomeChip } from "../../components/OutcomeChip";
 import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
 import { ACTIONS, EFFECT, textFor } from "../../lib/policyText";
-import { fetchPolicies, savePolicy, type Decision, type Policy } from "../../lib/securityApi";
+import {
+  COMPLIANCE_REPORT_URL,
+  fetchPolicies,
+  fetchShadow,
+  savePolicy,
+  saveShadow,
+  type Decision,
+  type Policy,
+  type ShadowStatus,
+} from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
 
 function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) => void }) {
@@ -118,6 +128,51 @@ function Group({
   );
 }
 
+function Shadow() {
+  const [state] = useFetch(fetchShadow);
+  const [override, setOverride] = useState<ShadowStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const status = override ?? (state.status === "ready" ? state.data : null);
+  if (status === null) return null;
+  async function toggle(next: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      setOverride(await saveShadow(next));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Shadow mode was not changed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return <ShadowCard status={status} busy={busy} error={error} onToggle={toggle} />;
+}
+
+function ReportCard() {
+  return (
+    <section
+      aria-labelledby="report-h"
+      className="mt-4 rounded-lg border border-ink-200 bg-white p-4"
+    >
+      <h2 id="report-h" className="text-lg font-semibold text-ink-900">
+        Compliance report
+      </h2>
+      <p className="max-w-prose text-sm text-ink-700">
+        A PDF that maps what the gate does to GDPR, NIS2 and the EU AI Act, with the live numbers.
+        It supports your own review; it is not legal advice.
+      </p>
+      <a
+        href={COMPLIANCE_REPORT_URL}
+        download
+        className="mt-3 inline-flex min-h-11 items-center rounded-md border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
+      >
+        Download the PDF report
+      </a>
+    </section>
+  );
+}
+
 /** Container: what the gate does for each kind of sensitive data. Edits apply within seconds. */
 export default function PoliciesPage() {
   const [state, reload] = useFetch(fetchPolicies);
@@ -151,6 +206,8 @@ export default function PoliciesPage() {
         Choose what happens when the gate finds each kind of data. When several apply to one
         message, the strictest wins: block, then answer locally, then warn, then mask.
       </p>
+      <Shadow />
+      <ReportCard />
       <Group
         title="Sensitive data"
         policies={merged.filter((p) => p.scope === "category")}
