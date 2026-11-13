@@ -4,6 +4,7 @@ Generic types are used so the same code runs on Postgres and, in unit tests, on 
 """
 
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector
 
 metadata = sa.MetaData()
 
@@ -107,4 +108,45 @@ reveal_requests = sa.Table(
     sa.Column("approved_by", sa.Text),
     sa.Column("status", sa.Text, server_default="pending"),
     sa.Column("ts", sa.DateTime(timezone=True)),
+)
+
+doc_chunks = sa.Table(
+    "doc_chunks",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id", ondelete="CASCADE")),
+    sa.Column("idx", sa.Integer, nullable=False),
+    sa.Column("minhash", sa.LargeBinary),
+    sa.Column("embedding", Vector(384).with_variant(sa.JSON, "sqlite")),
+    sa.Column("text_demo", sa.Text),
+)
+
+session_coverage = sa.Table(
+    "session_coverage",
+    metadata,
+    sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id"), primary_key=True),
+    sa.Column("chunk_idx", sa.ARRAY(sa.Integer).with_variant(sa.JSON, "sqlite")),
+    sa.Column("prompts", sa.Integer, server_default="0"),
+    sa.Column("window_start", sa.DateTime(timezone=True)),
+)
+
+doc_marks = sa.Table(
+    "doc_marks",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id", ondelete="CASCADE")),
+    sa.Column("position", sa.Integer, nullable=False),
+    sa.Column("variants", _TEXT_LIST, nullable=False),
+)
+doc_copies = sa.Table(
+    "doc_copies",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id", ondelete="CASCADE")),
+    sa.Column("copy_code", sa.Text, nullable=False),
+    sa.Column("recipient_user_id", sa.Integer, sa.ForeignKey("users.id")),
+    sa.Column(
+        "variant_vector", sa.ARRAY(sa.Integer).with_variant(sa.JSON, "sqlite"), nullable=False
+    ),
 )

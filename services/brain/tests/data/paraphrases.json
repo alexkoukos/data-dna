@@ -1,0 +1,31 @@
+{
+  "note": "Invented prompts for the D3 go/no-go check. positives rewrite a sample document; negatives are on similar topics but are not copies.",
+  "positives": [
+    {"doc": "Board memo: expansion into the Balkans", "kind": "copy", "text": "The management team recommends opening offices in Sofia and Belgrade during the second quarter of 2027. The plan assumes an initial investment of four million euros, financed from retained earnings, with break even expected after twenty two months."},
+    {"doc": "Board memo: expansion into the Balkans", "kind": "paraphrase", "text": "Leadership wants to set up new branches in Sofia and Belgrade in Q2 2027. They budget 4 million euros paid out of retained profit and think the project pays for itself in about 22 months."},
+    {"doc": "Board memo: expansion into the Balkans", "kind": "paraphrase", "text": "We plan to buy a small Sofia company called Danube Advisory for 1.5 million euros so that we immediately get its banking and telecom customers. Our biggest rival has been talking to two of the same targets."},
+    {"doc": "Board memo: expansion into the Balkans", "kind": "paraphrase", "text": "Please summarise this for me: the board will vote in March on whether we expand into Bulgaria and Serbia, and the offer for the Danube firm has to be settled before mid April. Nothing may be discussed outside the executive committee."},
+    {"doc": "Board memo: expansion into the Balkans", "kind": "paraphrase", "text": "Η διοίκηση προτείνει να ανοίξουμε γραφεία στη Σόφια και το Βελιγράδι το δεύτερο τρίμηνο του 2027, με αρχική επένδυση τεσσάρων εκατομμυρίων ευρώ."},
+    {"doc": "Master services agreement: Delphi Insurance", "kind": "copy", "text": "The agreement runs for three years and renews automatically for periods of one year unless either party gives ninety days written notice. The supplier's liability is limited to the fees paid in the twelve months before a claim, except for breach of confidentiality, which is unlimited."},
+    {"doc": "Master services agreement: Delphi Insurance", "kind": "paraphrase", "text": "Our contract with Delphi lasts three years, then rolls over yearly unless someone cancels with 90 days notice. If something goes wrong we only owe what they paid us in the last year, except if we leak their confidential data, where there is no cap."},
+    {"doc": "Master services agreement: Delphi Insurance", "kind": "paraphrase", "text": "We charge Delphi Insurance 840,000 euros a year for analytics and regulatory reporting, billed every quarter up front. They can leave after year one by paying half of what is left."},
+    {"doc": "Master services agreement: Delphi Insurance", "kind": "paraphrase", "text": "Η σύμβαση με τη Delphi Insurance διαρκεί τρία χρόνια και ανανεώνεται αυτόματα κάθε χρόνο, εκτός αν κάποιο μέρος δώσει γραπτή ειδοποίηση ενενήντα ημερών. Η ευθύνη του προμηθευτή περιορίζεται στις αμοιβές των τελευταίων δώδεκα μηνών."},
+    {"doc": "Salary bands 2027", "kind": "copy", "text": "Για τους προγραμματιστές το εύρος της πρώτης βαθμίδας είναι από είκοσι οκτώ έως τριάντα πέντε χιλιάδες ευρώ ετησίως, της δεύτερης βαθμίδας από τριάντα πέντε έως σαράντα πέντε χιλιάδες και της τρίτης βαθμίδας από σαράντα πέντε έως εξήντα χιλιάδες ευρώ."},
+    {"doc": "Salary bands 2027", "kind": "paraphrase", "text": "Οι μισθοί των developers το 2027 ξεκινούν από 28.000 και φτάνουν τα 60.000 ευρώ τον χρόνο ανάλογα με το επίπεδο, ενώ οι tech leads παίρνουν από 60 έως 80 χιλιάδες."},
+    {"doc": "Salary bands 2027", "kind": "paraphrase", "text": "Το μπόνους απόδοσης δεν επιτρέπεται να υπερβαίνει το 15% του βασικού μισθού και οι αυξήσεις δίνονται μία φορά τον χρόνο τον Ιανουάριο μετά την αξιολόγηση."},
+    {"doc": "Salary bands 2027", "kind": "paraphrase", "text": "Here is what we pay developers in 2027: junior band 28 to 35 thousand euros a year, middle band 35 to 45 thousand, senior band 45 to 60 thousand. Team leads earn between 60 and 80 thousand."},
+    {"doc": "Salary bands 2027", "kind": "paraphrase", "text": "Performance bonuses are capped at fifteen percent of base pay and raises are only approved once a year in January after the review. This must not be shared outside HR and management."}
+  ],
+  "negatives": [
+    {"text": "Write a short email to a new client welcoming them and proposing a kickoff call next week."},
+    {"text": "Explain the difference between a merger and an acquisition in simple terms."},
+    {"text": "What are typical termination clauses in a software services contract and what should a buyer watch for?"},
+    {"text": "Draft a job advert for a senior developer in Athens, mentioning a competitive salary and a hybrid working model."},
+    {"text": "Ποια είναι τα βασικά βήματα για να ανοίξει μια εταιρεία γραφείο σε άλλη χώρα της Ευρώπης;"},
+    {"text": "Πώς μπορώ να υπολογίσω το μπόνους απόδοσης ως ποσοστό του ετήσιου μισθού σε ένα λογιστικό φύλλο;"},
+    {"text": "Summarise the main points of the GDPR rules on reporting a personal data breach within seventy two hours."},
+    {"text": "Give me ideas for the agenda of a quarterly board meeting for a mid sized consulting company."},
+    {"text": "Translate into Greek: we are pleased to confirm that the invoice has been paid and the service will continue as agreed."},
+    {"text": "What is a reasonable availability target for an internal reporting platform and how are service credits usually calculated?"}
+  ]
+}

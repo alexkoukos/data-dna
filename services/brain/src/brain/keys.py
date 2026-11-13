@@ -4,7 +4,7 @@ import httpx
 
 from brain.config import settings
 
-MODELS = ["gpt-4o-mini", "demo-mock", "demo-echo", "demo-leaky"]
+MODELS = ["gpt-4o-mini", "demo-mock", "demo-echo", "demo-leaky", "local-standin"]
 
 
 class KeyError_(RuntimeError):

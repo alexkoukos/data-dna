@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 RETENTION_DAYS = 30
 
 
-def _user_id(conn: sa.Connection, pseudonym: str, team: str) -> int:
+def user_row_id(conn: sa.Connection, pseudonym: str, team: str) -> int:
     found = conn.execute(
         sa.select(t.users.c.id).where(t.users.c.pseudonym == pseudonym)
     ).scalar_one_or_none()
@@ -66,13 +66,16 @@ def record_decision(
     reasons: list[str],
     masked_preview: str | None,
     tool: str = "Company AI",
+    document_id: int | None = None,
+    score: float | None = None,
+    copy_code: str | None = None,
 ) -> None:
     if engine is None:
         return
     now = datetime.now(UTC)
     try:
         with engine.begin() as conn:
-            uid = _user_id(conn, user, team)
+            uid = user_row_id(conn, user, team)
             _bump_counter(conn, now.date(), team, decision == "allow")
             if decision != "allow":
                 conn.execute(
@@ -86,6 +89,9 @@ def record_decision(
                         categories=sorted(set(categories)),
                         reasons=reasons,
                         masked_preview=masked_preview,
+                        document_id=document_id,
+                        score=score,
+                        copy_code=copy_code,
                         expires_at=now + timedelta(days=RETENTION_DAYS),
                     )
                 )

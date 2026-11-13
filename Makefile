@@ -47,6 +47,15 @@ fmt: ## Auto-format code
 test-gateway: ## Integration test through the gateway (needs `make up`)
 	cd services/brain && uv run pytest tests/test_gateway_live.py -p no:cacheprovider --no-cov
 
+simulate: ## Simulated employees chat through the gateway so the dashboard moves (needs `make up`)
+	docker compose --profile sim run --rm sim
+
+loadtest: ## Latency under concurrent load, p95 against the 100 ms target (needs `make up`)
+	cd services/brain && uv run python ../../scripts/loadtest.py
+
+local: ## Start the optional local model (Ollama, gemma3:1b; first start downloads about 1 GB)
+	docker compose --profile local up -d --wait ollama
+
 validate: ## Check the team's data files (prompts, AI tools, org)
 	cd services/brain && uv run python ../../scripts/validate_data.py
 
@@ -55,7 +64,7 @@ check: validate lint typecheck test ## Everything CI checks. Run before every co
 e2e: ## End-to-end + accessibility (needs `make up` first)
 	cd web && npx playwright install chromium && npm run e2e
 
-eval: ## Detection quality report (TASKS.md E1)
-	@echo "Not implemented yet: see TASKS.md item E1"
+eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
+	cd services/brain && uv run python -m brain.eval.run
 
-.PHONY: test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+.PHONY: local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval

@@ -15,6 +15,27 @@ Template:
 
 ---
 
+## 2026-11-13 23:30, Alexandros, tasks D1 to D5, N1, E1, E3, O3, L1 (and D6 heuristics)
+**Done (all in one PR, #15 to #21 were its stacked pieces):**
+- **D1** `detection/entities.py`: people, emails, phones with Presidio and spaCy (English and Greek models locked in `uv.lock`, Greek mobile rule), client names with aho-corasick from the `clients` table (case and accent insensitive). Checksum findings win over looser ones.
+- **D2** `detection/rules/*.yar`: PEM keys, cloud credentials, connection strings, password assignments, internal hosts, company license headers and package names.
+- **D3** `documents/`: 20-word windows (PRD said 60: tested, 60 missed rewrites), MinHash (128 perms), multilingual MiniLM embeddings (fastembed does not ship e5-small; the model is baked into the brain image), pgvector storage, copy or paraphrase, `POST /v1/documents`. Restricted match blocks, confidential goes local. Three invented sample documents in `data/documents/*.sample.md` (skipped once real files exist).
+- **D4** PDF and DOCX extraction on `/v1/inspect` attachments (base64) and on `POST /v1/documents`.
+- **D5** session memory: 40% of a document rebuilt, or 3 prompts on a restricted one, becomes block with a plain reason.
+- **D6 (heuristics only)** English and Greek injection phrases block by default. The classifier model is not added (the protectai ONNX models are 570 to 740 MB; PRD scopes it to tool results and uploads).
+- **N1** DNA marks: `dna/marks.py` (deterministic proposer, any two copies differ in at least half the marks, attribution with odds, collusion shows two copies), endpoints under `/v1/documents/{id}/dna` and `/copies`, copy named in the incident reason. No UI yet. No LLM proposer.
+- **E1** `make eval`: scores the pipeline against `data/eval/prompts.csv` or the invented `prompts.sample.csv` (92 rows, `scripts/gen_eval_sample.py`), with a regex baseline, writes `eval/report.md` and `report.json`, exits 1 when a PRD 17 target fails.
+- **E3** `make loadtest` (asyncio, not Locust). Found that the embedding model dominated latency: now skips pieces MinHash explained, embeds non-overlapping windows capped at 6, 4 threads, decisions are written after the answer is sent, `Server-Timing` header on `/v1/inspect`.
+- **O3** `make simulate` (compose profile `sim`, not started by `up`).
+- **L1** `make local` starts Ollama (profile `local`, pinned 0.40.16) with gemma3:1b. Benchmark in `eval/local_llm_bench.md`: gemma3:1b best Greek and fastest, qwen2.5:1.5b produced broken Greek, llama3.2:3b repeated itself. Ollama's default thread count ran at 0.5 tokens a second on a 10 core Mac; the compose command sets `num_thread` 4 on a derived model `dna-local` (about 30 tokens a second). The gateway routes `local` to Ollama and falls back to a stand-in answer when it is not running (no wait: `max_retries: 0`), so the default stack and all tests work without it.
+**State:** `make check` green (189 brain tests, 93% coverage, 50 web tests), `make e2e` 26 passed, `make test-gateway` 13 passed both with and without Ollama.
+**Numbers (`make eval`, invented sample set):** paraphrase recall about 58% (target 80%: FAIL), false alarms 0%, p95 latency about 22 ms in process. `make loadtest` in the container: p95 35 ms with 1 person, 66 ms with 3, 239 ms with 10 (one brain process saturates near 70 requests a second; several workers are not possible yet because placeholder sessions live in memory).
+**Next step:** (1) real data: T1 to T4, then re-run `make eval` on the team's `prompts.csv`; (2) improve paraphrase recall (ideas: names and numbers shared with the document as a second signal, a larger embedding model, the LLM judge D7 on borderline scores through `make local`); (3) E2 red team (promptfoo, garak); (4) UI for DNA marks and document upload (N1 and D4 have no screens); (5) S2 on Linux and WSL; (6) R4 freeze Thu 19 Nov 20:00.
+**Problems / decisions needed:** `docker compose up` for judges downloads nothing extra beyond images (models are baked in), but the brain image is about 1.6 GB. `make local` downloads about 1 GB once. A leftover container `bench-ollama` and volume `bench-ollama` from the benchmark can be deleted with `docker rm bench-ollama` and `docker volume rm bench-ollama`. `make reset` removes test documents and reveal requests.
+**Files touched:** services/brain/src/brain/{detection/*,documents/*,dna/*,eval/*,injection/*,clients.py,session via documents/session.py,records.py,main.py,db/tables.py,api/schemas.py}, services/brain/{Dockerfile,pyproject.toml,uv.lock,tests/*}, infra/gateway/config.yaml, docker-compose.yml, Makefile, scripts/{gen_eval_sample.py,simulate.py,loadtest.py,bench_local_llm.py}, data/documents/*.sample.md, data/eval/prompts.sample.csv, web/src (long masked previews), TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-13 21:00, Alexandros, tasks A1, W3, N2 (and merge of E4, S2, W4, W5)
 **Done:**
 - **Merged to `main`:** E4 (#10) and W5 (#13, which also carries the S2 and W4 work, merged into it to save three slow CI runs; #11 and #12 were closed as included).
