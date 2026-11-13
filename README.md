@@ -1,0 +1,44 @@
+# Data DNA
+
+> Video: [link, added Thu 19 Nov]
+> An AI gateway that every AI tool in the company goes through: it finds which AI tools are used, catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
+
+Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
+
+## Concept
+_To be written (R1). Source: docs/IDEA_AND_TEAM.md._
+
+## Main features
+_To be written (R1)._
+
+## Setup and run
+Requirements: Docker with Compose v2. RAM and first-start time: _measured in S2_.
+
+```bash
+git clone <this repo>
+cd data-dna
+cp .env.example .env        # optional: add OPENAI_API_KEY
+docker compose up --build
+```
+Open http://localhost:3000 (app) and http://localhost:8001/docs (API).
+
+## Architecture
+_Diagram and services table (R1). Source: docs/PRD.md section 7._
+
+## Evaluation
+_Results from `make eval` (E1)._
+
+## Privacy and governance
+_GDPR and EU AI Act (T5)._
+
+## Known limits
+_To be written._
+
+## Roadmap
+_From docs/business (T5)._
+
+## Team
+Alexandros, Stelios, Vasilis, Konstantinos.
+
+---
+For contributors: start with `docs/TEAM_GUIDE.md` and `CLAUDE.md`.

@@ -1,0 +1,2 @@
+name,vendor,domains,category,approval,risk,reason,alternative
+Company AI,Data DNA gateway,localhost,chat,approved,low,"All traffic checked by the gateway",

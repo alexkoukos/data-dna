@@ -1,0 +1,2 @@
+id,lang,text,label,leak_type,document_id,entity_types,expected_decision,notes
+P0001,el,"Γράψε μου ένα σύντομο email για να μεταθέσω μια συνάντηση στην Πέμπτη.",clean,,,,allow,example row: keep or replace

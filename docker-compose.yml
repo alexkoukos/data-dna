@@ -1,0 +1,45 @@
+# One command: docker compose up --build   (Netcompany rule: must build and start on Linux)
+# Gateway (LiteLLM) and the local model are added in TASKS.md items G1 and L1.
+name: data-dna
+
+services:
+  db:
+    build: ./infra/db
+    environment:
+      POSTGRES_USER: ${DB_USER:-dna}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+      POSTGRES_DB: ${DB_NAME:-dna}
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dna} -d ${DB_NAME:-dna}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  brain:
+    build: ./services/brain
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/${DB_NAME:-dna}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      RETENTION_DAYS: ${RETENTION_DAYS:-30}
+    volumes:
+      - models:/models
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    ports:
+      - "3000:3000"
+    depends_on:
+      brain:
+        condition: service_healthy
+
+volumes:
+  dbdata:
+  models:

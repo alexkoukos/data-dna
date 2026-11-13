@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* Design tokens. Pick only from these scales (see CLAUDE.md, frontend rules). */
+@theme {
+  --font-sans: Inter, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+
+  --color-ink-900: #111827;
+  --color-ink-700: #374151;
+  --color-ink-600: #4b5563;
+  --color-ink-500: #6b7280;
+  --color-ink-300: #d1d5db;
+  --color-ink-200: #e5e7eb;
+  --color-ink-100: #f3f4f6;
+  --color-ink-50: #f9fafb;
+
+  --color-brand-700: #3730a3;
+  --color-brand-600: #4338ca;
+  --color-brand-500: #4f46e5;
+  --color-brand-100: #e0e7ff;
+  --color-brand-50: #eef2ff;
+
+  /* Outcome colors. Always pair with an icon and a text label. */
+  --color-allow-bg: #dcfce7;
+  --color-allow-fg: #166534;
+  --color-mask-bg: #dbeafe;
+  --color-mask-fg: #1e40af;
+  --color-local-bg: #ccfbf1;
+  --color-local-fg: #115e59;
+  --color-warn-bg: #fef3c7;
+  --color-warn-fg: #92400e;
+  --color-block-bg: #fee2e2;
+  --color-block-fg: #991b1b;
+}
+
+body {
+  @apply bg-ink-50 text-ink-900 font-sans antialiased;
+}

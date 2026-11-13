@@ -1,0 +1,12 @@
+# Synthetic organisation. Owners: Konstantinos and Vasilis. Fictional names only.
+company:
+  name: "TBD (check that no real company uses it)"
+  industry: consulting
+  employees: 200
+teams:
+  - { name: Engineering, size: 40, ai_tools: { "Company AI": daily, "Claude Code (gateway)": daily } }
+  - { name: Sales, size: 30, ai_tools: { "ChatGPT (personal)": daily } }
+clients:
+  - { name: "TBD client 1", aliases: [] }
+storyline:
+  - { day: 3, team: Sales, event: "Spike in use of an unapproved AI tool" }
