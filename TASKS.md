@@ -62,3 +62,6 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [ ] **R2** P1 Video (private YouTube) linked at the top of README. Owner: Konstantinos with Alexandros. Thu 19.
 - [ ] **R3** P1 Slides. Owner: Konstantinos. Draft Thu 19, final Tue 24.
 - [ ] **R4** P0 Freeze Thu 19 20:00, submit Fri 20 by noon, judges have repo access. Owner: Alexandros.
+
+## Extra features
+Full list, owners and priorities are in `docs/EXTRA_FEATURES.md` (X1 to X26). Technical items are Alexandros's; business and writing items stay with Vasilis and Konstantinos.
