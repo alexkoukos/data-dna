@@ -4,6 +4,7 @@ Generic types are used so the same code runs on Postgres and, in unit tests, on 
 """
 
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector
 
 metadata = sa.MetaData()
 
@@ -107,4 +108,15 @@ reveal_requests = sa.Table(
     sa.Column("approved_by", sa.Text),
     sa.Column("status", sa.Text, server_default="pending"),
     sa.Column("ts", sa.DateTime(timezone=True)),
+)
+
+doc_chunks = sa.Table(
+    "doc_chunks",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id", ondelete="CASCADE")),
+    sa.Column("idx", sa.Integer, nullable=False),
+    sa.Column("minhash", sa.LargeBinary),
+    sa.Column("embedding", Vector(384).with_variant(sa.JSON, "sqlite")),
+    sa.Column("text_demo", sa.Text),
 )

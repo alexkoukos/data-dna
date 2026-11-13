@@ -66,6 +66,8 @@ def record_decision(
     reasons: list[str],
     masked_preview: str | None,
     tool: str = "Company AI",
+    document_id: int | None = None,
+    score: float | None = None,
 ) -> None:
     if engine is None:
         return
@@ -86,6 +88,8 @@ def record_decision(
                         categories=sorted(set(categories)),
                         reasons=reasons,
                         masked_preview=masked_preview,
+                        document_id=document_id,
+                        score=score,
                         expires_at=now + timedelta(days=RETENTION_DAYS),
                     )
                 )

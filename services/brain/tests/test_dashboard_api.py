@@ -267,3 +267,39 @@ def test_an_approval_for_one_incident_does_not_open_another(client: TestClient) 
     client.post(f"/v1/reveal-requests/{asked['id']}/approve", json={"decided_by": "Nikos"})
     r = client.get(f"/v1/incidents/{b}/identity?request_id={asked['id']}")
     assert r.status_code == 403
+
+
+def test_register_a_document_then_a_copy_of_it_is_blocked(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from brain.documents.embeddings import HashingEmbedder
+
+    monkeypatch.setattr(main, "embedder", HashingEmbedder())
+    text = " ".join(f"secret{i} budget{i % 7} plan{i % 5}" for i in range(40))
+    made = client.post(
+        "/v1/documents",
+        data={"title": "Roadmap", "sensitivity": "restricted", "text": text},
+    ).json()
+    assert made["chunks"] >= 5
+    r = client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "u-x",
+            "team": "Sales",
+            "model": "m",
+            "messages": [{"role": "user", "content": "Improve this: " + text[:300]}],
+        },
+    ).json()
+    assert r["decision"] == "block"
+    assert r["documents"][0]["kind"] == "copy"
+    listed = client.get("/v1/documents").json()
+    assert any(d["title"] == "Roadmap" and d["incidents"] >= 1 for d in listed)
+
+
+def test_register_rejects_a_bad_sensitivity_and_empty_text(client: TestClient) -> None:
+    bad = client.post("/v1/documents", data={"title": "X", "sensitivity": "top", "text": "a b c"})
+    assert bad.status_code == 422 and "restricted" in bad.json()["detail"]
+    empty = client.post(
+        "/v1/documents", data={"title": "X", "sensitivity": "internal", "text": " "}
+    )
+    assert empty.status_code == 422

@@ -20,7 +20,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **D0** Validators (AFM, AMKA, IBAN, Luhn), normalisation, secrets regex, masking, policy precedence. (scaffold)
 - [x] **D1** P0 Presidio + spaCy (en, el) for names, emails, phones; client names via aho-corasick from `clients` (PRD 9.2). Owner: Stelios.
 - [x] **D2** P0 YARA rules for secrets and source code (`rules/*.yar`) (PRD 9.2). Owner: Stelios.
-- [ ] **D3** P0 Document registry: chunking, MinHash, embeddings (fastembed, ONNX), pgvector search, copy vs paraphrase (PRD 9.3). Owner: Stelios. **Go/no-go Sat 14**: recall on 20 Greek and English paraphrases.
+- [x] **D3** P0 Document registry: chunking, MinHash, embeddings (fastembed, ONNX), pgvector search, copy vs paraphrase (PRD 9.3). Owner: Stelios. **Go/no-go Sat 14**: recall on 20 Greek and English paraphrases.
 - [ ] **D4** P0 File upload text extraction (PDF, DOCX) into the pipeline (PRD 9.1). Owner: Stelios.
 - [ ] **D5** P1 Session memory: rebuild across prompts (PRD 9.4). Owner: Stelios.
 - [ ] **D6** P1 Prompt-injection classifier (PRD 9.5). Owner: Stelios.

@@ -22,6 +22,15 @@ class FindingOut(BaseModel):
     masked_preview: str
 
 
+class DocumentHit(BaseModel):
+    document_id: int
+    sensitivity: str
+    kind: str
+    score: float
+    matched_chunks: list[int]
+    total_chunks: int
+
+
 class InspectResponse(BaseModel):
     decision: str
     reasons: list[str]
@@ -29,6 +38,7 @@ class InspectResponse(BaseModel):
     masked_messages: list[Message] | None = None
     evasion_signals: list[str] = Field(default_factory=list)
     session_id: str | None = None
+    documents: list[DocumentHit] = Field(default_factory=list)
 
 
 class UnmaskRequest(BaseModel):
@@ -193,3 +203,10 @@ class RevealDecision(BaseModel):
 class IdentityOut(BaseModel):
     pseudonym: str
     display_name: str | None
+
+
+class RegisteredDocument(BaseModel):
+    id: int
+    title: str
+    sensitivity: str
+    chunks: int

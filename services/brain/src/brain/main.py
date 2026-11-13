@@ -7,12 +7,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import sqlalchemy as sa
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Form, HTTPException
 
 from brain import queries, reveal
 from brain.api.schemas import (
     AskOut,
     AskRequest,
+    DocumentHit,
     DocumentOut,
     FindingOut,
     IdentityOut,
@@ -29,6 +30,7 @@ from brain.api.schemas import (
     PolicyOut,
     PolicyUpdate,
     PresetOut,
+    RegisteredDocument,
     RevealDecision,
     RevealOut,
     RevealRequest,
@@ -47,6 +49,9 @@ from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
 from brain.detection.pipeline import Finder, inspect_text
 from brain.detection.yara_rules import find_yara
+from brain.documents.embeddings import FastEmbedder
+from brain.documents.loader import load_documents
+from brain.documents.registry import DocumentIndex, register_document
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy.engine import Decision
 from brain.policy.store import PolicyError, PolicyStore
@@ -58,6 +63,17 @@ log = logging.getLogger(__name__)
 policy_store = PolicyStore(make_engine())
 entity_detector = EntityDetector()
 _client_store: ClientStore | None = None
+
+
+embedder = FastEmbedder()
+_doc_index: DocumentIndex | None = None
+
+
+def _documents() -> DocumentIndex:
+    global _doc_index
+    if _doc_index is None or _doc_index.engine is not policy_store.engine:
+        _doc_index = DocumentIndex(policy_store.engine, embedder)
+    return _doc_index
 
 
 def _finders() -> list[Finder]:
@@ -77,6 +93,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     except sa.exc.SQLAlchemyError:
         log.warning("Could not seed policies, using the seed file until the database is up")
     try:
+        await asyncio.to_thread(embedder.warm_up)
+    except Exception:  # without the model only exact copies are caught, not rewrites
+        log.exception("Could not load the embedding model; paraphrases are not detected")
+    try:
         await asyncio.to_thread(entity_detector.warm_up)
     except Exception:  # the pattern checks still work without the language models
         log.exception("Could not load the language models; people and phones are not detected")
@@ -91,6 +111,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             )
         except Exception:  # the app must still start; the dashboard just shows no demo data
             log.exception("Seeding the demo company failed")
+    docs_dir = Path(settings.data_dir) / "documents" if settings.data_dir else None
+    if engine is not None and docs_dir is not None and docs_dir.is_dir():
+        try:
+            n = await asyncio.to_thread(
+                load_documents, engine, embedder, docs_dir, settings.demo_mode
+            )
+            log.info("Registered %d documents from %s", n, docs_dir)
+        except Exception:
+            log.exception("Registering the documents failed")
     yield
 
 
@@ -108,7 +137,7 @@ def inspect(req: InspectRequest) -> InspectResponse:
     last = next((m for m in reversed(req.messages) if m.role == "user"), None)
     if last is None:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
-    result = inspect_text(last.content, policy_store.current(), _finders())
+    result = inspect_text(last.content, policy_store.current(), _finders(), _documents().match)
     masked = None
     session_id = None
     if result.verdict.decision == Decision.MASK:
@@ -125,6 +154,8 @@ def inspect(req: InspectRequest) -> InspectResponse:
         categories=[f.category for f in result.findings],
         reasons=result.verdict.reasons,
         masked_preview=result.findings[0].masked_preview if result.findings else None,
+        document_id=result.doc_matches[0].document_id if result.doc_matches else None,
+        score=result.doc_matches[0].score if result.doc_matches else None,
     )
     return InspectResponse(
         session_id=session_id,
@@ -136,6 +167,17 @@ def inspect(req: InspectRequest) -> InspectResponse:
         ],
         masked_messages=masked,
         evasion_signals=result.evasion_signals,
+        documents=[
+            DocumentHit(
+                document_id=m.document_id,
+                sensitivity=m.sensitivity,
+                kind=m.kind,
+                score=m.score,
+                matched_chunks=m.matched_chunks,
+                total_chunks=m.total_chunks,
+            )
+            for m in result.doc_matches
+        ],
     )
 
 
@@ -277,6 +319,37 @@ def deny_reveal(request_id: int, req: RevealDecision) -> RevealOut:
 @app.get("/v1/incidents/{incident_id}/identity", response_model=IdentityOut)
 def incident_identity(incident_id: int, request_id: int, viewer: str = "") -> IdentityOut:
     return _write(lambda c: reveal.reveal_identity(c, incident_id, request_id, viewer))
+
+
+@app.post("/v1/documents", response_model=RegisteredDocument)
+def register(
+    title: str = Form(min_length=1, max_length=200),
+    sensitivity: str = Form(),
+    text: str = Form(),
+) -> RegisteredDocument:
+    """Register a document so the gateway recognises it, even when it is rewritten."""
+    if sensitivity not in ("internal", "confidential", "restricted"):
+        raise HTTPException(
+            status_code=422,
+            detail="Sensitivity must be internal, confidential or restricted.",
+        )
+    engine = policy_store.engine
+    if engine is None:
+        raise HTTPException(
+            status_code=503, detail="The database is not connected. Try again soon."
+        )
+    try:
+        doc_id, chunks = register_document(
+            engine, embedder, title, sensitivity, text, keep_text=settings.demo_mode
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=422, detail=str(err)) from err
+    except sa.exc.SQLAlchemyError as err:
+        raise HTTPException(
+            status_code=503, detail="The document could not be saved. Nothing was changed."
+        ) from err
+    _documents().invalidate()
+    return RegisteredDocument(id=doc_id, title=title, sensitivity=sensitivity, chunks=chunks)
 
 
 @app.get("/v1/documents", response_model=list[DocumentOut])
