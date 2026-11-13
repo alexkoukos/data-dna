@@ -5,6 +5,8 @@ This repo is shared by four people who hand work to each other, often mid-featur
 ## What we are building
 Data DNA, an AI gateway for Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection and Data Protection). The full spec is `docs/PRD.md`. The plain-language version for the whole team is `docs/IDEA_AND_TEAM.md`. Read the PRD section you need before writing code; do not guess the design.
 
+The owner's full plan (day-by-day calendar, browser extension X21, mascot X27, notifications X15, MCP server X28, OCR and voice, cut list, and ready-made prompts A to E) is in `docs/PYLI_PLAN.md`. Prompt D there is the brief for task X21. In that file the product is called "Pyli"; it is the same project as Data DNA.
+
 Deadline: Friday 20 Nov 2026, judged from the repo alone. If `docker compose up --build` fails on a judge's machine, the submission is void.
 
 ## Start of every session (the `/start` command does this)
