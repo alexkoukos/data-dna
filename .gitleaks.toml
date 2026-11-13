@@ -1,0 +1,12 @@
+# The scanner also reads the decoy credentials of X4 and the attacks of X2. They are invented,
+# random and planted on purpose, so only those files are allowed. Everything else is still scanned.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Invented decoy credentials and attack samples"
+paths = [
+  '''data/documents/.*\.md''',
+  '''data/eval/attacks\.csv''',
+  '''services/brain/tests/.*''',
+]
