@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-13 19:00, Alexandros, tasks G2 and G3
+**Done:** Brain `POST /v1/inspect-output` (masks secrets and identifiers the model puts in an answer) and `POST /v1/unmask` (restores the user's own masked values, only for the same user, held in memory for 15 minutes). `/v1/inspect` now returns a `session_id` when it masks. The gateway guardrail runs both after the model answers: filter first, then unmask; if the brain is down the answer is withheld (503). Warn (409 + `X-DNA-Ack`) and block (403) responses are in place with reasons and an approved alternative. Config: guardrail mode is `[pre_call, post_call]` (with only `pre_call` the answer hook never runs). Extra offline models `demo-echo` and `demo-leaky` let tests prove unmask and output filtering without an OpenAI key.
+**State:** branch `task/G2-unmask-output`, PR open. `make check` green (42 brain tests, 95% coverage). `make test-gateway` 6 live tests green.
+**Next step:** G2 streaming: unmask chunk by chunk (hold back text after an unclosed `[`) and filter at the end; this is the only open part of G2. Then P1 (policies from DB) or W1 (Company Chat), whichever you pick.
+**Problems / decisions needed:** Streaming answers currently pass through without unmask or filtering. Block cannot be triggered live until the injection check (D6, Stelios) exists; it is covered by a unit test. Output injection checks are also waiting for D6.
+**Files touched:** services/brain/src/brain/{main.py,sessions.py,api/schemas.py}, infra/gateway/*, services/brain/tests/*, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-13 17:00, Alexandros, task G1
 **Done:** LiteLLM gateway (`ghcr.io/berriai/litellm:v1.109.1`) in compose on :4000. Custom guardrail `infra/gateway/dna_guardrail.py` calls `brain /v1/inspect` before every request: mask replaces the messages, warn returns 409 (the `X-DNA-Ack` header lets it through), block returns 403, local reroutes to model `local`. Fails closed with 503 if the brain is down. Virtual keys work (needs a team first: `POST /team/new`, then `/key/generate`). Offline model `demo-mock` answers without an OpenAI key. LiteLLM has its own database `litellm` (`infra/db/02-litellm.sql`, created on a fresh volume only, so run `make reset` once after pulling).
 **State:** branch `task/G1-gateway`, PR open. `make check` green (30 brain tests, 94% coverage). `make test-gateway` (4 live tests through the OpenAI SDK, needs `make up`) green locally.

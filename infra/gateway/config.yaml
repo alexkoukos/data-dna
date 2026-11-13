@@ -13,6 +13,18 @@ model_list:
       api_key: not-used
       mock_response: "Hello from the Data DNA demo model. Your message passed the safety check."
 
+  # Demo models that let the integration tests prove unmask and output filtering offline.
+  - model_name: demo-echo
+    litellm_params:
+      model: openai/demo-echo
+      api_key: not-used
+      mock_response: "Noted. I checked [IBAN_1] and it looks well formed."
+  - model_name: demo-leaky
+    litellm_params:
+      model: openai/demo-leaky
+      api_key: not-used
+      mock_response: "Use this key to deploy: AKIAIOSFODNN7EXAMPLE"
+
 litellm_settings:
   drop_params: true
 
@@ -20,7 +32,7 @@ guardrails:
   - guardrail_name: dna
     litellm_params:
       guardrail: dna_guardrail.DnaGuardrail
-      mode: pre_call
+      mode: [pre_call, post_call]
       default_on: true
 
 general_settings:

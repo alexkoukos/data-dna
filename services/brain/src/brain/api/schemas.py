@@ -25,3 +25,27 @@ class InspectResponse(BaseModel):
     findings: list[FindingOut] = Field(default_factory=list)
     masked_messages: list[Message] | None = None
     evasion_signals: list[str] = Field(default_factory=list)
+    session_id: str | None = None
+
+
+class UnmaskRequest(BaseModel):
+    session_id: str
+    user_id: str
+    text: str
+
+
+class UnmaskResponse(BaseModel):
+    text: str
+    restored: int = 0
+
+
+class InspectOutputRequest(BaseModel):
+    user_id: str = "anonymous"
+    team: str = "unknown"
+    text: str
+
+
+class InspectOutputResponse(BaseModel):
+    text: str
+    changed: bool = False
+    findings: list[FindingOut] = Field(default_factory=list)

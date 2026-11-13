@@ -30,15 +30,19 @@ def client() -> OpenAI:
     resp = httpx.post(
         f"{GATEWAY}/key/generate",
         headers=admin,
-        json={"user_id": "u-itest", "team_id": "itest", "models": ["demo-mock"]},
+        json={
+            "user_id": "u-itest",
+            "team_id": "itest",
+            "models": ["demo-mock", "demo-echo", "demo-leaky"],
+        },
     )
     resp.raise_for_status()
     return OpenAI(base_url=f"{GATEWAY}/v1", api_key=resp.json()["key"], max_retries=0)
 
 
-def _ask(client: OpenAI, text: str, **kwargs: object) -> str:
+def _ask(client: OpenAI, text: str, model: str = "demo-mock", **kwargs: object) -> str:
     out = client.chat.completions.create(
-        model="demo-mock",
+        model=model,
         messages=[{"role": "user", "content": text}],
         **kwargs,  # type: ignore[arg-type]
     )
@@ -65,3 +69,14 @@ def test_unknown_key_is_rejected() -> None:
     bad = OpenAI(base_url=f"{GATEWAY}/v1", api_key="sk-nope", max_retries=0)
     with pytest.raises((PermissionDeniedError, Exception)):
         _ask(bad, "hi")
+
+
+def test_masked_value_is_restored_in_the_answer(client: OpenAI) -> None:
+    answer = _ask(client, "Check IBAN GR1601101250000000012300695", model="demo-echo")
+    assert "GR1601101250000000012300695" in answer
+    assert "[IBAN_1]" not in answer
+
+
+def test_secret_in_a_model_answer_is_masked(client: OpenAI) -> None:
+    answer = _ask(client, "How do I deploy?", model="demo-leaky")
+    assert "AKIAIOSFODNN7EXAMPLE" not in answer
