@@ -32,7 +32,7 @@ export function StarterPrompts({ onPick }: { onPick: (text: string) => void }) {
             <button
               type="button"
               onClick={() => onPick(s.text)}
-              className="min-h-11 w-full rounded-lg border border-ink-200 bg-ink-50 px-3 py-3 text-left text-sm font-medium text-ink-700 hover:bg-brand-50"
+              className="min-h-11 w-full rounded-md border border-ink-200 bg-ink-50 px-3 py-3 text-left text-sm font-medium text-ink-700 hover:bg-brand-50"
             >
               {s.title}
             </button>

@@ -61,7 +61,7 @@ function Recent({ page }: { page: IncidentPage }) {
         </h2>
         <Link
           to="/security/incidents"
-          className="inline-flex min-h-11 items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
+          className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
         >
           Review all {formatNumber(page.total)} incidents
         </Link>
@@ -128,7 +128,7 @@ export default function OverviewPage() {
         </p>
         <Link
           to="/security/ask"
-          className="mt-3 inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-semibold text-brand-700 underline"
+          className="mt-3 inline-flex min-h-11 items-center rounded-md px-1 text-sm font-semibold text-brand-700 underline"
         >
           Open the questions
         </Link>

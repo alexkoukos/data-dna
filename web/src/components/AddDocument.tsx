@@ -2,7 +2,7 @@ import { useState } from "react";
 import { registerDocument } from "../lib/securityApi";
 
 const field =
-  "mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-sm text-ink-900";
+  "mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900";
 
 /** Register a document by pasting its text or choosing a PDF, DOCX or text file. */
 export function AddDocument({ onAdded }: { onAdded: () => void }) {
@@ -80,7 +80,7 @@ export function AddDocument({ onAdded }: { onAdded: () => void }) {
         <button
           type="submit"
           disabled={busy || !title.trim() || (!file && !text.trim())}
-          className="mt-3 min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
         >
           {busy ? "Adding…" : "Add the document"}
         </button>

@@ -40,14 +40,14 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
         id="warn-reason"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-base text-ink-900"
+        className="mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-base text-ink-900"
       />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={onEdit}
           disabled={busy}
-          className="min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
         >
           Edit message
         </button>
@@ -55,7 +55,7 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
           type="button"
           onClick={() => onSendAnyway(reason.trim())}
           disabled={busy || reason.trim().length === 0}
-          className="min-h-11 rounded-lg border border-warn-fg/40 bg-white px-4 text-sm font-semibold text-warn-fg hover:bg-ink-50 disabled:opacity-60"
+          className="min-h-11 rounded-md border border-warn-fg/40 bg-white px-4 text-sm font-semibold text-warn-fg hover:bg-ink-50 disabled:opacity-60"
         >
           Send anyway
         </button>
@@ -63,7 +63,7 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="min-h-11 rounded-lg px-3 text-sm font-medium underline"
+          className="min-h-11 rounded-md px-3 text-sm font-medium underline"
         >
           Cancel
         </button>

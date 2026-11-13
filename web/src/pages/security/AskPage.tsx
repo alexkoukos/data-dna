@@ -124,7 +124,7 @@ export default function AskPage() {
               aria-pressed={active === p.id}
               disabled={busy}
               onClick={() => ask(p.id)}
-              className={`min-h-11 w-full rounded-lg border px-4 py-3 text-left text-sm font-medium ${active === p.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-900 hover:bg-ink-100"}`}
+              className={`min-h-11 w-full rounded-md border px-4 py-3 text-left text-sm font-medium ${active === p.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-900 hover:bg-ink-100"}`}
             >
               {p.question}
             </button>

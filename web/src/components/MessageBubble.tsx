@@ -1,4 +1,5 @@
 import { WHAT_WE_DID, explainReason } from "../lib/explain";
+import { Thyro } from "./Thyro";
 import { OutcomeChip, type Outcome } from "./OutcomeChip";
 
 export interface ChatMessage {
@@ -22,7 +23,8 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
       >
         <p className="whitespace-pre-wrap break-words text-base leading-relaxed">{message.text}</p>
         {message.outcome ? (
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-3 rounded-md bg-ink-50 p-2 text-ink-900">
+            <Thyro pose={message.outcome} />
             <OutcomeChip outcome={message.outcome} detail={message.detail} />
           </div>
         ) : null}

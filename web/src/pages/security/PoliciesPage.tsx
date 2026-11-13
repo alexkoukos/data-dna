@@ -42,7 +42,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
           id={id}
           value={draft}
           onChange={(e) => setDraft(e.target.value as Decision)}
-          className="mt-1 min-h-11 w-full max-w-xs rounded-lg border border-ink-300 bg-white px-3 text-sm text-ink-900"
+          className="mt-1 min-h-11 w-full max-w-xs rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
         >
           {ACTIONS.map((a) => (
             <option key={a.id} value={a.id}>
@@ -71,7 +71,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
             type="button"
             onClick={save}
             disabled={saving}
-            className="min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
           >
             {saving ? "Saving…" : `Save ${text.label.toLowerCase()}`}
           </button>
@@ -81,7 +81,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
               setDraft(policy.action);
               setError(null);
             }}
-            className="min-h-11 rounded-lg px-4 text-sm font-medium text-ink-700 hover:bg-ink-100"
+            className="min-h-11 rounded-md px-4 text-sm font-medium text-ink-700 hover:bg-ink-100"
           >
             Cancel
           </button>

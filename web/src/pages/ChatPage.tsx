@@ -1,3 +1,4 @@
+import { Thyro } from "../components/Thyro";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSkeleton } from "../components/ChatSkeleton";
 import { Composer } from "../components/Composer";
@@ -147,15 +148,20 @@ export default function ChatPage() {
           role="alert"
           className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
         >
-          <p className="font-semibold">We could not start your chat.</p>
-          <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
-          <button
-            type="button"
-            onClick={retry}
-            className="mt-3 min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-          >
-            Try again
-          </button>
+          <div className="flex flex-wrap items-center gap-4">
+            <Thyro pose="empty" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">We could not start your chat.</p>
+              <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
+              <button
+                type="button"
+                onClick={retry}
+                className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -174,9 +180,10 @@ export default function ChatPage() {
               </div>
             )}
             {busy ? (
-              <p role="status" className="mt-4 text-sm text-ink-600">
+              <div role="status" className="mt-4 flex items-center gap-3 text-sm text-ink-600">
+                <Thyro pose="master" />
                 Checking and answering…
-              </p>
+              </div>
             ) : null}
             {held ? (
               <div className="mt-4">
@@ -190,9 +197,13 @@ export default function ChatPage() {
               </div>
             ) : null}
             {error ? (
-              <p role="alert" className="mt-4 rounded-lg bg-block-bg p-3 text-sm text-block-fg">
-                {error} Your message is back in the box.
-              </p>
+              <div
+                role="alert"
+                className="mt-4 flex items-center gap-3 rounded-lg bg-block-bg p-3 text-sm text-block-fg"
+              >
+                <Thyro pose="empty" />
+                <p>{error} Your message is back in the box.</p>
+              </div>
             ) : null}
             <div ref={endRef} />
           </div>

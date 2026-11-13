@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { OutcomeChip } from "../../components/OutcomeChip";
+import { Thyro } from "../../components/Thyro";
 import { SealedIdentity } from "../../components/SealedIdentity";
 import { ErrorPanel, Skeleton } from "../../components/ui";
 import { explainReason } from "../../lib/explain";
@@ -33,38 +34,44 @@ function Detail({ id }: { id: string }) {
   const { incident, document, copy_code, timeline, reveals } = state.data;
   return (
     <div className="space-y-6">
-      <section aria-labelledby="what-h" className="rounded-lg border border-ink-200 bg-white p-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <OutcomeChip outcome={incident.decision} />
-          <time dateTime={incident.ts} className="text-sm text-ink-600">
-            {formatDateTime(incident.ts)}
-          </time>
-        </div>
-        <h2 id="what-h" className="mt-2 text-lg font-semibold text-ink-900">
-          What happened
-        </h2>
-        {incident.reasons.map((r) => (
-          <p key={r} className="text-ink-900">
-            {explainReason(r)}
-          </p>
-        ))}
-        <p className="mt-2 text-ink-700">{WHAT_WE_DID[incident.decision]}</p>
-        <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm text-ink-600">
-          <div>
-            <dt>Team</dt>
-            <dd className="font-medium text-ink-900">{incident.team ?? "Unknown"}</dd>
+      <section
+        aria-labelledby="what-h"
+        className="flex flex-wrap gap-6 rounded-lg border border-ink-200 bg-white p-4"
+      >
+        <Thyro pose={incident.decision} size={144} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <OutcomeChip outcome={incident.decision} />
+            <time dateTime={incident.ts} className="text-sm text-ink-600">
+              {formatDateTime(incident.ts)}
+            </time>
           </div>
-          <div>
-            <dt>Tool</dt>
-            <dd className="font-medium text-ink-900">{incident.tool ?? "Unknown"}</dd>
-          </div>
-          {incident.masked_preview ? (
+          <h2 id="what-h" className="mt-2 text-lg font-semibold text-ink-900">
+            What happened
+          </h2>
+          {incident.reasons.map((r) => (
+            <p key={r} className="text-ink-900">
+              {explainReason(r)}
+            </p>
+          ))}
+          <p className="mt-2 text-ink-700">{WHAT_WE_DID[incident.decision]}</p>
+          <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm text-ink-600">
             <div>
-              <dt>What was seen, masked</dt>
-              <dd className="break-all font-mono text-ink-900">{incident.masked_preview}</dd>
+              <dt>Team</dt>
+              <dd className="font-medium text-ink-900">{incident.team ?? "Unknown"}</dd>
             </div>
-          ) : null}
-        </dl>
+            <div>
+              <dt>Tool</dt>
+              <dd className="font-medium text-ink-900">{incident.tool ?? "Unknown"}</dd>
+            </div>
+            {incident.masked_preview ? (
+              <div>
+                <dt>What was seen, masked</dt>
+                <dd className="break-all font-mono text-ink-900">{incident.masked_preview}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
       </section>
 
       <section aria-labelledby="doc-h" className="rounded-lg border border-ink-200 bg-white p-4">

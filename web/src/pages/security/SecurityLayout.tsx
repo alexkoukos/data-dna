@@ -26,7 +26,7 @@ export default function SecurityLayout() {
               to={t.to}
               end={t.end}
               className={({ isActive }) =>
-                `min-h-11 rounded-lg px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`
+                `min-h-11 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`
               }
             >
               {t.label}

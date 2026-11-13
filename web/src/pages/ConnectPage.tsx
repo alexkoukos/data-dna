@@ -1,3 +1,4 @@
+import { Thyro } from "../components/Thyro";
 import { useEffect, useState } from "react";
 import { CopyField } from "../components/CopyField";
 import { CheckIcon } from "../components/icons";
@@ -31,24 +32,27 @@ function LiveStatus({ userId }: { userId: string }) {
   }, [seen, userId]);
 
   return (
-    <p
-      role="status"
-      className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-semibold ${seen ? "bg-allow-bg text-allow-fg" : "bg-ink-100 text-ink-700"}`}
-    >
-      {seen ? (
-        <>
-          <CheckIcon /> Connected. The gateway has checked a request with this key.
-        </>
-      ) : (
-        <>
-          <span
-            aria-hidden="true"
-            className="h-2 w-2 animate-pulse rounded-full bg-ink-500 motion-reduce:animate-none"
-          />
-          Waiting for first request. Run one of the snippets below.
-        </>
-      )}
-    </p>
+    <div className="flex flex-wrap items-center gap-4">
+      <Thyro pose={seen ? "allow" : "empty"} />
+      <p
+        role="status"
+        className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-semibold ${seen ? "bg-allow-bg text-allow-fg" : "bg-ink-100 text-ink-700"}`}
+      >
+        {seen ? (
+          <>
+            <CheckIcon /> Connected. The gateway has checked a request with this key.
+          </>
+        ) : (
+          <>
+            <span
+              aria-hidden="true"
+              className="h-2 w-2 animate-pulse rounded-full bg-ink-500 motion-reduce:animate-none"
+            />
+            Waiting for first request. Run one of the snippets below.
+          </>
+        )}
+      </p>
+    </div>
   );
 }
 
@@ -84,7 +88,7 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
             aria-selected={s.id === active}
             aria-controls="snippet-panel"
             onClick={() => setActive(s.id)}
-            className={`min-h-11 rounded-lg px-3 text-sm font-medium ${s.id === active ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`}
+            className={`min-h-11 rounded-md px-3 text-sm font-medium ${s.id === active ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`}
           >
             {s.label}
           </button>
@@ -109,7 +113,7 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
             <button
               type="button"
               onClick={copy}
-              className="mt-3 min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
+              className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
             >
               {copied ? "Copied" : "Copy this code"}
             </button>

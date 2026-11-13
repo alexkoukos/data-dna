@@ -25,7 +25,7 @@ export function CopyField({ label, value, secret = false }: Props) {
   }
 
   const btn =
-    "min-h-11 min-w-11 rounded-lg border border-ink-300 bg-white px-3 text-sm font-semibold text-ink-900 hover:bg-ink-100";
+    "min-h-11 min-w-11 rounded-md border border-ink-300 bg-white px-3 text-sm font-semibold text-ink-900 hover:bg-ink-100";
   return (
     <div>
       <label htmlFor={`f-${label}`} className="block text-sm font-semibold text-ink-900">
@@ -36,7 +36,7 @@ export function CopyField({ label, value, secret = false }: Props) {
           id={`f-${label}`}
           readOnly
           value={shown ? value : "•".repeat(Math.min(value.length, 24))}
-          className="min-h-11 min-w-0 flex-1 rounded-lg border border-ink-300 bg-ink-50 px-3 font-mono text-sm text-ink-900"
+          className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-ink-50 px-3 font-mono text-sm text-ink-900"
         />
         {secret && (
           <button

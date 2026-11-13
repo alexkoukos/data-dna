@@ -93,7 +93,7 @@ function IncidentList({ filter }: { filter: Filter }) {
           type="button"
           disabled={loadingMore}
           onClick={() => showMore(view.items)}
-          className="mt-4 min-h-11 rounded-lg border border-ink-300 bg-white px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
+          className="mt-4 min-h-11 rounded-md border border-ink-300 bg-white px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
         >
           {loadingMore ? "Loading…" : "Show more"}
         </button>
@@ -118,7 +118,7 @@ export default function IncidentsPage() {
             type="button"
             aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
-            className={`min-h-11 rounded-lg border px-3 text-sm font-medium ${filter === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+            className={`min-h-11 rounded-md border px-3 text-sm font-medium ${filter === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
           >
             {f.label}
           </button>
