@@ -68,6 +68,8 @@ class InspectOutputResponse(BaseModel):
     text: str
     changed: bool = False
     findings: list[FindingOut] = Field(default_factory=list)
+    withheld: bool = False
+    reasons: list[str] = Field(default_factory=list)
 
 
 class PolicyOut(BaseModel):

@@ -14,8 +14,8 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 ## 2. Detection depth
 - [x] **X4** P1 Honeytokens: fake keys and details planted in confidential documents. If one shows up in a prompt, raise an alarm with no false alarms. Owner: Alexandros.
 - [x] **X5** P1 Greeklish and mixed scripts: names and AFM in Latin letters, or with look-alike characters (A/Α, o/ο). Target recall at least 80%. Owner: Alexandros.
-- [ ] **X6** P1 More Greek identifiers: ADT, number plates, +30 phones, GEMI, passport. Owner: Alexandros.
-- [ ] **X7** P1 Check the model's answers for leaks before they reach the user. Owner: Alexandros.
+- [x] **X6** P1 More Greek identifiers: ADT, number plates, +30 phones, GEMI, passport. Owner: Alexandros.
+- [x] **X7** P1 Check the model's answers for leaks before they reach the user. Owner: Alexandros.
 - [ ] **X8** P2 Images and screenshots: OCR, then the same checks (RapidOCR, ONNX). Owner: Alexandros.
 - [ ] **X9** P2 Code leaks: source-code fingerprints (winnowing) on top of YARA. Owner: Alexandros.
 - [ ] **X10** P2 Document matching also in German and French for international clients. Owner: Alexandros.

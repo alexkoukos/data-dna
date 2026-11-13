@@ -15,6 +15,17 @@ Template:
 
 ---
 
+## 2026-11-15 00:30, Alexandros, tasks X6, X7
+**Done:**
+- **X6:** ΑΔΤ, plates, ΓΕΜΗ and passport numbers in `detection/patterns.py` (`find_greek_context_ids`, each needs a naming word before the number; entities ADT, PLATE, GEMI, PASSPORT, category `greek_id`). Greek phones in `detection/entities.py` now accept `+30`, `0030`, spaces, dashes and landlines.
+- **X7:** `POST /v1/inspect-output` runs patterns, YARA, decoys and document matching on the answer. Mask-level findings are masked, a restricted document or a decoy withholds the whole answer with a plain notice (`withheld`, `reasons` are new response fields; the gateway only reads `text`, so it needed no change). Written as an incident with tool "Company AI (answer)".
+**State:** branch `task/X6-X7-ids-output`, stacked on `task/X1-X5-break-it-v2` (PR #32), PR open into that branch. `make check` green, `make eval` all targets PASS. Not run through `make up` and the gateway, so run `make test-gateway` once after merging.
+**Next step:** merge #32, then this one. Then reconcile with `task/X-first-four` (X2, X11, X17, X23 done there, not pushed when I looked): both branches made an attack file, `data/eval/attacks.csv`, so keep one. Remaining X items nobody has: X12, X13, X18, X24 (P1), then the P2 ones.
+**Problems / decisions needed:** the answer check does not look for people or client names on purpose. A model that repeats a confidential (not restricted) document in an answer is not withheld, only a restricted one. Plates without a naming word are not detected.
+**Files touched:** services/brain/src/brain/{detection/{patterns,entities}.py,main.py,api/schemas.py}, services/brain/tests/{test_x6_x7_ids_and_output,test_unmask_output}.py, README.md, docs/EXTRA_FEATURES.md, PROGRESS.md
+
+---
+
 ## 2026-11-14 23:30, Alexandros, tasks X1, X2, X4, X5 (extra features)
 **Done:**
 - **X1 Try to break it:** `/break-it` page and `POST /v1/try` (runs the whole pipeline, stores nothing, answers with the decision, reasons, masked text and the 8 levels with fired or not). `GET /v1/try/examples` gives one starter per kind from `attacks.csv`. `web/e2e/break-it.spec.ts`: 10 evasions typed into the real page, plus a clean control and an example button. Unit tests in `web/src/pages/BreakIt.test.tsx` and `tests/test_x1_x2_attacks.py`.

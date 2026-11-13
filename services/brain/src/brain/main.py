@@ -69,7 +69,7 @@ from brain.detection.entities import EntityDetector
 from brain.detection.greeklish import find_greeklish_names
 from brain.detection.layers import explain
 from brain.detection.normalize import normalise
-from brain.detection.patterns import find_patterns, mask, unmask
+from brain.detection.patterns import mask, unmask
 from brain.detection.pipeline import Finder, InspectResult, inspect_text
 from brain.detection.yara_rules import find_yara
 from brain.dna import store as dna_store
@@ -351,16 +351,71 @@ def unmask_answer(req: UnmaskRequest) -> UnmaskResponse:
     return UnmaskResponse(text=unmask(req.text, mapping), restored=restored)
 
 
+WITHHELD = (
+    "This answer was held back: it repeated text from a protected company document, or a decoy "
+    "credential. Ask your question again without pasting that material, or ask the security team."
+)
+
+
 @app.post("/v1/inspect-output", response_model=InspectOutputResponse)
-def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
-    """Mask sensitive values a model put in its answer (echoed secrets, identifiers)."""
-    findings = find_patterns(normalise(req.text).text)
-    if not findings:
+def inspect_output(req: InspectOutputRequest, background: BackgroundTasks) -> InspectOutputResponse:
+    """Check what the model said before the user sees it (X7).
+
+    Identifiers and keys the model echoed or invented are masked. If the answer repeats a
+    restricted document, or contains a decoy credential, the whole answer is replaced by a short
+    notice. Names and client names are not checked here: answering about them is the point."""
+    policies = policy_store.current()
+    result = inspect_text(
+        req.text,
+        policies,
+        [find_yara],
+        _documents().match,
+        _honeytokens().find,
+    )
+    decoys = _decoy_alarm(result)
+    if result.verdict.decision == Decision.BLOCK:
+        withheld = True
+        text = WITHHELD
+        findings = result.findings
+    else:
+        withheld = False
+        # Only values the policy says to mask are masked; source code and client names pass.
+        to_mask = [
+            f
+            for f in result.findings
+            if policies.categories.get(f.category, Decision.WARN) == Decision.MASK
+        ]
+        text, _ = mask(normalise(req.text).text, to_mask) if to_mask else (req.text, {})
+        findings = to_mask
+    if not withheld and not findings:
         return InspectOutputResponse(text=req.text)
-    masked, _ = mask(normalise(req.text).text, findings)
+    reasons = [f"In the model's answer: {r}" for r in result.verdict.reasons]
+    background.add_task(
+        record_decision,
+        policy_store.engine,
+        user=req.user_id,
+        team=req.team,
+        decision="block" if withheld else "mask",
+        categories=[f.category for f in findings],
+        reasons=reasons,
+        masked_preview=findings[0].masked_preview if findings else None,
+        tool="Company AI (answer)",
+        document_id=(
+            result.doc_matches[0].document_id
+            if result.doc_matches
+            else decoys[0].document_id
+            if decoys
+            else None
+        ),
+        score=result.doc_matches[0].score if result.doc_matches else None,
+    )
+    for owner in decoys:
+        background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
     return InspectOutputResponse(
-        text=masked,
+        text=text,
         changed=True,
+        withheld=withheld,
+        reasons=reasons if withheld else [],
         findings=[
             FindingOut(entity=f.entity, category=f.category, masked_preview=f.masked_preview)
             for f in findings

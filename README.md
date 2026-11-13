@@ -55,6 +55,10 @@ _To be written._
 
 **Greeklish and look-alike characters (X5).** Before any check the text is cleaned of tricks that keep its length: digits from other scripts (Arabic-Indic, Devanagari, Thai) become 0 to 9, Greek or Cyrillic letters inside a word that mixes scripts or holds a number are folded to the matching Latin ones (a mostly Greek word goes the other way), a capital O or a lower-case l in a long number is read as 0 or 1, and hex, percent-encoded and HTML-entity text is decoded. Names such as "giorgos papadopoulos" are found by Greek surname endings and a list of common surnames, with no model call. `make eval` reports the attacks of these three kinds as one target: 96.2% caught against a target of 80%. A Greek surname with no common ending (for example "Papadaki" in capitals) is still missed.
 
+**More Greek identifiers (X6).** Identity card numbers (ΑΔΤ), number plates, ΓΕΜΗ numbers and passport numbers are masked when a word that names them stands just before the number ("my passport number is AK1234567", "πινακίδα ΙΚΑ 1234"). These have no checksum, so without that word the same shape is left alone: "Order AZ 123456" and "Plate of glass ABC 1234" pass. Greek phone numbers are now read with spaces, dashes, `+30` or `0030`, mobile and landline; a bare ten-digit number is not a phone.
+
+**The model's answer is checked too (X7).** Before an answer reaches the user the gateway sends it to `/v1/inspect-output`. Keys, cards and identifiers the model echoed or invented are masked. If the answer repeats a restricted document, or contains a decoy credential, the whole answer is replaced by a short notice saying why, and an incident is recorded with the tool "Company AI (answer)". Names, client names and source code are not touched in answers, because answering about them is the point. Cost: one document comparison on the answer, about the same as on a prompt.
+
 ## Roadmap
 _From docs/business (T5)._
 
