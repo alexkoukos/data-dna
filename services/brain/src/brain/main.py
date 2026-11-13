@@ -54,7 +54,7 @@ from brain.ask.presets import BY_ID, PRESETS, run_preset
 from brain.clients import ClientStore
 from brain.config import settings
 from brain.db import tables as t
-from brain.db.engine import make_engine
+from brain.db.engine import ensure_schema, make_engine
 from brain.detection.entities import EntityDetector
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
@@ -110,6 +110,11 @@ def _finders() -> list[Finder]:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    if policy_store.engine is not None:
+        try:
+            ensure_schema(policy_store.engine)
+        except sa.exc.SQLAlchemyError:
+            log.warning("Could not update the database schema; run make reset if matching fails")
     try:
         added = policy_store.seed_if_empty()
         if added:

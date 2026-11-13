@@ -181,3 +181,114 @@ def test_stream_withholds_everything_when_check_fails() -> None:
 
     with pytest.raises(dna.GatewayError):
         _stream([_chunk("secret")], transform)
+
+
+# --- other ways in: Anthropic messages, responses, embeddings -----------------------------
+
+
+def _decide(data: dict[str, Any], call_type: str, verdict: dict[str, Any]) -> dict[str, Any]:
+    async def go() -> dict[str, Any]:
+        handler = lambda request: httpx.Response(200, json=verdict)  # noqa: E731
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            out: dict[str, Any] = await dna.apply_decision(
+                data,
+                user_id="u1",
+                team="t1",
+                headers=None,
+                brain_url="http://brain",
+                client=client,
+                call_type=call_type,
+            )
+            return out
+
+    return asyncio.run(go())
+
+
+def test_anthropic_text_blocks_are_flattened_and_tool_results_are_included() -> None:
+    data = {
+        "messages": [
+            {"role": "user", "content": "first"},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "look at this"},
+                    {"type": "tool_result", "tool_use_id": "t", "content": "KEY=abc"},
+                ],
+            },
+        ]
+    }
+    messages, other = dna.inspection_view(data, "anthropic_messages")
+    assert messages[-1]["content"] == "look at this\nKEY=abc"
+    assert other is True
+    plain, other2 = dna.inspection_view(
+        {"messages": [{"role": "user", "content": "hi"}]}, "anthropic_messages"
+    )
+    assert plain == [{"role": "user", "content": "hi"}] and other2 is False
+
+
+def test_anthropic_mask_writes_the_masked_text_back_to_the_last_user_message() -> None:
+    data = {
+        "model": "m",
+        "messages": [{"role": "user", "content": [{"type": "text", "text": "pay GR16"}]}],
+    }
+    out = _decide(
+        data,
+        "anthropic_messages",
+        {
+            "decision": "mask",
+            "reasons": [],
+            "session_id": "s1",
+            "masked_messages": [{"role": "user", "content": "pay [IBAN_1]"}],
+        },
+    )
+    assert out["messages"][0]["content"] == "pay [IBAN_1]"
+    assert out["metadata"]["dna_session_id"] == "s1"
+
+
+def test_a_secret_in_a_tool_result_asks_first_because_it_cannot_be_masked_in_place() -> None:
+    data = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [{"type": "tool_result", "tool_use_id": "t", "content": "KEY=abc"}],
+            }
+        ]
+    }
+    with pytest.raises(dna.GatewayError) as err:
+        _decide(
+            data,
+            "anthropic_messages",
+            {
+                "decision": "mask",
+                "reasons": ["Contains secret"],
+                "masked_messages": [{"role": "user", "content": "KEY=[S_1]"}],
+            },
+        )
+    assert err.value.status_code == 409
+    assert any("cannot be masked" in r for r in err.value.body["reasons"])
+
+
+def test_responses_input_is_checked_and_masked() -> None:
+    out = _decide(
+        {"model": "m", "input": "pay GR16"},
+        "responses",
+        {
+            "decision": "mask",
+            "reasons": [],
+            "masked_messages": [{"role": "user", "content": "pay [IBAN_1]"}],
+        },
+    )
+    assert out["input"] == "pay [IBAN_1]"
+
+
+def test_embeddings_cannot_go_local_and_unknown_requests_are_refused() -> None:
+    with pytest.raises(dna.GatewayError) as err:
+        _decide(
+            {"input": "secret text"},
+            "embeddings",
+            {"decision": "local", "reasons": ["Matches a confidential document"]},
+        )
+    assert err.value.status_code == 403
+    with pytest.raises(dna.GatewayError) as err2:
+        _decide({"prompt": "draw a cat"}, "image_generation", {"decision": "allow", "reasons": []})
+    assert err2.value.status_code == 403 and "not available" in err2.value.body["message"]

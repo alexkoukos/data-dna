@@ -19,7 +19,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from brain.db import tables as t
-from brain.documents.chunking import chunk_text, words
+from brain.documents.chunking import chunk_text, language, words
 from brain.documents.embeddings import Embedder
 from brain.documents.fingerprint import PERMS, jaccard, signature
 
@@ -27,6 +27,9 @@ log = logging.getLogger(__name__)
 
 COPY_JACCARD = 0.5
 PARAPHRASE_COSINE = 0.88  # e5 scores are compressed: same-topic text sits near 0.85
+# A rewrite in the other language (Greek text against an English document or the reverse) scores
+# lower for true and false matches alike, so it gets its own, lower cutoff.
+CROSS_LANGUAGE_COSINE = 0.86
 MIN_WORDS_TO_EMBED = 10
 MAX_QUERY_CHUNKS = 64  # chunks compared by MinHash (cheap)
 MAX_EMBEDDED_CHUNKS = 16  # windows sent through the embedding model (about 4 ms each)
@@ -51,6 +54,7 @@ class _Chunk:
     idx: int
     sig: bytes
     vec: np.ndarray
+    lang: str = "en"
 
 
 class DocumentIndex:
@@ -87,6 +91,7 @@ class DocumentIndex:
                         t.doc_chunks.c.idx,
                         t.doc_chunks.c.minhash,
                         t.doc_chunks.c.embedding,
+                        t.doc_chunks.c.lang,
                     ).order_by(t.doc_chunks.c.document_id, t.doc_chunks.c.idx)
                 ).all()
         except sa.exc.SQLAlchemyError:
@@ -95,7 +100,11 @@ class DocumentIndex:
             return
         chunks = [
             _Chunk(
-                r.document_id, r.idx, bytes(r.minhash), np.asarray(r.embedding, dtype=np.float32)
+                r.document_id,
+                r.idx,
+                bytes(r.minhash),
+                np.asarray(r.embedding, dtype=np.float32),
+                r.lang or "en",
             )
             for r in rows
             if r.minhash is not None and r.embedding is not None
@@ -155,10 +164,16 @@ class DocumentIndex:
                 wanted = [wanted[int(k * step)] for k in range(MAX_EMBEDDED_CHUNKS)]
             if wanted:
                 sims = self._embedder.embed(wanted) @ matrix.T
-                for qi in range(sims.shape[0]):
-                    for i in np.nonzero(sims[qi] >= PARAPHRASE_COSINE)[0]:
-                        if int(i) not in copied:
-                            note(chunks[int(i)], float(sims[qi, i]), "paraphrase")
+                query_lang = np.array([language(p) for p in wanted])
+                chunk_lang = np.array([c.lang for c in chunks])
+                cutoff = np.where(
+                    query_lang[:, None] == chunk_lang[None, :],
+                    PARAPHRASE_COSINE,
+                    CROSS_LANGUAGE_COSINE,
+                )
+                for qi, i in zip(*np.nonzero(sims >= cutoff), strict=True):
+                    if int(i) not in copied:
+                        note(chunks[int(i)], float(sims[qi, i]), "paraphrase")
         out = [
             DocMatch(
                 document_id=d,
@@ -218,6 +233,7 @@ def register_document(
                     "minhash": signature(p),
                     "embedding": vectors[i].tolist(),
                     "text_demo": p if keep_text else None,
+                    "lang": language(p),
                 }
                 for i, p in enumerate(pieces)
             ],

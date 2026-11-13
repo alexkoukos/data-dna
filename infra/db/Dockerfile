@@ -5,3 +5,4 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY init.sql /docker-entrypoint-initdb.d/01-init.sql
 COPY 02-litellm.sql /docker-entrypoint-initdb.d/02-litellm.sql
+COPY 03-doc-chunk-lang.sql /docker-entrypoint-initdb.d/03-doc-chunk-lang.sql

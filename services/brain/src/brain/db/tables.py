@@ -119,6 +119,7 @@ doc_chunks = sa.Table(
     sa.Column("minhash", sa.LargeBinary),
     sa.Column("embedding", Vector(384).with_variant(sa.JSON, "sqlite")),
     sa.Column("text_demo", sa.Text),
+    sa.Column("lang", sa.Text),
 )
 
 session_coverage = sa.Table(
