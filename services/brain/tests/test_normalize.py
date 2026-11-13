@@ -35,3 +35,9 @@ def test_an_identifier_typed_one_character_at_a_time_is_seen() -> None:
 def test_ordinary_sentences_with_single_letters_are_left_alone() -> None:
     n = normalise("Plan A or B or C, see page 2 and 3 for the x y z chart")
     assert "spaced_characters" not in n.evasion_signals
+
+
+def test_an_identifier_typed_in_short_groups_is_seen() -> None:
+    n = normalise("Check this account: GR 06 01 10 12 54 65 90 85 38 01 29 11 0")
+    assert "spaced_characters" in n.evasion_signals
+    assert any("GR0601101254659085380129110" in v for v in n.extra_views)
