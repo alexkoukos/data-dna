@@ -22,10 +22,14 @@ describe("snippets", () => {
     expect(py.code).toContain('api_key="sk-abc"');
   });
 
-  it("marks Claude Code and MCP as not available instead of faking a snippet", () => {
-    const rest = buildSnippets("u", "k", "m").filter((s) => ["claude-code", "mcp"].includes(s.id));
-    expect(rest).toHaveLength(2);
-    expect(rest.every((s) => s.code === null && s.note.startsWith("Not available"))).toBe(true);
+  it("gives Claude Code and MCP real setup text", () => {
+    const all = buildSnippets("http://h:4000/v1", "sk-k", "demo-mock");
+    const cc = all.find((s) => s.id === "claude-code");
+    const mcp = all.find((s) => s.id === "mcp");
+    expect(cc?.code).toContain('ANTHROPIC_BASE_URL="http://h:4000"');
+    expect(cc?.code).toContain('ANTHROPIC_AUTH_TOKEN="sk-k"');
+    expect(mcp?.code).toContain("mcp_proxy.py --");
+    expect(mcp?.code).toContain("http://h:8001");
   });
 });
 
@@ -60,8 +64,8 @@ describe("ConnectPage", () => {
     await user.click(screen.getByRole("tab", { name: "curl" }));
     expect(screen.getByText(/Authorization: Bearer sk-test-key-123/)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Claude Code" }));
-    expect(screen.getByText(/Not available yet/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Copy this code" })).not.toBeInTheDocument();
+    expect(screen.getByText(/ANTHROPIC_AUTH_TOKEN/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy this code" })).toBeInTheDocument();
   });
 
   it("turns to Connected once the gateway has seen a request", async () => {

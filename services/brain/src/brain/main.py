@@ -47,14 +47,17 @@ from brain.api.schemas import (
     RevealRequest,
     SeenOut,
     ToolOut,
+    ToolResultRequest,
+    ToolResultResponse,
     UnmaskRequest,
     UnmaskResponse,
 )
+from brain.ask.free import AskError, run_free
 from brain.ask.presets import BY_ID, PRESETS, run_preset
 from brain.clients import ClientStore
 from brain.config import settings
 from brain.db import tables as t
-from brain.db.engine import make_engine
+from brain.db.engine import ensure_schema, make_engine
 from brain.detection.entities import EntityDetector
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
@@ -110,6 +113,11 @@ def _finders() -> list[Finder]:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    if policy_store.engine is not None:
+        try:
+            ensure_schema(policy_store.engine)
+        except sa.exc.SQLAlchemyError:
+            log.warning("Could not update the database schema; run make reset if matching fails")
     try:
         added = policy_store.seed_if_empty()
         if added:
@@ -305,6 +313,33 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
             for f in findings
         ],
     )
+
+
+@app.post("/v1/inspect-tool-result", response_model=ToolResultResponse)
+def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> ToolResultResponse:
+    """Text coming back from a tool (MCP server, web page, file) is untrusted: it may carry
+    instructions for the model. Injection blocks it; secrets are masked (PRD 9.5)."""
+    result = inspect_text(
+        req.text,
+        policy_store.current(),
+        [find_yara, injection_finder, injection_classifier.find],
+    )
+    decision = str(result.verdict.decision)
+    if decision not in ("block", "mask"):
+        return ToolResultResponse(decision="allow", text=req.text)
+    background.add_task(
+        record_decision,
+        policy_store.engine,
+        user=req.user_id,
+        team=req.team,
+        decision=decision,
+        categories=[f.category for f in result.findings],
+        reasons=result.verdict.reasons,
+        masked_preview=result.findings[0].masked_preview if result.findings else None,
+        tool=req.source,
+    )
+    text = result.masked_text if decision == "mask" else ""
+    return ToolResultResponse(decision=decision, text=text, reasons=result.verdict.reasons)
 
 
 @app.get("/v1/policies", response_model=list[PolicyOut])
@@ -550,16 +585,21 @@ def ask_presets() -> list[PresetOut]:
 
 @app.post("/v1/ask", response_model=AskOut)
 def ask(req: AskRequest) -> AskOut:
-    preset = BY_ID.get(req.preset)
-    if preset is None:
-        raise HTTPException(
-            status_code=404,
-            detail="That question is not on the list. Pick one of the preset questions.",
-        )
     engine = policy_store.engine
     if engine is None:
         raise HTTPException(
             status_code=503, detail="The database is not connected. Try again soon."
+        )
+    if req.question and not req.preset:
+        try:
+            return AskOut(**run_free(engine, req.question))
+        except AskError as err:
+            raise HTTPException(status_code=422, detail=str(err)) from err
+    preset = BY_ID.get(req.preset or "")
+    if preset is None:
+        raise HTTPException(
+            status_code=404,
+            detail="That question is not on the list. Pick one of the preset questions.",
         )
     try:
         return AskOut(**run_preset(engine, preset))

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
-import { askPreset, fetchPresets, type Answer } from "../../lib/securityApi";
+import { askFree, askPreset, fetchPresets, type Answer } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
 
 const HEADINGS: Record<string, string> = {
@@ -86,12 +86,14 @@ export default function AskPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function ask(id: string) {
-    setActive(id);
+  const [typed, setTyped] = useState("");
+
+  async function ask(id: string, free = false) {
+    setActive(free ? null : id);
     setBusy(true);
     setError(null);
     try {
-      setAnswer(await askPreset(id));
+      setAnswer(free ? await askFree(id) : await askPreset(id));
     } catch (e) {
       setAnswer(null);
       setError(e instanceof Error ? e.message : "We could not get the answer.");
@@ -131,6 +133,36 @@ export default function AskPage() {
           </li>
         ))}
       </ul>
+      <form
+        className="mt-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void ask(typed.trim(), true);
+        }}
+      >
+        <label htmlFor="free-q" className="block text-sm font-semibold text-ink-900">
+          Or ask in your own words
+        </label>
+        <p className="text-sm text-ink-600">
+          A model writes the query, which is checked and can only read three summary views. Always
+          read the SQL below the answer.
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input
+            id="free-q"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            className="min-h-11 min-w-0 flex-1 rounded-lg border border-ink-300 bg-white px-3 text-sm text-ink-900"
+          />
+          <button
+            type="submit"
+            disabled={busy || typed.trim().length < 3}
+            className="min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          >
+            Ask
+          </button>
+        </div>
+      </form>
       {busy ? (
         <div role="status" aria-label="Getting the answer" className="mt-6">
           <Skeleton className="h-40" />
