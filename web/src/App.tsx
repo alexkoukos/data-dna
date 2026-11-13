@@ -11,6 +11,7 @@ import PoliciesPage from "./pages/security/PoliciesPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 import { Placeholder } from "./pages/Placeholder";
+import { Companion } from "./components/Companion";
 
 const links = [
   { to: "/chat", label: "Company Chat" },
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
+      <Companion />
     </div>
   );
 }

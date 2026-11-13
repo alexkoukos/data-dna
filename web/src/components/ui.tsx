@@ -23,7 +23,7 @@ export function ErrorPanel({ what, onRetry }: { what: string; onRetry: () => voi
       className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Thyro pose="empty" size={176} />
+        <Thyro pose="error" size={176} />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">We could not load {what}.</p>
           <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
