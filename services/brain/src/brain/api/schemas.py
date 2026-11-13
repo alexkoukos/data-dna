@@ -248,3 +248,16 @@ class DnaState(BaseModel):
     enabled: bool
     marks: int
     copies: list[str]
+
+
+class ToolResultRequest(BaseModel):
+    text: str
+    source: str = Field(default="MCP tool", max_length=100)
+    user_id: str = "anonymous"
+    team: str = "unknown"
+
+
+class ToolResultResponse(BaseModel):
+    decision: str
+    text: str
+    reasons: list[str] = Field(default_factory=list)

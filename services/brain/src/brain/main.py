@@ -47,6 +47,8 @@ from brain.api.schemas import (
     RevealRequest,
     SeenOut,
     ToolOut,
+    ToolResultRequest,
+    ToolResultResponse,
     UnmaskRequest,
     UnmaskResponse,
 )
@@ -310,6 +312,33 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
             for f in findings
         ],
     )
+
+
+@app.post("/v1/inspect-tool-result", response_model=ToolResultResponse)
+def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> ToolResultResponse:
+    """Text coming back from a tool (MCP server, web page, file) is untrusted: it may carry
+    instructions for the model. Injection blocks it; secrets are masked (PRD 9.5)."""
+    result = inspect_text(
+        req.text,
+        policy_store.current(),
+        [find_yara, injection_finder, injection_classifier.find],
+    )
+    decision = str(result.verdict.decision)
+    if decision not in ("block", "mask"):
+        return ToolResultResponse(decision="allow", text=req.text)
+    background.add_task(
+        record_decision,
+        policy_store.engine,
+        user=req.user_id,
+        team=req.team,
+        decision=decision,
+        categories=[f.category for f in result.findings],
+        reasons=result.verdict.reasons,
+        masked_preview=result.findings[0].masked_preview if result.findings else None,
+        tool=req.source,
+    )
+    text = result.masked_text if decision == "mask" else ""
+    return ToolResultResponse(decision=decision, text=text, reasons=result.verdict.reasons)
 
 
 @app.get("/v1/policies", response_model=list[PolicyOut])
