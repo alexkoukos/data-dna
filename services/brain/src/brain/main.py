@@ -1,13 +1,15 @@
 """FastAPI entrypoint for the brain service."""
 
 import asyncio
+import base64
+import binascii
 import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import sqlalchemy as sa
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from brain import queries, reveal
 from brain.api.schemas import (
@@ -50,6 +52,7 @@ from brain.detection.patterns import find_patterns, mask, unmask
 from brain.detection.pipeline import Finder, inspect_text
 from brain.detection.yara_rules import find_yara
 from brain.documents.embeddings import FastEmbedder
+from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.registry import DocumentIndex, register_document
 from brain.keys import KeyError_, create_key, default_model
@@ -131,15 +134,40 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def _attachment_text(req: InspectRequest) -> str:
+    """Text of every attached file, appended to the message so one pipeline checks both."""
+    parts: list[str] = []
+    for a in req.attachments:
+        try:
+            data = base64.b64decode(a.content_base64, validate=True)
+            parts.append(extract_text(a.filename, data))
+        except (binascii.Error, ValueError) as err:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{a.filename}: "
+                + (str(err) if isinstance(err, ExtractError) else "the file could not be decoded."),
+            ) from err
+    return "\n\n" + "\n\n".join(parts) if parts else ""
+
+
 @app.post("/v1/inspect", response_model=InspectResponse)
 def inspect(req: InspectRequest) -> InspectResponse:
     # Only the last user message is inspected in this first slice.
     last = next((m for m in reversed(req.messages) if m.role == "user"), None)
     if last is None:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
-    result = inspect_text(last.content, policy_store.current(), _finders(), _documents().match)
+    attached = _attachment_text(req)
+    result = inspect_text(
+        last.content + attached, policy_store.current(), _finders(), _documents().match
+    )
     masked = None
     session_id = None
+    if result.verdict.decision == Decision.MASK and attached:
+        # Masking cannot rewrite a file the model will receive, so ask before sending it.
+        result.verdict.decision = Decision.WARN
+        result.verdict.reasons.append(
+            "An attached file contains sensitive data that cannot be masked"
+        )
     if result.verdict.decision == Decision.MASK:
         masked = [
             m if m is not last else Message(role="user", content=result.masked_text)
@@ -325,7 +353,8 @@ def incident_identity(incident_id: int, request_id: int, viewer: str = "") -> Id
 def register(
     title: str = Form(min_length=1, max_length=200),
     sensitivity: str = Form(),
-    text: str = Form(),
+    text: str = Form(default=""),
+    file: UploadFile | None = File(default=None),
 ) -> RegisteredDocument:
     """Register a document so the gateway recognises it, even when it is rewritten."""
     if sensitivity not in ("internal", "confidential", "restricted"):
@@ -338,6 +367,11 @@ def register(
         raise HTTPException(
             status_code=503, detail="The database is not connected. Try again soon."
         )
+    if file is not None:
+        try:
+            text = extract_text(file.filename or "upload.txt", file.file.read(MAX_BYTES + 1))
+        except ExtractError as err:
+            raise HTTPException(status_code=422, detail=str(err)) from err
     try:
         doc_id, chunks = register_document(
             engine, embedder, title, sensitivity, text, keep_text=settings.demo_mode

@@ -303,3 +303,29 @@ def test_register_rejects_a_bad_sensitivity_and_empty_text(client: TestClient) -
         "/v1/documents", data={"title": "X", "sensitivity": "internal", "text": " "}
     )
     assert empty.status_code == 422
+
+
+def test_a_docx_upload_is_registered_and_then_recognised(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from brain.documents.embeddings import HashingEmbedder
+    from tests.test_extract import docx_bytes
+
+    monkeypatch.setattr(main, "embedder", HashingEmbedder())
+    body = " ".join(f"tender{i} price{i % 9} lot{i % 4}" for i in range(40))
+    made = client.post(
+        "/v1/documents",
+        data={"title": "Tender", "sensitivity": "confidential"},
+        files={"file": ("tender.docx", docx_bytes(body), "application/octet-stream")},
+    )
+    assert made.status_code == 200 and made.json()["chunks"] >= 5
+    r = client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "u-x",
+            "team": "Sales",
+            "model": "m",
+            "messages": [{"role": "user", "content": body[:300]}],
+        },
+    ).json()
+    assert r["decision"] == "local"

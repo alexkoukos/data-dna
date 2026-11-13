@@ -9,11 +9,17 @@ class Message(BaseModel):
     content: str
 
 
+class Attachment(BaseModel):
+    filename: str = Field(min_length=1, max_length=200)
+    content_base64: str
+
+
 class InspectRequest(BaseModel):
     user_id: str = "anonymous"
     team: str = "unknown"
     model: str = "default"
     messages: list[Message]
+    attachments: list[Attachment] = Field(default_factory=list)
 
 
 class FindingOut(BaseModel):
