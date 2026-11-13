@@ -6,7 +6,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 ## Foundation
 - [x] **S0** Scaffold: locks, tests, CI, devcontainer, Makefile. (Alexandros)
 - [x] **S1** P0 `make up` works on a real machine; fix Dockerfiles; CI smoke green. Owner: Alexandros. Done when: fresh clone, `make up`, both URLs load, CI green.
-- [ ] **S2** P0 Platform check: Linux, macOS Apple silicon, Windows WSL. Owner: Alexandros. Done when: `make up` works on all three; RAM and first-start time written in README.
+- [~] (Alexandros) **S2** P0 Platform check: Linux, macOS Apple silicon, Windows WSL. Owner: Alexandros. Done when: `make up` works on all three; RAM and first-start time written in README.
 
 ## Gateway and routing
 - [x] **G1** P0 Add LiteLLM gateway service (pin the latest stable image tag from its releases page), per-user virtual keys, custom guardrail calling `brain /v1/inspect` (PRD 7, 8). Owner: Alexandros. Done when: an OpenAI SDK client with a personal key gets a masked-and-answered reply through the gateway; integration test passes.
@@ -40,8 +40,8 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **W1** P0 Company Chat: messages, five outcome chips, "Why?" disclosure, warn card, file upload. Owner: Alexandros.
 - [x] **W2** P0 Security overview + inventory + incidents list. Owner: Alexandros.
 - [ ] **W3** P1 Incident detail: puzzle view, timeline, copy attribution, reveal request. Owner: Alexandros.
-- [ ] **W4** P1 Connect page: URL, personal key, snippets, live status. Owner: Alexandros.
-- [ ] **W5** P1 Policies and Documents pages. Owner: Alexandros.
+- [x] **W4** P1 Connect page: URL, personal key, snippets, live status. Owner: Alexandros.
+- [x] **W5** P1 Policies and Documents pages. Owner: Alexandros.
 - [x] **W6** P0 Responsive at 390 px + axe clean on every route. Owner: Alexandros.
 
 ## Evaluation and quality

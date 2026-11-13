@@ -4,6 +4,8 @@ const tabs = [
   { to: "/security", label: "Overview", end: true },
   { to: "/security/tools", label: "AI tools", end: false },
   { to: "/security/incidents", label: "Incidents", end: false },
+  { to: "/security/documents", label: "Documents", end: false },
+  { to: "/security/policies", label: "Policies", end: false },
 ];
 
 /** Shared frame for the security screens: title and section tabs. */

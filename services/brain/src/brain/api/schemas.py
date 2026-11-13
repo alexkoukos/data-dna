@@ -122,3 +122,16 @@ class ToolOut(BaseModel):
     requests: int
     trend: list[int]
     first_seen: str | None
+
+
+class DocumentOut(BaseModel):
+    id: int
+    title: str
+    sensitivity: str
+    dna_enabled: bool
+    created_at: datetime | None = None
+    incidents: int = 0
+
+
+class SeenOut(BaseModel):
+    seen: bool

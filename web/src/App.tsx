@@ -1,7 +1,11 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
+import DocumentsPage from "./pages/security/DocumentsPage";
+
+import ConnectPage from "./pages/ConnectPage";
 import IncidentsPage from "./pages/security/IncidentsPage";
 import OverviewPage from "./pages/security/OverviewPage";
+import PoliciesPage from "./pages/security/PoliciesPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 import { Placeholder } from "./pages/Placeholder";
@@ -35,14 +39,13 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Placeholder title="Data DNA" note="Pick a screen above." />} />
         <Route path="/chat" element={<ChatPage />} />
-        <Route
-          path="/connect"
-          element={<Placeholder title="Connect a tool" note="See TASKS.md: web/connect." />}
-        />
+        <Route path="/connect" element={<ConnectPage />} />
         <Route path="/security" element={<SecurityLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />
           <Route path="incidents" element={<IncidentsPage />} />
+          <Route path="documents" element={<DocumentsPage />} />
+          <Route path="policies" element={<PoliciesPage />} />
         </Route>
       </Routes>
     </div>

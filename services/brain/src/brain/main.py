@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 
 from brain import queries
 from brain.api.schemas import (
+    DocumentOut,
     FindingOut,
     IncidentPage,
     InspectOutputRequest,
@@ -23,11 +24,13 @@ from brain.api.schemas import (
     MetricsOut,
     PolicyOut,
     PolicyUpdate,
+    SeenOut,
     ToolOut,
     UnmaskRequest,
     UnmaskResponse,
 )
 from brain.config import settings
+from brain.db import tables as t
 from brain.db.engine import make_engine
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
@@ -178,6 +181,20 @@ def _read[T](fn: Callable[[sa.Connection], T]) -> T:
         ) from err
 
 
+@app.get("/v1/users/{user_id}/seen", response_model=SeenOut)
+def user_seen(user_id: str) -> SeenOut:
+    """Has the gateway checked at least one request for this user? Drives "Waiting for first
+    request" on the Connect page. A user row is created on the first decision."""
+
+    def has_row(conn: sa.Connection) -> bool:
+        found = conn.execute(
+            sa.select(t.users.c.id).where(t.users.c.pseudonym == user_id).limit(1)
+        ).first()
+        return found is not None
+
+    return SeenOut(seen=_read(has_row))
+
+
 @app.get("/v1/metrics", response_model=MetricsOut)
 def get_metrics() -> MetricsOut:
     return _read(lambda c: queries.metrics(c, settings.demo_mode))
@@ -189,6 +206,11 @@ def list_incidents(
 ) -> IncidentPage:
     limit = max(1, min(limit, 100))
     return _read(lambda c: queries.incidents(c, decision, team, limit, max(offset, 0)))
+
+
+@app.get("/v1/documents", response_model=list[DocumentOut])
+def get_documents() -> list[DocumentOut]:
+    return _read(queries.documents)
 
 
 @app.get("/v1/inventory", response_model=list[ToolOut])

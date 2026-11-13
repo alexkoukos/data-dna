@@ -57,3 +57,45 @@ export const fetchIncidents = (decision: Decision | "all", offset: number, limit
   if (decision !== "all") q.set("decision", decision);
   return get<IncidentPage>(`/v1/incidents?${q.toString()}`);
 };
+
+export interface Policy {
+  scope: "category" | "sensitivity";
+  key: string;
+  action: Decision;
+  updated_by: string | null;
+  updated_at: string | null;
+}
+
+export interface DocumentRow {
+  id: number;
+  title: string;
+  sensitivity: string;
+  dna_enabled: boolean;
+  created_at: string | null;
+  incidents: number;
+}
+
+export const fetchPolicies = () => get<Policy[]>("/v1/policies");
+export const fetchDocuments = () => get<DocumentRow[]>("/v1/documents");
+
+/** Save one policy. Throws an Error whose message is safe to show. */
+export async function savePolicy(
+  scope: Policy["scope"],
+  key: string,
+  action: Decision,
+): Promise<Policy> {
+  let res: Response;
+  try {
+    res = await fetch("/api/v1/policies", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope, key, action, updated_by: "dashboard" }),
+    });
+  } catch {
+    throw new Error("We could not reach the server. Check your connection and try again.");
+  }
+  if (!res.ok) {
+    throw new Error("The change was not saved. Nothing was changed. Try again in a moment.");
+  }
+  return (await res.json()) as Policy;
+}

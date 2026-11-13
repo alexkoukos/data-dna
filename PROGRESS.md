@@ -15,6 +15,27 @@ Template:
 
 ---
 
+## 2026-11-13 19:00, Alexandros, task W5
+**Done:** `/security/policies`: every data category and document sensitivity in plain words with its current outcome chip, a select for the new action, a plain-words preview of what will happen, and Save (only when changed) or Cancel. Saves through `PUT /v1/policies` (takes effect within seconds), shows "Nothing was changed" if saving fails, warns when a category is set to Allow. `/security/documents`: register with sensitivity, incident count, per-copy marks status ("Not set up yet" until N1). New `GET /v1/documents`. No database change. Both pages are tabs in the Security frame.
+**State:** branch `task/W5-policies-documents`, PR open. `make check` green (83 brain tests, 31 web tests); `make e2e` 21 passed (axe, 390 px, 44 px targets on both new routes, plus a real change-and-restore of the client names policy). Branched from `main`, so it does not include PRs #10 to #12.
+**Next step:** W3 (incident detail), A1 (preset questions) or N2 (sealed identity). Documents page gets marks, approval and issued copies when N1 exists.
+**Problems / decisions needed:** the policy editor has no login, so anyone who can reach the dashboard can change policies (every change is written to `audit_log` as `dashboard`). Document upload and DNA marks are not on this page yet (D3, D4, N1). The "preview of effect" is a description of the action, not a count of past messages that would change.
+**Files touched:** services/brain/src/brain/{main.py,queries.py,api/schemas.py}, services/brain/tests/test_dashboard_api.py, web/src/{pages/security/{PoliciesPage,DocumentsPage,Policies.test,SecurityLayout}.tsx,lib/{policyText.ts,securityApi.ts},App.tsx}, web/e2e/smoke.spec.ts, TASKS.md, PROGRESS.md
+
+---
+
+## 2026-11-13 18:00, Alexandros, tasks E4, S2 (partly), W4
+**Done:**
+- **E4 (PR #10):** live tests through the gateway for all five outcomes, each checking `x-dna-decision`. Local and block are triggered by remapping a category with `PUT /v1/policies` (restored after each test) because D3 and D6 do not exist yet. A mock `local` model was added to `infra/gateway/config.yaml` as a stand-in until L1. When D6/D3 land, switch those two tests to real triggers.
+- **S2 (PR #11, still open task):** macOS Apple silicon measured from a fresh clone with no cache: build 72 s, healthy in 48 s, about 770 MB idle RAM. Written in README. **Linux and Windows WSL 2 are not run**: someone with those machines must run `docker compose up --build`, then add RAM and time to the README table.
+- **W4:** `/connect` page. Gateway address and personal key (hidden until Show) with copy buttons, tabs for Python, JavaScript, curl and n8n, live status "Waiting for first request" then "Connected" (polls every 3 s). Claude Code and MCP tabs say "Not available yet" (G4 and M1 are P2). New brain endpoint `GET /v1/users/{id}/seen` (true once the gateway has checked a request for that user). No database change.
+**State:** branches `task/E4-gateway-outcomes` (#10), `task/S2-platform-check` (#11), `task/W4-connect-page` (this PR). `make check` green (82 brain tests, 32 web tests); `make e2e` 17 passed against `make up`. E4 and W4 are done; S2 is `[~]`. R1: setup part of the README is written; the other sections belong to Konstantinos.
+**Next step:** merge the three PRs, then pick W5 (Policies and Documents pages; `GET/PUT /v1/policies` exist), W3 (incident detail), A1 (preset questions) or N2 (sealed identity). Someone runs S2 on Linux and WSL. R4 freeze is Thu 19 Nov 20:00.
+**Problems / decisions needed:** the gateway address on `/connect` is built from the page host plus port 4000, so it is right for local use and for a server that exposes port 4000. The seen check only knows users the brain has recorded, so a key created outside the demo flow shows "Waiting" until its first request.
+**Files touched:** services/brain/src/brain/{main.py,api/schemas.py}, services/brain/tests/{test_dashboard_api.py,test_gateway_live.py}, infra/gateway/config.yaml, web/src/{pages/ConnectPage.tsx,pages/ConnectPage.test.tsx,components/CopyField.tsx,lib/snippets.ts,App.tsx}, web/e2e/smoke.spec.ts, README.md, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-14 05:00, Alexandros, tasks O1, O2, W2, W6 and project summary
 **Done (this entry):**
 - **O1 seed:** the demo company is generated and loaded when the brain starts on an empty database (`services/brain/src/brain/seed/`). 200 users (Greek names, pseudonyms `u-xxxxxxxx`), 8 teams, 10 clients, 3 documents, 14 days of gateway counters, about 660 incidents, and the storyline (tool spike, API key paste, contract paste, salary questions, memo rebuilt over days). Deterministic: `--seed 42` plus the anchor date. CLI: `uv run python ../../scripts/gen_org.py` from `services/brain`, or `python -m brain.seed`.
