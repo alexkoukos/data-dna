@@ -8,7 +8,7 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 
 ## 1. Break it (red team)
 - [ ] **X1** P1 "Try to break it" page: type anything, see the decision, the reasons and which layer caught it. Playwright test with 10 evasions. Owner: Alexandros.
-- [ ] **X2** P1 Attack file `data/eval/attacks.csv`, 80 rows with the expected result. Feeds `make eval` and the page. Owner: Vasilis and Konstantinos (data); Alexandros wires it into eval.
+- [x] **X2** P1 Attack file `data/eval/attacks.csv`, 80 rows with the expected result. Feeds `make eval` and the page. Owner: Vasilis and Konstantinos (data); Alexandros wires it into eval.
 - [ ] **X3** P2 Table of the judges' attempts during the demo (in memory). Owner: Alexandros.
 
 ## 2. Detection depth
@@ -21,7 +21,7 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 - [ ] **X10** P2 Document matching also in German and French for international clients. Owner: Alexandros.
 
 ## 3. Policy and operations
-- [ ] **X11** P1 Shadow mode: the policy records what it would have done without blocking, with a "would have blocked N" view. Owner: Alexandros.
+- [x] **X11** P1 Shadow mode: the policy records what it would have done without blocking, with a "would have blocked N" view. Owner: Alexandros.
 - [ ] **X12** P1 Try a new policy on the last 14 days of prompts before saving it. Owner: Alexandros.
 - [ ] **X13** P1 Policies per group and role (HR sees salaries, Sales does not). Owner: Alexandros.
 - [ ] **X14** P2 Rate and spend limits per user key. Owner: Alexandros.
@@ -29,7 +29,7 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 - [ ] **X16** P2 Delete old data by `RETENTION_DAYS`, with a test. Owner: Alexandros.
 
 ## 4. Business and compliance
-- [ ] **X17** P1 One-click PDF compliance report mapped to GDPR, NIS2 and the EU AI Act. Mapping table in `docs/business/`. Owner: Vasilis (table), Alexandros (export).
+- [x] **X17** P1 One-click PDF compliance report mapped to GDPR, NIS2 and the EU AI Act. Mapping table in `docs/business/`. Owner: Vasilis (table), Alexandros (export).
 - [ ] **X18** P1 ROI view: leaks stopped, estimated cost avoided (documented assumptions), risk per tool. Owner: Vasilis (assumptions), Alexandros (view).
 - [ ] **X19** P2 Employee coaching: a warning suggests a safe rewrite and we count how many accept it. Owner: Alexandros.
 - [ ] **X20** P2 Weekly summary for the CISO. Owner: Alexandros.
@@ -39,7 +39,7 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 - [ ] **X22** P2 Guide for pointing a company's AI traffic at the gateway (env vars, base URL, Squid ICAP sketch). Owner: Konstantinos.
 
 ## 6. Trust and explanation
-- [ ] **X23** P1 "Why?" on every decision: which layers fired and with what score, stored on the incident. Owner: Alexandros.
+- [x] **X23** P1 "Why?" on every decision: which layers fired and with what score, stored on the incident. Owner: Alexandros.
 - [ ] **X24** P1 History per employee and per document, replaying the (masked) prompts. Owner: Alexandros.
 - [ ] **X25** P2 `scripts/calibrate.py`: calibrate thresholds without training, with a chart in `docs/`. Owner: Alexandros.
 - [ ] **X26** P2 `docs/THREAT_MODEL.md`: what we stop, what we do not, honest limits. Owner: Konstantinos.

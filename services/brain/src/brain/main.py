@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import HTMLResponse
 
-from brain import queries, reveal
+from brain import compliance, queries, reveal, settings_store
 from brain.api.schemas import (
     ApproveMarks,
     AskOut,
@@ -46,9 +46,12 @@ from brain.api.schemas import (
     RevealOut,
     RevealRequest,
     SeenOut,
+    ShadowIn,
+    ShadowOut,
     ToolOut,
     ToolResultRequest,
     ToolResultResponse,
+    TraceStep,
     UnmaskRequest,
     UnmaskResponse,
 )
@@ -78,6 +81,7 @@ from brain.policy.store import PolicyError, PolicyStore
 from brain.records import record_decision, user_row_id
 from brain.seed.load import run_seed
 from brain.sessions import sessions
+from brain.trace import build_trace
 
 log = logging.getLogger(__name__)
 policy_store = PolicyStore(make_engine())
@@ -224,10 +228,16 @@ def inspect(
     clock = time.perf_counter()
     attached = _attachment_text(req)
     result = inspect_text(
-        last.content + attached, policy_store.current(), _finders(), _documents().match
+        last.content + attached,
+        policy_store.current(),
+        _finders(),
+        _documents().match,
+        view_finders=[find_yara, injection_finder],
     )
     t_checks = time.perf_counter()
+    reasons_before = len(result.verdict.reasons)
     _escalate_rebuilds(req, result)
+    memory_reasons = result.verdict.reasons[reasons_before:]
     t_memory = time.perf_counter()
     leaked_copy = _attribute_copy(result, last.content + attached)
     t_marks = time.perf_counter()
@@ -244,7 +254,20 @@ def inspect(
         result.verdict.reasons.append(
             "An attached file contains sensitive data that cannot be masked"
         )
-    if result.verdict.decision == Decision.MASK:
+    would_have = str(result.verdict.decision)
+    shadow = result.verdict.decision != Decision.ALLOW and settings_store.get_bool(
+        policy_store.engine, settings_store.SHADOW
+    )
+    steps = build_trace(result, memory_reasons)
+    reasons = list(result.verdict.reasons)
+    decision = result.verdict.decision
+    if shadow:
+        # Shadow mode: record what the policy would have done, but let the message through.
+        decision = Decision.ALLOW
+        reasons = [
+            f"Shadow mode: the policy would have chosen '{would_have}'. Nothing was changed."
+        ]
+    elif decision == Decision.MASK:
         masked = [
             m if m is not last else Message(role="user", content=result.masked_text)
             for m in req.messages
@@ -256,18 +279,22 @@ def inspect(
         policy_store.engine,
         user=req.user_id,
         team=req.team,
-        decision=str(result.verdict.decision),
+        decision=would_have,
         categories=[f.category for f in result.findings],
         reasons=result.verdict.reasons,
         masked_preview=result.findings[0].masked_preview if result.findings else None,
         document_id=result.doc_matches[0].document_id if result.doc_matches else None,
         score=result.doc_matches[0].score if result.doc_matches else None,
         copy_code=leaked_copy,
+        trace=steps,
+        shadow=shadow,
     )
     return InspectResponse(
         session_id=session_id,
-        decision=result.verdict.decision,
-        reasons=result.verdict.reasons,
+        decision=decision,
+        reasons=reasons,
+        trace=[TraceStep(**x) for x in steps],
+        shadow_decision=would_have if shadow else None,
         findings=[
             FindingOut(entity=f.entity, category=f.category, masked_preview=f.masked_preview)
             for f in result.findings
@@ -425,6 +452,32 @@ def _write[T](fn: Callable[[sa.Connection], T]) -> T:
         raise HTTPException(
             status_code=503, detail="The change could not be saved. Nothing was changed."
         ) from err
+
+
+@app.get("/v1/compliance-report.pdf")
+def compliance_report() -> Response:
+    evidence = _read(lambda c: compliance.gather_evidence(c, settings.demo_mode))
+    return Response(
+        content=compliance.render_pdf(evidence),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="data-dna-compliance-report.pdf"'},
+    )
+
+
+@app.get("/v1/shadow-mode", response_model=ShadowOut)
+def get_shadow() -> ShadowOut:
+    counts = _read(queries.shadow_counts)
+    return ShadowOut(
+        enabled=settings_store.get_bool(policy_store.engine, settings_store.SHADOW),
+        would_have=counts,
+        total=sum(counts.values()),
+    )
+
+
+@app.put("/v1/shadow-mode", response_model=ShadowOut)
+def put_shadow(req: ShadowIn) -> ShadowOut:
+    _write(lambda c: settings_store.set_bool(c, settings_store.SHADOW, req.enabled, req.updated_by))
+    return get_shadow()
 
 
 @app.get("/v1/incidents/{incident_id}", response_model=IncidentDetail)
