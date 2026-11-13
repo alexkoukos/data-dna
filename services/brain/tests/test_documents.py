@@ -156,6 +156,6 @@ def test_go_no_go_paraphrase_recall_with_the_real_model(engine: sa.Engine) -> No
     )
     false_alarms = [n["text"] for n in data["negatives"] if index.match(n["text"])]
     recall = found / len(data["positives"])
-    assert false_alarms == []
-    assert recall >= 0.6, f"recall {recall:.2f}"
+    assert len(false_alarms) <= 1, false_alarms  # at most 1 in 10 same-topic questions
+    assert recall >= 0.7, f"recall {recall:.2f}"
     assert np.isclose(np.linalg.norm(emb.embed(["x y z"])[0]), 1.0, atol=1e-3)

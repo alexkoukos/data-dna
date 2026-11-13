@@ -2,7 +2,7 @@
 
 Register: split into chunks, store a MinHash signature and an embedding per chunk. The text is kept
 only when `keep_text` is on (demo mode, for the puzzle view). Match: chunk the prompt the same way;
-a chunk is a copy when MinHash Jaccard >= 0.5, a paraphrase when embedding cosine >= 0.78
+a chunk is a copy when MinHash Jaccard >= 0.5, a paraphrase when embedding cosine >= 0.70
 (tuned on tests/data/paraphrases.json).
 Vectors live in Postgres (pgvector); matching runs over a small in-process cache of them.
 """
@@ -26,7 +26,7 @@ from brain.documents.fingerprint import PERMS, jaccard, signature
 log = logging.getLogger(__name__)
 
 COPY_JACCARD = 0.5
-PARAPHRASE_COSINE = 0.78
+PARAPHRASE_COSINE = 0.70
 MIN_WORDS_TO_EMBED = 12
 MAX_QUERY_CHUNKS = 64
 

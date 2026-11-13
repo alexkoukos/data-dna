@@ -55,7 +55,7 @@ check: validate lint typecheck test ## Everything CI checks. Run before every co
 e2e: ## End-to-end + accessibility (needs `make up` first)
 	cd web && npx playwright install chromium && npm run e2e
 
-eval: ## Detection quality report (TASKS.md E1)
-	@echo "Not implemented yet: see TASKS.md item E1"
+eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
+	cd services/brain && uv run python -m brain.eval.run
 
 .PHONY: test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval

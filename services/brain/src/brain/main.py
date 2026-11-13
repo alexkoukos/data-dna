@@ -55,6 +55,7 @@ from brain.documents.embeddings import FastEmbedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.registry import DocumentIndex, register_document
+from brain.injection.heuristics import injection_finder
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy.engine import Decision
 from brain.policy.store import PolicyError, PolicyStore
@@ -84,7 +85,7 @@ def _finders() -> list[Finder]:
     global _client_store
     if _client_store is None or _client_store.engine is not policy_store.engine:
         _client_store = ClientStore(policy_store.engine)
-    return [find_yara, entity_detector.find, _client_store.find]
+    return [find_yara, injection_finder, entity_detector.find, _client_store.find]
 
 
 @asynccontextmanager
