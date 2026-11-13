@@ -35,7 +35,7 @@ def client() -> OpenAI:
         json={
             "user_id": f"u-itest-{uuid.uuid4().hex[:8]}",
             "team_id": "itest",
-            "models": ["demo-mock", "demo-echo", "demo-leaky", "local"],
+            "models": ["demo-mock", "demo-echo", "demo-leaky", "local", "local-standin"],
         },
     )
     resp.raise_for_status()
@@ -149,7 +149,8 @@ def test_outcome_answered_locally(client: OpenAI) -> None:
     )
     decision, answer = _decision(client, pasted)
     assert decision == "local"
-    assert "on this machine" in answer
+    # The real local model when `make local` is running, otherwise the stand-in answer.
+    assert answer.strip()
 
 
 def test_outcome_blocked(client: OpenAI) -> None:
