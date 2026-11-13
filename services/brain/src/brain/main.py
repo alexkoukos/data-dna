@@ -1,6 +1,11 @@
 """FastAPI entrypoint for the brain service."""
 
-from fastapi import FastAPI
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+import sqlalchemy as sa
+from fastapi import FastAPI, HTTPException
 
 from brain.api.schemas import (
     FindingOut,
@@ -9,16 +14,35 @@ from brain.api.schemas import (
     InspectRequest,
     InspectResponse,
     Message,
+    PolicyOut,
+    PolicyUpdate,
     UnmaskRequest,
     UnmaskResponse,
 )
+from brain.db.engine import make_engine
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
 from brain.detection.pipeline import inspect_text
 from brain.policy.engine import Decision
+from brain.policy.store import PolicyError, PolicyStore
 from brain.sessions import sessions
 
-app = FastAPI(title="Data DNA brain", version="0.1.0")
+log = logging.getLogger(__name__)
+policy_store = PolicyStore(make_engine())
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    try:
+        added = policy_store.seed_if_empty()
+        if added:
+            log.info("Seeded %d policies", added)
+    except sa.exc.SQLAlchemyError:
+        log.warning("Could not seed policies, using the seed file until the database is up")
+    yield
+
+
+app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/healthz")
@@ -32,7 +56,7 @@ def inspect(req: InspectRequest) -> InspectResponse:
     last = next((m for m in reversed(req.messages) if m.role == "user"), None)
     if last is None:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
-    result = inspect_text(last.content)
+    result = inspect_text(last.content, policy_store.current())
     masked = None
     session_id = None
     if result.verdict.decision == Decision.MASK:
@@ -79,3 +103,17 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
             for f in findings
         ],
     )
+
+
+@app.get("/v1/policies", response_model=list[PolicyOut])
+def list_policies() -> list[PolicyOut]:
+    return [PolicyOut(**vars(row)) for row in policy_store.list_rows()]
+
+
+@app.put("/v1/policies", response_model=PolicyOut)
+def update_policy(req: PolicyUpdate) -> PolicyOut:
+    try:
+        row = policy_store.update(req.scope, req.key, req.action, req.updated_by)
+    except PolicyError as err:
+        raise HTTPException(status_code=422, detail=str(err)) from err
+    return PolicyOut(**vars(row))

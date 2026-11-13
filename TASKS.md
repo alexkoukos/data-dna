@@ -25,7 +25,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [ ] **D5** P1 Session memory: rebuild across prompts (PRD 9.4). Owner: Stelios.
 - [ ] **D6** P1 Prompt-injection classifier (PRD 9.5). Owner: Stelios.
 - [ ] **D7** P2 LLM judge for borderline scores, cached (PRD 9.6). Owner: Stelios.
-- [ ] **P1** P0 Policies from DB + `policies.yaml` seed, editable (PRD 10). Owner: Alexandros.
+- [x] **P1** P0 Policies from DB + `policies.yaml` seed, editable (PRD 10). Owner: Alexandros.
 
 ## Shadow AI, DNA, analyst
 - [ ] **O1** P0 `scripts/gen_org.py --seed 42` from `data/org/org.yaml`: users, keys, clients, documents, Squid + Zeek logs, incidents (PRD 21a). Owner: Stelios.

@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-13 20:30, Alexandros, task P1
+**Done:** Policies live in Postgres (`policies` table), seeded once from `services/brain/src/brain/policy/policies.yaml` at brain start (11 rows). `GET /v1/policies` lists them, `PUT /v1/policies` edits one (`scope` category or sensitivity, `key`, `action`, `updated_by`), validates with plain messages (422) and writes `audit_log`. The detection pipeline now uses the live policies (cached 5 s); with no database it falls back to the seed file, so detection never stops. Checked on real Postgres: edited iban to warn, `/v1/inspect` returned warn, audit row written, restored to mask.
+**State:** branch `task/P1-policies`, PR open. `make check` green (53 brain tests, 96% coverage). No database change, so no `make reset` needed.
+**Next step:** W1 Company Chat (`web/src/pages`). Policy editor UI is W5 (P1).
+**Problems / decisions needed:** `PUT /v1/policies` has no login yet; anyone who can reach the brain port can edit. Roles come with the web login. Unit tests set `DATABASE_URL=""` in `conftest.py` so they never need Postgres.
+**Files touched:** services/brain/src/brain/{main.py,detection/pipeline.py,api/schemas.py,db/engine.py,policy/store.py,policy/policies.yaml}, services/brain/tests/{conftest.py,test_policy_store.py}, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-13 19:00, Alexandros, tasks G2 and G3
 **Done:** Brain `POST /v1/inspect-output` (masks secrets and identifiers the model puts in an answer) and `POST /v1/unmask` (restores the user's own masked values, only for the same user, held in memory for 15 minutes). `/v1/inspect` now returns a `session_id` when it masks. The gateway guardrail runs both after the model answers: filter first, then unmask; if the brain is down the answer is withheld (503). Warn (409 + `X-DNA-Ack`) and block (403) responses are in place with reasons and an approved alternative. Config: guardrail mode is `[pre_call, post_call]` (with only `pre_call` the answer hook never runs). Extra offline models `demo-echo` and `demo-leaky` let tests prove unmask and output filtering without an OpenAI key.
 **State:** branch `task/G2-unmask-output`, PR open. `make check` green (42 brain tests, 95% coverage). `make test-gateway` 6 live tests green.
