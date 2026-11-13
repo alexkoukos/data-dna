@@ -21,7 +21,9 @@ _GREEK = re.compile(r"[Ͱ-Ͽἀ-῿]")
 _LATIN = re.compile(r"[A-Za-z]")
 # Greek mobile numbers (69xxxxxxxx) and any number with the +30 prefix, which Presidio scores low.
 _GREEK_PHONE = re.compile(
-    r"(?<![\w+])(?:\+30[ .-]?)?(?:69\d{2}[ .-]?\d{6}|(?<=\+30)[ .-]?2\d{9})(?!\d)"
+    r"(?<![\w+])(?:(?:\+|00)30[ .-]?)?(?:69\d[ .-]?\d{3}[ .-]?\d{4}"
+    r"|(?<=30)[ .-]?2\d{2}[ .-]?\d{3}[ .-]?\d{4}"
+    r"|(?<![\d])2[1-9]\d[ .-]\d{3}[ .-]?\d{4})(?!\d)"
 )
 _ENTITY_NAMES = {"PERSON": "PERSON", "EMAIL_ADDRESS": "EMAIL", "PHONE_NUMBER": "PHONE"}
 _MIN_SCORE = {"PERSON": 0.6, "EMAIL_ADDRESS": 0.5, "PHONE_NUMBER": 0.35}

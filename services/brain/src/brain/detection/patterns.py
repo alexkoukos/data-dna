@@ -32,8 +32,66 @@ _SECRETS = [
 ]
 
 
+# More Greek identifiers (X6). They have no checksum we can verify, so each one needs a word that
+# says what it is just before it. A bare "ΑΒΓ 1234" could be anything; "πινακίδα ΑΒΓ 1234" is not.
+_GR = (
+    "ΑΒΕΖΗΙΚΜΝΟΡΤΥΧ"  # Greek capitals that also exist in the Latin alphabet (plates use only these)
+)
+_LETTERS = f"[A-Z{_GR}]"
+_FILLER = r"(?:is|my|its|number|no|της|του|μου|είναι|ο|η|με|αριθμός|αριθμό|αρ)"
+_SEP = rf"(?:[\s:.#\-–]|\b{_FILLER}\b)*"
+_CONTEXT: list[tuple[str, re.Pattern[str]]] = [
+    (
+        "ADT",  # identity card: two letters and six digits
+        re.compile(
+            r"(?:ΑΔΤ|Α\.Δ\.Τ\.?|ταυτότητ\w*|δελτίο ταυτότητας|identity card|id card|ID no\.?)"
+            + _SEP
+            + rf"({_LETTERS}{{1,2}}[ -]?\d{{6}})(?!\d)",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "PLATE",  # three letters (Greek capitals that look Latin) and four digits
+        re.compile(
+            r"(?:πινακίδα|πινακίδες|αριθμός κυκλοφορίας|αρ\. κυκλοφορίας"
+            r"|license plate|licence plate|number plate|plate number|registration plate|plate)"
+            + _SEP
+            + rf"({_LETTERS}{{3}}[ -]?\d{{4}})(?!\d)",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "GEMI",  # business registry number, 9 to 12 digits
+        re.compile(
+            r"(?:ΓΕΜΗ|ΓΕ\.ΜΗ\.?|Γ\.Ε\.ΜΗ\.?|GEMI|G\.E\.MI\.?)(?: number| no\.?| αριθμός| αρ\.)?"
+            + _SEP
+            + r"(\d{9,12})(?!\d)",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "PASSPORT",  # two letters and seven digits
+        re.compile(
+            r"(?:διαβατήριο\w*|passport(?: number| no\.?)?|αριθμός διαβατηρίου)"
+            + _SEP
+            + rf"({_LETTERS}{{2}}[ -]?\d{{7}})(?!\d)",
+            re.IGNORECASE,
+        ),
+    ),
+]
+
+
+def find_greek_context_ids(text: str) -> list[Finding]:
+    found: list[Finding] = []
+    for entity, rx in _CONTEXT:
+        for m in rx.finditer(text):
+            found.append(Finding(entity, "greek_id", m.start(1), m.end(1), m.group(1)))
+    return found
+
+
 def find_patterns(text: str) -> list[Finding]:
     found: list[Finding] = []
+    found.extend(find_greek_context_ids(text))
     for m in _IBAN.finditer(text):
         if iban_ok(m.group(0)):
             found.append(Finding("IBAN", "iban", m.start(), m.end(), m.group(0)))
