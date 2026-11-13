@@ -15,6 +15,33 @@ Template:
 
 ---
 
+## 2026-11-14 05:00, Alexandros, tasks O1, O2, W2, W6 and project summary
+**Done (this entry):**
+- **O1 seed:** the demo company is generated and loaded when the brain starts on an empty database (`services/brain/src/brain/seed/`). 200 users (Greek names, pseudonyms `u-xxxxxxxx`), 8 teams, 10 clients, 3 documents, 14 days of gateway counters, about 660 incidents, and the storyline (tool spike, API key paste, contract paste, salary questions, memo rebuilt over days). Deterministic: `--seed 42` plus the anchor date. CLI: `uv run python ../../scripts/gen_org.py` from `services/brain`, or `python -m brain.seed`.
+- **O2 ingest:** Squid `access.log` and Zeek `dns.log` in real formats plus a DHCP-style `leases.csv` are written to the `logs` volume (`/var/dna/logs`). The ingest matches hosts and parent domains against the AI tool catalogue; DNS-only use counts once per user and day; gateway tools (domains ending `.local`) come from gateway counters, not logs.
+- **Dashboard APIs:** `GET /v1/metrics`, `GET /v1/incidents` (decision and team filters, limit up to 100, offset), `GET /v1/inventory`. Real chat decisions are recorded too (`brain/records.py`): every non-allow becomes an incident (masked preview only, never the raw value), every check bumps `counters_daily`.
+- **W2:** `/security` (Overview), `/security/tools` (AI tools, unapproved first, filter, 7-day sparkline), `/security/incidents` (filter by outcome, show more). Skeleton, empty and error states on each.
+- **W6:** Playwright checks axe, no sideways scroll and 44 px touch targets on all 6 routes at 1280 px and 390 px (`web/e2e/smoke.spec.ts`, route list at the top).
+**State:** everything is merged to `main` (PRs #1 to #8). `make check` green: 81 brain tests (94% coverage), 24 web tests. `make e2e` 16 passed against `make up`. CI green (brain, web, smoke, arm64, secrets). Branch protection on `main`: PR and the four checks required.
+**Done so far (TASKS.md):** S0, S1, D0, G1, G2, G3, P1, O1, O2, W1, W2, W6.
+**Next step (pick one):**
+1. Alexandros P0: **E4** integration tests for all five outcomes through the gateway (block needs D6 to trigger live; use a unit-level block), **S2** platform check (Linux, Mac Apple silicon, Windows WSL; write RAM and first-start time in the README), **R1** README setup part, **R4** freeze Thu 19 Nov 20:00 and submit Fri 20 Nov by noon.
+2. Alexandros P1: **W4** Connect page (key and URL with copy buttons, snippets, live status; `POST /v1/keys` already exists), **W5** Policies and Documents pages (`GET/PUT /v1/policies` exist), **W3** incident detail, **A1** analyst preset questions, **N2** sealed identity.
+3. Stelios (not started): D1 Presidio, D2 YARA, D3 document registry (go/no-go Sat 14), D4 file upload, E1 `make eval`, then L1 local model, D6 injection (unblocks live block), D5, O3, N1, E2, E3.
+4. Konstantinos and Vasilis (not started): T1 `org.yaml`, T2 documents, T3 `prompts.csv`, T4 `ai_tools.csv`, then T5, R1 text, R2 video, R3 slides.
+**Problems / decisions needed:**
+- `data/org/org.yaml` and `data/ai_tools.csv` are still templates, so the seed uses `data/org/org.sample.yaml` and `data/ai_tools.sample.csv` (invented). It switches by itself when the real files have more than 2 teams, no "TBD" in the company name and 5 or more tools. They should copy the sample's shape (storyline `kind` is one of tool_spike, api_key_paste, contract_paste, salary_questions, memo_rebuild; tool domains in the CSV are separated by `;`).
+- The PRD names a `seed` compose service; seeding runs inside the brain start instead, because a one-shot container can break `docker compose up --wait` on some versions. Re-seed with `make reset` then `make up`.
+- After every pull that touches `infra/db`, compose or a Dockerfile: `make reset` then `make up` (rule is in CLAUDE.md). A stale gateway image makes the live gateway tests fail until `make up --build` runs again.
+- No login yet: `PUT /v1/policies`, `POST /v1/keys` (off when `DEMO_MODE=false`) and the dashboard APIs are open to anyone who can reach the ports.
+- `OPENAI_API_KEY` empty means the chat answers with the offline `demo-mock` model (same text for every message). Set it in `.env` for real answers.
+- Warn card has Edit message / Send anyway / Cancel (PRD wanted "Send without it"; the brain returns no masked text for warn). Chat has no file attach and no history sidebar. Streamed answers arrive as one text chunk (kept whole so secrets split across chunks are caught).
+- `.env.example` should list `LITELLM_MASTER_KEY=sk-admin-change-me` (the tools could not edit that file; compose has the same default).
+- Still missing from the PRD overview: the weekly question box (A1) and a team filter on incidents.
+**Files touched:** services/brain/src/brain/{seed/*,db/tables.py,queries.py,records.py,main.py,config.py,api/schemas.py,policy/store.py}, services/brain/tests/{test_seed.py,test_dashboard_api.py}, web/src/{pages/security/*,components/*,lib/*,test/fixtures.ts,App.tsx}, web/e2e/smoke.spec.ts, data/org/org.sample.yaml, data/ai_tools.sample.csv, scripts/gen_org.py, docker-compose.yml, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-14 00:00, Alexandros, task G2 (streaming)
 **Done:** Streaming answers (`stream: true`) are now filtered and unmasked like normal ones. The gateway collects the whole streamed answer first (a secret or a placeholder such as `[IBAN_1]` can be split across chunks, and a half-seen value cannot be filtered), cleans it through `/v1/inspect-output` and `/v1/unmask`, and sends it in the first text chunk; role, finish and usage chunks pass through in order. If the brain is down nothing is shown (503). G2 is complete.
 **State:** branch `task/G2-streaming`, PR open. `make check` green (63 brain tests); `make test-gateway` 8 live tests green (2 are streaming).
