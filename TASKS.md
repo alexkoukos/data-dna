@@ -10,7 +10,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 
 ## Gateway and routing
 - [x] **G1** P0 Add LiteLLM gateway service (pin the latest stable image tag from its releases page), per-user virtual keys, custom guardrail calling `brain /v1/inspect` (PRD 7, 8). Owner: Alexandros. Done when: an OpenAI SDK client with a personal key gets a masked-and-answered reply through the gateway; integration test passes.
-- [~] **G2** P0 Unmask in answers + output filtering `/v1/inspect-output` (PRD 8). Owner: Alexandros. Done for non-streaming; streaming answers (chunk-wise unmask) still open.
+- [x] **G2** P0 Unmask in answers + output filtering `/v1/inspect-output` (PRD 8). Owner: Alexandros.
 - [x] **G3** P0 Warn (409 + ack header) and block (403) responses with reasons and approved alternative (PRD 8). Owner: Alexandros. Block verified by unit test only until D6 can trigger it live.
 - [ ] **L1** P1 Local model: benchmark llama.cpp vs Ollama, 1B to 4B, Greek quality, on Sat 14; add the winner to compose, never on the critical path (PRD 21b). Owner: Stelios.
 - [ ] **G4** P2 Anthropic-format endpoint (Claude Code demo). Owner: Alexandros.

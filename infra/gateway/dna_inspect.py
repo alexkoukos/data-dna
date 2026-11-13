@@ -6,6 +6,7 @@ Pure logic, no LiteLLM imports, so it can be unit tested without the gateway ima
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -144,3 +145,38 @@ async def finalize_answer(
             },
         ) from exc
     return text
+
+
+def _delta(chunk: Any) -> Any:
+    choices = getattr(chunk, "choices", None)
+    return getattr(choices[0], "delta", None) if choices else None
+
+
+async def rewrite_stream(
+    chunks: AsyncIterator[Any], transform: Callable[[str], Awaitable[str]]
+) -> AsyncIterator[Any]:
+    """Check a streamed answer before the client sees any of it.
+
+    The whole answer is collected first, because a secret or a placeholder can be split across
+    chunks and a half-seen value cannot be filtered. The cleaned text is then sent in the first
+    content chunk; chunks without text (role, finish reason, usage) pass through in order. The
+    client still gets a normal stream, only the text arrives together.
+    """
+    buffered: list[Any] = []
+    parts: list[str] = []
+    async for chunk in chunks:
+        buffered.append(chunk)
+        delta = _delta(chunk)
+        if delta is not None and isinstance(getattr(delta, "content", None), str):
+            parts.append(delta.content)
+    cleaned = await transform("".join(parts)) if parts else ""
+    placed = False
+    for chunk in buffered:
+        delta = _delta(chunk)
+        has_text = delta is not None and isinstance(getattr(delta, "content", None), str)
+        if not has_text:
+            yield chunk
+        elif not placed:
+            delta.content = cleaned
+            placed = True
+            yield chunk

@@ -8,7 +8,9 @@ import httpx
 from fastapi import HTTPException
 from litellm.integrations.custom_guardrail import CustomGuardrail
 
-from dna_inspect import GatewayError, apply_decision, finalize_answer
+from collections.abc import AsyncGenerator
+
+from dna_inspect import GatewayError, apply_decision, finalize_answer, rewrite_stream
 
 BRAIN_URL = os.environ.get("BRAIN_URL", "http://brain:8001")
 
@@ -64,3 +66,24 @@ class DnaGuardrail(CustomGuardrail):
         except GatewayError as err:
             raise HTTPException(status_code=err.status_code, detail=err.body) from err
         return response
+
+    async def async_post_call_streaming_iterator_hook(
+        self, user_api_key_dict: Any, response: Any, request_data: dict
+    ) -> AsyncGenerator[Any, None]:
+        meta = request_data.get("metadata") or {}
+
+        async def clean(text: str) -> str:
+            return await finalize_answer(
+                text,
+                user_id=getattr(user_api_key_dict, "user_id", None) or "anonymous",
+                team=getattr(user_api_key_dict, "team_id", None) or "unknown",
+                session_id=meta.get("dna_session_id"),
+                brain_url=BRAIN_URL,
+                client=self._client,
+            )
+
+        try:
+            async for item in rewrite_stream(response, clean):
+                yield item
+        except GatewayError as err:
+            raise HTTPException(status_code=err.status_code, detail=err.body) from err
