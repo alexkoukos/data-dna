@@ -72,6 +72,7 @@ async def apply_decision(
 
     if decision == "mask" and verdict.get("masked_messages"):
         data["messages"] = verdict["masked_messages"]
+        data.setdefault("metadata", {})["dna_session_id"] = verdict.get("session_id")
     elif decision == "local":
         data["model"] = LOCAL_MODEL
     elif decision == "warn" and not _ack_given(headers):
@@ -98,3 +99,47 @@ async def apply_decision(
     metadata = data.setdefault("metadata", {})
     metadata["dna_decision"] = decision
     return data
+
+
+async def finalize_answer(
+    text: str,
+    *,
+    user_id: str,
+    team: str,
+    session_id: str | None,
+    brain_url: str,
+    client: httpx.AsyncClient,
+) -> str:
+    """Filter a model answer, then restore the user's own masked values.
+
+    Order matters: filter first, so only values the model invented or echoed are masked,
+    then unmask, so the user's own values come back. If the brain cannot be reached the
+    answer is withheld rather than returned unfiltered.
+    """
+    try:
+        out = await client.post(
+            f"{brain_url}/v1/inspect-output",
+            json={"user_id": user_id, "team": team, "text": text},
+            timeout=10.0,
+        )
+        out.raise_for_status()
+        text = out.json()["text"]
+        if session_id:
+            back = await client.post(
+                f"{brain_url}/v1/unmask",
+                json={"session_id": session_id, "user_id": user_id, "text": text},
+                timeout=10.0,
+            )
+            back.raise_for_status()
+            text = back.json()["text"]
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        raise GatewayError(
+            503,
+            {
+                "type": "unavailable",
+                "message": "The answer could not be checked, so it was not shown.",
+                "next": "Try again in a minute. If it keeps happening, tell your IT contact.",
+                "detail": type(exc).__name__,
+            },
+        ) from exc
+    return text

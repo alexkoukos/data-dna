@@ -81,3 +81,54 @@ def test_fails_closed_when_brain_is_down() -> None:
         _run(None)
     assert err.value.status_code == 503
     assert err.value.body["type"] == "unavailable"
+
+
+def _finalize(handler: Any, session_id: str | None) -> str:
+    async def go() -> str:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            out: str = await dna.finalize_answer(
+                "answer [IBAN_1]",
+                user_id="u1",
+                team="t1",
+                session_id=session_id,
+                brain_url="http://brain",
+                client=client,
+            )
+            return out
+
+    return asyncio.run(go())
+
+
+def test_finalize_filters_then_unmasks() -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        text = request.content.decode()
+        if request.url.path == "/v1/inspect-output":
+            return httpx.Response(200, json={"text": "answer [IBAN_1]"})
+        assert "answer [IBAN_1]" in text
+        return httpx.Response(200, json={"text": "answer GR16"})
+
+    assert _finalize(handler, "sid") == "answer GR16"
+    assert calls == ["/v1/inspect-output", "/v1/unmask"]
+
+
+def test_finalize_without_session_skips_unmask() -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(200, json={"text": "clean"})
+
+    assert _finalize(handler, None) == "clean"
+    assert calls == ["/v1/inspect-output"]
+
+
+def test_finalize_withholds_answer_when_brain_is_down() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("down")
+
+    with pytest.raises(dna.GatewayError) as err:
+        _finalize(handler, "sid")
+    assert err.value.status_code == 503
