@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 RETENTION_DAYS = 30
 
 
-def _user_id(conn: sa.Connection, pseudonym: str, team: str) -> int:
+def user_row_id(conn: sa.Connection, pseudonym: str, team: str) -> int:
     found = conn.execute(
         sa.select(t.users.c.id).where(t.users.c.pseudonym == pseudonym)
     ).scalar_one_or_none()
@@ -74,7 +74,7 @@ def record_decision(
     now = datetime.now(UTC)
     try:
         with engine.begin() as conn:
-            uid = _user_id(conn, user, team)
+            uid = user_row_id(conn, user, team)
             _bump_counter(conn, now.date(), team, decision == "allow")
             if decision != "allow":
                 conn.execute(

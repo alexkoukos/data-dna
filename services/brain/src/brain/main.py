@@ -49,17 +49,18 @@ from brain.db.engine import make_engine
 from brain.detection.entities import EntityDetector
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
-from brain.detection.pipeline import Finder, inspect_text
+from brain.detection.pipeline import Finder, InspectResult, inspect_text
 from brain.detection.yara_rules import find_yara
 from brain.documents.embeddings import FastEmbedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.registry import DocumentIndex, register_document
+from brain.documents.session import update_coverage
 from brain.injection.heuristics import injection_finder
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy.engine import Decision
 from brain.policy.store import PolicyError, PolicyStore
-from brain.records import record_decision
+from brain.records import record_decision, user_row_id
 from brain.seed.load import run_seed
 from brain.sessions import sessions
 
@@ -151,6 +152,24 @@ def _attachment_text(req: InspectRequest) -> str:
     return "\n\n" + "\n\n".join(parts) if parts else ""
 
 
+def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
+    """Remember which parts of a document this person has sent, and block a rebuild."""
+    engine = policy_store.engine
+    if engine is None or not result.doc_matches:
+        return
+    try:
+        with engine.begin() as conn:
+            uid = user_row_id(conn, req.user_id, req.team)
+            rebuilds = update_coverage(conn, uid, result.doc_matches)
+    except sa.exc.SQLAlchemyError:
+        log.warning("Could not update session memory, continuing")
+        return
+    for r in rebuilds:
+        if r.escalate:
+            result.verdict.reasons.append(r.reason)
+            result.verdict.decision = Decision.BLOCK
+
+
 @app.post("/v1/inspect", response_model=InspectResponse)
 def inspect(req: InspectRequest) -> InspectResponse:
     # Only the last user message is inspected in this first slice.
@@ -161,6 +180,7 @@ def inspect(req: InspectRequest) -> InspectResponse:
     result = inspect_text(
         last.content + attached, policy_store.current(), _finders(), _documents().match
     )
+    _escalate_rebuilds(req, result)
     masked = None
     session_id = None
     if result.verdict.decision == Decision.MASK and attached:

@@ -120,3 +120,13 @@ doc_chunks = sa.Table(
     sa.Column("embedding", Vector(384).with_variant(sa.JSON, "sqlite")),
     sa.Column("text_demo", sa.Text),
 )
+
+session_coverage = sa.Table(
+    "session_coverage",
+    metadata,
+    sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id"), primary_key=True),
+    sa.Column("chunk_idx", sa.ARRAY(sa.Integer).with_variant(sa.JSON, "sqlite")),
+    sa.Column("prompts", sa.Integer, server_default="0"),
+    sa.Column("window_start", sa.DateTime(timezone=True)),
+)

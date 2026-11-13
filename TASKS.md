@@ -22,7 +22,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **D2** P0 YARA rules for secrets and source code (`rules/*.yar`) (PRD 9.2). Owner: Stelios.
 - [x] **D3** P0 Document registry: chunking, MinHash, embeddings (fastembed, ONNX), pgvector search, copy vs paraphrase (PRD 9.3). Owner: Stelios. **Go/no-go Sat 14**: recall on 20 Greek and English paraphrases.
 - [x] **D4** P0 File upload text extraction (PDF, DOCX) into the pipeline (PRD 9.1). Owner: Stelios.
-- [ ] **D5** P1 Session memory: rebuild across prompts (PRD 9.4). Owner: Stelios.
+- [x] **D5** P1 Session memory: rebuild across prompts (PRD 9.4). Owner: Stelios.
 - [~] (Alexandros, heuristics only) **D6** P1 Prompt-injection classifier (PRD 9.5). Owner: Stelios.
 - [ ] **D7** P2 LLM judge for borderline scores, cached (PRD 9.6). Owner: Stelios.
 - [x] **P1** P0 Policies from DB + `policies.yaml` seed, editable (PRD 10). Owner: Alexandros.
