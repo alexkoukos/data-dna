@@ -48,7 +48,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [ ] **E1** P0 `make eval`: report vs regex baseline, targets pass/fail (PRD 17, 18). Owner: Stelios.
 - [ ] **E2** P1 promptfoo + garak red team, summary in report. Owner: Stelios.
 - [ ] **E3** P1 Load test, latency p95 (PRD 17). Owner: Stelios.
-- [ ] **E4** P0 Integration tests through the gateway for all five outcomes (PRD 19). Owner: Alexandros.
+- [x] **E4** P0 Integration tests through the gateway for all five outcomes (PRD 19). Owner: Alexandros.
 
 ## Team data (no code; edit files, then `make validate`)
 - [ ] **T1** P0 `data/org/org.yaml`: company, 8 teams, 10 clients, AI habits, 14-day storyline. Owners: Konstantinos, Vasilis. Basics Fri 13, storyline Sat 14.
