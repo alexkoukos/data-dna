@@ -5,7 +5,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 
 ## Foundation
 - [x] **S0** Scaffold: locks, tests, CI, devcontainer, Makefile. (Alexandros)
-- [ ] **S1** P0 `make up` works on a real machine; fix Dockerfiles; CI smoke green. Owner: Alexandros. Done when: fresh clone, `make up`, both URLs load, CI green.
+- [~] **S1** P0 `make up` works on a real machine; fix Dockerfiles; CI smoke green. Owner: Alexandros. Done when: fresh clone, `make up`, both URLs load, CI green.
 - [ ] **S2** P0 Platform check: Linux, macOS Apple silicon, Windows WSL. Owner: Alexandros. Done when: `make up` works on all three; RAM and first-start time written in README.
 
 ## Gateway and routing
