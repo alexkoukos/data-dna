@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 
 _INVISIBLE = re.compile("[​-‏‪-‮⁠-⁤﻿]")
 _SPACED_DIGITS = re.compile(r"(?<![\w])(?:\d[ .\-/]?){8,30}\d(?![\w])")
+# An identifier typed one character at a time: "G R 1 6 0 1 ..." (letters and digits).
+_SPACED_CHARS = re.compile(r"(?<![\w])(?:[A-Za-z0-9][ .\-/]){11,}[A-Za-z0-9](?![\w])")
 _B64 = re.compile(r"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{16,}={0,2}(?![A-Za-z0-9+/=])")
 
 
@@ -31,6 +33,10 @@ def normalise(raw: str) -> Normalised:
         if re.search(r"[ .\-/]", chunk):
             views.append(re.sub(r"[ .\-/]", "", chunk))
             signals.append("spaced_digits")
+
+    for m in _SPACED_CHARS.finditer(text):
+        views.append(re.sub(r"[ .\-/]", "", m.group(0)))
+        signals.append("spaced_characters")
 
     for m in _B64.finditer(text):
         decoded = _try_b64(m.group(0))

@@ -46,7 +46,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 
 ## Evaluation and quality
 - [x] **E1** P0 `make eval`: report vs regex baseline, targets pass/fail (PRD 17, 18). Owner: Stelios.
-- [ ] **E2** P1 promptfoo + garak red team, summary in report. Owner: Stelios.
+- [x] **E2** P1 promptfoo + garak red team, summary in report. Owner: Stelios.
 - [x] **E3** P1 Load test, latency p95 (PRD 17). Owner: Stelios.
 - [x] **E4** P0 Integration tests through the gateway for all five outcomes (PRD 19). Owner: Alexandros.
 
