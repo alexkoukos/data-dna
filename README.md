@@ -12,7 +12,18 @@ _To be written (R1). Source: docs/IDEA_AND_TEAM.md._
 _To be written (R1)._
 
 ## Setup and run
-Requirements: Docker with Compose v2. RAM and first-start time: _measured in S2_.
+Requirements: Docker with Compose v2, about 2 GB of free RAM for Docker, and ports 3000, 4000 and 8001 free.
+
+Measured on macOS Apple silicon (arm64, OrbStack, fresh clone, no build cache, 13 Nov 2026):
+
+| What | Result |
+| --- | --- |
+| Build from scratch (`docker compose build --no-cache`) | 72 s |
+| Start until all four services are healthy | 48 s |
+| RAM when idle (web, gateway, brain, database) | about 770 MB (gateway 658, brain 70, database 34, web 9) |
+| Web (3000) and API docs (8001) answer | yes, HTTP 200 |
+
+Linux and Windows (WSL 2) are not measured yet.
 
 ```bash
 git clone <this repo>
