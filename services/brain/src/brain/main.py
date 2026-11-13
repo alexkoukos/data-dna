@@ -5,12 +5,13 @@ import base64
 import binascii
 import html
 import logging
+import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import sqlalchemy as sa
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import HTMLResponse
 
 from brain import queries, reveal
@@ -197,17 +198,28 @@ def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
 
 
 @app.post("/v1/inspect", response_model=InspectResponse)
-def inspect(req: InspectRequest) -> InspectResponse:
+def inspect(
+    req: InspectRequest, background: BackgroundTasks, response: Response
+) -> InspectResponse:
     # Only the last user message is inspected in this first slice.
     last = next((m for m in reversed(req.messages) if m.role == "user"), None)
     if last is None:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
+    clock = time.perf_counter()
     attached = _attachment_text(req)
     result = inspect_text(
         last.content + attached, policy_store.current(), _finders(), _documents().match
     )
+    t_checks = time.perf_counter()
     _escalate_rebuilds(req, result)
+    t_memory = time.perf_counter()
     leaked_copy = _attribute_copy(result, last.content + attached)
+    t_marks = time.perf_counter()
+    response.headers["Server-Timing"] = (
+        f"checks;dur={(t_checks - clock) * 1000:.1f}, "
+        f"memory;dur={(t_memory - t_checks) * 1000:.1f}, "
+        f"marks;dur={(t_marks - t_memory) * 1000:.1f}"
+    )
     masked = None
     session_id = None
     if result.verdict.decision == Decision.MASK and attached:
@@ -222,7 +234,9 @@ def inspect(req: InspectRequest) -> InspectResponse:
             for m in req.messages
         ]
         session_id = sessions.create(req.user_id, result.placeholders)
-    record_decision(
+    # Written after the answer is sent, so the database never adds to the user's wait.
+    background.add_task(
+        record_decision,
         policy_store.engine,
         user=req.user_id,
         team=req.team,

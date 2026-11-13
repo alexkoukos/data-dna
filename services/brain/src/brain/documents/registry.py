@@ -19,7 +19,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from brain.db import tables as t
-from brain.documents.chunking import chunk_text, words
+from brain.documents.chunking import CHUNK_WORDS, chunk_text, words
 from brain.documents.embeddings import Embedder
 from brain.documents.fingerprint import PERMS, jaccard, signature
 
@@ -28,7 +28,8 @@ log = logging.getLogger(__name__)
 COPY_JACCARD = 0.5
 PARAPHRASE_COSINE = 0.70
 MIN_WORDS_TO_EMBED = 12
-MAX_QUERY_CHUNKS = 64
+MAX_QUERY_CHUNKS = 64  # chunks compared by MinHash (cheap)
+MAX_EMBEDDED_CHUNKS = 6  # chunks sent through the embedding model (the slow step)
 
 Kind = Literal["copy", "paraphrase"]
 
@@ -135,18 +136,29 @@ class DocumentIndex:
                 best[c.document_id] = (score, kind)
 
         copied: set[int] = set()
-        for qs in query_sigs:
+        copied_query: set[int] = set()
+        for qi, qs in enumerate(query_sigs):
             for i, c in enumerate(chunks):
                 j = jaccard(qs, c.sig)
                 if j >= COPY_JACCARD:
                     note(c, j, "copy")
                     copied.add(i)
+                    copied_query.add(qi)
         if len(words(text)) >= MIN_WORDS_TO_EMBED:
-            sims = self._embedder.embed(pieces) @ matrix.T
-            for qi in range(sims.shape[0]):
-                for i in np.nonzero(sims[qi] >= PARAPHRASE_COSINE)[0]:
-                    if int(i) not in copied:
-                        note(chunks[int(i)], float(sims[qi, i]), "paraphrase")
+            # The model is the slow part (about 20 ms a chunk), so: skip pieces MinHash already
+            # explained, use non-overlapping windows, and cap how many are embedded.
+            wanted = [p for p in chunk_text(text, CHUNK_WORDS, CHUNK_WORDS) if len(p.split()) >= 8]
+            if copied_query and len(copied_query) >= len(pieces) - 1:
+                wanted = []
+            if len(wanted) > MAX_EMBEDDED_CHUNKS:
+                step = len(wanted) / MAX_EMBEDDED_CHUNKS
+                wanted = [wanted[int(k * step)] for k in range(MAX_EMBEDDED_CHUNKS)]
+            if wanted:
+                sims = self._embedder.embed(wanted) @ matrix.T
+                for qi in range(sims.shape[0]):
+                    for i in np.nonzero(sims[qi] >= PARAPHRASE_COSINE)[0]:
+                        if int(i) not in copied:
+                            note(chunks[int(i)], float(sims[qi, i]), "paraphrase")
         out = [
             DocMatch(
                 document_id=d,

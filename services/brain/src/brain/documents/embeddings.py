@@ -5,6 +5,7 @@ they run without downloading a model. It only knows exact word overlap, never pa
 """
 
 import hashlib
+import os
 import threading
 from typing import Any, Protocol
 
@@ -36,7 +37,9 @@ class FastEmbedder:
             if self._model is None:
                 from fastembed import TextEmbedding
 
-                self._model = TextEmbedding(MODEL)
+                self._model = TextEmbedding(
+                    MODEL, threads=int(os.environ.get("EMBED_THREADS", "4"))
+                )
             return self._model
 
     def embed(self, texts: list[str]) -> np.ndarray:

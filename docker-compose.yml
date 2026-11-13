@@ -27,6 +27,9 @@ services:
       DEMO_MODE: ${DEMO_MODE:-true}
       DATA_DIR: /data
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
+      # Few threads per model: many small requests beat one wide one (see the load test).
+      OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
+      EMBED_THREADS: ${EMBED_THREADS:-4}
     volumes:
       - models:/models
       - ./data:/data:ro
