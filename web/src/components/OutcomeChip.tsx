@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import { AlertIcon, BanIcon, CheckIcon, EyeOffIcon, HomeIcon } from "./icons";
+
 export type Outcome = "allow" | "mask" | "warn" | "local" | "block";
 
 const LABELS: Record<Outcome, string> = {
@@ -16,12 +19,21 @@ const STYLES: Record<Outcome, string> = {
   block: "bg-block-bg text-block-fg",
 };
 
-/** Presentational: shows an outcome with text, never color alone. */
+const ICONS: Record<Outcome, ReactNode> = {
+  allow: <CheckIcon />,
+  mask: <EyeOffIcon />,
+  warn: <AlertIcon />,
+  local: <HomeIcon />,
+  block: <BanIcon />,
+};
+
+/** Presentational: shows an outcome with an icon and text, never color alone. */
 export function OutcomeChip({ outcome, detail }: { outcome: Outcome; detail?: string }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${STYLES[outcome]}`}
     >
+      {ICONS[outcome]}
       {LABELS[outcome]}
       {detail ? <span className="font-medium">· {detail}</span> : null}
     </span>

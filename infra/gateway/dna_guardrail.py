@@ -2,6 +2,7 @@
 
 import os
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from fastapi import HTTPException
@@ -42,6 +43,12 @@ class DnaGuardrail(CustomGuardrail):
         if not choices:
             return response
         meta = data.get("metadata") or {}
+        # Tell the client what was decided, so the app can show Allowed / Masked / Answered locally.
+        hidden = getattr(response, "_hidden_params", None)
+        if isinstance(hidden, dict):
+            extra = hidden.setdefault("additional_headers", {})
+            extra["x-dna-decision"] = str(meta.get("dna_decision", "allow"))
+            extra["x-dna-reasons"] = quote("; ".join(meta.get("dna_reasons") or []))
         try:
             for choice in choices:
                 message = getattr(choice, "message", None)

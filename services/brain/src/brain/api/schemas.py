@@ -66,3 +66,15 @@ class PolicyUpdate(BaseModel):
     key: str
     action: str
     updated_by: str
+
+
+class KeyRequest(BaseModel):
+    user_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.\-]+$")
+    team: str = Field(default="general", min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.\-]+$")
+
+
+class KeyResponse(BaseModel):
+    key: str
+    user_id: str
+    team: str
+    default_model: str

@@ -22,6 +22,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/${DB_NAME:-dna}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}
+      GATEWAY_URL: http://gateway:4000
       DEMO_MODE: ${DEMO_MODE:-true}
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
     volumes:
