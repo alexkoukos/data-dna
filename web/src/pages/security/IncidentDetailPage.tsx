@@ -61,7 +61,7 @@ function Detail({ id }: { id: string }) {
           {incident.masked_preview ? (
             <div>
               <dt>What was seen, masked</dt>
-              <dd className="font-mono text-ink-900">{incident.masked_preview}</dd>
+              <dd className="break-all font-mono text-ink-900">{incident.masked_preview}</dd>
             </div>
           ) : null}
         </dl>

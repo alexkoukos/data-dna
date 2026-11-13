@@ -38,7 +38,7 @@ export function IncidentRow({ incident }: { incident: Incident }) {
         {incident.masked_preview ? (
           <div className="flex gap-1">
             <dt>Seen</dt>
-            <dd className="font-mono text-ink-900">{incident.masked_preview}</dd>
+            <dd className="break-all font-mono text-ink-900">{incident.masked_preview}</dd>
           </div>
         ) : null}
       </dl>
