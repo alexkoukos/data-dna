@@ -38,7 +38,7 @@ describe("ConnectPage", () => {
     mockApi({ "/v1/keys": key, "/seen": { seen: false } });
     render(<ConnectPage />);
     expect(screen.getByRole("status", { name: "Loading your connection details" })).toBeVisible();
-    expect(await screen.findByLabelText("Gateway address")).toHaveValue("http://localhost:4000/v1");
+    expect(await screen.findByLabelText("Gate address")).toHaveValue("http://localhost:4000/v1");
     expect(screen.getByLabelText("Personal key")).not.toHaveValue("sk-test-key-123");
     expect(screen.getByText(/Waiting for first request/)).toBeInTheDocument();
   });
@@ -68,10 +68,10 @@ describe("ConnectPage", () => {
     expect(screen.getByRole("button", { name: "Copy this code" })).toBeInTheDocument();
   });
 
-  it("turns to Connected once the gateway has seen a request", async () => {
+  it("turns to Connected once the gate has seen a request", async () => {
     mockApi({ "/v1/keys": key, "/seen": { seen: true } });
     render(<ConnectPage />);
-    expect(await screen.findByText(/Connected\. The gateway has checked/)).toBeInTheDocument();
+    expect(await screen.findByText(/Connected\. The gate has checked/)).toBeInTheDocument();
   });
 
   it("keeps polling while waiting", async () => {

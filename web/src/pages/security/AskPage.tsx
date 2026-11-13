@@ -31,7 +31,7 @@ function AnswerView({ answer }: { answer: Answer }) {
           </EmptyPanel>
         </div>
       ) : (
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-ink-200 bg-white">
+        <div className="mt-3 overflow-x-auto rounded-lg border border-ink-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-ink-200 text-ink-600">
               <tr>
@@ -56,7 +56,7 @@ function AnswerView({ answer }: { answer: Answer }) {
           </table>
         </div>
       )}
-      <details className="mt-4 rounded-2xl border border-ink-200 bg-white p-4">
+      <details className="mt-4 rounded-lg border border-ink-200 bg-white p-4">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-ink-900">
           Show the SQL behind this answer
         </summary>
@@ -126,7 +126,7 @@ export default function AskPage() {
               aria-pressed={active === p.id}
               disabled={busy}
               onClick={() => ask(p.id)}
-              className={`min-h-11 w-full rounded-xl border px-4 py-3 text-left text-sm font-medium ${active === p.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-900 hover:bg-ink-100"}`}
+              className={`min-h-11 w-full rounded-md border px-4 py-3 text-left text-sm font-medium ${active === p.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-900 hover:bg-ink-100"}`}
             >
               {p.question}
             </button>
@@ -152,12 +152,12 @@ export default function AskPage() {
             id="free-q"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
-            className="min-h-11 min-w-0 flex-1 rounded-lg border border-ink-300 bg-white px-3 text-sm text-ink-900"
+            className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
           />
           <button
             type="submit"
             disabled={busy || typed.trim().length < 3}
-            className="min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
           >
             Ask
           </button>
@@ -169,7 +169,7 @@ export default function AskPage() {
         </div>
       ) : null}
       {error ? (
-        <div role="alert" className="mt-6 rounded-2xl bg-block-bg p-4 font-semibold text-block-fg">
+        <div role="alert" className="mt-6 rounded-lg bg-block-bg p-4 font-semibold text-block-fg">
           {error}
         </div>
       ) : null}

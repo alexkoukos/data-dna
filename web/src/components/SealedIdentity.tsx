@@ -2,10 +2,10 @@ import { useState } from "react";
 import { decideReveal, fetchIdentity, requestReveal, type Reveal } from "../lib/securityApi";
 
 const field =
-  "mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-sm text-ink-900";
+  "mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900";
 const primary =
-  "min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60";
-const quiet = "min-h-11 rounded-lg px-4 text-sm font-medium text-ink-700 hover:bg-ink-100";
+  "min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60";
+const quiet = "min-h-11 rounded-md px-4 text-sm font-medium text-ink-700 hover:bg-ink-100";
 
 interface Props {
   incidentId: number;
@@ -50,7 +50,7 @@ export function SealedIdentity({ incidentId, pseudonym, latest, onChanged }: Pro
 
   const status = latest?.status;
   return (
-    <section aria-labelledby="who-h" className="rounded-2xl border border-ink-200 bg-white p-4">
+    <section aria-labelledby="who-h" className="rounded-lg border border-ink-200 bg-white p-4">
       <h2 id="who-h" className="text-lg font-semibold text-ink-900">
         Who
       </h2>

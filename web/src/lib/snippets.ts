@@ -59,7 +59,7 @@ API Key:  ${key}`,
     {
       id: "claude-code",
       label: "Claude Code",
-      note: "Claude Code talks to the gateway through the Anthropic messages address. Requests are checked the same way.",
+      note: "Claude Code talks to the gate through the Anthropic messages address. Requests are checked the same way.",
       code: `export ANTHROPIC_BASE_URL="${url.replace(/\/v1$/, "")}"
 export ANTHROPIC_AUTH_TOKEN="${key}"
 export ANTHROPIC_MODEL="${model}"

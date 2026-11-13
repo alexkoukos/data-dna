@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PreviewResult } from "../../components/PreviewResult";
 import { ShadowCard } from "../../components/ShadowCard";
 import { OutcomeChip } from "../../components/OutcomeChip";
 import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
@@ -7,6 +8,8 @@ import {
   COMPLIANCE_REPORT_URL,
   fetchPolicies,
   fetchShadow,
+  previewPolicy,
+  type PolicyPreview,
   savePolicy,
   saveShadow,
   type Decision,
@@ -22,6 +25,20 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
   const text = textFor(policy.scope, policy.key);
   const id = `${policy.scope}-${policy.key}`;
   const changed = draft !== policy.action;
+  const [preview, setPreview] = useState<PolicyPreview | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  async function tryIt() {
+    setPreviewing(true);
+    setError(null);
+    try {
+      setPreview(await previewPolicy(policy.scope, policy.key, draft));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The preview could not be made.");
+    } finally {
+      setPreviewing(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -36,7 +53,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
   }
 
   return (
-    <li className="rounded-2xl border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-ink-900">{text.label}</h3>
@@ -52,7 +69,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
           id={id}
           value={draft}
           onChange={(e) => setDraft(e.target.value as Decision)}
-          className="mt-1 min-h-11 w-full max-w-xs rounded-lg border border-ink-300 bg-white px-3 text-sm text-ink-900"
+          className="mt-1 min-h-11 w-full max-w-xs rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
         >
           {ACTIONS.map((a) => (
             <option key={a.id} value={a.id}>
@@ -81,22 +98,32 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
             type="button"
             onClick={save}
             disabled={saving}
-            className="min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
           >
             {saving ? "Saving…" : `Save ${text.label.toLowerCase()}`}
+          </button>
+          <button
+            type="button"
+            onClick={tryIt}
+            disabled={previewing}
+            className="min-h-11 rounded-lg border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
+          >
+            {previewing ? "Trying…" : "Try on the last 14 days"}
           </button>
           <button
             type="button"
             onClick={() => {
               setDraft(policy.action);
               setError(null);
+              setPreview(null);
             }}
-            className="min-h-11 rounded-lg px-4 text-sm font-medium text-ink-700 hover:bg-ink-100"
+            className="min-h-11 rounded-md px-4 text-sm font-medium text-ink-700 hover:bg-ink-100"
           >
             Cancel
           </button>
         </div>
       ) : null}
+      {changed && preview ? <PreviewResult preview={preview} /> : null}
       {policy.updated_by && policy.updated_at ? (
         <p className="mt-2 text-xs text-ink-600">
           Last changed by {policy.updated_by} on {policy.updated_at.slice(0, 10)}.
@@ -153,19 +180,19 @@ function ReportCard() {
   return (
     <section
       aria-labelledby="report-h"
-      className="mt-4 rounded-2xl border border-ink-200 bg-white p-4"
+      className="mt-4 rounded-lg border border-ink-200 bg-white p-4"
     >
       <h2 id="report-h" className="text-lg font-semibold text-ink-900">
         Compliance report
       </h2>
       <p className="max-w-prose text-sm text-ink-700">
-        A PDF that maps what the gateway does to GDPR, NIS2 and the EU AI Act, with the live
-        numbers. It supports your own review; it is not legal advice.
+        A PDF that maps what the gate does to GDPR, NIS2 and the EU AI Act, with the live numbers.
+        It supports your own review; it is not legal advice.
       </p>
       <a
         href={COMPLIANCE_REPORT_URL}
         download
-        className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
+        className="mt-3 inline-flex min-h-11 items-center rounded-md border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
       >
         Download the PDF report
       </a>
@@ -173,7 +200,7 @@ function ReportCard() {
   );
 }
 
-/** Container: what the gateway does for each kind of sensitive data. Edits apply within seconds. */
+/** Container: what the gate does for each kind of sensitive data. Edits apply within seconds. */
 export default function PoliciesPage() {
   const [state, reload] = useFetch(fetchPolicies);
   const [saved, setSaved] = useState<Policy[]>([]);
@@ -203,7 +230,7 @@ export default function PoliciesPage() {
   return (
     <>
       <p className="max-w-prose text-ink-600">
-        Choose what happens when the gateway finds each kind of data. When several apply to one
+        Choose what happens when the gate finds each kind of data. When several apply to one
         message, the strictest wins: block, then answer locally, then warn, then mask.
       </p>
       <Shadow />
