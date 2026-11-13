@@ -13,16 +13,20 @@ from brain.api.schemas import (
     InspectOutputResponse,
     InspectRequest,
     InspectResponse,
+    KeyRequest,
+    KeyResponse,
     Message,
     PolicyOut,
     PolicyUpdate,
     UnmaskRequest,
     UnmaskResponse,
 )
+from brain.config import settings
 from brain.db.engine import make_engine
 from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
 from brain.detection.pipeline import inspect_text
+from brain.keys import KeyError_, create_key, default_model
 from brain.policy.engine import Decision
 from brain.policy.store import PolicyError, PolicyStore
 from brain.sessions import sessions
@@ -117,3 +121,15 @@ def update_policy(req: PolicyUpdate) -> PolicyOut:
     except PolicyError as err:
         raise HTTPException(status_code=422, detail=str(err)) from err
     return PolicyOut(**vars(row))
+
+
+@app.post("/v1/keys", response_model=KeyResponse)
+def new_key(req: KeyRequest) -> KeyResponse:
+    """Create a personal key. Demo only: there is no login yet, so it is off outside demo mode."""
+    if not settings.demo_mode:
+        raise HTTPException(status_code=403, detail="Key creation is turned off. Ask your admin.")
+    try:
+        key = create_key(req.user_id, req.team)
+    except KeyError_ as err:
+        raise HTTPException(status_code=503, detail=str(err)) from err
+    return KeyResponse(key=key, user_id=req.user_id, team=req.team, default_model=default_model())

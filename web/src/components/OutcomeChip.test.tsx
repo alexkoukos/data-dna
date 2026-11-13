@@ -8,4 +8,13 @@ describe("OutcomeChip", () => {
     expect(screen.getByText("Answered locally")).toBeInTheDocument();
     expect(screen.getByText(/data stayed inside/)).toBeInTheDocument();
   });
+
+  it("shows an icon next to every label", () => {
+    const outcomes = ["allow", "mask", "warn", "local", "block"] as const;
+    for (const outcome of outcomes) {
+      const { container, unmount } = render(<OutcomeChip outcome={outcome} />);
+      expect(container.querySelector("svg")).not.toBeNull();
+      unmount();
+    }
+  });
 });

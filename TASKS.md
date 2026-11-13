@@ -37,7 +37,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [ ] **A2** P2 Free-text analyst questions over read-only views (PRD 13). Owner: Alexandros.
 
 ## Web (PRD 16)
-- [ ] **W1** P0 Company Chat: messages, five outcome chips, "Why?" disclosure, warn card, file upload. Owner: Alexandros.
+- [x] **W1** P0 Company Chat: messages, five outcome chips, "Why?" disclosure, warn card, file upload. Owner: Alexandros.
 - [ ] **W2** P0 Security overview + inventory + incidents list. Owner: Alexandros.
 - [ ] **W3** P1 Incident detail: puzzle view, timeline, copy attribution, reveal request. Owner: Alexandros.
 - [ ] **W4** P1 Connect page: URL, personal key, snippets, live status. Owner: Alexandros.

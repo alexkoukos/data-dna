@@ -98,6 +98,7 @@ async def apply_decision(
 
     metadata = data.setdefault("metadata", {})
     metadata["dna_decision"] = decision
+    metadata["dna_reasons"] = reasons
     return data
 
 

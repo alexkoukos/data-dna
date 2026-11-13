@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from "react-router-dom";
+import ChatPage from "./pages/ChatPage";
 import { Placeholder } from "./pages/Placeholder";
 
 const links = [
@@ -29,10 +30,7 @@ export default function App() {
       </nav>
       <Routes>
         <Route path="/" element={<Placeholder title="Data DNA" note="Pick a screen above." />} />
-        <Route
-          path="/chat"
-          element={<Placeholder title="Company Chat" note="See TASKS.md: web/chat." />}
-        />
+        <Route path="/chat" element={<ChatPage />} />
         <Route
           path="/connect"
           element={<Placeholder title="Connect a tool" note="See TASKS.md: web/connect." />}
