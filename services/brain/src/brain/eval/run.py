@@ -24,7 +24,7 @@ from brain.detection.entities import ClientMatcher, EntityDetector
 from brain.detection.patterns import find_patterns
 from brain.detection.pipeline import inspect_text
 from brain.detection.yara_rules import find_yara
-from brain.documents.embeddings import FastEmbedder
+from brain.documents.embeddings import E5Embedder
 from brain.documents.loader import load_documents
 from brain.documents.registry import DocumentIndex
 from brain.injection.heuristics import injection_finder
@@ -102,7 +102,7 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
         "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
     t.metadata.create_all(engine)
-    embedder = FastEmbedder()
+    embedder = E5Embedder()
     load_documents(engine, embedder, data / "documents", keep_text=False)
     index = DocumentIndex(engine, embedder, ttl_seconds=3600)
     entities = EntityDetector()

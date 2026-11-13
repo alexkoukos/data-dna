@@ -2,7 +2,7 @@
 
 Register: split into chunks, store a MinHash signature and an embedding per chunk. The text is kept
 only when `keep_text` is on (demo mode, for the puzzle view). Match: chunk the prompt the same way;
-a chunk is a copy when MinHash Jaccard >= 0.5, a paraphrase when embedding cosine >= 0.70
+a chunk is a copy when MinHash Jaccard >= 0.5, a paraphrase when embedding cosine >= 0.88
 (tuned on tests/data/paraphrases.json).
 Vectors live in Postgres (pgvector); matching runs over a small in-process cache of them.
 """
@@ -19,17 +19,17 @@ import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from brain.db import tables as t
-from brain.documents.chunking import CHUNK_WORDS, chunk_text, words
+from brain.documents.chunking import chunk_text, words
 from brain.documents.embeddings import Embedder
 from brain.documents.fingerprint import PERMS, jaccard, signature
 
 log = logging.getLogger(__name__)
 
 COPY_JACCARD = 0.5
-PARAPHRASE_COSINE = 0.70
-MIN_WORDS_TO_EMBED = 12
+PARAPHRASE_COSINE = 0.88  # e5 scores are compressed: same-topic text sits near 0.85
+MIN_WORDS_TO_EMBED = 10
 MAX_QUERY_CHUNKS = 64  # chunks compared by MinHash (cheap)
-MAX_EMBEDDED_CHUNKS = 6  # chunks sent through the embedding model (the slow step)
+MAX_EMBEDDED_CHUNKS = 16  # windows sent through the embedding model (about 4 ms each)
 
 Kind = Literal["copy", "paraphrase"]
 
@@ -145,9 +145,9 @@ class DocumentIndex:
                     copied.add(i)
                     copied_query.add(qi)
         if len(words(text)) >= MIN_WORDS_TO_EMBED:
-            # The model is the slow part (about 20 ms a chunk), so: skip pieces MinHash already
-            # explained, use non-overlapping windows, and cap how many are embedded.
-            wanted = [p for p in chunk_text(text, CHUNK_WORDS, CHUNK_WORDS) if len(p.split()) >= 8]
+            # The model is the slow part, so: skip everything when MinHash already explained the
+            # prompt, and cap how many windows are embedded (spread evenly over long prompts).
+            wanted = [p for p in chunk_text(text) if len(p.split()) >= 6]
             if copied_query and len(copied_query) >= len(pieces) - 1:
                 wanted = []
             if len(wanted) > MAX_EMBEDDED_CHUNKS:

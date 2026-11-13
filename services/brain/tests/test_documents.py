@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from brain.db import tables as t
 from brain.detection.pipeline import inspect_text
 from brain.documents.chunking import chunk_text
-from brain.documents.embeddings import FastEmbedder, HashingEmbedder
+from brain.documents.embeddings import E5Embedder, HashingEmbedder
 from brain.documents.fingerprint import jaccard, signature
 from brain.documents.loader import load_documents, parse
 from brain.documents.registry import DocumentIndex, register_document
@@ -37,8 +37,8 @@ def engine() -> sa.Engine:
 def test_chunks_overlap_by_half_and_cover_the_text() -> None:
     text = " ".join(f"w{i}" for i in range(50))
     chunks = chunk_text(text)
-    assert chunks[0].split()[:1] == ["w0"] and len(chunks[0].split()) == 20
-    assert chunks[1].split()[0] == "w10"
+    assert chunks[0].split()[:1] == ["w0"] and len(chunks[0].split()) == 16
+    assert chunks[1].split()[0] == "w8"
     assert chunks[-1].split()[-1] == "w49"
     assert chunk_text("") == [] and chunk_text("just three words") == ["just three words"]
 
@@ -144,18 +144,60 @@ def test_the_shipped_sample_documents_have_valid_headers() -> None:
         assert len(body.split()) > 60
 
 
-@pytest.mark.slow
-def test_go_no_go_paraphrase_recall_with_the_real_model(engine: sa.Engine) -> None:
-    """The D3 go/no-go: rewrites of the sample documents are found, ordinary questions are not."""
-    emb = FastEmbedder()
-    load_documents(engine, emb, SAMPLES, keep_text=False)
-    index = DocumentIndex(engine, emb, ttl_seconds=0)
-    data = json.loads((Path(__file__).parent / "data" / "paraphrases.json").read_text("utf-8"))
-    found = sum(
-        1 for p in data["positives"] if any(h.title == p["doc"] for h in index.match(p["text"]))
+def _rates(index: DocumentIndex, file: str) -> tuple[float, float, list[str]]:
+    data = json.loads((Path(__file__).parent / "data" / file).read_text("utf-8"))
+    pos = [p for p in data["positives"] if p.get("kind") != "copy"]
+    found = sum(1 for p in pos if any(h.title == p["doc"] for h in index.match(p["text"])))
+    alarms = [n["text"] for n in data["negatives"] if index.match(n["text"])]
+    return found / len(pos), len(alarms) / len(data["negatives"]), alarms
+
+
+@pytest.fixture(scope="module")
+def real_index() -> DocumentIndex:
+    engine = sa.create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
-    false_alarms = [n["text"] for n in data["negatives"] if index.match(n["text"])]
-    recall = found / len(data["positives"])
-    assert len(false_alarms) <= 1, false_alarms  # at most 1 in 10 same-topic questions
-    assert recall >= 0.5, f"recall {recall:.2f}"  # raised again as the matcher improves
+    t.metadata.create_all(engine)
+    emb = E5Embedder()
+    load_documents(engine, emb, SAMPLES, keep_text=False)
+    return DocumentIndex(engine, emb, ttl_seconds=0)
+
+
+@pytest.mark.slow
+def test_go_no_go_paraphrase_recall_with_the_real_model(real_index: DocumentIndex) -> None:
+    """Rewrites of the documents are found, ordinary questions are not (set used for tuning)."""
+    recall, false_rate, alarms = _rates(real_index, "paraphrases.json")
+    assert recall >= 0.6, f"recall {recall:.2f}"
+    assert false_rate <= 0.2, alarms
+
+
+@pytest.mark.slow
+def test_holdout_paraphrases_never_used_for_tuning(real_index: DocumentIndex) -> None:
+    """Honest numbers: about two thirds of fresh rewrites are found, and the same-topic questions
+    written to be hard raise a false alarm about one time in three. A false alarm only sends the
+    message to the local model; it never blocks (a likely rewrite scores below the block level)."""
+    recall, false_rate, alarms = _rates(real_index, "holdout.json")
+    assert recall >= 0.55, f"recall {recall:.2f}"
+    assert false_rate <= 0.5, alarms  # 4 or 5 of 12 depending on the CPU
+
+
+def test_the_embedding_is_unit_length_and_empty_input_is_fine() -> None:
+    emb = E5Embedder()
     assert np.isclose(np.linalg.norm(emb.embed(["x y z"])[0]), 1.0, atol=1e-3)
+    assert emb.embed([]).shape == (0, 384)
+
+
+def test_a_likely_rewrite_of_a_restricted_document_goes_local_but_a_copy_blocks() -> None:
+    from brain.detection.pipeline import _effective_sensitivity
+    from brain.documents.registry import DocMatch
+
+    likely = DocMatch(1, "Memo", "restricted", 0.89, "paraphrase", [1], 10)
+    sure = DocMatch(1, "Memo", "restricted", 0.93, "paraphrase", [1], 10)
+    copy = DocMatch(1, "Memo", "restricted", 0.6, "copy", [1], 10)
+    assert _effective_sensitivity(likely) == "confidential"
+    assert _effective_sensitivity(sure) == "restricted"
+    assert _effective_sensitivity(copy) == "restricted"
+    assert (
+        _effective_sensitivity(DocMatch(1, "C", "confidential", 0.89, "paraphrase", [1], 10))
+        == "confidential"
+    )

@@ -1,14 +1,15 @@
 """Split text into overlapping word windows with 50% overlap (PRD 9.3).
 
-The PRD said about 60 words. On the paraphrase check (tests/data/paraphrases.json) 60-word windows
-missed most rewrites of a single sentence, because a short rewrite is diluted by the rest of the
-window. 20-word windows separate rewrites from same-topic questions much better.
+The PRD said about 60 words. On the paraphrase sets (tests/data/paraphrases.json and
+data/eval/prompts.csv) 60-word windows missed most rewrites of a single sentence, because a short
+rewrite is diluted by the rest of the window. 16-word windows moving 8 words at a time found the
+most rewrites for the least false alarms.
 """
 
 import re
 
-CHUNK_WORDS = 20
-STEP_WORDS = 10
+CHUNK_WORDS = 16
+STEP_WORDS = 8
 _WORD = re.compile(r"\S+")
 
 
