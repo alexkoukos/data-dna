@@ -20,7 +20,7 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
       className="rounded-lg border border-warn-fg/30 bg-warn-bg p-4 text-warn-fg"
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Thyro pose="warn" size={200} />
+        <Thyro pose="warn" size={96} />
         <div className="min-w-0 flex-1">
           <h2 id="warn-title" className="flex items-center gap-2 text-base font-semibold">
             <AlertIcon />
@@ -47,7 +47,7 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
           type="button"
           onClick={onEdit}
           disabled={busy}
-          className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-700"
         >
           Edit message
         </button>
@@ -55,7 +55,7 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
           type="button"
           onClick={() => onSendAnyway(reason.trim())}
           disabled={busy || reason.trim().length === 0}
-          className="min-h-11 rounded-md border border-warn-fg/40 bg-white px-4 text-sm font-semibold text-warn-fg hover:bg-ink-50 disabled:opacity-60"
+          className="min-h-11 rounded-md border border-warn-fg/40 bg-white px-4 text-sm font-semibold text-warn-fg hover:bg-ink-50 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-700"
         >
           Send anyway
         </button>
@@ -63,7 +63,7 @@ export function WarnCard({ reasons, onEdit, onSendAnyway, onCancel, busy }: Prop
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="min-h-11 rounded-md px-3 text-sm font-medium underline"
+          className="min-h-11 rounded-md px-3 text-sm font-semibold hover:bg-warn-fg/10"
         >
           Cancel
         </button>

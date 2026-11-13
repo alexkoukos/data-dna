@@ -19,12 +19,12 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
   return (
     <li className={`flex ${mine ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-lg px-4 py-3 ${mine ? "bg-brand-600 text-white" : "border border-ink-200 bg-white text-ink-900"}`}
+        className={`max-w-[85%] md:max-w-2xl rounded-lg px-4 py-3 ${mine ? "bg-brand-600 text-white" : "border border-ink-200 bg-white text-ink-900"}`}
       >
         <p className="whitespace-pre-wrap break-words text-base leading-relaxed">{message.text}</p>
         {message.outcome ? (
           <div className="mt-2 flex flex-wrap items-center gap-4 rounded-md bg-ink-50 p-3 text-ink-900">
-            <Thyro pose={message.outcome} size={192} />
+            <Thyro pose={message.outcome} size={96} />
             <OutcomeChip outcome={message.outcome} detail={message.detail} />
           </div>
         ) : null}

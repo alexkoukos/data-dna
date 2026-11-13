@@ -16,8 +16,8 @@ const STARTERS = [
 export function StarterPrompts({ onPick }: { onPick: (text: string) => void }) {
   return (
     <div className="rounded-lg border border-dashed border-ink-300 bg-white p-6">
-      <div className="flex flex-wrap items-center gap-6">
-        <Thyro pose="master" size={240} />
+      <div className="flex flex-wrap items-center gap-4">
+        <Thyro pose="master" size={128} />
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold text-ink-900">Ask anything</h2>
           <p className="mt-1 max-w-prose text-ink-600">

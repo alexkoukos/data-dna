@@ -1,4 +1,3 @@
-import { Thyro } from "../components/Thyro";
 import { useEffect, useState } from "react";
 import { CopyField } from "../components/CopyField";
 import { CheckIcon } from "../components/icons";
@@ -32,8 +31,7 @@ function LiveStatus({ userId }: { userId: string }) {
   }, [seen, userId]);
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <Thyro pose={seen ? "allow" : "empty"} size={224} />
+    <div>
       <p
         role="status"
         className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-semibold ${seen ? "bg-allow-bg text-allow-fg" : "bg-ink-100 text-ink-700"}`}
@@ -98,7 +96,7 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
         role="tabpanel"
         id="snippet-panel"
         aria-labelledby={`tab-${current.id}`}
-        className="mt-3 rounded-lg border border-ink-200 bg-white p-4"
+        className="mt-3 min-w-0 rounded-lg border border-ink-200 bg-white p-4"
       >
         <p className="text-ink-700">{current.note}</p>
         {current.code && (
@@ -106,9 +104,9 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
             <pre
               tabIndex={0}
               aria-label={`${current.label} code`}
-              className="mt-3 overflow-x-auto rounded-lg bg-ink-900 p-4 text-sm text-ink-50"
+              className="mt-3 max-w-full overflow-x-auto whitespace-pre rounded-lg bg-ink-900 p-4 text-sm text-ink-50"
             >
-              <code>{current.code}</code>
+              <code className="block w-max min-w-full pr-4">{current.code}</code>
             </pre>
             <button
               type="button"
@@ -129,7 +127,7 @@ export default function ConnectPage() {
   const url = gatewayUrl(window.location);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6">
+    <main className="mx-auto max-w-[1100px] px-4 py-6">
       <p className="eyebrow">Pyli</p>
       <h1 className="text-2xl font-semibold text-ink-900">Connect a tool</h1>
       <p className="mt-1 max-w-prose text-ink-600">

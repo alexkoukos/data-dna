@@ -11,7 +11,7 @@ import { ErrorPanel, Skeleton } from "./ui";
 import { useFetch } from "../lib/useFetch";
 
 const primary =
-  "min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60";
+  "min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-700";
 
 /** Per-copy marks for one document: propose, approve, issue copies, open a copy. */
 export function DnaPanel({ documentId }: { documentId: number }) {
@@ -121,7 +121,7 @@ export function DnaPanel({ documentId }: { documentId: number }) {
                 <li key={c.copy_code}>
                   {c.recipient}: copy <span className="font-mono font-semibold">{c.copy_code}</span>{" "}
                   <a
-                    className="inline-flex min-h-11 items-center font-semibold text-brand-700 underline"
+                    className="inline-flex min-h-11 items-center rounded-md px-3 font-semibold text-brand-700 hover:bg-brand-50"
                     href={`/api/v1/documents/${documentId}/copies/${c.copy_code}`}
                     target="_blank"
                     rel="noreferrer"

@@ -117,11 +117,11 @@ Tokens live in `web/src/index.css` under `@theme static`. Names are unchanged; p
 |---|---|---|---|---|---|---|---|---|---|
 | `#ecfaf8` | `#d6f4f0` | `#aee6df` | `#7bd0c6` | `#3bada2` | `#008278` | `#006860` | `#004f49` | `#003632` | `#00201d` |
 
-**ink** (warm marble greys)
+**ink** (cool stone greys)
 
 | 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 |
 |---|---|---|---|---|---|---|---|---|---|
-| `#faf7f4` | `#f1efec` | `#e3dfd9` | `#ccc8c3` | `#a5a19b` | `#74706b` | `#5f5c57` | `#47433e` | `#312d29` | `#1a1713` |
+| `#f7f8fa` | `#eef0f3` | `#e1e4e9` | `#c9ced6` | `#9aa1ad` | `#6b7280` | `#555c69` | `#3f4551` | `#2a2f38` | `#161a21` |
 
 **Outcomes**
 

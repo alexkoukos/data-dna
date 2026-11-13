@@ -12,10 +12,10 @@ const tabs = [
 /** Shared frame for the security screens: title and section tabs. */
 export default function SecurityLayout() {
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6">
+    <main className="mx-auto max-w-[1100px] px-4 py-6">
       <header>
         <p className="eyebrow">Pyli</p>
-        <h1 className="text-2xl font-semibold text-ink-900">Security</h1>
+        <h1 className="text-balance text-2xl font-semibold text-ink-900">Security</h1>
         <nav
           aria-label="Security sections"
           className="mt-3 flex flex-wrap gap-2 border-b border-ink-200 pb-3"
@@ -26,7 +26,7 @@ export default function SecurityLayout() {
               to={t.to}
               end={t.end}
               className={({ isActive }) =>
-                `min-h-11 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`
+                `inline-flex h-11 items-center rounded-md px-3 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`
               }
             >
               {t.label}

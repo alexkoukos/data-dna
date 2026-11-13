@@ -1,4 +1,4 @@
-import { announce } from "../lib/companion";
+import { announce, announceError } from "../lib/companion";
 import { Thyro } from "../components/Thyro";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSkeleton } from "../components/ChatSkeleton";
@@ -89,6 +89,7 @@ export default function ChatPage() {
       setMessages((m) => m.filter((x) => x.id !== userId));
       setDraft(text);
       setError(result.message);
+      announceError("That did not go through. Your message is back in the box.");
       return;
     }
     setHeld(null);
@@ -136,7 +137,7 @@ export default function ChatPage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl flex-col px-4 py-6">
+    <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[1100px] flex-col px-4 py-6">
       <header className="mb-4">
         <p className="eyebrow">Pyli</p>
         <h1 className="text-2xl font-semibold text-ink-900">Company Chat</h1>
@@ -152,20 +153,15 @@ export default function ChatPage() {
           role="alert"
           className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
         >
-          <div className="flex flex-wrap items-center gap-4">
-            <Thyro pose="error" size={176} />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">We could not start your chat.</p>
-              <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
-              <button
-                type="button"
-                onClick={retry}
-                className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-              >
-                Try again
-              </button>
-            </div>
-          </div>
+          <p className="font-semibold">We could not start your chat.</p>
+          <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            Try again
+          </button>
         </div>
       ) : null}
 
@@ -185,7 +181,7 @@ export default function ChatPage() {
             )}
             {busy ? (
               <div role="status" className="mt-4 flex items-center gap-3 text-sm text-ink-600">
-                <Thyro pose="thinking" size={160} />
+                <Thyro pose="thinking" size={96} />
                 Checking and answering…
               </div>
             ) : null}
@@ -201,11 +197,7 @@ export default function ChatPage() {
               </div>
             ) : null}
             {error ? (
-              <div
-                role="alert"
-                className="mt-4 flex items-center gap-3 rounded-lg bg-block-bg p-3 text-sm text-block-fg"
-              >
-                <Thyro pose="error" size={128} />
+              <div role="alert" className="mt-4 rounded-lg bg-block-bg p-3 text-sm text-block-fg">
                 <p>{error} Your message is back in the box.</p>
               </div>
             ) : null}

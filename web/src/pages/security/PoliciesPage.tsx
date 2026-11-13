@@ -81,7 +81,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
             type="button"
             onClick={save}
             disabled={saving}
-            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-700"
           >
             {saving ? "Saving…" : `Save ${text.label.toLowerCase()}`}
           </button>

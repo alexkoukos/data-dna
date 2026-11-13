@@ -1,6 +1,5 @@
 import { Link, useParams } from "react-router-dom";
 import { OutcomeChip } from "../../components/OutcomeChip";
-import { Thyro } from "../../components/Thyro";
 import { WhyPanel } from "../../components/WhyPanel";
 import { SealedIdentity } from "../../components/SealedIdentity";
 import { ErrorPanel, Skeleton } from "../../components/ui";
@@ -39,7 +38,6 @@ function Detail({ id }: { id: string }) {
         aria-labelledby="what-h"
         className="flex flex-wrap gap-6 rounded-lg border border-ink-200 bg-white p-4"
       >
-        <Thyro pose={incident.decision} size={240} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <OutcomeChip outcome={incident.decision} />
@@ -128,7 +126,7 @@ function Detail({ id }: { id: string }) {
                 </time>
                 <Link
                   to={`/security/incidents/${t.id}`}
-                  className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-700 underline"
+                  className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-brand-700 hover:bg-brand-50"
                 >
                   {t.reasons[0] ? explainReason(t.reasons[0]) : "Open incident"}
                 </Link>
@@ -147,7 +145,7 @@ export default function IncidentDetailPage() {
     <>
       <Link
         to="/security/incidents"
-        className="mb-4 inline-flex min-h-11 items-center text-sm font-semibold text-brand-700 underline"
+        className="-ml-3 mb-4 inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold text-brand-700 hover:bg-brand-50"
       >
         All incidents
       </Link>

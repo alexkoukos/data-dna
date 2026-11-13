@@ -34,7 +34,7 @@ export function Composer({ value, onChange, onSend, disabled }: Props) {
       <button
         type="submit"
         disabled={!canSend}
-        className="min-h-11 rounded-md bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+        className="min-h-11 rounded-md bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-700"
       >
         Send
       </button>

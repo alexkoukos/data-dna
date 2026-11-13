@@ -80,7 +80,7 @@ export function AddDocument({ onAdded }: { onAdded: () => void }) {
         <button
           type="submit"
           disabled={busy || !title.trim() || (!file && !text.trim())}
-          className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-700"
         >
           {busy ? "Adding…" : "Add the document"}
         </button>

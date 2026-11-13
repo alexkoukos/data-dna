@@ -17,17 +17,17 @@
   --color-brand-800: #003632;
   --color-brand-900: #00201d;
 
-  /* Ink: warm marble greys */
-  --color-ink-50: #faf7f4;
-  --color-ink-100: #f1efec;
-  --color-ink-200: #e3dfd9;
-  --color-ink-300: #ccc8c3;
-  --color-ink-400: #a5a19b;
-  --color-ink-500: #74706b;
-  --color-ink-600: #5f5c57;
-  --color-ink-700: #47433e;
-  --color-ink-800: #312d29;
-  --color-ink-900: #1a1713;
+  /* Ink: cool stone greys */
+  --color-ink-50: #f7f8fa;
+  --color-ink-100: #eef0f3;
+  --color-ink-200: #e1e4e9;
+  --color-ink-300: #c9ced6;
+  --color-ink-400: #9aa1ad;
+  --color-ink-500: #6b7280;
+  --color-ink-600: #555c69;
+  --color-ink-700: #3f4551;
+  --color-ink-800: #2a2f38;
+  --color-ink-900: #161a21;
 
   /* Outcomes. Always paired with a text label. */
   --color-allow-bg: #e5f6e3;
@@ -95,6 +95,13 @@
     font-variation-settings: "FLAR" 100;
     letter-spacing: -0.02em;
   }
+  /* Titles may wrap to two lines (Greek is longer); never clip them. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
   code,
   kbd,
   pre {
@@ -146,32 +153,14 @@ body {
     transform: none;
   }
 }
-@keyframes slide-down {
-  from {
-    opacity: 0;
-    transform: translateY(-100%);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 @keyframes shimmer {
   to {
     background-position: -200% 0;
   }
 }
-@keyframes sway {
-  50% {
-    transform: translateY(-4px) rotate(-1.5deg);
-  }
-}
 
 main {
   animation: fade-up 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-body > div > nav {
-  animation: slide-down 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 main li,
 main .grid > *,
@@ -215,8 +204,7 @@ textarea {
     box-shadow 0.2s ease,
     transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-button:not(:disabled):hover,
-nav a:hover {
+button:not(:disabled):hover {
   transform: translateY(-2px);
 }
 button:not(:disabled):active {
@@ -250,9 +238,6 @@ details[open] > :not(summary) {
   );
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
-}
-nav img[alt="Pyli"] {
-  animation: sway 6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

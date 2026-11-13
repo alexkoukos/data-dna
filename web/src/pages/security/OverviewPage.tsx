@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { DemoBadge, EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
-import { IncidentRow } from "../../components/IncidentRow";
+import { IncidentHeader, IncidentRow } from "../../components/IncidentRow";
 import { KpiCard } from "../../components/KpiCard";
 import { formatNumber, formatPercent } from "../../lib/format";
 import {
@@ -42,8 +42,11 @@ function Kpis({ m }: { m: Metrics }) {
         label="Unapproved AI tools in use"
         value={formatNumber(m.unapproved_tools)}
         note={
-          <Link to="/security/tools" className="font-medium text-brand-700 underline">
-            See which
+          <Link
+            to="/security/tools"
+            className="-ml-2 inline-flex min-h-11 items-center rounded-md px-2 font-semibold text-brand-700 hover:bg-brand-50"
+          >
+            See which →
           </Link>
         }
       />
@@ -66,11 +69,14 @@ function Recent({ page }: { page: IncidentPage }) {
           Review all {formatNumber(page.total)} incidents
         </Link>
       </div>
-      <ul className="mt-3 space-y-3">
-        {page.items.map((i) => (
-          <IncidentRow key={i.id} incident={i} />
-        ))}
-      </ul>
+      <div className="mt-3">
+        <IncidentHeader />
+        <ul className="overflow-hidden rounded-lg border border-ink-200">
+          {page.items.map((i) => (
+            <IncidentRow key={i.id} incident={i} />
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
@@ -87,7 +93,7 @@ export default function OverviewPage() {
             <Skeleton key={n} className="h-28" />
           ))}
         </div>
-        <Skeleton className="h-32" />
+        <Skeleton className="h-48" />
       </div>
     );
   }
@@ -99,7 +105,7 @@ export default function OverviewPage() {
       <EmptyPanel title="Nothing checked yet">
         <p>
           Once someone sends a message, the numbers appear here.{" "}
-          <Link to="/chat" className="font-medium text-brand-700 underline">
+          <Link to="/chat" className="font-semibold text-brand-700 hover:underline">
             Open Company Chat
           </Link>{" "}
           and send one to try it.
@@ -115,10 +121,7 @@ export default function OverviewPage() {
         </div>
       ) : null}
       <Kpis m={metrics} />
-      <section
-        aria-labelledby="ask-h"
-        className="mt-10 rounded-lg border border-ink-200 bg-white p-4"
-      >
+      <section aria-labelledby="ask-h" className="mt-10 border-t border-ink-200 pt-6">
         <h2 id="ask-h" className="text-lg font-semibold text-ink-900">
           Ask a question
         </h2>
@@ -128,7 +131,7 @@ export default function OverviewPage() {
         </p>
         <Link
           to="/security/ask"
-          className="mt-3 inline-flex min-h-11 items-center rounded-md px-1 text-sm font-semibold text-brand-700 underline"
+          className="mt-3 inline-flex min-h-11 items-center rounded-md border border-ink-300 bg-white px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
         >
           Open the questions
         </Link>

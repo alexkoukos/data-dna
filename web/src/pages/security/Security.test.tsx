@@ -106,9 +106,10 @@ describe("Incidents", () => {
       "/v1/incidents": { total: 1, items: [incident(1, { reasons: ["Contains iban"] })] },
     });
     renderAt("/security/incidents");
-    expect(
-      await screen.findByText("Your message contains a bank account number (IBAN)."),
-    ).toBeInTheDocument();
+    const summary = await screen.findByText("Your message contains a bank account number (IBAN).");
+    expect(summary).toBeInTheDocument();
+    // Details open on click; only the masked preview is ever there.
+    await userEvent.click(summary);
     expect(screen.getByText("AK••••••••••••••MPLE")).toBeInTheDocument();
     expect(screen.getByText("Showing 1 of 1, newest first.")).toBeInTheDocument();
   });

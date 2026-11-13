@@ -38,7 +38,7 @@ export function ShadowCard({
         aria-checked={status.enabled}
         disabled={busy}
         onClick={() => onToggle(!status.enabled)}
-        className="mt-3 min-h-11 rounded-md border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
+        className="mt-3 min-h-11 rounded-md border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-700"
       >
         {status.enabled ? "Shadow mode is on. Turn it off" : "Shadow mode is off. Turn it on"}
       </button>

@@ -22,28 +22,23 @@ export function ErrorPanel({ what, onRetry }: { what: string; onRetry: () => voi
       role="alert"
       className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
     >
-      <div className="flex flex-wrap items-center gap-4">
-        <Thyro pose="error" size={176} />
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">We could not load {what}.</p>
-          <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
+      <p className="font-semibold">We could not load {what}.</p>
+      <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
+      >
+        Try again
+      </button>
     </div>
   );
 }
 
 export function EmptyPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-6 rounded-lg border border-dashed border-ink-300 bg-white p-6">
-      <Thyro pose="empty" size={208} />
+    <div className="flex flex-wrap items-center gap-4 rounded-lg border border-dashed border-ink-300 bg-white p-6">
+      <Thyro pose="empty" size={96} />
       <div className="min-w-0 flex-1">
         <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
         <div className="mt-1 max-w-prose text-ink-600">{children}</div>

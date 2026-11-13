@@ -1,59 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
-import { DECISION_EVENT, SAYS } from "../lib/companion";
+import { DECISION_EVENT, ERROR_EVENT, SAYS } from "../lib/companion";
 import { fetchIncidents } from "../lib/securityApi";
-import { openVideoPip, openWindowPip, pipSupport, type VideoPip } from "../lib/pip";
 import { OutcomeChip, type Outcome } from "./OutcomeChip";
-import { Thyro, type ThyroPose } from "./Thyro";
+import { Thyro } from "./Thyro";
 
 type Corner = "right" | "left";
 const KEY = "pyli.companion";
+/** How long Thyro stays after an event. */
+export const VISIBLE_MS = 6000;
+const SIZE = 96;
 
-function load(): { corner: Corner; hidden: boolean } {
+function loadCorner(): Corner {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<{
-      corner: Corner;
-      hidden: boolean;
-    }>;
-    return { corner: v.corner === "left" ? "left" : "right", hidden: v.hidden === true };
+    const v = JSON.parse(localStorage.getItem(KEY) ?? "{}") as { corner?: Corner };
+    return v.corner === "left" ? "left" : "right";
   } catch {
-    return { corner: "right", hidden: false };
+    return "right";
   }
 }
 
-/** Presentational: Thyro with what he just did, in words. Used in the page and in the floating window. */
-export function CompanionBody({
-  outcome,
-  detail,
-  size,
-}: {
-  outcome: Outcome | null;
-  detail?: string;
-  size: number;
-}) {
-  const pose: ThyroPose = outcome ?? "master";
-  return (
-    <div className="flex flex-col items-center gap-2 text-center">
-      <div
-        aria-live="polite"
-        className="chip-pop max-w-[18rem] rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-md"
-        key={`${outcome}-${detail}`}
-      >
-        {outcome ? (
-          <div className="mb-1 flex justify-center">
-            <OutcomeChip outcome={outcome} detail={detail} />
-          </div>
-        ) : null}
-        {SAYS[outcome ?? "idle"]}
-      </div>
-      <Thyro pose={pose} size={size} />
-    </div>
-  );
-}
+type Shown =
+  { kind: "decision"; outcome: Outcome; detail?: string } | { kind: "error"; message: string };
 
 const btn =
-  "grid size-11 place-items-center rounded-md border border-ink-200 bg-white text-ink-700 shadow-sm hover:bg-ink-100";
+  "grid size-11 shrink-0 place-items-center rounded-md border border-ink-200 bg-white text-ink-700 hover:bg-ink-100";
 
 function Icon({ d }: { d: string }) {
   return (
@@ -64,7 +35,7 @@ function Icon({ d }: { d: string }) {
       height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -73,48 +44,47 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-/** Container: Thyro lives in a bottom corner on every screen, reacts to every decision, and can float
- * on top of other windows (picture in picture). */
+/** Container: Thyro is hidden until the gate decides something or an error happens, stays for six
+ * seconds, then leaves. He sits in a bottom corner (above the message box on the chat screen). */
 export function Companion() {
-  const [{ corner, hidden }, setPrefs] = useState(load);
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const [detail, setDetail] = useState<string | undefined>();
-  const [pipWin, setPipWin] = useState<Window | null>(null);
-  const [videoPip, setVideoPip] = useState<VideoPip | null>(null);
-  const [pipError, setPipError] = useState<string | null>(null);
+  const [corner, setCorner] = useState<Corner>(loadCorner);
+  const [shown, setShown] = useState<Shown | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   const lastSeen = useRef<number | null>(null);
-  const support = pipSupport();
-  // On the chat screen he sits above the message box, so he never covers what people type.
   const onChat = useLocation().pathname.startsWith("/chat");
 
-  const save = (next: Partial<{ corner: Corner; hidden: boolean }>) =>
-    setPrefs((p) => {
-      const n = { ...p, ...next };
+  const moveCorner = () =>
+    setCorner((c) => {
+      const next: Corner = c === "right" ? "left" : "right";
       try {
-        localStorage.setItem(KEY, JSON.stringify(n));
+        localStorage.setItem(KEY, JSON.stringify({ corner: next }));
       } catch {
-        // Preferences are a convenience; the companion still works without them.
+        // The corner is a convenience; the companion still works without it.
       }
-      return n;
+      return next;
     });
 
-  const show = useCallback((o: Outcome, d?: string) => {
-    setOutcome(o);
-    setDetail(d);
+  const show = useCallback((s: Shown) => {
+    setShown(s);
+    setCollapsed(false);
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setOutcome(null), 9000);
+    timer.current = window.setTimeout(() => setShown(null), VISIBLE_MS);
   }, []);
 
   useEffect(() => {
-    const on = (e: Event) => {
-      const { outcome: o, detail: d } = (e as CustomEvent<{ outcome: Outcome; detail?: string }>)
-        .detail;
-      show(o, d);
+    const onDecision = (e: Event) => {
+      const { outcome, detail } = (e as CustomEvent<{ outcome: Outcome; detail?: string }>).detail;
+      show({ kind: "decision", outcome, detail });
     };
-    window.addEventListener(DECISION_EVENT, on);
+    const onError = (e: Event) => {
+      show({ kind: "error", message: (e as CustomEvent<{ message: string }>).detail.message });
+    };
+    window.addEventListener(DECISION_EVENT, onDecision);
+    window.addEventListener(ERROR_EVENT, onError);
     return () => {
-      window.removeEventListener(DECISION_EVENT, on);
+      window.removeEventListener(DECISION_EVENT, onDecision);
+      window.removeEventListener(ERROR_EVENT, onError);
       window.clearTimeout(timer.current);
     };
   }, [show]);
@@ -127,7 +97,9 @@ export function Companion() {
         const page = await fetchIncidents("all", 0, 1);
         const latest = page.items[0];
         if (!latest || stop) return;
-        if (lastSeen.current !== null && latest.id !== lastSeen.current) show(latest.decision);
+        if (lastSeen.current !== null && latest.id !== lastSeen.current) {
+          show({ kind: "decision", outcome: latest.decision });
+        }
         lastSeen.current = latest.id;
       } catch {
         // The companion is decoration: a failed poll is not worth a message.
@@ -141,97 +113,50 @@ export function Companion() {
     };
   }, [show]);
 
-  // Keep the video fallback in step with what Thyro is doing.
-  useEffect(() => {
-    videoPip?.update(
-      `${window.location.origin}/mascot/thyro-${outcome ?? "master"}.svg`,
-      SAYS[outcome ?? "idle"],
-    );
-  }, [videoPip, outcome]);
+  if (shown === null) return null;
 
-  async function popOut() {
-    setPipError(null);
-    try {
-      if (support === "window") {
-        const win = await openWindowPip();
-        win.addEventListener("pagehide", () => setPipWin(null), { once: true });
-        setPipWin(win);
-      } else if (support === "video") {
-        const v = await openVideoPip(
-          `${window.location.origin}/mascot/thyro-${outcome ?? "master"}.svg`,
-          SAYS[outcome ?? "idle"],
-          () => setVideoPip(null),
-        );
-        setVideoPip(v);
-      }
-    } catch {
-      setPipError("Your browser did not allow the floating window. Try again from a click.");
-    }
-  }
-  function popBack() {
-    pipWin?.close();
-    videoPip?.close();
-    setPipWin(null);
-    setVideoPip(null);
-  }
-
-  const floating = pipWin !== null || videoPip !== null;
-  const side = corner === "right" ? "right-4 items-end" : "left-4 items-start";
-
-  if (hidden) {
-    return (
-      <button
-        type="button"
-        aria-label="Show Thyro"
-        onClick={() => save({ hidden: false })}
-        className={`fixed bottom-4 z-40 rounded-full border border-ink-200 bg-white p-1 shadow-lg hover:scale-105 ${corner === "right" ? "right-4" : "left-4"}`}
-      >
-        <Thyro pose="avatar" size={56} />
-      </button>
-    );
-  }
+  const side = corner === "right" ? "right-4 flex-row-reverse" : "left-4";
+  // Above the message box on chat, near the bottom edge elsewhere. Never over the input.
+  const lift = onChat ? "bottom-36 max-md:bottom-44" : "bottom-4";
+  const pose = shown.kind === "error" ? "error" : shown.outcome;
+  const words = shown.kind === "error" ? shown.message : SAYS[shown.outcome];
 
   return (
     <aside
       aria-label="Thyro, your companion"
-      className={`pointer-events-none fixed z-40 flex flex-col gap-2 ${onChat ? "bottom-36" : "bottom-4 max-md:bottom-24"} ${side}`}
+      className={`pointer-events-none fixed z-40 flex items-end gap-2 ${lift} ${side}`}
     >
-      {pipWin
-        ? createPortal(
-            <div className="p-4">
-              <CompanionBody outcome={outcome} detail={detail} size={260} />
-            </div>,
-            pipWin.document.body,
-          )
-        : null}
-      {floating ? (
-        <div className="pointer-events-auto rounded-lg border border-ink-200 bg-white p-3 text-sm text-ink-700 shadow-md">
-          <p>Thyro is floating on top of your other windows.</p>
-          <button
-            type="button"
-            onClick={popBack}
-            className={`${btn} mt-2 w-auto px-3 text-sm font-medium`}
-          >
-            Bring him back
-          </button>
-        </div>
+      {collapsed ? (
+        <button
+          type="button"
+          aria-label="Show Thyro"
+          onClick={() => setCollapsed(false)}
+          className="pointer-events-auto grid size-11 place-items-center rounded-full border border-ink-200 bg-white p-1"
+        >
+          <Thyro pose="avatar" size={32} />
+        </button>
       ) : (
-        <div className="pointer-events-auto group relative">
-          <CompanionBody outcome={outcome} detail={detail} size={208} />
+        <div className="pointer-events-auto flex max-w-[calc(100vw-2rem)] items-end gap-2 rounded-lg border border-ink-200 bg-white p-2 shadow-md">
+          <Thyro pose={pose} size={SIZE} />
           <div
-            className={`absolute bottom-0 flex flex-col gap-2 opacity-80 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${corner === "right" ? "-left-14" : "-right-14"} max-md:hidden`}
+            aria-live="polite"
+            className="flex min-w-0 max-w-[14rem] flex-col items-start gap-1.5 self-center text-sm text-ink-900"
           >
-            {support ? (
-              <button
-                type="button"
-                aria-label="Float Thyro on top of other windows"
-                title="Picture in picture"
-                onClick={popOut}
-                className={btn}
-              >
-                <Icon d="M3 5h18v14H3zM12 12h7v5h-7z" />
-              </button>
+            {shown.kind === "decision" ? (
+              <OutcomeChip outcome={shown.outcome} detail={shown.detail} />
             ) : null}
+            <p>{words}</p>
+          </div>
+          <div className="flex flex-col gap-1 self-start">
+            <button
+              type="button"
+              aria-label="Hide Thyro"
+              title="Hide"
+              onClick={() => setCollapsed(true)}
+              className={btn}
+            >
+              <Icon d="M6 6l12 12M18 6L6 18" />
+            </button>
             <button
               type="button"
               aria-label={
@@ -240,29 +165,12 @@ export function Companion() {
                   : "Move Thyro to the bottom right"
               }
               title="Move to the other corner"
-              onClick={() => save({ corner: corner === "right" ? "left" : "right" })}
-              className={btn}
+              onClick={moveCorner}
+              className={`${btn} max-md:hidden`}
             >
               <Icon d={corner === "right" ? "M19 12H5M12 5l-7 7 7 7" : "M5 12h14M12 5l7 7-7 7"} />
             </button>
-            <button
-              type="button"
-              aria-label="Hide Thyro"
-              title="Hide"
-              onClick={() => save({ hidden: true })}
-              className={btn}
-            >
-              <Icon d="M6 6l12 12M18 6L6 18" />
-            </button>
           </div>
-          {pipError ? (
-            <p
-              role="alert"
-              className="mt-2 max-w-[18rem] rounded-md bg-block-bg p-2 text-sm text-block-fg"
-            >
-              {pipError}
-            </p>
-          ) : null}
         </div>
       )}
     </aside>

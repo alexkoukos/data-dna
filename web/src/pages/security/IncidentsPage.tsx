@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
-import { IncidentRow } from "../../components/IncidentRow";
+import { IncidentHeader, IncidentRow } from "../../components/IncidentRow";
 import { formatNumber } from "../../lib/format";
 import { fetchIncidents, type Decision, type Incident } from "../../lib/securityApi";
 
@@ -51,9 +51,9 @@ function IncidentList({ filter }: { filter: Filter }) {
 
   if (view.status === "loading") {
     return (
-      <div role="status" aria-label="Loading incidents" className="space-y-3">
+      <div role="status" aria-label="Loading incidents" className="space-y-2">
         {[0, 1, 2].map((n) => (
-          <Skeleton key={n} className="h-28" />
+          <Skeleton key={n} className="h-12" />
         ))}
       </div>
     );
@@ -83,17 +83,20 @@ function IncidentList({ filter }: { filter: Filter }) {
       <p className="text-sm text-ink-600" aria-live="polite">
         Showing {formatNumber(view.items.length)} of {formatNumber(view.total)}, newest first.
       </p>
-      <ul className="mt-3 space-y-3">
-        {view.items.map((i) => (
-          <IncidentRow key={i.id} incident={i} />
-        ))}
-      </ul>
+      <div className="mt-3">
+        <IncidentHeader />
+        <ul className="overflow-hidden rounded-lg border border-ink-200">
+          {view.items.map((i) => (
+            <IncidentRow key={i.id} incident={i} />
+          ))}
+        </ul>
+      </div>
       {view.items.length < view.total ? (
         <button
           type="button"
           disabled={loadingMore}
           onClick={() => showMore(view.items)}
-          className="mt-4 min-h-11 rounded-md border border-ink-300 bg-white px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
+          className="mt-4 min-h-11 rounded-md border border-ink-300 bg-white px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:border-ink-200 disabled:bg-ink-100 disabled:text-ink-600"
         >
           {loadingMore ? "Loading…" : "Show more"}
         </button>
