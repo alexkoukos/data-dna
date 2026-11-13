@@ -32,12 +32,29 @@ services:
       db:
         condition: service_healthy
 
+  gateway:
+    build: ./infra/gateway
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}
+      LITELLM_DATABASE_URL: postgresql://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/litellm
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      BRAIN_URL: http://brain:8001
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+      brain:
+        condition: service_healthy
+
   web:
     build: ./web
     ports:
       - "3000:3000"
     depends_on:
       brain:
+        condition: service_healthy
+      gateway:
         condition: service_healthy
 
 volumes:

@@ -5,11 +5,11 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 
 ## Foundation
 - [x] **S0** Scaffold: locks, tests, CI, devcontainer, Makefile. (Alexandros)
-- [~] **S1** P0 `make up` works on a real machine; fix Dockerfiles; CI smoke green. Owner: Alexandros. Done when: fresh clone, `make up`, both URLs load, CI green.
+- [x] **S1** P0 `make up` works on a real machine; fix Dockerfiles; CI smoke green. Owner: Alexandros. Done when: fresh clone, `make up`, both URLs load, CI green.
 - [ ] **S2** P0 Platform check: Linux, macOS Apple silicon, Windows WSL. Owner: Alexandros. Done when: `make up` works on all three; RAM and first-start time written in README.
 
 ## Gateway and routing
-- [ ] **G1** P0 Add LiteLLM gateway service (pin the latest stable image tag from its releases page), per-user virtual keys, custom guardrail calling `brain /v1/inspect` (PRD 7, 8). Owner: Alexandros. Done when: an OpenAI SDK client with a personal key gets a masked-and-answered reply through the gateway; integration test passes.
+- [~] **G1** P0 Add LiteLLM gateway service (pin the latest stable image tag from its releases page), per-user virtual keys, custom guardrail calling `brain /v1/inspect` (PRD 7, 8). Owner: Alexandros. Done when: an OpenAI SDK client with a personal key gets a masked-and-answered reply through the gateway; integration test passes.
 - [ ] **G2** P0 Unmask in answers + output filtering `/v1/inspect-output` (PRD 8). Owner: Alexandros.
 - [ ] **G3** P0 Warn (409 + ack header) and block (403) responses with reasons and approved alternative (PRD 8). Owner: Alexandros.
 - [ ] **L1** P1 Local model: benchmark llama.cpp vs Ollama, 1B to 4B, Greek quality, on Sat 14; add the winner to compose, never on the critical path (PRD 21b). Owner: Stelios.

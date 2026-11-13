@@ -1,0 +1,28 @@
+# LiteLLM gateway config (PRD sections 7 and 8).
+model_list:
+  # Cloud model. Needs OPENAI_API_KEY in .env; without it use demo-mock below.
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  # Offline model for demos and the integration test: always answers, never leaves the machine.
+  - model_name: demo-mock
+    litellm_params:
+      model: openai/demo-mock
+      api_key: not-used
+      mock_response: "Hello from the Data DNA demo model. Your message passed the safety check."
+
+litellm_settings:
+  drop_params: true
+
+guardrails:
+  - guardrail_name: dna
+    litellm_params:
+      guardrail: dna_guardrail.DnaGuardrail
+      mode: pre_call
+      default_on: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/LITELLM_DATABASE_URL

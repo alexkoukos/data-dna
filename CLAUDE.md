@@ -10,6 +10,7 @@ Deadline: Friday 20 Nov 2026, judged from the repo alone. If `docker compose up 
 ## Start of every session (the `/start` command does this)
 1. `git pull` on `main`.
 2. Read the newest entry at the top of `PROGRESS.md` and the task board `TASKS.md`.
+2b. After every `git pull`: if the pull touched `infra/db/`, `docker-compose.yml` or any Dockerfile, run `make reset` (it deletes only the local synthetic database) and then `make up`. Database init files run on a fresh volume only, so skipping this gives a stack that looks fine but is missing tables or databases. If the pull touched `.env.example`, compare it with your `.env` and add the new variables.
 3. Run `make doctor`. If something is missing, help the user install it before anything else.
 4. Tell the user, in simple Greek, where the project stands and which task is next for them.
 
@@ -20,6 +21,9 @@ Deadline: Friday 20 Nov 2026, judged from the repo alone. If `docker compose up 
 - Before every commit: `make check`. Do not commit with failing checks; fix them or ask.
 - Never break `docker compose up --build`. Any change to Dockerfiles, compose or dependencies needs a note in `PROGRESS.md` and, if possible, a real `make up` run.
 - Dependencies: add with `uv add <pkg>` (in `services/brain`) or `npm install <pkg>` (in `web`) so the lock files update, and commit the lock files. Never install anything only on your machine.
+- Database changes: never edit an applied init file. Add a new numbered file in `infra/db/` and tell the team in `PROGRESS.md` to run `make reset` after pulling.
+- A new compose variable goes in `.env.example` with a safe default in `docker-compose.yml`, so a fresh clone still starts.
+- Any service that depends on another must wait for it with a health check (`depends_on: condition: service_healthy`).
 - No secrets in code, tests, logs or commits. Keys live in `.env` only.
 - No real personal data. Everything is synthetic (`data/`), generated or invented.
 - Do not add Claude attribution to commits or PRs: no `Co-Authored-By`, no "Generated with Claude Code".

@@ -44,6 +44,9 @@ fmt: ## Auto-format code
 	cd services/brain && uv run ruff format . && uv run ruff check --fix .
 	cd web && npm run format
 
+test-gateway: ## Integration test through the gateway (needs `make up`)
+	cd services/brain && uv run pytest tests/test_gateway_live.py -p no:cacheprovider --no-cov
+
 validate: ## Check the team's data files (prompts, AI tools, org)
 	cd services/brain && uv run python ../../scripts/validate_data.py
 
@@ -55,4 +58,4 @@ e2e: ## End-to-end + accessibility (needs `make up` first)
 eval: ## Detection quality report (TASKS.md E1)
 	@echo "Not implemented yet: see TASKS.md item E1"
 
-.PHONY: help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+.PHONY: test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
