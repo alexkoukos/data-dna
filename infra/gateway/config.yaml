@@ -25,12 +25,24 @@ model_list:
       api_key: not-used
       mock_response: "Use this key to deploy: AKIAIOSFODNN7EXAMPLE"
 
-  # Stand-in for the local model until L1 lands: the gateway routes "local" decisions here.
+  # The local model: "local" decisions are answered by Ollama on this machine (make local).
   - model_name: local
     litellm_params:
-      model: openai/local
+      model: ollama_chat/dna-local
+      api_base: os.environ/LOCAL_LLM_URL
+      timeout: 120
+      max_retries: 0
+      max_tokens: 512
+  # Used only when the local model is not running, so the demo and the tests still answer.
+  - model_name: local-standin
+    litellm_params:
+      model: openai/local-standin
       api_key: not-used
       mock_response: "Answered on this machine. Your message never left the company."
+
+router_settings:
+  num_retries: 0
+  fallbacks: [{"local": ["local-standin"]}]
 
 litellm_settings:
   drop_params: true

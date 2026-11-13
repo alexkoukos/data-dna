@@ -27,6 +27,9 @@ services:
       DEMO_MODE: ${DEMO_MODE:-true}
       DATA_DIR: /data
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
+      # Few threads per model: many small requests beat one wide one (see the load test).
+      OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
+      EMBED_THREADS: ${EMBED_THREADS:-4}
     volumes:
       - models:/models
       - ./data:/data:ro
@@ -44,6 +47,7 @@ services:
       LITELLM_DATABASE_URL: postgresql://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/litellm
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       BRAIN_URL: http://brain:8001
+      LOCAL_LLM_URL: ${LOCAL_LLM_URL:-http://ollama:11434}
     ports:
       - "4000:4000"
     depends_on:
@@ -62,7 +66,48 @@ services:
       gateway:
         condition: service_healthy
 
+  # Local model (TASKS.md L1). Optional and never on the critical path: start it with `make local`.
+  # Without it, "answered locally" falls back to a stand-in answer, so the stack and every test
+  # work the same.
+  ollama:
+    profiles: ["local"]
+    image: ollama/ollama:0.40.16
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "ollama serve & until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull $${LOCAL_MODEL} && printf 'FROM %s\\nPARAMETER num_thread %s\\n' $${LOCAL_MODEL} $${LOCAL_THREADS} > /tmp/Modelfile && ollama create dna-local --file /tmp/Modelfile; wait"
+    environment:
+      LOCAL_MODEL: ${LOCAL_MODEL:-gemma3:1b}
+      # Ollama's default thread count was 60 times slower on a 10 core Mac (0.5 against 30 tokens
+      # a second), so the thread count is set on the model. See eval/local_llm_bench.md.
+      LOCAL_THREADS: ${LOCAL_THREADS:-4}
+      OLLAMA_KEEP_ALIVE: 30m
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list | grep -q dna-local"]
+      interval: 10s
+      timeout: 5s
+      retries: 90
+
+  # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
+  sim:
+    profiles: ["sim"]
+    image: data-dna-brain
+    entrypoint: ["python", "/scripts/simulate.py"]
+    command: ["--count", "60"]
+    environment:
+      BRAIN_URL: http://brain:8001
+      GATEWAY_URL: http://gateway:4000
+      DATA_DIR: /data
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./data:/data:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+
 volumes:
   dbdata:
   models:
   logs:
+  ollama:

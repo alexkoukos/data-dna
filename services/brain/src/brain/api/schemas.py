@@ -9,17 +9,32 @@ class Message(BaseModel):
     content: str
 
 
+class Attachment(BaseModel):
+    filename: str = Field(min_length=1, max_length=200)
+    content_base64: str
+
+
 class InspectRequest(BaseModel):
     user_id: str = "anonymous"
     team: str = "unknown"
     model: str = "default"
     messages: list[Message]
+    attachments: list[Attachment] = Field(default_factory=list)
 
 
 class FindingOut(BaseModel):
     entity: str
     category: str
     masked_preview: str
+
+
+class DocumentHit(BaseModel):
+    document_id: int
+    sensitivity: str
+    kind: str
+    score: float
+    matched_chunks: list[int]
+    total_chunks: int
 
 
 class InspectResponse(BaseModel):
@@ -29,6 +44,7 @@ class InspectResponse(BaseModel):
     masked_messages: list[Message] | None = None
     evasion_signals: list[str] = Field(default_factory=list)
     session_id: str | None = None
+    documents: list[DocumentHit] = Field(default_factory=list)
 
 
 class UnmaskRequest(BaseModel):
@@ -193,3 +209,42 @@ class RevealDecision(BaseModel):
 class IdentityOut(BaseModel):
     pseudonym: str
     display_name: str | None
+
+
+class RegisteredDocument(BaseModel):
+    id: int
+    title: str
+    sensitivity: str
+    chunks: int
+
+
+class MarkIn(BaseModel):
+    position: int = Field(ge=0)
+    variants: list[str] = Field(min_length=4, max_length=4)
+
+
+class MarkOut(MarkIn):
+    preview: str
+
+
+class ProposeOut(BaseModel):
+    marks: list[MarkOut]
+
+
+class ApproveMarks(BaseModel):
+    marks: list[MarkIn]
+
+
+class CopiesRequest(BaseModel):
+    recipients: list[str] = Field(min_length=1, max_length=200)
+
+
+class CopyOut(BaseModel):
+    copy_code: str
+    recipient: str
+
+
+class DnaState(BaseModel):
+    enabled: bool
+    marks: int
+    copies: list[str]

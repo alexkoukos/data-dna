@@ -124,6 +124,23 @@ def test_user_seen_is_false_until_the_gateway_checked_a_request(client: TestClie
     assert client.get("/v1/users/demo-newbie/seen").json() == {"seen": True}
 
 
+def test_inspect_warns_when_a_seeded_client_name_is_in_the_message(client: TestClient) -> None:
+    assert main.policy_store.engine is not None
+    with main.policy_store.engine.connect() as conn:
+        name = conn.execute(sa.text("SELECT name FROM clients LIMIT 1")).scalar_one()
+    r = client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "u-x",
+            "team": "Sales",
+            "model": "m",
+            "messages": [{"role": "user", "content": f"Draft a renewal email for {name.upper()}"}],
+        },
+    ).json()
+    assert r["decision"] == "warn"
+    assert any(f["category"] == "client_name" for f in r["findings"])
+
+
 def test_preset_questions_are_listed(client: TestClient) -> None:
     presets = client.get("/v1/ask/presets").json()
     assert len(presets) == 5
@@ -250,3 +267,65 @@ def test_an_approval_for_one_incident_does_not_open_another(client: TestClient) 
     client.post(f"/v1/reveal-requests/{asked['id']}/approve", json={"decided_by": "Nikos"})
     r = client.get(f"/v1/incidents/{b}/identity?request_id={asked['id']}")
     assert r.status_code == 403
+
+
+def test_register_a_document_then_a_copy_of_it_is_blocked(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from brain.documents.embeddings import HashingEmbedder
+
+    monkeypatch.setattr(main, "embedder", HashingEmbedder())
+    text = " ".join(f"secret{i} budget{i % 7} plan{i % 5}" for i in range(40))
+    made = client.post(
+        "/v1/documents",
+        data={"title": "Roadmap", "sensitivity": "restricted", "text": text},
+    ).json()
+    assert made["chunks"] >= 5
+    r = client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "u-x",
+            "team": "Sales",
+            "model": "m",
+            "messages": [{"role": "user", "content": "Improve this: " + text[:300]}],
+        },
+    ).json()
+    assert r["decision"] == "block"
+    assert r["documents"][0]["kind"] == "copy"
+    listed = client.get("/v1/documents").json()
+    assert any(d["title"] == "Roadmap" and d["incidents"] >= 1 for d in listed)
+
+
+def test_register_rejects_a_bad_sensitivity_and_empty_text(client: TestClient) -> None:
+    bad = client.post("/v1/documents", data={"title": "X", "sensitivity": "top", "text": "a b c"})
+    assert bad.status_code == 422 and "restricted" in bad.json()["detail"]
+    empty = client.post(
+        "/v1/documents", data={"title": "X", "sensitivity": "internal", "text": " "}
+    )
+    assert empty.status_code == 422
+
+
+def test_a_docx_upload_is_registered_and_then_recognised(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from brain.documents.embeddings import HashingEmbedder
+    from tests.test_extract import docx_bytes
+
+    monkeypatch.setattr(main, "embedder", HashingEmbedder())
+    body = " ".join(f"tender{i} price{i * 7} lot{i * 11}" for i in range(80))
+    made = client.post(
+        "/v1/documents",
+        data={"title": "Tender", "sensitivity": "confidential"},
+        files={"file": ("tender.docx", docx_bytes(body), "application/octet-stream")},
+    )
+    assert made.status_code == 200 and made.json()["chunks"] >= 5
+    r = client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "u-x",
+            "team": "Sales",
+            "model": "m",
+            "messages": [{"role": "user", "content": " ".join(body.split()[:22])}],
+        },
+    ).json()
+    assert r["decision"] == "local"
