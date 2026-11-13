@@ -42,6 +42,11 @@ n_prompts = check_csv(
         "expected_decision": {"allow", "warn", "mask", "local", "block"},
     },
 )
+n_attacks = check_csv(
+    ROOT / "eval" / "attacks.csv",
+    ["id", "lang", "technique", "text", "expected"],
+    {"lang": {"el", "en"}},
+)
 n_tools = check_csv(
     ROOT / "ai_tools.csv",
     ["name", "vendor", "domains", "category", "approval", "risk", "reason", "alternative"],
@@ -57,4 +62,4 @@ if errors:
     for e in errors:
         print("  -", e)
     sys.exit(1)
-print(f"Data OK: {n_prompts} prompts, {n_tools} AI tools, {len(org.get('teams', []))} teams")
+print(f"Data OK: {n_prompts} prompts, {n_attacks} attacks, {n_tools} AI tools, {len(org.get('teams', []))} teams")

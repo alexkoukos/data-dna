@@ -64,6 +64,16 @@ incidents = sa.Table(
     sa.Column("reasons", sa.JSON),
     sa.Column("masked_preview", sa.Text),
     sa.Column("expires_at", sa.DateTime(timezone=True)),
+    sa.Column("trace", sa.JSON),
+    sa.Column("shadow", sa.Boolean, server_default=sa.false()),
+)
+settings = sa.Table(
+    "settings",
+    metadata,
+    sa.Column("key", sa.Text, primary_key=True),
+    sa.Column("value", sa.Text, nullable=False),
+    sa.Column("updated_by", sa.Text),
+    sa.Column("updated_at", sa.DateTime(timezone=True)),
 )
 ai_tools = sa.Table(
     "ai_tools",

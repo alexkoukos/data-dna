@@ -14,6 +14,7 @@ from brain.api.schemas import (
     IncidentPage,
     MetricsOut,
     ToolOut,
+    TraceStep,
 )
 from brain.db import tables as t
 from brain.reveal import list_for_incident
@@ -89,21 +90,7 @@ def incidents(
     ).mappings()
     return IncidentPage(
         total=total,
-        items=[
-            IncidentOut(
-                id=r["id"],
-                ts=_aware(r["ts"]),
-                user=r["pseudonym"] or "unknown",
-                team=r["team"],
-                tool=r["tool"],
-                decision=r["decision"],
-                categories=list(r["categories"] or []),
-                reasons=[str(x) for x in (r["reasons"] or [])],
-                masked_preview=r["masked_preview"],
-                score=r["score"],
-            )
-            for r in rows
-        ],
+        items=[_incident_out(r) for r in rows],
     )
 
 
@@ -179,7 +166,19 @@ def _incident_out(r: Any) -> IncidentOut:
         reasons=[str(x) for x in (r["reasons"] or [])],
         masked_preview=r["masked_preview"],
         score=r["score"],
+        shadow=bool(r["shadow"]),
+        trace=[TraceStep(**x) for x in (r["trace"] or [])],
     )
+
+
+def shadow_counts(conn: sa.Connection) -> dict[str, int]:
+    """What the policy would have done in shadow mode, by decision."""
+    rows = conn.execute(
+        sa.select(t.incidents.c.decision, sa.func.count())
+        .where(t.incidents.c.shadow.is_(True))
+        .group_by(t.incidents.c.decision)
+    ).all()
+    return {str(d): int(n) for d, n in rows}
 
 
 def incident_detail(conn: sa.Connection, incident_id: int) -> IncidentDetail | None:
