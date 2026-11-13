@@ -35,8 +35,8 @@
    "errors": 0
   },
   "dan": {
-   "flagged": 29,
-   "allowed": 11,
+   "flagged": 34,
+   "allowed": 6,
    "errors": 0
   },
   "encoding": {
@@ -45,8 +45,8 @@
    "errors": 0
   },
   "latentinjection": {
-   "flagged": 22,
-   "allowed": 18,
+   "flagged": 23,
+   "allowed": 17,
    "errors": 0
   },
   "goodside": {

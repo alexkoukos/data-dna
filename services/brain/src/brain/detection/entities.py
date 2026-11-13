@@ -75,7 +75,7 @@ class EntityDetector:
                 for r in analyzer.analyze(
                     text=text, language=lang, entities=list(_ENTITY_NAMES), score_threshold=0.3
                 ):
-                    if r.score >= _MIN_SCORE[r.entity_type]:
+                    if r.score >= _MIN_SCORE[r.entity_type] and not _stray_word(text, r):
                         found.append(
                             Finding(
                                 _ENTITY_NAMES[r.entity_type],
@@ -88,6 +88,14 @@ class EntityDetector:
         for m in _GREEK_PHONE.finditer(text):
             found.append(Finding("PHONE", "person_email_phone", m.start(), m.end(), m.group(0)))
         return _merge(found)
+
+
+def _stray_word(text: str, r: Any) -> bool:
+    """A lone word that opens a sentence ("Summarise:", "Write") is a verb, not a name."""
+    if r.entity_type != "PERSON" or " " in text[r.start : r.end].strip():
+        return False
+    before = text[: r.start].rstrip()
+    return not before or before[-1] in ".!?:;\n"
 
 
 def _merge(items: list[Finding]) -> list[Finding]:

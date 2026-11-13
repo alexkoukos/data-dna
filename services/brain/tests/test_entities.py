@@ -101,3 +101,23 @@ def test_a_checksum_finding_is_not_replaced_by_a_looser_one(
     entities = [f.entity for f in result.findings]
     assert "IBAN" in entities and "PERSON" in entities
     assert entities.count("IBAN") == 1
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Summarise: the quarterly report covers revenue growth",
+        "Write a short note. Explain the plan. Translate the memo.",
+        "Draft a reply to the team about Thursday",
+    ],
+)
+def test_imperative_verbs_that_open_a_sentence_are_not_people(
+    detector: EntityDetector, text: str
+) -> None:
+    assert [f for f in detector.find(text) if f.entity == "PERSON"] == []
+
+
+def test_a_full_name_at_the_start_is_still_a_person(detector: EntityDetector) -> None:
+    assert any(
+        f.value == "Maria Papadopoulou" for f in detector.find("Maria Papadopoulou called today")
+    )
