@@ -51,10 +51,10 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **E4** P0 Integration tests through the gateway for all five outcomes (PRD 19). Owner: Alexandros.
 
 ## Team data (no code; edit files, then `make validate`)
-- [ ] **T1** P0 `data/org/org.yaml`: company, 8 teams, 10 clients, AI habits, 14-day storyline. Owners: Konstantinos, Vasilis. Basics Fri 13, storyline Sat 14.
-- [ ] **T2** P0 3 confidential documents in `data/documents/` (Greek + English). Owner: Konstantinos. Sat 14.
-- [ ] **T3** P0 `data/eval/prompts.csv`: 60 rows by Sat 14, 200 by Mon 16. Owners: Konstantinos, Vasilis.
-- [ ] **T4** P0 `data/ai_tools.csv`: about 15 tools rated. Owner: Vasilis. Sun 15.
+- [x] **T1** P0 `data/org/org.yaml`: company, 8 teams, 10 clients, AI habits, 14-day storyline. Owners: Konstantinos, Vasilis. Basics Fri 13, storyline Sat 14.
+- [x] **T2** P0 3 confidential documents in `data/documents/` (Greek + English). Owner: Konstantinos. Sat 14.
+- [x] **T3** P0 `data/eval/prompts.csv`: 60 rows by Sat 14, 200 by Mon 16. Owners: Konstantinos, Vasilis.
+- [x] **T4** P0 `data/ai_tools.csv`: about 15 tools rated. Owner: Vasilis. Sun 15.
 - [ ] **T5** P1 Business pack in `docs/business/`: market, competitors, SWOT, pricing, roadmap, GDPR/AI Act, engagement. Owner: Vasilis. Mon 16 to Wed 18.
 
 ## Submission

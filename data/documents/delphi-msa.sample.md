@@ -1,5 +1,0 @@
----
-title: "Master services agreement: Delphi Insurance"
-sensitivity: confidential
----
-Master services agreement between Aegean Meridian Consulting, the supplier, and Delphi Insurance, the client. The supplier will provide data analytics and regulatory reporting services for a fixed annual fee of eight hundred and forty thousand euros, invoiced quarterly in advance. The agreement runs for three years and renews automatically for periods of one year unless either party gives ninety days written notice. The supplier's liability is limited to the fees paid in the twelve months before a claim, except for breach of confidentiality, which is unlimited. The client may terminate for convenience after the first year by paying fifty percent of the remaining fees. All personal data is processed inside the European Union, and the supplier must report any breach within twenty four hours. Service levels require ninety nine point five percent availability of the reporting platform, with a credit of five percent of the quarterly fee for every half percent below that target.
