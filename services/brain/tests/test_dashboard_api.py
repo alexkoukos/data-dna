@@ -107,6 +107,7 @@ def test_documents_register_lists_sensitivity_and_incident_counts(client: TestCl
     assert {d["sensitivity"] for d in docs} <= {"internal", "confidential", "restricted"}
     assert all(d["title"] and isinstance(d["incidents"], int) for d in docs)
 
+
 def test_user_seen_is_false_until_the_gateway_checked_a_request(client: TestClient) -> None:
     assert client.get("/v1/users/demo-newbie/seen").json() == {"seen": False}
     client.post(

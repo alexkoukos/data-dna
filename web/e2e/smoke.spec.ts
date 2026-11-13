@@ -103,6 +103,7 @@ test("policies: change one, see it saved, then put it back", async ({ page }) =>
       data: { scope: "category", key: "client_name", action: original, updated_by: "e2e" },
     });
   }
+});
 
 test("connect page turns to Connected after a real request with the shown key", async ({
   page,

@@ -132,5 +132,6 @@ class DocumentOut(BaseModel):
     created_at: datetime | None = None
     incidents: int = 0
 
+
 class SeenOut(BaseModel):
     seen: bool
