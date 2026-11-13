@@ -216,3 +216,35 @@ class RegisteredDocument(BaseModel):
     title: str
     sensitivity: str
     chunks: int
+
+
+class MarkIn(BaseModel):
+    position: int = Field(ge=0)
+    variants: list[str] = Field(min_length=4, max_length=4)
+
+
+class MarkOut(MarkIn):
+    preview: str
+
+
+class ProposeOut(BaseModel):
+    marks: list[MarkOut]
+
+
+class ApproveMarks(BaseModel):
+    marks: list[MarkIn]
+
+
+class CopiesRequest(BaseModel):
+    recipients: list[str] = Field(min_length=1, max_length=200)
+
+
+class CopyOut(BaseModel):
+    copy_code: str
+    recipient: str
+
+
+class DnaState(BaseModel):
+    enabled: bool
+    marks: int
+    copies: list[str]

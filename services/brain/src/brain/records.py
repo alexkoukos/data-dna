@@ -68,6 +68,7 @@ def record_decision(
     tool: str = "Company AI",
     document_id: int | None = None,
     score: float | None = None,
+    copy_code: str | None = None,
 ) -> None:
     if engine is None:
         return
@@ -90,6 +91,7 @@ def record_decision(
                         masked_preview=masked_preview,
                         document_id=document_id,
                         score=score,
+                        copy_code=copy_code,
                         expires_at=now + timedelta(days=RETENTION_DAYS),
                     )
                 )

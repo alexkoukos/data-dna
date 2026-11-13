@@ -130,3 +130,23 @@ session_coverage = sa.Table(
     sa.Column("prompts", sa.Integer, server_default="0"),
     sa.Column("window_start", sa.DateTime(timezone=True)),
 )
+
+doc_marks = sa.Table(
+    "doc_marks",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id", ondelete="CASCADE")),
+    sa.Column("position", sa.Integer, nullable=False),
+    sa.Column("variants", _TEXT_LIST, nullable=False),
+)
+doc_copies = sa.Table(
+    "doc_copies",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id", ondelete="CASCADE")),
+    sa.Column("copy_code", sa.Text, nullable=False),
+    sa.Column("recipient_user_id", sa.Integer, sa.ForeignKey("users.id")),
+    sa.Column(
+        "variant_vector", sa.ARRAY(sa.Integer).with_variant(sa.JSON, "sqlite"), nullable=False
+    ),
+)

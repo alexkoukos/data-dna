@@ -30,3 +30,12 @@ def chunk_text(text: str, size: int = CHUNK_WORDS, step: int = STEP_WORDS) -> li
         if start + size >= len(ws):
             break
     return chunks
+
+
+def rebuild_text(chunks: list[str], step: int = STEP_WORDS) -> str:
+    """Rebuild a document from its overlapping chunks (whitespace becomes single spaces)."""
+    out: list[str] = []
+    for i, c in enumerate(chunks):
+        ws = c.split()
+        out.extend(ws if i == len(chunks) - 1 else ws[:step])
+    return " ".join(out)

@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import binascii
+import html
 import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -10,11 +11,16 @@ from pathlib import Path
 
 import sqlalchemy as sa
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
 
 from brain import queries, reveal
 from brain.api.schemas import (
+    ApproveMarks,
     AskOut,
     AskRequest,
+    CopiesRequest,
+    CopyOut,
+    DnaState,
     DocumentHit,
     DocumentOut,
     FindingOut,
@@ -27,11 +33,13 @@ from brain.api.schemas import (
     InspectResponse,
     KeyRequest,
     KeyResponse,
+    MarkOut,
     Message,
     MetricsOut,
     PolicyOut,
     PolicyUpdate,
     PresetOut,
+    ProposeOut,
     RegisteredDocument,
     RevealDecision,
     RevealOut,
@@ -51,6 +59,8 @@ from brain.detection.normalize import normalise
 from brain.detection.patterns import find_patterns, mask, unmask
 from brain.detection.pipeline import Finder, InspectResult, inspect_text
 from brain.detection.yara_rules import find_yara
+from brain.dna import store as dna_store
+from brain.dna.marks import Mark, propose_marks
 from brain.documents.embeddings import FastEmbedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
@@ -152,6 +162,22 @@ def _attachment_text(req: InspectRequest) -> str:
     return "\n\n" + "\n\n".join(parts) if parts else ""
 
 
+def _attribute_copy(result: InspectResult, text: str) -> str | None:
+    """If the matched document carries DNA marks, name the copy this text came from."""
+    engine = policy_store.engine
+    if engine is None or not result.doc_matches:
+        return None
+    try:
+        with engine.connect() as conn:
+            found = dna_store.attribute_leak(conn, result.doc_matches[0].document_id, text)
+    except sa.exc.SQLAlchemyError:
+        return None
+    if found is None:
+        return None
+    result.verdict.reasons.append(found.sentence)
+    return found.copy_code
+
+
 def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
     """Remember which parts of a document this person has sent, and block a rebuild."""
     engine = policy_store.engine
@@ -181,6 +207,7 @@ def inspect(req: InspectRequest) -> InspectResponse:
         last.content + attached, policy_store.current(), _finders(), _documents().match
     )
     _escalate_rebuilds(req, result)
+    leaked_copy = _attribute_copy(result, last.content + attached)
     masked = None
     session_id = None
     if result.verdict.decision == Decision.MASK and attached:
@@ -205,6 +232,7 @@ def inspect(req: InspectRequest) -> InspectResponse:
         masked_preview=result.findings[0].masked_preview if result.findings else None,
         document_id=result.doc_matches[0].document_id if result.doc_matches else None,
         score=result.doc_matches[0].score if result.doc_matches else None,
+        copy_code=leaked_copy,
     )
     return InspectResponse(
         session_id=session_id,
@@ -405,6 +433,87 @@ def register(
         ) from err
     _documents().invalidate()
     return RegisteredDocument(id=doc_id, title=title, sensitivity=sensitivity, chunks=chunks)
+
+
+def _dna_write[T](fn: Callable[[sa.Connection], T]) -> T:
+    engine = policy_store.engine
+    if engine is None:
+        raise HTTPException(
+            status_code=503, detail="The database is not connected. Try again soon."
+        )
+    try:
+        with engine.begin() as conn:
+            return fn(conn)
+    except dna_store.DnaError as err:
+        raise HTTPException(status_code=err.status, detail=str(err)) from err
+    except ValueError as err:
+        raise HTTPException(status_code=422, detail=str(err)) from err
+    except sa.exc.SQLAlchemyError as err:
+        raise HTTPException(
+            status_code=503, detail="The change could not be saved. Nothing was changed."
+        ) from err
+
+
+@app.post("/v1/documents/{document_id}/dna/propose", response_model=ProposeOut)
+def dna_propose(document_id: int, text: str = Form(default="")) -> ProposeOut:
+    """Suggest 6 to 8 marks. Nothing is saved until the owner approves them."""
+
+    def run(conn: sa.Connection) -> ProposeOut:
+        source = text.strip() or dna_store.stored_text(conn, document_id)
+        if not source:
+            raise dna_store.DnaError(
+                "The text of this document is not stored. Send it in the text field.", 409
+            )
+        marks = propose_marks(source)
+        return ProposeOut(
+            marks=[
+                MarkOut(position=m.position, variants=m.variants, preview=m.phrase(0))
+                for m in marks
+            ]
+        )
+
+    return _dna_write(run)
+
+
+@app.post("/v1/documents/{document_id}/dna/approve", response_model=DnaState)
+def dna_approve(document_id: int, req: ApproveMarks) -> DnaState:
+    def run(conn: sa.Connection) -> DnaState:
+        marks = [Mark(m.position, m.variants) for m in req.marks]
+        dna_store.save_marks(conn, document_id, marks)
+        return DnaState(enabled=True, marks=len(marks), copies=[])
+
+    return _dna_write(run)
+
+
+@app.post("/v1/documents/{document_id}/copies", response_model=list[CopyOut])
+def dna_issue(document_id: int, req: CopiesRequest) -> list[CopyOut]:
+    issued = _dna_write(lambda c: dna_store.issue_copies(c, document_id, req.recipients))
+    return [CopyOut(copy_code=code, recipient=who) for code, who in issued]
+
+
+@app.get("/v1/documents/{document_id}/dna", response_model=DnaState)
+def dna_state(document_id: int) -> DnaState:
+    def run(conn: sa.Connection) -> DnaState:
+        marks = dna_store.load_marks(conn, document_id)
+        return DnaState(
+            enabled=bool(marks),
+            marks=len(marks),
+            copies=sorted(dna_store.load_copies(conn, document_id)),
+        )
+
+    return _read(run)
+
+
+@app.get("/v1/documents/{document_id}/copies/{code}", response_class=HTMLResponse)
+def dna_copy(document_id: int, code: str) -> HTMLResponse:
+    title, body = _dna_write(lambda c: dna_store.render_copy_html(c, document_id, code))
+    page = (
+        "<!doctype html><html lang='en'><meta charset='utf-8'>"
+        f"<title>{html.escape(title)}</title><body style='font-family:sans-serif;max-width:40rem;"
+        f"margin:2rem auto;line-height:1.6'><h1>{html.escape(title)}</h1><p>{html.escape(body)}</p>"
+        "</body></html>"
+    )
+    return HTMLResponse(page)
 
 
 @app.get("/v1/documents", response_model=list[DocumentOut])
