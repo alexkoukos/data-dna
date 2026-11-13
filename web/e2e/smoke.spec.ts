@@ -130,3 +130,44 @@ test("ask: a preset question shows a table and the SQL", async ({ page }) => {
   await page.getByText("Show the SQL behind this answer").click();
   await expect(page.getByLabel("SQL for this answer")).toContainText("SELECT");
 });
+
+test("incident detail: the name stays sealed until a second person approves", async ({ page }) => {
+  // Earlier runs leave reveal requests behind, so pick an incident that has none yet.
+  const list = await (
+    await page.request.get("http://localhost:8001/v1/incidents?limit=100")
+  ).json();
+  let fresh: number | null = null;
+  for (const item of list.items as { id: number }[]) {
+    const d = await (
+      await page.request.get(`http://localhost:8001/v1/incidents/${item.id}`)
+    ).json();
+    if (d.reveals.length === 0) {
+      fresh = item.id;
+      break;
+    }
+  }
+  expect(fresh, "an incident without a reveal request (run make reset)").not.toBeNull();
+  await page.goto(`/security/incidents/${fresh}`);
+  await expect(page.getByText("What happened")).toBeVisible();
+  await expect(page.getByText(/real name stays sealed/)).toBeVisible();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(
+    results.violations.filter((v) => ["serious", "critical"].includes(v.impact ?? "")),
+  ).toEqual([]);
+
+  await page.getByLabel("Your name").fill("Anna");
+  await page.getByLabel(/Why do you need/).fill("Pasted a client contract into a chat");
+  await page.getByRole("button", { name: "Request reveal" }).click();
+  await expect(page.getByText(/Waiting for a second person/)).toBeVisible();
+
+  await page.getByLabel("Your name").fill("Anna");
+  await page.getByRole("button", { name: "Approve the reveal" }).click();
+  await expect(page.getByRole("alert")).toContainText("second person");
+
+  await page.getByLabel("Your name").fill("Nikos");
+  await page.getByRole("button", { name: "Approve the reveal" }).click();
+  await expect(page.getByText(/Approved by Nikos/)).toBeVisible();
+  await page.getByLabel("Your name").fill("Anna");
+  await page.getByRole("button", { name: "Show the real name" }).click();
+  await expect(page.getByText(/Real name: .+This view was logged/)).toBeVisible();
+});

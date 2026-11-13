@@ -6,8 +6,17 @@ from typing import Any
 
 import sqlalchemy as sa
 
-from brain.api.schemas import DocumentOut, IncidentOut, IncidentPage, MetricsOut, ToolOut
+from brain.api.schemas import (
+    DocumentMatch,
+    DocumentOut,
+    IncidentDetail,
+    IncidentOut,
+    IncidentPage,
+    MetricsOut,
+    ToolOut,
+)
 from brain.db import tables as t
+from brain.reveal import list_for_incident
 
 
 def _aware(ts: datetime) -> datetime:
@@ -156,3 +165,50 @@ def documents(conn: sa.Connection) -> list[DocumentOut]:
         )
         for r in rows
     ]
+
+
+def _incident_out(r: Any) -> IncidentOut:
+    return IncidentOut(
+        id=r["id"],
+        ts=_aware(r["ts"]),
+        user=r["pseudonym"] or "unknown",
+        team=r["team"],
+        tool=r["tool"],
+        decision=r["decision"],
+        categories=list(r["categories"] or []),
+        reasons=[str(x) for x in (r["reasons"] or [])],
+        masked_preview=r["masked_preview"],
+        score=r["score"],
+    )
+
+
+def incident_detail(conn: sa.Connection, incident_id: int) -> IncidentDetail | None:
+    """One incident, the same person's other incidents (newest first), and the matched document.
+    Only the pseudonym is ever returned here; the real name needs the reveal flow."""
+    base = sa.select(t.incidents, t.users.c.pseudonym).select_from(
+        t.incidents.outerjoin(t.users, t.users.c.id == t.incidents.c.user_id)
+    )
+    row = conn.execute(base.where(t.incidents.c.id == incident_id)).mappings().first()
+    if row is None:
+        return None
+    timeline = conn.execute(
+        base.where(t.incidents.c.user_id == row["user_id"], t.incidents.c.id != incident_id)
+        .order_by(t.incidents.c.ts.desc(), t.incidents.c.id.desc())
+        .limit(20)
+    ).mappings()
+    doc = None
+    if row["document_id"] is not None:
+        d = (
+            conn.execute(sa.select(t.documents).where(t.documents.c.id == row["document_id"]))
+            .mappings()
+            .first()
+        )
+        if d is not None:
+            doc = DocumentMatch(id=d["id"], title=d["title"], sensitivity=d["sensitivity"])
+    return IncidentDetail(
+        incident=_incident_out(row),
+        copy_code=row["copy_code"],
+        document=doc,
+        timeline=[_incident_out(r) for r in timeline],
+        reveals=list_for_incident(conn, incident_id),
+    )

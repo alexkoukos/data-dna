@@ -9,12 +9,14 @@ from pathlib import Path
 import sqlalchemy as sa
 from fastapi import FastAPI, HTTPException
 
-from brain import queries
+from brain import queries, reveal
 from brain.api.schemas import (
     AskOut,
     AskRequest,
     DocumentOut,
     FindingOut,
+    IdentityOut,
+    IncidentDetail,
     IncidentPage,
     InspectOutputRequest,
     InspectOutputResponse,
@@ -27,6 +29,9 @@ from brain.api.schemas import (
     PolicyOut,
     PolicyUpdate,
     PresetOut,
+    RevealDecision,
+    RevealOut,
+    RevealRequest,
     SeenOut,
     ToolOut,
     UnmaskRequest,
@@ -210,6 +215,51 @@ def list_incidents(
 ) -> IncidentPage:
     limit = max(1, min(limit, 100))
     return _read(lambda c: queries.incidents(c, decision, team, limit, max(offset, 0)))
+
+
+def _write[T](fn: Callable[[sa.Connection], T]) -> T:
+    engine = policy_store.engine
+    if engine is None:
+        raise HTTPException(
+            status_code=503, detail="The database is not connected. Try again soon."
+        )
+    try:
+        with engine.begin() as conn:
+            return fn(conn)
+    except reveal.RevealError as err:
+        raise HTTPException(status_code=err.status, detail=str(err)) from err
+    except sa.exc.SQLAlchemyError as err:
+        raise HTTPException(
+            status_code=503, detail="The change could not be saved. Nothing was changed."
+        ) from err
+
+
+@app.get("/v1/incidents/{incident_id}", response_model=IncidentDetail)
+def incident_detail(incident_id: int) -> IncidentDetail:
+    found = _read(lambda c: queries.incident_detail(c, incident_id))
+    if found is None:
+        raise HTTPException(status_code=404, detail="That incident does not exist.")
+    return found
+
+
+@app.post("/v1/reveal-requests", response_model=RevealOut)
+def create_reveal(req: RevealRequest) -> RevealOut:
+    return _write(lambda c: reveal.request_reveal(c, req.incident_id, req.requested_by, req.reason))
+
+
+@app.post("/v1/reveal-requests/{request_id}/approve", response_model=RevealOut)
+def approve_reveal(request_id: int, req: RevealDecision) -> RevealOut:
+    return _write(lambda c: reveal.decide(c, request_id, req.decided_by, approve=True))
+
+
+@app.post("/v1/reveal-requests/{request_id}/deny", response_model=RevealOut)
+def deny_reveal(request_id: int, req: RevealDecision) -> RevealOut:
+    return _write(lambda c: reveal.decide(c, request_id, req.decided_by, approve=False))
+
+
+@app.get("/v1/incidents/{incident_id}/identity", response_model=IdentityOut)
+def incident_identity(incident_id: int, request_id: int, viewer: str = "") -> IdentityOut:
+    return _write(lambda c: reveal.reveal_identity(c, incident_id, request_id, viewer))
 
 
 @app.get("/v1/documents", response_model=list[DocumentOut])

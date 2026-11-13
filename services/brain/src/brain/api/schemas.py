@@ -154,3 +154,42 @@ class AskOut(BaseModel):
     parameters: dict[str, str]
     columns: list[str]
     rows: list[list[Any]]
+
+
+class DocumentMatch(BaseModel):
+    id: int
+    title: str
+    sensitivity: str
+
+
+class RevealOut(BaseModel):
+    id: int
+    incident_id: int
+    requested_by: str
+    reason: str
+    approved_by: str | None = None
+    status: str
+    ts: datetime | None = None
+
+
+class IncidentDetail(BaseModel):
+    incident: IncidentOut
+    copy_code: str | None = None
+    document: DocumentMatch | None = None
+    timeline: list[IncidentOut]
+    reveals: list[RevealOut]
+
+
+class RevealRequest(BaseModel):
+    incident_id: int
+    requested_by: str = Field(min_length=1, max_length=80)
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class RevealDecision(BaseModel):
+    decided_by: str = Field(min_length=1, max_length=80)
+
+
+class IdentityOut(BaseModel):
+    pseudonym: str
+    display_name: str | None

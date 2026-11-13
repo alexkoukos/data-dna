@@ -32,14 +32,14 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **O2** P0 Log ingest + AI tool inventory from `data/ai_tools.csv` (PRD 11). Owner: Stelios.
 - [ ] **O3** P1 Employee simulator (`scripts/simulate.py`, compose profile `sim`) (PRD 21a). Owner: Stelios.
 - [ ] **N1** P1 DNA marks: propose, approve, issue copies, attribution with confidence (PRD 12). Owner: Stelios.
-- [ ] **N2** P1 Sealed identity + two-person reveal + audit log (PRD 12). Owner: Alexandros.
+- [x] **N2** P1 Sealed identity + two-person reveal + audit log (PRD 12). Owner: Alexandros.
 - [x] **A1** P1 Analyst preset questions with SQL shown (PRD 13). Owner: Alexandros.
 - [ ] **A2** P2 Free-text analyst questions over read-only views (PRD 13). Owner: Alexandros.
 
 ## Web (PRD 16)
 - [x] **W1** P0 Company Chat: messages, five outcome chips, "Why?" disclosure, warn card, file upload. Owner: Alexandros.
 - [x] **W2** P0 Security overview + inventory + incidents list. Owner: Alexandros.
-- [ ] **W3** P1 Incident detail: puzzle view, timeline, copy attribution, reveal request. Owner: Alexandros.
+- [x] **W3** P1 Incident detail: puzzle view, timeline, copy attribution, reveal request. Owner: Alexandros.
 - [x] **W4** P1 Connect page: URL, personal key, snippets, live status. Owner: Alexandros.
 - [x] **W5** P1 Policies and Documents pages. Owner: Alexandros.
 - [x] **W6** P0 Responsive at 390 px + axe clean on every route. Owner: Alexandros.

@@ -4,6 +4,7 @@ import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
 
 import ConnectPage from "./pages/ConnectPage";
+import IncidentDetailPage from "./pages/security/IncidentDetailPage";
 import IncidentsPage from "./pages/security/IncidentsPage";
 import OverviewPage from "./pages/security/OverviewPage";
 import PoliciesPage from "./pages/security/PoliciesPage";
@@ -45,6 +46,7 @@ export default function App() {
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />
           <Route path="incidents" element={<IncidentsPage />} />
+          <Route path="incidents/:id" element={<IncidentDetailPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="policies" element={<PoliciesPage />} />
           <Route path="ask" element={<AskPage />} />
