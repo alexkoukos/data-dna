@@ -171,3 +171,41 @@ test("incident detail: the name stays sealed until a second person approves", as
   await page.getByRole("button", { name: "Show the real name" }).click();
   await expect(page.getByText(/Real name: .+This view was logged/)).toBeVisible();
 });
+
+test("documents: add one, set up marks, issue a copy and open it", async ({ page }) => {
+  const people = await (
+    await page.request.get("http://localhost:8001/v1/incidents?limit=5")
+  ).json();
+  const person = people.items[0].user as string;
+  const title = `E2E memo ${Date.now()}`;
+  const body = Array.from(
+    { length: 10 },
+    (_, i) =>
+      `Item ${i + 1} says the supplier delivers batch ${i * 7} on day ${i + 12} for ${i * 900 + 500} euros.`,
+  ).join(" ");
+
+  await page.goto("/security/documents");
+  await page.getByText("Add a document").click();
+  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Sensitivity").selectOption("restricted");
+  await page.getByLabel("Or paste the text").fill(body);
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations.filter((v) => ["serious", "critical"].includes(v.impact ?? ""))).toEqual(
+    [],
+  );
+  await page.getByRole("button", { name: "Add the document" }).click();
+  await expect(page.getByText(`Added "${title}"`)).toBeVisible();
+
+  const card = page.getByRole("listitem").filter({ hasText: title });
+  await card.getByRole("button", { name: "Suggest marks" }).click();
+  await card.getByRole("button", { name: /Approve these \d+ marks/ }).click();
+  await expect(card.getByText(/marks approved/)).toBeVisible();
+  await card.getByLabel(/Who gets a copy/).fill(person);
+  await card.getByRole("button", { name: "Issue copies" }).click();
+  const link = card.getByRole("link", { name: /Open copy/ });
+  await expect(link).toBeVisible();
+  const href = await link.getAttribute("href");
+  const copy = await page.request.get(`http://localhost:3000${href}`);
+  expect(copy.ok()).toBe(true);
+  expect(await copy.text()).toContain("Item 1 says the supplier");
+});

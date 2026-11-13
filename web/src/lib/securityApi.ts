@@ -184,3 +184,59 @@ export const fetchIdentity = (incident: number, request: number, viewer: string)
     `/v1/incidents/${incident}/identity?request_id=${request}&viewer=${encodeURIComponent(viewer)}`,
     "GET",
   );
+
+export interface ProposedMark {
+  position: number;
+  variants: string[];
+  preview: string;
+}
+export interface DnaState {
+  enabled: boolean;
+  marks: number;
+  copies: string[];
+}
+export interface IssuedCopy {
+  copy_code: string;
+  recipient: string;
+}
+
+async function detail(res: Response, fallback: string): Promise<Error> {
+  try {
+    const d = ((await res.json()) as { detail?: unknown }).detail;
+    if (typeof d === "string" && d) return new Error(d);
+  } catch {
+    // use the fallback
+  }
+  return new Error(fallback);
+}
+
+async function postForm<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`/api${path}`, { method: "POST", body: form });
+  if (!res.ok) throw await detail(res, "That did not work. Nothing was changed. Try again.");
+  return (await res.json()) as T;
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await detail(res, "That did not work. Nothing was changed. Try again.");
+  return (await res.json()) as T;
+}
+
+export const registerDocument = (form: FormData) =>
+  postForm<{ id: number; title: string; sensitivity: string; chunks: number }>(
+    "/v1/documents",
+    form,
+  );
+export const proposeMarks = (id: number) =>
+  postForm<{ marks: ProposedMark[] }>(`/v1/documents/${id}/dna/propose`, new FormData());
+export const approveMarks = (id: number, marks: ProposedMark[]) =>
+  postJson<DnaState>(`/v1/documents/${id}/dna/approve`, {
+    marks: marks.map((m) => ({ position: m.position, variants: m.variants })),
+  });
+export const issueCopies = (id: number, recipients: string[]) =>
+  postJson<IssuedCopy[]>(`/v1/documents/${id}/copies`, { recipients });
+export const fetchDnaState = (id: number) => get<DnaState>(`/v1/documents/${id}/dna`);
