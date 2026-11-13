@@ -26,3 +26,6 @@ def ensure_schema(engine: Engine) -> None:
         return
     with engine.begin() as conn:
         conn.execute(sa.text("ALTER TABLE doc_chunks ADD COLUMN IF NOT EXISTS lang TEXT"))
+    from brain.ask.free import create_views
+
+    create_views(engine)

@@ -240,3 +240,13 @@ export const approveMarks = (id: number, marks: ProposedMark[]) =>
 export const issueCopies = (id: number, recipients: string[]) =>
   postJson<IssuedCopy[]>(`/v1/documents/${id}/copies`, { recipients });
 export const fetchDnaState = (id: number) => get<DnaState>(`/v1/documents/${id}/dna`);
+
+export async function askFree(question: string): Promise<Answer> {
+  const res = await fetch("/api/v1/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+  if (!res.ok) throw await detail(res, "We could not get the answer. Try again in a moment.");
+  return (await res.json()) as Answer;
+}

@@ -160,7 +160,8 @@ class PresetOut(BaseModel):
 
 
 class AskRequest(BaseModel):
-    preset: str
+    preset: str | None = None
+    question: str | None = Field(default=None, min_length=3, max_length=500)
 
 
 class AskOut(BaseModel):

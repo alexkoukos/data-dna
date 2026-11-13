@@ -52,6 +52,7 @@ from brain.api.schemas import (
     UnmaskRequest,
     UnmaskResponse,
 )
+from brain.ask.free import AskError, run_free
 from brain.ask.presets import BY_ID, PRESETS, run_preset
 from brain.clients import ClientStore
 from brain.config import settings
@@ -584,16 +585,21 @@ def ask_presets() -> list[PresetOut]:
 
 @app.post("/v1/ask", response_model=AskOut)
 def ask(req: AskRequest) -> AskOut:
-    preset = BY_ID.get(req.preset)
-    if preset is None:
-        raise HTTPException(
-            status_code=404,
-            detail="That question is not on the list. Pick one of the preset questions.",
-        )
     engine = policy_store.engine
     if engine is None:
         raise HTTPException(
             status_code=503, detail="The database is not connected. Try again soon."
+        )
+    if req.question and not req.preset:
+        try:
+            return AskOut(**run_free(engine, req.question))
+        except AskError as err:
+            raise HTTPException(status_code=422, detail=str(err)) from err
+    preset = BY_ID.get(req.preset or "")
+    if preset is None:
+        raise HTTPException(
+            status_code=404,
+            detail="That question is not on the list. Pick one of the preset questions.",
         )
     try:
         return AskOut(**run_preset(engine, preset))
