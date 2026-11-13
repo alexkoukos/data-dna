@@ -37,6 +37,13 @@ class DocumentHit(BaseModel):
     total_chunks: int
 
 
+class TraceStep(BaseModel):
+    layer: str
+    fired: bool = True
+    score: float | None = None
+    detail: str = ""
+
+
 class InspectResponse(BaseModel):
     decision: str
     reasons: list[str]
@@ -45,6 +52,8 @@ class InspectResponse(BaseModel):
     evasion_signals: list[str] = Field(default_factory=list)
     session_id: str | None = None
     documents: list[DocumentHit] = Field(default_factory=list)
+    trace: list[TraceStep] = Field(default_factory=list)
+    shadow_decision: str | None = None
 
 
 class UnmaskRequest(BaseModel):
@@ -118,6 +127,8 @@ class IncidentOut(BaseModel):
     reasons: list[str]
     masked_preview: str | None = None
     score: float | None = None
+    shadow: bool = False
+    trace: list[TraceStep] = Field(default_factory=list)
 
 
 class IncidentPage(BaseModel):
@@ -262,3 +273,14 @@ class ToolResultResponse(BaseModel):
     decision: str
     text: str
     reasons: list[str] = Field(default_factory=list)
+
+
+class ShadowOut(BaseModel):
+    enabled: bool
+    would_have: dict[str, int]
+    total: int
+
+
+class ShadowIn(BaseModel):
+    enabled: bool
+    updated_by: str = Field(min_length=1, max_length=80)

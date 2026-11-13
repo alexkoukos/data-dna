@@ -51,6 +51,7 @@ def inspect_text(
     policies: PolicySet | None = None,
     finders: Sequence[Finder] = (),
     doc_matcher: Callable[[str], list[DocMatch]] | None = None,
+    view_finders: Sequence[Finder] = (),
 ) -> InspectResult:
     norm = normalise(text)
     findings = find_patterns(norm.text)
@@ -59,6 +60,11 @@ def inspect_text(
     hidden: list[Finding] = []
     for view in norm.extra_views:
         hidden.extend(find_patterns(view))
+        for vf in view_finders:
+            hidden.extend(vf(view))
+    for view in norm.phrase_views:
+        for vf in view_finders:
+            hidden.extend(vf(view))
     categories = [f.category for f in findings + hidden]
     doc_matches = doc_matcher(norm.text) if doc_matcher else []
     verdict = decide(

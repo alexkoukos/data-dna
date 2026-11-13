@@ -162,7 +162,12 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
     results: list[Result] = []
     for r in rows:
         start = time.perf_counter()
-        out = inspect_text(r.text, finders=finders, doc_matcher=index.match)
+        out = inspect_text(
+            r.text,
+            finders=finders,
+            doc_matcher=index.match,
+            view_finders=[find_yara, injection_finder],
+        )
         ms = (time.perf_counter() - start) * 1000
         decision = str(out.verdict.decision)
         results.append(
@@ -176,7 +181,49 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
                 out.verdict.reasons,
             )
         )
-    return summarise(results, source, attribution_accuracy(data))
+    rep = summarise(results, source, attribution_accuracy(data))
+    rep["attacks"] = run_attacks(data / "eval" / "attacks.csv", finders, index)
+    return rep
+
+
+def run_attacks(path: Path, finders: list[Any], index: DocumentIndex) -> dict[str, Any] | None:
+    """X2: the red-team file. An attack is caught when the decision is one of the accepted ones."""
+    if not path.exists():
+        return None
+    by: dict[str, list[int]] = {}
+    misses: list[dict[str, str]] = []
+    with path.open(encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            out = inspect_text(
+                r["text"],
+                finders=finders,
+                doc_matcher=index.match,
+                view_finders=[find_yara, injection_finder],
+            )
+            got = str(out.verdict.decision)
+            ok = got in r["expected"].split("|")
+            tally = by.setdefault(r["technique"], [0, 0])
+            tally[0] += int(ok)
+            tally[1] += 1
+            if not ok:
+                misses.append(
+                    {
+                        "id": r["id"],
+                        "technique": r["technique"],
+                        "expected": r["expected"],
+                        "got": got,
+                        "text": r["text"][:90],
+                    }
+                )
+    total = sum(v[1] for v in by.values())
+    caught = sum(v[0] for v in by.values())
+    return {
+        "total": total,
+        "caught": caught,
+        "rate": round(100 * caught / total, 1) if total else None,
+        "by_technique": {k: {"caught": v[0], "total": v[1]} for k, v in by.items()},
+        "misses": misses,
+    }
 
 
 def _recall(rs: list[Result], base: bool = False) -> float | None:
@@ -347,6 +394,32 @@ def to_markdown(rep: dict[str, Any]) -> str:
             lines.append(f"| {x['id']} | {x['type']} | {x['expected']} | {x['got']} | {text} |")
     else:
         lines.append("None.")
+    atk = rep.get("attacks")
+    if atk:
+        lines += [
+            "",
+            "## Attack set (data/eval/attacks.csv)",
+            "",
+            f"{atk['caught']} of {atk['total']} attacks handled as expected ({atk['rate']}%).",
+            "",
+            "| Technique | Handled | Of |",
+            "| --- | --- | --- |",
+        ]
+        for k, v in atk["by_technique"].items():
+            lines.append(f"| {k} | {v['caught']} | {v['total']} |")
+        if atk["misses"]:
+            lines += [
+                "",
+                "Missed:",
+                "",
+                "| Id | Technique | Expected | Got | Text |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+            for x in atk["misses"]:
+                text = x["text"].replace("|", "/").replace("\n", " ")
+                lines.append(
+                    f"| {x['id']} | {x['technique']} | {x['expected']} | {x['got']} | {text} |"
+                )
     return "\n".join(lines) + "\n"
 
 
