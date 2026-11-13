@@ -19,7 +19,7 @@ DATA = Path(__file__).parents[3] / "data"
 
 
 def test_attack_file_has_80_attacks_in_the_agreed_columns() -> None:
-    with (DATA / "eval" / "attacks.csv").open(encoding="utf-8", newline="") as f:
+    with (DATA / "eval" / "attacks_scripts.csv").open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
     assert len(rows) == 80
     assert set(rows[0]) == {"id", "category", "lang", "text", "expected_decision", "notes"}
@@ -37,7 +37,7 @@ def test_attack_file_has_80_attacks_in_the_agreed_columns() -> None:
 
 
 def test_attack_file_only_holds_invented_data() -> None:
-    text = (DATA / "eval" / "attacks.csv").read_text(encoding="utf-8")
+    text = (DATA / "eval" / "attacks_scripts.csv").read_text(encoding="utf-8")
     assert "@vault-" not in text or "corp-internal.example" in text  # decoys are fake domains
     assert load_attacks(DATA)[0].id == "A001"
     assert load_attacks(Path("/nonexistent")) == []
@@ -67,14 +67,14 @@ def test_attack_summary_counts_caught_misses_and_false_alarms() -> None:
     ("hidden", "signal"),
     [
         (b"GR1601101250000000012300695".hex(), "hex"),
-        ("".join(f"%{ord(c):02X}" for c in "GR1601101250000000012300695"), "percent_encoding"),
+        ("".join(f"%{ord(c):02X}" for c in "GR1601101250000000012300695"), "url_escapes"),
         ("".join(f"&#{ord(c)};" for c in "GR1601101250000000012300695"), "html_entities"),
     ],
 )
 def test_hex_percent_and_entity_tricks_are_decoded(hidden: str, signal: str) -> None:
     n = normalise("Check " + hidden)
     assert signal in n.evasion_signals
-    assert "GR1601101250000000012300695" in n.extra_views
+    assert any("GR1601101250000000012300695" in v for v in n.extra_views)
 
 
 def test_a_git_hash_is_not_treated_as_hidden_text() -> None:
@@ -97,7 +97,7 @@ def client(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> TestClient:
     monkeypatch.setattr(main, "policy_store", PolicyStore(engine, ttl_seconds=0))
     eval_dir = tmp_path / "eval"
     eval_dir.mkdir()
-    (eval_dir / "attacks.csv").write_text(
+    (eval_dir / "attacks_scripts.csv").write_text(
         "id,category,lang,text,expected_decision,notes\n"
         "A1,spacing,en,G R 1 6,warn,\n"
         "A2,spacing,en,second of the same kind,warn,\n"

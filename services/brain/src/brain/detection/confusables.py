@@ -62,14 +62,14 @@ def fold_mixed_tokens(text: str) -> tuple[str, bool]:
     """Fold look-alike letters inside words that mix scripts or hold a digit. A purely Greek or
     Russian word is left alone, so ordinary text does not change.
 
-    Returns the text (same length) and whether a word that holds eight or more digits was changed,
-    which is the sign of someone dressing up an identifier."""
+    Returns the text (same length) and whether any word was changed, which is the sign of
+    someone dressing up an identifier or a name."""
     out: list[str] = []
     disguised = False
     for part in re.split(r"(\s+)", text):
         if part and not part.isspace() and (_LATIN_LETTER.search(part) or _DIGIT.search(part)):
             folded = _fold_word(part)
-            if folded != part and len(_DIGIT.findall(folded)) >= 8:
+            if folded != part:
                 disguised = True
             part = folded
         out.append(part)

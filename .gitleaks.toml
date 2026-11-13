@@ -7,6 +7,6 @@ useDefault = true
 description = "Invented decoy credentials and attack samples"
 paths = [
   '''data/documents/.*\.md''',
-  '''data/eval/attacks\.csv''',
+  '''data/eval/attacks.*\.csv''',
   '''services/brain/tests/.*''',
 ]

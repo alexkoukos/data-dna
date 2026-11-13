@@ -25,7 +25,7 @@ def test_greek_capitals_where_latin_letters_belong_are_folded() -> None:
     key = "ΑΚΙΑ" + "1234567890ABCDEF"  # the first four are Greek letters
     res = inspect_text(f"deploy with {key} now")
     assert res.verdict.decision == Decision.MASK
-    assert "mixed_script" in res.evasion_signals
+    assert "mixed_alphabets" in res.evasion_signals
     assert key not in res.masked_text
 
 

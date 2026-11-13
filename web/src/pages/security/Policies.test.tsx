@@ -34,7 +34,8 @@ describe("Policies", () => {
     await user.selectOptions(select, "block");
     expect(screen.getByText(/If you save:.*not sent/)).toBeInTheDocument();
     // Nothing was sent yet.
-    expect(fetchMock).toHaveBeenCalledTimes(1); // only the load
+    const policyCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes("/v1/policies"));
+    expect(policyCalls).toHaveLength(1); // only the load
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -51,6 +52,19 @@ describe("Policies", () => {
     expect(await screen.findAllByText(/^Today:.*not sent/)).toHaveLength(2);
     expect(select).toHaveValue("block");
     expect(screen.queryByRole("button", { name: "Save payment cards" })).not.toBeInTheDocument();
+  });
+
+  it("offers shadow mode and the compliance report", async () => {
+    mockApi({
+      "/v1/policies": policies,
+      "/v1/shadow-mode": { enabled: false, would_have: {}, total: 0 },
+    });
+    render(<PoliciesPage />);
+    expect(await screen.findByRole("switch")).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("link", { name: "Download the PDF report" })).toHaveAttribute(
+      "href",
+      "/api/v1/compliance-report.pdf",
+    );
   });
 
   it("cancel puts the old choice back", async () => {

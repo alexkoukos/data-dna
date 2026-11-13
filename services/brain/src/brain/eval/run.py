@@ -117,7 +117,7 @@ SCRIPT_TRICKS = ("look_alike", "other_digits", "greeklish")
 
 def load_attacks(data_dir: Path) -> list[Attack]:
     """The red-team file (X2). Missing is fine: the report just has no attack section."""
-    path = data_dir / "eval" / "attacks.csv"
+    path = data_dir / "eval" / "attacks_scripts.csv"
     if not path.exists():
         return []
     with path.open(encoding="utf-8", newline="") as f:
@@ -250,7 +250,13 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
     results: list[Result] = []
     for r in rows:
         start = time.perf_counter()
-        out = inspect_text(r.text, finders=finders, doc_matcher=index.match, priority_finder=decoys)
+        out = inspect_text(
+            r.text,
+            finders=finders,
+            doc_matcher=index.match,
+            view_finders=[find_yara, injection_finder],
+            priority_finder=decoys,
+        )
         ms = (time.perf_counter() - start) * 1000
         decision = str(out.verdict.decision)
         results.append(
@@ -264,13 +270,65 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
                 out.verdict.reasons,
             )
         )
-    attacks = [
+    script_attacks = [
         AttackResult(
-            a, str(inspect_text(a.text, None, finders, index.match, decoys).verdict.decision)
+            a,
+            str(
+                inspect_text(
+                    a.text,
+                    None,
+                    finders,
+                    index.match,
+                    view_finders=[find_yara, injection_finder],
+                    priority_finder=decoys,
+                ).verdict.decision
+            ),
         )
         for a in load_attacks(data)
     ]
-    return summarise(results, source, attribution_accuracy(data), summarise_attacks(attacks))
+    rep = summarise(results, source, attribution_accuracy(data), summarise_attacks(script_attacks))
+    rep["attacks"] = run_attacks(data / "eval" / "attacks.csv", finders, index)
+    return rep
+
+
+def run_attacks(path: Path, finders: list[Any], index: DocumentIndex) -> dict[str, Any] | None:
+    """X2: the red-team file. An attack is caught when the decision is one of the accepted ones."""
+    if not path.exists():
+        return None
+    by: dict[str, list[int]] = {}
+    misses: list[dict[str, str]] = []
+    with path.open(encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            out = inspect_text(
+                r["text"],
+                finders=finders,
+                doc_matcher=index.match,
+                view_finders=[find_yara, injection_finder],
+            )
+            got = str(out.verdict.decision)
+            ok = got in r["expected"].split("|")
+            tally = by.setdefault(r["technique"], [0, 0])
+            tally[0] += int(ok)
+            tally[1] += 1
+            if not ok:
+                misses.append(
+                    {
+                        "id": r["id"],
+                        "technique": r["technique"],
+                        "expected": r["expected"],
+                        "got": got,
+                        "text": r["text"][:90],
+                    }
+                )
+    total = sum(v[1] for v in by.values())
+    caught = sum(v[0] for v in by.values())
+    return {
+        "total": total,
+        "caught": caught,
+        "rate": round(100 * caught / total, 1) if total else None,
+        "by_technique": {k: {"caught": v[0], "total": v[1]} for k, v in by.items()},
+        "misses": misses,
+    }
 
 
 def _recall(rs: list[Result], base: bool = False) -> float | None:
@@ -396,7 +454,7 @@ def summarise(
         "by_language": by_lang,
         "targets": verdicts,
         "misses": misses,
-        "attacks": attacks,
+        "script_attacks": attacks,
     }
 
 
@@ -470,16 +528,42 @@ def to_markdown(rep: dict[str, Any]) -> str:
     if atk:
         lines += [
             "",
-            "## Red team: data/eval/attacks.csv (X2)",
+            "## Attack set (data/eval/attacks.csv)",
             "",
-            f"{atk['n']} attacks. Caught (any action but allow): {_fmt(atk['caught'])}%. "
-            f"Exact decision as expected: {_fmt(atk['decision_matches'])}%. "
-            f"False alarms on the clean look-alikes: {_fmt(atk['false_alarms'])}%.",
+            f"{atk['caught']} of {atk['total']} attacks handled as expected ({atk['rate']}%).",
+            "",
+            "| Technique | Handled | Of |",
+            "| --- | --- | --- |",
+        ]
+        for k, v in atk["by_technique"].items():
+            lines.append(f"| {k} | {v['caught']} | {v['total']} |")
+        if atk["misses"]:
+            lines += [
+                "",
+                "Missed:",
+                "",
+                "| Id | Technique | Expected | Got | Text |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+            for x in atk["misses"]:
+                text = x["text"].replace("|", "/").replace("\n", " ")
+                lines.append(
+                    f"| {x['id']} | {x['technique']} | {x['expected']} | {x['got']} | {text} |"
+                )
+    scr = rep.get("script_attacks")
+    if scr:
+        lines += [
+            "",
+            "## Script and decoy attacks: data/eval/attacks_scripts.csv (X4, X5)",
+            "",
+            f"{scr['n']} attacks. Caught (any action but allow): {_fmt(scr['caught'])}%. "
+            f"Exact decision as expected: {_fmt(scr['decision_matches'])}%. "
+            f"False alarms on the clean look-alikes: {_fmt(scr['false_alarms'])}%.",
             "",
             "| Kind | Attacks | Caught % | Decision as expected % |",
             "| --- | --- | --- | --- |",
         ]
-        for k, v in atk["categories"].items():
+        for k, v in scr["categories"].items():
             shown = (
                 f"false alarms {_fmt(v['false_alarms'])}"
                 if v["caught"] is None
@@ -491,12 +575,12 @@ def to_markdown(rep: dict[str, Any]) -> str:
             "Attacks whose outcome differs from the expectation (known gaps stay on purpose):",
             "",
         ]
-        if atk["gaps"]:
+        if scr["gaps"]:
             lines += [
                 "| Id | Kind | Expected | Got | Text | Note |",
                 "| --- | --- | --- | --- | --- | --- |",
             ]
-            for x in atk["gaps"]:
+            for x in scr["gaps"]:
                 text = x["text"].replace("|", "/").replace("\n", " ")
                 lines.append(
                     f"| {x['id']} | {x['category']} | {x['expected']} | {x['got']} | {text} | {x['notes']} |"

@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { OutcomeChip } from "../../components/OutcomeChip";
+import { WhyPanel } from "../../components/WhyPanel";
 import { SealedIdentity } from "../../components/SealedIdentity";
 import { ErrorPanel, Skeleton } from "../../components/ui";
 import { explainReason } from "../../lib/explain";
@@ -65,6 +66,13 @@ function Detail({ id }: { id: string }) {
             </div>
           ) : null}
         </dl>
+      </section>
+
+      <section aria-labelledby="why-h" className="rounded-2xl border border-ink-200 bg-white p-4">
+        <h2 id="why-h" className="text-lg font-semibold text-ink-900">
+          Why this decision
+        </h2>
+        <WhyPanel trace={incident.trace ?? []} shadow={incident.shadow} />
       </section>
 
       <section aria-labelledby="doc-h" className="rounded-2xl border border-ink-200 bg-white p-4">

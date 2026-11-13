@@ -33,6 +33,16 @@ def ensure_schema(engine: Engine) -> None:
                 "value TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ DEFAULT now())"
             )
         )
+        conn.execute(sa.text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS trace JSONB"))
+        conn.execute(
+            sa.text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS shadow BOOLEAN DEFAULT FALSE")
+        )
+        conn.execute(
+            sa.text(
+                "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, "
+                "updated_by TEXT, updated_at TIMESTAMPTZ DEFAULT now())"
+            )
+        )
     from brain.ask.free import create_views
 
     create_views(engine)
