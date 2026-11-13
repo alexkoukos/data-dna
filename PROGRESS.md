@@ -15,6 +15,18 @@ Template:
 
 ---
 
+## 2026-11-14 18:00, Alexandros, extra features X6, X7, X12
+**Done:**
+- **X6:** ADT, number plates, GR phones (+30 optional), passport and GEMI (only next to their names) in `detection/patterns.py`, with tests for the shapes and for ordinary numbers that must stay alone.
+- **X7:** `/v1/inspect-output` also runs the YARA rules and withholds an answer that reproduces a restricted or confidential document (`withheld: true`).
+- **X12:** `POST /v1/policies/preview` replays the last 14 days of incidents (categories and matched document) under a proposed change; button "Try on the last 14 days" on the Policies page.
+**State:** branch `task/X6-X7-X12`, PR open. No database or dependency change.
+**Next step:** X13 policies per group and role, X24 history per employee and document, X18 ROI view, then the P2 items.
+**Problems / decisions needed:** X1, X4, X5 (and an X2 of their own) are being built in parallel by someone else; when that branch lands, reconcile `data/eval/attacks.csv` and the normaliser.
+**Files touched:** `detection/patterns.py`, `main.py`, `policy/preview.py`, schemas, web Policies page, `PreviewResult`, tests, README.
+
+---
+
 ## 2026-11-14 12:00, Alexandros, extra features X23, X11, X17, X2
 **Done:**
 - **X23 why-trace:** every `/v1/inspect` answer has `trace` (layers that fired, scores). Stored on `incidents.trace`, shown on the incident page ("Why this decision").
