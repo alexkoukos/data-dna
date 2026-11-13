@@ -106,3 +106,16 @@ def test_documents_register_lists_sensitivity_and_incident_counts(client: TestCl
     assert len(docs) == 3
     assert {d["sensitivity"] for d in docs} <= {"internal", "confidential", "restricted"}
     assert all(d["title"] and isinstance(d["incidents"], int) for d in docs)
+
+def test_user_seen_is_false_until_the_gateway_checked_a_request(client: TestClient) -> None:
+    assert client.get("/v1/users/demo-newbie/seen").json() == {"seen": False}
+    client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "demo-newbie",
+            "team": "general",
+            "model": "m",
+            "messages": [{"role": "user", "content": "hello"}],
+        },
+    )
+    assert client.get("/v1/users/demo-newbie/seen").json() == {"seen": True}

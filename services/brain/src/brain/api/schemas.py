@@ -131,3 +131,6 @@ class DocumentOut(BaseModel):
     dna_enabled: bool
     created_at: datetime | None = None
     incidents: int = 0
+
+class SeenOut(BaseModel):
+    seen: bool
