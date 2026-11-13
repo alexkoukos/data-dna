@@ -24,3 +24,14 @@ def test_base64_is_decoded() -> None:
 
 def test_plain_text_has_no_signals() -> None:
     assert normalise("Γράψε ένα email για τη συνάντηση").evasion_signals == []
+
+
+def test_an_identifier_typed_one_character_at_a_time_is_seen() -> None:
+    n = normalise("Check this account: G R 1 6 0 1 1 0 1 2 5 0 0 0 0 0 0 0 0 1 2 3 0 0 6 9 5")
+    assert "spaced_characters" in n.evasion_signals
+    assert any("GR1601101250000000012300695" in v for v in n.extra_views)
+
+
+def test_ordinary_sentences_with_single_letters_are_left_alone() -> None:
+    n = normalise("Plan A or B or C, see page 2 and 3 for the x y z chart")
+    assert "spaced_characters" not in n.evasion_signals

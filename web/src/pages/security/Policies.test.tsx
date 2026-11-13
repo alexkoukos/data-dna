@@ -87,6 +87,7 @@ describe("Policies", () => {
 describe("Documents", () => {
   it("lists documents with sensitivity and incident counts", async () => {
     mockApi({
+      "/dna": { enabled: false, marks: 0, copies: [] },
       "/v1/documents": [
         {
           id: 1,
@@ -100,7 +101,7 @@ describe("Documents", () => {
     });
     render(<DocumentsPage />);
     expect(await screen.findByText("Merger memo")).toBeInTheDocument();
-    expect(screen.getByText("Restricted")).toBeInTheDocument();
+    expect(screen.getByText("Restricted", { selector: "dd" })).toBeInTheDocument();
     expect(screen.getByText("Not set up yet")).toBeInTheDocument();
     expect(screen.getByText("2026-11-01")).toBeInTheDocument();
   });

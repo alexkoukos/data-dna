@@ -17,3 +17,6 @@ models/
 *.onnx
 eval/report.*
 .DS_Store
+eval/redteam/promptfoo.json
+eval/redteam/report.*
+eval/local_llm_bench.md.tmp

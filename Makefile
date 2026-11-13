@@ -56,6 +56,9 @@ loadtest: ## Latency under concurrent load, p95 against the 100 ms target (needs
 local: ## Start the optional local model (Ollama, gemma3:1b; first start downloads about 1 GB)
 	docker compose --profile local up -d --wait ollama
 
+redteam: ## Attack the safety check with promptfoo cases and garak's known attack prompts (needs `make up`)
+	uv run --project services/brain python scripts/redteam.py
+
 validate: ## Check the team's data files (prompts, AI tools, org)
 	cd services/brain && uv run python ../../scripts/validate_data.py
 
@@ -67,4 +70,4 @@ e2e: ## End-to-end + accessibility (needs `make up` first)
 eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
 	cd services/brain && uv run python -m brain.eval.run
 
-.PHONY: local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+.PHONY: redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
