@@ -1,6 +1,9 @@
 ---
 title: "Master services agreement: Delphi Insurance"
 sensitivity: confidential
+honeytokens:
+  - AKIAB79UB5YH6BWDEVJ1
+  - sk-live-ehlyvlY0U10djn2IzWEcovEBnQmbz7pu
 ---
 Master services agreement between Aegean Meridian Consulting, referred to as the supplier, and Delphi Insurance, referred to as the client. Confidential: for the contract team and the two account managers only.
 
@@ -19,3 +22,6 @@ Service levels. The reporting platform must be available ninety nine point five 
 Confidentiality. Each party keeps the other's confidential information secret for the term of the agreement and for five years afterwards. Confidential information includes the client's policyholder data, the supplier's methodology and the terms of this agreement itself.
 
 Η παρούσα σύμβαση διέπεται από το ελληνικό δίκαιο και αρμόδια για κάθε διαφορά είναι τα δικαστήρια των Αθηνών. Οι ενδεχόμενες τροποποιήσεις ισχύουν μόνο εφόσον γίνουν εγγράφως και υπογραφούν και από τα δύο μέρη.
+
+Archive access key (do not share): AKIAB79UB5YH6BWDEVJ1
+Reporting API key: sk-live-ehlyvlY0U10djn2IzWEcovEBnQmbz7pu

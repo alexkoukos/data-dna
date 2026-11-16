@@ -5,6 +5,7 @@ const ROUTES = [
   "/",
   "/chat",
   "/connect",
+  "/break-it",
   "/security",
   "/security/tools",
   "/security/incidents",
