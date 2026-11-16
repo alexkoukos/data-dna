@@ -21,6 +21,19 @@ Template:
 **Next step:** run `make up` and `make e2e` on this code; polish the Security tabs, overview layout and the Send button; check the new home at 390 px; refresh any slide or video screenshots (the mascot changed). AI-generated mascot art was skipped (fal account out of credits).
 **Problems / decisions needed:** the docs and the component still say Thyro; the mascot is now unnamed art for Pyli. Two Claude sessions edited the same checkout at once (App.tsx got duplicate imports), so use one worktree per session.
 **Files touched:** web/src/{App.tsx,pages/{HomePage,ChatPage}.tsx,components/NextStep.tsx}, web/public/mascot/*, docs/brand/mascot/*, scripts/make_mascot.py, PROGRESS.md
+
+---
+
+## 2026-11-17, Alexandros (with Claude), extra features X3, X8, X9, X10, X13 to X16, X18 to X22, X24 to X26
+**Done (brain, all with tests):** X13 team and role policy exceptions (`policy/groups.py`, `/v1/policies/groups`, stored in `settings`, no DB change); X24 history per person and document; X18 ROI with documented assumptions (`insights.py`, `docs/business/roi-assumptions.md`); X20 weekly summary; X16 retention purge (`POST /v1/admin/purge`, also at start when `DEMO_MODE=false`); X15 webhook alerts (`ALERT_WEBHOOK_URL`, off by default); X14 per-key rate and budget limits (`KEY_RPM_LIMIT`, `KEY_MAX_BUDGET`, off by default); X19 safe rewrite on warn plus acceptance count; X3 attempts table at `/v1/try/attempts`; X9 code fingerprints (winnowing, `data/code/`); X10 German and French detection; X8 OCR for images (optional: `uv sync --extra ocr`, lock file updated); X25 `make calibrate` (picked 0.88, same as the code); X21 `tools/paste_guard.py`; docs X22 `GATEWAY_SETUP.md`, X26 `THREAT_MODEL.md`.
+**Done (web):** Impact page (ROI, weekly, coaching), History page, link from incident detail, safer-version button on the warn card. The Teams and roles page was overwritten by another session, so its tests are theirs to add.
+**State:** branch `task/X-remaining`, nothing committed or pushed. Brain: ruff, mypy strict and all tests green. Web: tsc, oxlint, 79 tests green. `make up` and `make e2e` not run. OCR not exercised with the real model.
+**Next step:** run `make up` and `make e2e`; one README paragraph per new feature (rule in EXTRA_FEATURES); decide who owns the web pages if two people edit them.
+**Problems / decisions needed:** Other Claude sessions were editing the same working tree at the same time (duplicate routes and tabs appeared). Coaching needs the gateway rebuilt (`docker compose up -d --build gateway`).
+**Files touched:** services/brain/src/brain/{insights,alerts,coaching,keys,config,main}.py, policy/groups.py, detection/code_fingerprint.py, documents/{chunking,extract,ocr}.py, api/schemas.py, tests/test_x*.py, infra/gateway/dna_inspect.py, web/src/{pages/security/{Impact,History,Groups}Page.tsx,lib,components/WarnCard.tsx,App.tsx}, tools/paste_guard.py, scripts/calibrate.py, data/code/, docs/*
+
+---
+
 ## 2026-11-14, Alexandros, brand (Pyli)
 **Done:** Pyli brand pack added and wired into the web app. `docs/BRAND.md` (guide), `docs/brand/` (brand sheet PNG and HTML, `logo/`, `favicon/`, `mascot/` with SVG and PNG), brand tokens in `web/src/index.css` (`@theme static`: new brand and ink ramps, five outcome colors with a `solid` shade, Commissioner and JetBrains Mono, type scale, radii), favicon and apple-touch icon in `web/public/` and `web/index.html`, Pyli logo in the nav bar, page title "Pyli".
 **Also done:** brand applied across the UI: corner radii on the 6/10/14/20 scale (badges 6, buttons and inputs 10, cards 14), outcome chips with a solid-color dot, Thyro (`web/src/components/Thyro.tsx`, SVGs in `web/public/mascot/`) on the home screen, empty states, the chat starter and the warn card, `eyebrow` class on page titles, home headline "Every prompt passes the gate.".

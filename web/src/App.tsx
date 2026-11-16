@@ -4,6 +4,9 @@ import HomePage from "./pages/HomePage";
 import ChatPage from "./pages/ChatPage";
 import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
+import GroupsPage from "./pages/security/GroupsPage";
+import HistoryPage from "./pages/security/HistoryPage";
+import ImpactPage from "./pages/security/ImpactPage";
 
 import ConnectPage from "./pages/ConnectPage";
 import IncidentDetailPage from "./pages/security/IncidentDetailPage";
@@ -29,7 +32,11 @@ export default function App() {
         aria-label="Main"
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
       >
-        <Link to="/" aria-label="Pyli home" className="mr-4 flex min-h-11 items-center self-center">
+        <Link
+          to="/"
+          aria-label="Pyli home"
+          className="mr-4 flex min-h-11 min-w-11 items-center self-center"
+        >
           <img src="/pyli-logo.svg" alt="Pyli" className="h-8" />
         </Link>
         {links.map((l) => (
@@ -56,6 +63,9 @@ export default function App() {
           <Route path="incidents/:id" element={<IncidentDetailPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="policies" element={<PoliciesPage />} />
+          <Route path="groups" element={<GroupsPage />} />
+          <Route path="history" element={<HistoryPage />} />
+          <Route path="impact" element={<ImpactPage />} />
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>

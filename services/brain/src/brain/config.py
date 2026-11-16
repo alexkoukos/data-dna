@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     local_llm_url: str = "http://ollama:11434"
     embed_model: str = "intfloat/multilingual-e5-small"
     retention_days: int = 30
+    alert_webhook_url: str = ""
+    key_rpm_limit: int = 0
+    key_max_budget: float = 0.0
     demo_mode: bool = True
     seed_on_start: bool = True
     data_dir: str = ""

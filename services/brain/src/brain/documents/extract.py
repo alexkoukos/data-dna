@@ -6,6 +6,8 @@ from docx import Document
 from pypdf import PdfReader
 from pypdf.errors import PyPdfError
 
+from brain.documents import ocr
+
 MAX_BYTES = 10 * 1024 * 1024
 MAX_PAGES = 200
 
@@ -22,9 +24,13 @@ def extract_text(filename: str, data: bytes) -> str:
         return _pdf(data)
     if name.endswith(".docx"):
         return _docx(data)
+    if name.endswith(ocr.IMAGE_SUFFIXES):
+        return _image(data)
     if name.endswith((".txt", ".md", ".csv", ".json", ".log", ".py", ".js", ".ts", ".java")):
         return data.decode("utf-8", errors="replace")
-    raise ExtractError("This file type is not supported. Use PDF, DOCX, TXT or Markdown.")
+    raise ExtractError(
+        "This file type is not supported. Use PDF, DOCX, TXT, Markdown or an image (PNG, JPG)."
+    )
 
 
 def _pdf(data: bytes) -> str:
@@ -61,4 +67,16 @@ def _docx(data: bytes) -> str:
     text = "\n".join(parts)
     if not text.strip():
         raise ExtractError("No text was found in this document.")
+    return text
+
+
+def _image(data: bytes) -> str:
+    try:
+        text = ocr.image_text(data)
+    except ocr.OcrUnavailable as err:
+        raise ExtractError(str(err)) from err
+    except ValueError as err:
+        raise ExtractError(str(err)) from err
+    if not text.strip():
+        raise ExtractError("No text was found in this image.")
     return text

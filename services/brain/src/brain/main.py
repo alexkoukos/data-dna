@@ -7,25 +7,31 @@ import csv
 import html
 import logging
 import time
+from collections import deque
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import sqlalchemy as sa
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import HTMLResponse
 
-from brain import compliance, queries, reveal, settings_store
+from brain import alerts, coaching, compliance, insights, queries, reveal, settings_store
 from brain.api.schemas import (
     ApproveMarks,
     AskOut,
     AskRequest,
+    Attempt,
     CopiesRequest,
     CopyOut,
     DnaState,
     DocumentHit,
     DocumentOut,
     FindingOut,
+    GroupPolicy,
+    GroupPolicyUpdate,
     HoneytokenOut,
     HoneytokenRequest,
     IdentityOut,
@@ -47,6 +53,7 @@ from brain.api.schemas import (
     PolicyUpdate,
     PresetOut,
     ProposeOut,
+    PurgeRequest,
     RegisteredDocument,
     RevealDecision,
     RevealOut,
@@ -70,6 +77,7 @@ from brain.clients import ClientStore
 from brain.config import settings
 from brain.db import tables as t
 from brain.db.engine import ensure_schema, make_engine
+from brain.detection.code_fingerprint import CodeIndex
 from brain.detection.entities import EntityDetector
 from brain.detection.greeklish import find_greeklish_names
 from brain.detection.layers import explain
@@ -101,6 +109,7 @@ from brain.honeytokens import (
 from brain.injection.classifier import InjectionClassifier
 from brain.injection.heuristics import injection_finder
 from brain.keys import KeyError_, create_key, default_model
+from brain.policy import groups
 from brain.policy.engine import Decision
 from brain.policy.preview import preview as policy_preview
 from brain.policy.store import PolicyError, PolicyStore
@@ -135,6 +144,19 @@ def _honeytokens() -> HoneytokenStore:
     return _honeytoken_store
 
 
+_code_index: CodeIndex | None = None
+
+
+def _code() -> CodeIndex:
+    """X9: reference code from data/code, loaded once."""
+    global _code_index
+    if _code_index is None:
+        _code_index = CodeIndex()
+        if settings.data_dir:
+            _code_index.load_dir(Path(settings.data_dir) / "code")
+    return _code_index
+
+
 def _finders() -> list[Finder]:
     """Looser detectors that run after the checksum checks: people, emails, phones, clients."""
     global _client_store
@@ -142,6 +164,7 @@ def _finders() -> list[Finder]:
         _client_store = ClientStore(policy_store.engine)
     return [
         find_yara,
+        _code().find,
         injection_finder,
         injection_classifier.find,
         find_greeklish_names,
@@ -182,6 +205,13 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             )
         except Exception:  # the app must still start; the dashboard just shows no demo data
             log.exception("Seeding the demo company failed")
+    if engine is not None and not settings.demo_mode:
+        try:
+            with engine.begin() as conn:
+                gone = insights.purge_expired(conn, settings.retention_days, datetime.now(UTC))
+            log.info("Retention purge removed %s", gone)
+        except sa.exc.SQLAlchemyError:
+            log.warning("The retention purge could not run")
     docs_dir = Path(settings.data_dir) / "documents" if settings.data_dir else None
     if engine is not None and docs_dir is not None and docs_dir.is_dir():
         try:
@@ -193,6 +223,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             log.exception("Registering the documents failed")
     yield
 
+
+_attempts: deque[Attempt] = deque(maxlen=50)
 
 app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
 
@@ -278,7 +310,7 @@ def inspect(
     attached = _attachment_text(req)
     result = inspect_text(
         last.content + attached,
-        policy_store.current(),
+        groups.effective(policy_store.engine, policy_store.current(), req.user_id, req.team),
         _finders(),
         _documents().match,
         view_finders=[find_yara, injection_finder],
@@ -348,8 +380,17 @@ def inspect(
     )
     for owner in decoys:
         background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
+    categories = [f.category for f in result.findings]
+    if not shadow and alerts.is_critical(would_have, categories):
+        background.add_task(alerts.notify, would_have, categories, req.user_id, req.team)
+    suggestion = None
+    if decision == Decision.WARN and result.masked_text != last.content + attached:
+        # X19: a warning also offers a safe rewrite, and we count how often it is shown.
+        suggestion = result.masked_text
+        background.add_task(_count_coaching, coaching.SHOWN)
     return InspectResponse(
         session_id=session_id,
+        suggested_rewrite=suggestion,
         decision=decision,
         reasons=reasons,
         trace=[TraceStep(**x) for x in steps],
@@ -468,6 +509,15 @@ def try_to_break(req: TryRequest) -> TryOut:
     _decoy_alarm(result)
     layers = explain(result)
     first = next((x for x in layers if x.fired and x.id != "normalise"), None)
+    _attempts.append(
+        Attempt(
+            at=datetime.now(UTC),
+            decision=str(result.verdict.decision),
+            caught_by=first.label if first else None,
+            preview=result.masked_text[:120],
+            length=len(req.text),
+        )
+    )
     return TryOut(
         decision=str(result.verdict.decision),
         reasons=result.verdict.reasons,
@@ -480,6 +530,13 @@ def try_to_break(req: TryRequest) -> TryOut:
         layers=[LayerOut(**x.__dict__) for x in layers],
         caught_by=first.label if first else None,
     )
+
+
+@app.get("/v1/try/attempts", response_model=list[Attempt])
+def try_attempts() -> list[Attempt]:
+    """X3: the latest attempts to break it, newest first. Kept in memory only (last 50), and
+    only the masked preview is shown, so a real secret typed here is never replayed."""
+    return list(reversed(_attempts))
 
 
 @app.get("/v1/try/examples", response_model=list[TryExample])
@@ -549,6 +606,34 @@ def update_policy(req: PolicyUpdate) -> PolicyOut:
     return PolicyOut(**vars(row))
 
 
+@app.get("/v1/policies/groups", response_model=list[GroupPolicy])
+def list_group_policies() -> list[GroupPolicy]:
+    return [GroupPolicy(**o.__dict__) for o in groups.load(policy_store.engine)]
+
+
+@app.put("/v1/policies/groups", response_model=list[GroupPolicy])
+def put_group_policy(req: GroupPolicyUpdate) -> list[GroupPolicy]:
+    """Set one action for one team or role. Team first, then role, wins over the company policy."""
+    o = groups.Override(req.kind, req.group, req.scope, req.key, req.action)
+    try:
+        items = _write(lambda c: groups.put(c, policy_store.current(), o, req.updated_by))
+    except PolicyError as err:
+        raise HTTPException(status_code=422, detail=str(err)) from err
+    return [GroupPolicy(**x.__dict__) for x in items]
+
+
+@app.delete("/v1/policies/groups", response_model=list[GroupPolicy])
+def delete_group_policy(
+    kind: str, group: str, scope: str, key: str, updated_by: str
+) -> list[GroupPolicy]:
+    o = groups.Override(kind, group, scope, key, "")
+    try:
+        items = _write(lambda c: groups.remove(c, o, updated_by))
+    except PolicyError as err:
+        raise HTTPException(status_code=422, detail=str(err)) from err
+    return [GroupPolicy(**x.__dict__) for x in items]
+
+
 @app.post("/v1/keys", response_model=KeyResponse)
 def new_key(req: KeyRequest) -> KeyResponse:
     """Create a personal key. Demo only: there is no login yet, so it is off outside demo mode."""
@@ -574,6 +659,63 @@ def _read[T](fn: Callable[[sa.Connection], T]) -> T:
         raise HTTPException(
             status_code=503, detail="The data could not be read. Try again soon."
         ) from err
+
+
+def _count_coaching(key: str) -> None:
+    engine = policy_store.engine
+    if engine is None:
+        return
+    try:
+        with engine.begin() as conn:
+            coaching.bump(conn, key)
+    except sa.exc.SQLAlchemyError:
+        log.warning("Could not count a coaching event")
+
+
+@app.post("/v1/coaching/accepted")
+def coaching_accepted(background: BackgroundTasks) -> dict[str, str]:
+    """The person chose the safe rewrite. Only a count is kept."""
+    background.add_task(_count_coaching, coaching.ACCEPTED)
+    return {"status": "counted"}
+
+
+@app.get("/v1/coaching")
+def coaching_stats() -> dict[str, float | int]:
+    return _read(coaching.stats)
+
+
+@app.get("/v1/users/{user_id}/history")
+def user_history(user_id: str) -> dict[str, Any]:
+    """X24: everything one person triggered, newest first. Masked previews only."""
+    return _read(lambda c: insights.history_for_user(c, user_id))
+
+
+@app.get("/v1/documents/{document_id}/history")
+def document_history(document_id: int) -> dict[str, Any]:
+    """X24: every incident that matched one document, newest first."""
+    out = _read(lambda c: insights.history_for_document(c, document_id))
+    if not out["found"] and out["subject"] is None:
+        raise HTTPException(status_code=404, detail="No such document.")
+    return out
+
+
+@app.get("/v1/roi")
+def roi(days: int = 30) -> dict[str, Any]:
+    """X18: leaks stopped, estimated cost avoided (assumptions included) and risk per tool."""
+    return _read(lambda c: insights.roi(c, min(max(days, 1), 365)))
+
+
+@app.get("/v1/weekly-summary")
+def weekly_summary() -> dict[str, Any]:
+    """X20: plain-language weekly summary for the CISO."""
+    return _read(insights.weekly_summary)
+
+
+@app.post("/v1/admin/purge")
+def purge(req: PurgeRequest) -> dict[str, int]:
+    """X16: delete incidents older than RETENTION_DAYS (or past their expiry)."""
+    days = req.days if req.days is not None else settings.retention_days
+    return _write(lambda c: insights.purge_expired(c, days, datetime.now(UTC)))
 
 
 @app.get("/v1/users/{user_id}/seen", response_model=SeenOut)
