@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros, UI flow and new mascot
+**Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
+**State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.
+**Next step:** run `make up` and `make e2e` on this code; polish the Security tabs, overview layout and the Send button; check the new home at 390 px; refresh any slide or video screenshots (the mascot changed). AI-generated mascot art was skipped (fal account out of credits).
+**Problems / decisions needed:** the docs and the component still say Thyro; the mascot is now unnamed art for Pyli. Two Claude sessions edited the same checkout at once (App.tsx got duplicate imports), so use one worktree per session.
+**Files touched:** web/src/{App.tsx,pages/{HomePage,ChatPage}.tsx,components/NextStep.tsx}, web/public/mascot/*, docs/brand/mascot/*, scripts/make_mascot.py, PROGRESS.md
+
+---
+
 ## 2026-11-17, Alexandros (with Claude), extra features X3, X8, X9, X10, X13 to X16, X18 to X22, X24 to X26
 **Done (brain, all with tests):** X13 team and role policy exceptions (`policy/groups.py`, `/v1/policies/groups`, stored in `settings`, no DB change); X24 history per person and document; X18 ROI with documented assumptions (`insights.py`, `docs/business/roi-assumptions.md`); X20 weekly summary; X16 retention purge (`POST /v1/admin/purge`, also at start when `DEMO_MODE=false`); X15 webhook alerts (`ALERT_WEBHOOK_URL`, off by default); X14 per-key rate and budget limits (`KEY_RPM_LIMIT`, `KEY_MAX_BUDGET`, off by default); X19 safe rewrite on warn plus acceptance count; X3 attempts table at `/v1/try/attempts`; X9 code fingerprints (winnowing, `data/code/`); X10 German and French detection; X8 OCR for images (optional: `uv sync --extra ocr`, lock file updated); X25 `make calibrate` (picked 0.88, same as the code); X21 `tools/paste_guard.py`; docs X22 `GATEWAY_SETUP.md`, X26 `THREAT_MODEL.md`.
 **Done (web):** Impact page (ROI, weekly, coaching), History page, link from incident detail, safer-version button on the warn card. The Teams and roles page was overwritten by another session, so its tests are theirs to add.

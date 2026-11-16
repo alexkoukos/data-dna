@@ -1,4 +1,4 @@
-import { Link, NavLink, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
 import ChatPage from "./pages/ChatPage";
@@ -25,6 +25,7 @@ const links = [
 ];
 
 export default function App() {
+  const { pathname } = useLocation();
   return (
     <div className="min-h-screen">
       <nav
@@ -68,7 +69,7 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
-      <Companion />
+      {pathname === "/" ? null : <Companion />}
     </div>
   );
 }
