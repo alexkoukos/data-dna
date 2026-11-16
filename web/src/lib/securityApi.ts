@@ -312,3 +312,98 @@ export async function previewPolicy(
   if (!res.ok) throw new Error("The preview could not be made. Try again in a moment.");
   return (await res.json()) as PolicyPreview;
 }
+
+// ---- X13 policies per team and role -----------------------------------------------------------
+export interface GroupPolicy {
+  kind: "team" | "role";
+  group: string;
+  scope: "category" | "sensitivity";
+  key: string;
+  action: Decision;
+}
+
+export const fetchGroupPolicies = () => get<GroupPolicy[]>("/v1/policies/groups");
+
+async function groupCall(method: "PUT" | "DELETE", p: GroupPolicy): Promise<GroupPolicy[]> {
+  let res: Response;
+  try {
+    if (method === "PUT") {
+      res = await fetch("/api/v1/policies/groups", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...p, updated_by: "dashboard" }),
+      });
+    } else {
+      const q = new URLSearchParams({
+        kind: p.kind,
+        group: p.group,
+        scope: p.scope,
+        key: p.key,
+        updated_by: "dashboard",
+      });
+      res = await fetch(`/api/v1/policies/groups?${q.toString()}`, { method });
+    }
+  } catch {
+    throw new Error("We could not reach the server. Check your connection and try again.");
+  }
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = String(((await res.json()) as { detail?: unknown }).detail ?? "");
+    } catch {
+      // generic message below
+    }
+    throw new Error(detail || "The change was not saved. Nothing was changed. Try again.");
+  }
+  return (await res.json()) as GroupPolicy[];
+}
+
+export const saveGroupPolicy = (p: GroupPolicy) => groupCall("PUT", p);
+export const deleteGroupPolicy = (p: GroupPolicy) => groupCall("DELETE", p);
+
+// ---- X18 ROI, X20 weekly summary, X19 coaching ------------------------------------------------
+export interface Roi {
+  days: number;
+  leaks_stopped: number;
+  would_have_stopped: number;
+  by_category: Record<string, number>;
+  exposure_eur: number;
+  cost_avoided_eur: number;
+  assumptions: {
+    likelihood: number;
+    unit_cost_eur: Record<string, number>;
+    document_cost_eur: Record<string, number>;
+    note: string;
+  };
+  tools: { name: string; approval: string; risk: string; requests: number; risk_score: number }[];
+}
+
+export interface WeeklySummary {
+  headline: string;
+  lines: string[];
+  week: Record<string, number>;
+  previous: Record<string, number>;
+}
+
+export interface CoachingStats {
+  shown: number;
+  accepted: number;
+  acceptance_rate: number;
+}
+
+export const fetchRoi = () => get<Roi>("/v1/roi");
+export const fetchWeekly = () => get<WeeklySummary>("/v1/weekly-summary");
+export const fetchCoaching = () => get<CoachingStats>("/v1/coaching");
+
+// ---- X24 history per person and per document --------------------------------------------------
+export interface History {
+  subject: string | null;
+  found: boolean;
+  total: number;
+  by_decision: Record<string, number>;
+  items: Incident[];
+}
+
+export const fetchUserHistory = (user: string) =>
+  get<History>(`/v1/users/${encodeURIComponent(user)}/history`);
+export const fetchDocumentHistory = (id: number) => get<History>(`/v1/documents/${id}/history`);
