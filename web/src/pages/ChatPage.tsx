@@ -4,9 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSkeleton } from "../components/ChatSkeleton";
 import { Composer } from "../components/Composer";
 import { MessageBubble, type ChatMessage } from "../components/MessageBubble";
+import { NextStep } from "../components/NextStep";
 import { StarterPrompts } from "../components/StarterPrompts";
 import { WarnCard } from "../components/WarnCard";
-import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
+import {
+  countCoachingAccepted,
+  ensureIdentity,
+  sendChat,
+  type ChatTurn,
+  type Identity,
+} from "../lib/chatApi";
 
 type Setup = { status: "loading" } | { status: "ready"; identity: Identity } | { status: "failed" };
 
@@ -20,7 +27,12 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [held, setHeld] = useState<{ id: string; text: string; reasons: string[] } | null>(null);
+  const [held, setHeld] = useState<{
+    id: string;
+    text: string;
+    reasons: string[];
+    suggestion?: string;
+  } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   const connect = useCallback(() => {
@@ -69,7 +81,7 @@ export default function ChatPage() {
       setMessages((m) =>
         m.map((x) => (x.id === userId ? { ...x, outcome: "warn", reasons: result.reasons } : x)),
       );
-      setHeld({ id: userId, text, reasons: result.reasons });
+      setHeld({ id: userId, text, reasons: result.reasons, suggestion: result.suggestion });
       return;
     }
     if (result.kind === "block") {
@@ -120,6 +132,15 @@ export default function ChatPage() {
   const sendAnyway = (reason: string) => {
     if (!held) return;
     void deliver(held.text, held.id, reason);
+  };
+
+  /** X19: send the masked rewrite instead, and count that the person took it. */
+  const useSuggestion = () => {
+    if (!held?.suggestion) return;
+    const safe = held.suggestion;
+    void countCoachingAccepted();
+    setMessages((m) => m.map((x) => (x.id === held.id ? { ...x, text: safe } : x)));
+    void deliver(safe, held.id);
   };
 
   const editHeld = () => {
@@ -193,12 +214,19 @@ export default function ChatPage() {
               <div className="mt-4">
                 <WarnCard
                   reasons={held.reasons}
+                  suggestion={held.suggestion}
+                  onUseSuggestion={useSuggestion}
                   busy={busy}
                   onEdit={editHeld}
                   onSendAnyway={sendAnyway}
                   onCancel={cancelHeld}
                 />
               </div>
+            ) : null}
+            {!held &&
+            !busy &&
+            messages.some((m) => m.role === "user" && m.outcome && m.outcome !== "allow") ? (
+              <NextStep />
             ) : null}
             {error ? (
               <div

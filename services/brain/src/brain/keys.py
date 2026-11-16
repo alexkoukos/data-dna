@@ -15,6 +15,17 @@ def default_model() -> str:
     return "gpt-4o-mini" if settings.openai_api_key else "demo-mock"
 
 
+def key_request(user_id: str, team: str) -> dict[str, object]:
+    """X14: rate and spend limits per key. 0 means no limit, which is the default."""
+    body: dict[str, object] = {"user_id": user_id, "team_id": team, "models": MODELS}
+    if settings.key_rpm_limit > 0:
+        body["rpm_limit"] = settings.key_rpm_limit
+    if settings.key_max_budget > 0:
+        body["max_budget"] = settings.key_max_budget
+        body["budget_duration"] = "30d"
+    return body
+
+
 def create_key(user_id: str, team: str, client: httpx.Client | None = None) -> str:
     admin = {"Authorization": f"Bearer {settings.litellm_master_key}"}
     own = client is None
@@ -22,11 +33,7 @@ def create_key(user_id: str, team: str, client: httpx.Client | None = None) -> s
     try:
         # The team must exist first. An existing team answers with an error we can ignore.
         http.post("/team/new", headers=admin, json={"team_id": team, "team_alias": team})
-        resp = http.post(
-            "/key/generate",
-            headers=admin,
-            json={"user_id": user_id, "team_id": team, "models": MODELS},
-        )
+        resp = http.post("/key/generate", headers=admin, json=key_request(user_id, team))
         resp.raise_for_status()
         return str(resp.json()["key"])
     except (httpx.HTTPError, KeyError, ValueError) as exc:

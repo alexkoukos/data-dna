@@ -31,6 +31,10 @@ dependencies = [
   "reportlab>=5.1.0",
 ]
 
+[project.optional-dependencies]
+# X8: read text in images. Off by default so the image stays small: uv sync --extra ocr
+ocr = ["rapidocr-onnxruntime>=1.4"]
+
 [dependency-groups]
 dev = [
   "pytest>=8.3",

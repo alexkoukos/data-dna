@@ -113,6 +113,12 @@ function Detail({ id }: { id: string }) {
         <h2 id="line-h" className="text-lg font-semibold text-ink-900">
           Other incidents from {incident.user}
         </h2>
+        <Link
+          to={`/security/history?user=${encodeURIComponent(incident.user)}`}
+          className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-brand-700 underline"
+        >
+          See the full history of {incident.user}
+        </Link>
         {timeline.length === 0 ? (
           <p className="mt-1 text-ink-700">This is the only incident from this person.</p>
         ) : (
