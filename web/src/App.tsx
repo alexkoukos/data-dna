@@ -29,7 +29,7 @@ export default function App() {
         aria-label="Main"
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
       >
-        <Link to="/" aria-label="Pyli home" className="mr-4 flex items-center self-center">
+        <Link to="/" aria-label="Pyli home" className="mr-4 flex min-h-11 items-center self-center">
           <img src="/pyli-logo.svg" alt="Pyli" className="h-8" />
         </Link>
         {links.map((l) => (
