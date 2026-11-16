@@ -181,6 +181,7 @@ async def apply_decision(
                 "type": "warn",
                 "message": "This message may contain sensitive data.",
                 "reasons": reasons,
+                "suggested_rewrite": verdict.get("suggested_rewrite"),
                 "options": ["Send anyway (add the X-DNA-Ack header with your reason)", "Edit it"],
             },
         )

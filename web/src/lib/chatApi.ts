@@ -14,7 +14,7 @@ export interface ChatTurn {
 
 export type ChatResult =
   | { kind: "answer"; text: string; outcome: Outcome; reasons: string[] }
-  | { kind: "warn"; reasons: string[] }
+  | { kind: "warn"; reasons: string[]; suggestion?: string }
   | { kind: "block"; reasons: string[]; alternative: string }
   | { kind: "error"; message: string };
 
@@ -111,7 +111,13 @@ export async function sendChat(
   }
   const fields = detail.error?.provider_specific_fields ?? {};
   const reasons = Array.isArray(fields.reasons) ? (fields.reasons as string[]) : [];
-  if (res.status === 409 && fields.type === "warn") return { kind: "warn", reasons };
+  if (res.status === 409 && fields.type === "warn") {
+    const suggestion =
+      typeof fields.suggested_rewrite === "string" && fields.suggested_rewrite
+        ? fields.suggested_rewrite
+        : undefined;
+    return { kind: "warn", reasons, suggestion };
+  }
   if (res.status === 403 && fields.type === "block") {
     return {
       kind: "block",
@@ -130,4 +136,13 @@ export async function sendChat(
     return { kind: "error", message: `${fields.message} ${String(fields.next ?? "")}`.trim() };
   }
   return { kind: "error", message: "Something went wrong on our side. Try again in a minute." };
+}
+
+/** X19: tell the brain the person took the safe rewrite. Only a count is kept. Never throws. */
+export async function countCoachingAccepted(): Promise<void> {
+  try {
+    await fetch("/api/v1/coaching/accepted", { method: "POST" });
+  } catch {
+    // counting is best effort; the message itself must not fail because of it
+  }
 }

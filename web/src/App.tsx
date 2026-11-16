@@ -1,7 +1,12 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Route, Routes } from "react-router-dom";
+import BreakItPage from "./pages/BreakItPage";
+import HomePage from "./pages/HomePage";
 import ChatPage from "./pages/ChatPage";
 import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
+import GroupsPage from "./pages/security/GroupsPage";
+import HistoryPage from "./pages/security/HistoryPage";
+import ImpactPage from "./pages/security/ImpactPage";
 
 import ConnectPage from "./pages/ConnectPage";
 import IncidentDetailPage from "./pages/security/IncidentDetailPage";
@@ -10,13 +15,13 @@ import OverviewPage from "./pages/security/OverviewPage";
 import PoliciesPage from "./pages/security/PoliciesPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
-import { Placeholder } from "./pages/Placeholder";
 import { Companion } from "./components/Companion";
 
 const links = [
   { to: "/chat", label: "Company Chat" },
-  { to: "/connect", label: "Connect a tool" },
+  { to: "/break-it", label: "Try to break it" },
   { to: "/security", label: "Security" },
+  { to: "/connect", label: "Connect a tool" },
 ];
 
 export default function App() {
@@ -26,7 +31,13 @@ export default function App() {
         aria-label="Main"
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
       >
-        <img src="/pyli-logo.svg" alt="Pyli" className="mr-4 h-8 self-center" />
+        <Link
+          to="/"
+          aria-label="Pyli home"
+          className="mr-4 flex min-h-11 min-w-11 items-center self-center"
+        >
+          <img src="/pyli-logo.svg" alt="Pyli" className="h-8" />
+        </Link>
         {links.map((l) => (
           <NavLink
             key={l.to}
@@ -40,14 +51,10 @@ export default function App() {
         ))}
       </nav>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <Placeholder title="Every prompt passes the gate." note="Pick a screen above." />
-          }
-        />
+        <Route path="/" element={<HomePage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/connect" element={<ConnectPage />} />
+        <Route path="/break-it" element={<BreakItPage />} />
         <Route path="/security" element={<SecurityLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />
@@ -55,6 +62,9 @@ export default function App() {
           <Route path="incidents/:id" element={<IncidentDetailPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="policies" element={<PoliciesPage />} />
+          <Route path="groups" element={<GroupsPage />} />
+          <Route path="history" element={<HistoryPage />} />
+          <Route path="impact" element={<ImpactPage />} />
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>

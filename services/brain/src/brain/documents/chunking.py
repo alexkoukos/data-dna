@@ -46,6 +46,123 @@ _GREEK = re.compile(r"[Ͱ-Ͽἀ-῿]")
 _LATIN = re.compile(r"[A-Za-z]")
 
 
+# X10: German and French are told apart from English by common function words. Short or
+# ambiguous text stays 'en', which only means "use the same-language cutoff", never a failure.
+_STOP = {
+    "de": frozenset(
+        [
+            "der",
+            "die",
+            "das",
+            "und",
+            "ist",
+            "nicht",
+            "ein",
+            "eine",
+            "mit",
+            "von",
+            "zu",
+            "den",
+            "dem",
+            "des",
+            "auf",
+            "für",
+            "sie",
+            "wir",
+            "ich",
+            "im",
+            "werden",
+            "wird",
+            "sind",
+            "auch",
+            "bei",
+            "nach",
+            "über",
+            "oder",
+            "aus",
+            "als",
+            "wie",
+            "vertrag",
+            "kunde",
+            "preis",
+        ]
+    ),
+    "fr": frozenset(
+        [
+            "le",
+            "la",
+            "les",
+            "des",
+            "une",
+            "est",
+            "pas",
+            "pour",
+            "avec",
+            "dans",
+            "sur",
+            "par",
+            "que",
+            "qui",
+            "nous",
+            "vous",
+            "ils",
+            "sont",
+            "ce",
+            "cette",
+            "aux",
+            "du",
+            "au",
+            "et",
+            "en",
+            "contrat",
+            "client",
+            "prix",
+            "être",
+        ]
+    ),
+    "en": frozenset(
+        [
+            "the",
+            "and",
+            "is",
+            "of",
+            "to",
+            "in",
+            "that",
+            "for",
+            "with",
+            "are",
+            "this",
+            "on",
+            "be",
+            "by",
+            "as",
+            "at",
+            "an",
+            "it",
+            "not",
+            "from",
+            "or",
+            "we",
+            "you",
+            "they",
+            "their",
+            "contract",
+            "client",
+            "price",
+        ]
+    ),
+}
+_TOKEN = re.compile(r"[^\W\d_]+", re.UNICODE)
+
+
 def language(text: str) -> str:
-    """'el' when Greek letters outnumber Latin ones, otherwise 'en'."""
-    return "el" if len(_GREEK.findall(text)) > len(_LATIN.findall(text)) else "en"
+    """'el', 'de', 'fr' or 'en'. Greek by script, the others by common words."""
+    if len(_GREEK.findall(text)) > len(_LATIN.findall(text)):
+        return "el"
+    toks = [w.lower() for w in _TOKEN.findall(text)]
+    if len(toks) < 4:
+        return "en"
+    score = {lang: sum(w in stop for w in toks) for lang, stop in _STOP.items()}
+    best = max(score, key=lambda k: (score[k], k == "en"))
+    return best if score[best] >= 2 else "en"

@@ -54,6 +54,7 @@ class InspectResponse(BaseModel):
     documents: list[DocumentHit] = Field(default_factory=list)
     trace: list[TraceStep] = Field(default_factory=list)
     shadow_decision: str | None = None
+    suggested_rewrite: str | None = None
 
 
 class UnmaskRequest(BaseModel):
@@ -92,6 +93,18 @@ class PolicyUpdate(BaseModel):
     scope: str
     key: str
     action: str
+    updated_by: str
+
+
+class GroupPolicy(BaseModel):
+    kind: str
+    group: str
+    scope: str
+    key: str
+    action: str
+
+
+class GroupPolicyUpdate(GroupPolicy):
     updated_by: str
 
 
@@ -276,6 +289,44 @@ class ToolResultResponse(BaseModel):
     reasons: list[str] = Field(default_factory=list)
 
 
+class TryRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+
+
+class LayerOut(BaseModel):
+    id: str
+    level: int
+    label: str
+    fired: bool
+    detail: str = ""
+
+
+class TryOut(BaseModel):
+    decision: str
+    reasons: list[str]
+    masked_text: str
+    findings: list[FindingOut]
+    evasion_signals: list[str]
+    layers: list[LayerOut]
+    caught_by: str | None = None
+
+
+class TryExample(BaseModel):
+    category: str
+    text: str
+
+
+class HoneytokenRequest(BaseModel):
+    count: int = Field(default=2, ge=1, le=6)
+
+
+class HoneytokenOut(BaseModel):
+    document_id: int
+    title: str
+    plant_block: str
+    tokens: int
+
+
 class ShadowOut(BaseModel):
     enabled: bool
     would_have: dict[str, int]
@@ -306,3 +357,15 @@ class PolicyPreview(BaseModel):
     stricter: int
     looser: int
     moves: list[PolicyMove]
+
+
+class PurgeRequest(BaseModel):
+    days: int | None = Field(default=None, ge=1, le=3650)
+
+
+class Attempt(BaseModel):
+    at: datetime
+    decision: str
+    caught_by: str | None = None
+    preview: str
+    length: int
