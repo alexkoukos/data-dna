@@ -1,5 +1,6 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import BreakItPage from "./pages/BreakItPage";
+import HomePage from "./pages/HomePage";
 import ChatPage from "./pages/ChatPage";
 import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
@@ -11,24 +12,26 @@ import OverviewPage from "./pages/security/OverviewPage";
 import PoliciesPage from "./pages/security/PoliciesPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
-import { Placeholder } from "./pages/Placeholder";
 import { Companion } from "./components/Companion";
 
 const links = [
   { to: "/chat", label: "Company Chat" },
-  { to: "/connect", label: "Connect a tool" },
-  { to: "/security", label: "Security" },
   { to: "/break-it", label: "Try to break it" },
+  { to: "/security", label: "Security" },
+  { to: "/connect", label: "Connect a tool" },
 ];
 
 export default function App() {
+  const { pathname } = useLocation();
   return (
     <div className="min-h-screen">
       <nav
         aria-label="Main"
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
       >
-        <img src="/pyli-logo.svg" alt="Pyli" className="mr-4 h-8 self-center" />
+        <Link to="/" aria-label="Pyli home" className="mr-4 flex items-center self-center">
+          <img src="/pyli-logo.svg" alt="Pyli" className="h-8" />
+        </Link>
         {links.map((l) => (
           <NavLink
             key={l.to}
@@ -42,12 +45,7 @@ export default function App() {
         ))}
       </nav>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <Placeholder title="Every prompt passes the gate." note="Pick a screen above." />
-          }
-        />
+        <Route path="/" element={<HomePage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/connect" element={<ConnectPage />} />
         <Route path="/break-it" element={<BreakItPage />} />
@@ -61,7 +59,7 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
-      <Companion />
+      {pathname === "/" ? null : <Companion />}
     </div>
   );
 }

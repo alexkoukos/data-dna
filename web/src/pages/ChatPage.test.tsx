@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,13 +33,21 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 async function openChat() {
-  render(<ChatPage />);
+  render(
+    <MemoryRouter>
+      <ChatPage />
+    </MemoryRouter>,
+  );
   return screen.findByLabelText("Message");
 }
 
 describe("ChatPage", () => {
   it("shows a skeleton, then the empty state with starters", async () => {
-    render(<ChatPage />);
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
     expect(screen.getByRole("status", { name: "Getting your chat ready" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Ask anything" })).toBeInTheDocument();
   });
@@ -46,7 +55,11 @@ describe("ChatPage", () => {
   it("shows an error with a retry when the key cannot be created", async () => {
     fetchMock.mockReset();
     fetchMock.mockResolvedValueOnce(json({}, 503));
-    render(<ChatPage />);
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("We could not start your chat.")).toBeInTheDocument();
     fetchMock.mockResolvedValueOnce(json({ key: "sk-test", default_model: "demo-mock" }));
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSkeleton } from "../components/ChatSkeleton";
 import { Composer } from "../components/Composer";
 import { MessageBubble, type ChatMessage } from "../components/MessageBubble";
+import { NextStep } from "../components/NextStep";
 import { StarterPrompts } from "../components/StarterPrompts";
 import { WarnCard } from "../components/WarnCard";
 import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
@@ -199,6 +200,11 @@ export default function ChatPage() {
                   onCancel={cancelHeld}
                 />
               </div>
+            ) : null}
+            {!held &&
+            !busy &&
+            messages.some((m) => m.role === "user" && m.outcome && m.outcome !== "allow") ? (
+              <NextStep />
             ) : null}
             {error ? (
               <div
