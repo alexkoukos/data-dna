@@ -17,6 +17,14 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             _I,
         ),
     ),
+    (
+        "repeat_above",
+        re.compile(r"\brepeat (the|all the) (words|text|instructions) above\b", _I),
+    ),
+    (
+        "exfil_image",
+        re.compile(r"!\[[^\]]*\]\(https?://[^)\s]*\?[^)\s]*\)", _I),
+    ),
     ("forget_everything", re.compile(r"\bforget everything (above|before|you were told)\b", _I)),
     (
         "reveal_prompt",

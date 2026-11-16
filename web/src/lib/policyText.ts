@@ -37,6 +37,10 @@ export const CATEGORY_TEXT: Record<string, { label: string; about: string }> = {
   client_name: { label: "Client names", about: "Names of the company's clients." },
   source_code: { label: "Source code", about: "Code from company repositories." },
   injection: { label: "Prompt injection", about: "Text that tries to take control of the AI." },
+  honeytoken: {
+    label: "Decoy credentials",
+    about: "Fake keys planted in confidential documents. If one appears, the document has leaked.",
+  },
 };
 
 export const SENSITIVITY_TEXT: Record<string, { label: string; about: string }> = {

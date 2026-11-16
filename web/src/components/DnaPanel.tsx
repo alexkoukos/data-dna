@@ -11,7 +11,7 @@ import { ErrorPanel, Skeleton } from "./ui";
 import { useFetch } from "../lib/useFetch";
 
 const primary =
-  "min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60";
+  "min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60";
 
 /** Per-copy marks for one document: propose, approve, issue copies, open a copy. */
 export function DnaPanel({ documentId }: { documentId: number }) {

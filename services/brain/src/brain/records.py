@@ -6,6 +6,7 @@ logged and swallowed. No raw prompt is stored, only the masked preview and the r
 
 import logging
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
@@ -69,6 +70,8 @@ def record_decision(
     document_id: int | None = None,
     score: float | None = None,
     copy_code: str | None = None,
+    trace: list[dict[str, Any]] | None = None,
+    shadow: bool = False,
 ) -> None:
     if engine is None:
         return
@@ -92,6 +95,8 @@ def record_decision(
                         document_id=document_id,
                         score=score,
                         copy_code=copy_code,
+                        trace=trace,
+                        shadow=shadow,
                         expires_at=now + timedelta(days=RETENTION_DAYS),
                     )
                 )

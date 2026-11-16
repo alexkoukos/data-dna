@@ -5,6 +5,7 @@ const ROUTES = [
   "/",
   "/chat",
   "/connect",
+  "/break-it",
   "/security",
   "/security/tools",
   "/security/incidents",
@@ -68,8 +69,11 @@ test("chat masks a bank account number and still answers", async ({ page }) => {
   await page.goto("/chat");
   await page.getByRole("button", { name: "Try a bank account number" }).click();
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByText("Masked")).toBeVisible();
-  await expect(page.getByText(/passed the safety check/)).toBeVisible();
+  const log = page.getByRole("log", { name: "Conversation" });
+  await expect(log.getByText("Masked")).toBeVisible();
+  // Thyro shows the matching pose next to the label (the label is what carries the meaning).
+  await expect(log.locator('img[src$="thyro-mask.svg"]')).toBeVisible();
+  await expect(log.getByText(/passed the safety check/)).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(
     results.violations.filter((v) => ["serious", "critical"].includes(v.impact ?? "")),
@@ -118,7 +122,7 @@ test("connect page turns to Connected after a real request with the shown key", 
     data: { model: "demo-mock", messages: [{ role: "user", content: "Hello" }] },
   });
   expect(res.ok()).toBe(true);
-  await expect(page.getByText(/Connected\. The gateway has checked/)).toBeVisible({
+  await expect(page.getByText(/Connected\. The gate has checked/)).toBeVisible({
     timeout: 10_000,
   });
 });

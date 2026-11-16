@@ -11,7 +11,7 @@ export function KpiCard({
   note?: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-4">
+    <div className="rounded-lg border border-ink-200 bg-white p-4">
       <p className="text-sm font-medium text-ink-600">{label}</p>
       <p className="mt-1 text-3xl font-semibold tabular-nums text-ink-900">{value}</p>
       {note ? <p className="mt-1 text-sm text-ink-600">{note}</p> : null}

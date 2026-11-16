@@ -1,44 +1,53 @@
 import type { ReactNode } from "react";
 import { AlertIcon, BanIcon, CheckIcon } from "./icons";
+import { Thyro } from "./Thyro";
 
 /** Presentational building blocks shared by the security screens. */
 
 export function DemoBadge() {
   return (
-    <span className="inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-full border border-ink-300 bg-white px-3 text-xs font-semibold text-ink-700">
+    <span className="inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-sm border border-ink-300 bg-white px-3 text-xs font-semibold text-ink-700">
       Demo data
     </span>
   );
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-ink-200 ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-ink-200 ${className}`} />;
 }
 
 export function ErrorPanel({ what, onRetry }: { what: string; onRetry: () => void }) {
   return (
     <div
       role="alert"
-      className="rounded-2xl border border-block-fg/30 bg-block-bg p-4 text-block-fg"
+      className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
     >
-      <p className="font-semibold">We could not load {what}.</p>
-      <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-3 min-h-11 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-      >
-        Try again
-      </button>
+      <div className="flex flex-wrap items-center gap-4">
+        <Thyro pose="error" size={176} />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">We could not load {what}.</p>
+          <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 export function EmptyPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-ink-300 bg-white p-6">
-      <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
-      <div className="mt-1 max-w-prose text-ink-600">{children}</div>
+    <div className="flex flex-wrap items-center gap-6 rounded-lg border border-dashed border-ink-300 bg-white p-6">
+      <Thyro pose="empty" size={208} />
+      <div className="min-w-0 flex-1">
+        <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
+        <div className="mt-1 max-w-prose text-ink-600">{children}</div>
+      </div>
     </div>
   );
 }
@@ -53,7 +62,7 @@ export function ApprovalBadge({ approval }: { approval: keyof typeof APPROVAL })
   const a = APPROVAL[approval];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${a.style}`}
+      className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-semibold ${a.style}`}
     >
       {a.icon}
       {a.label}

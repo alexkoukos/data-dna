@@ -22,7 +22,7 @@ const ORDER = { unapproved: 0, tolerated: 1, approved: 2 } as const;
 
 function ToolCard({ tool }: { tool: Tool }) {
   return (
-    <li className="rounded-2xl border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-base font-semibold text-ink-900">{tool.name}</h3>
@@ -106,7 +106,7 @@ export default function ToolsPage() {
   return (
     <>
       <p className="max-w-prose text-ink-600">
-        Every AI tool we can see in network logs and gateway traffic. Unapproved tools come first.
+        Every AI tool we can see in network logs and gate traffic. Unapproved tools come first.
       </p>
       <div role="group" aria-label="Filter by approval" className="mt-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
@@ -115,7 +115,7 @@ export default function ToolsPage() {
             type="button"
             aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
-            className={`min-h-11 rounded-lg border px-3 text-sm font-medium ${filter === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+            className={`min-h-11 rounded-md border px-3 text-sm font-medium ${filter === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
           >
             {f.label} ({count(f.id)})
           </button>

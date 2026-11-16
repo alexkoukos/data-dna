@@ -23,8 +23,6 @@ class DnaGuardrail(CustomGuardrail):
     async def async_pre_call_hook(
         self, user_api_key_dict: Any, cache: Any, data: dict, call_type: str
     ) -> dict:
-        if call_type not in ("completion", "acompletion", "text_completion"):
-            return data
         headers = (data.get("proxy_server_request") or {}).get("headers") or {}
         try:
             return await apply_decision(
@@ -34,6 +32,7 @@ class DnaGuardrail(CustomGuardrail):
                 headers=headers,
                 brain_url=BRAIN_URL,
                 client=self._client,
+                call_type=call_type,
             )
         except GatewayError as err:
             raise HTTPException(status_code=err.status_code, detail=err.body) from err
@@ -41,6 +40,8 @@ class DnaGuardrail(CustomGuardrail):
     async def async_post_call_success_hook(
         self, data: dict, user_api_key_dict: Any, response: Any
     ) -> Any:
+        if isinstance(response, dict) and isinstance(response.get("content"), list):
+            return await self._clean_blocks(data, user_api_key_dict, response)
         choices = getattr(response, "choices", None)
         if not choices:
             return response
@@ -57,6 +58,24 @@ class DnaGuardrail(CustomGuardrail):
                 if message is not None and isinstance(message.content, str):
                     message.content = await finalize_answer(
                         message.content,
+                        user_id=getattr(user_api_key_dict, "user_id", None) or "anonymous",
+                        team=getattr(user_api_key_dict, "team_id", None) or "unknown",
+                        session_id=meta.get("dna_session_id"),
+                        brain_url=BRAIN_URL,
+                        client=self._client,
+                    )
+        except GatewayError as err:
+            raise HTTPException(status_code=err.status_code, detail=err.body) from err
+        return response
+
+    async def _clean_blocks(self, data: dict, user_api_key_dict: Any, response: dict) -> dict:
+        """Answers in the Anthropic messages shape: filter each text block."""
+        meta = data.get("metadata") or {}
+        try:
+            for block in response["content"]:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    block["text"] = await finalize_answer(
+                        str(block.get("text", "")),
                         user_id=getattr(user_api_key_dict, "user_id", None) or "anonymous",
                         team=getattr(user_api_key_dict, "team_id", None) or "unknown",
                         session_id=meta.get("dna_session_id"),

@@ -24,6 +24,78 @@ class GatewayError(Exception):
     body: dict[str, Any] = field(default_factory=dict)
 
 
+# Every way into the gateway that carries text we understand. Anything else (images, audio,
+# pass-through routes) is refused: an unchecked door would let people around the safety check.
+CHAT_CALLS = {"completion", "acompletion", "text_completion", "atext_completion"}
+ANTHROPIC_CALLS = {"anthropic_messages", "aanthropic_messages"}
+RESPONSES_CALLS = {"responses", "aresponses"}
+EMBEDDING_CALLS = {"embeddings", "aembedding"}
+SUPPORTED_CALLS = CHAT_CALLS | ANTHROPIC_CALLS | RESPONSES_CALLS | EMBEDDING_CALLS
+
+
+def _blocks_text(content: Any) -> tuple[str, bool]:
+    """Text of a message that is a string or a list of blocks, and whether it has other blocks.
+
+    Tool results (a file Claude Code read, for example) count as text because secrets live there.
+    Images and tool calls are "other": they cannot be masked in place.
+    """
+    if isinstance(content, str):
+        return content, False
+    parts: list[str] = []
+    other = False
+    for block in content or []:
+        if not isinstance(block, dict):
+            other = True
+            continue
+        kind = block.get("type")
+        if kind in ("text", "input_text", "output_text"):
+            parts.append(str(block.get("text", "")))
+        elif kind == "tool_result":
+            inner, _ = _blocks_text(block.get("content"))
+            parts.append(inner)
+            other = True
+        else:
+            other = True
+    return "\n".join(p for p in parts if p), other
+
+
+def inspection_view(data: dict[str, Any], call_type: str) -> tuple[list[dict[str, str]], bool]:
+    """The request as plain chat messages for the brain, and whether it has parts that cannot
+    be masked in place."""
+    if call_type in EMBEDDING_CALLS:
+        raw = data.get("input")
+        texts = [raw] if isinstance(raw, str) else [t for t in (raw or []) if isinstance(t, str)]
+        return [{"role": "user", "content": "\n".join(texts)}], isinstance(raw, list) and len(raw) > 1
+    if call_type in RESPONSES_CALLS:
+        raw = data.get("input")
+        if isinstance(raw, str):
+            return [{"role": "user", "content": raw}], False
+        out, other = [], False
+        for item in raw or []:
+            if isinstance(item, dict):
+                text, o = _blocks_text(item.get("content"))
+                out.append({"role": str(item.get("role", "user")), "content": text})
+                other = other or o
+        return out, other
+    out, other = [], False
+    for m in data.get("messages", []):
+        text, o = _blocks_text(m.get("content") or "")
+        out.append({"role": m.get("role", "user"), "content": text})
+        other = other or (o and m is data["messages"][-1])
+    return out, other
+
+
+def _write_masked(data: dict[str, Any], call_type: str, masked_text: str) -> None:
+    """Put the masked text of the last user message back where it came from."""
+    if call_type in EMBEDDING_CALLS or (call_type in RESPONSES_CALLS and isinstance(data.get("input"), str)):
+        data["input"] = masked_text
+        return
+    key = "input" if call_type in RESPONSES_CALLS else "messages"
+    items = data[key]
+    last = next(i for i in range(len(items) - 1, -1, -1) if items[i].get("role", "user") == "user")
+    items[last]["content"] = masked_text
+
+
 def _ack_given(headers: dict[str, str] | None) -> bool:
     lowered = {k.lower(): v for k, v in (headers or {}).items()}
     return bool(lowered.get(ACK_HEADER, "").strip())
@@ -37,21 +109,30 @@ async def apply_decision(
     headers: dict[str, str] | None,
     brain_url: str,
     client: httpx.AsyncClient,
+    call_type: str = "completion",
 ) -> dict[str, Any]:
     """Ask the brain about this request and return the (possibly changed) request.
 
     Raises GatewayError for warn, block and brain failures. Fails closed: if the brain
-    cannot be reached the request is not forwarded.
+    cannot be reached the request is not forwarded. Works for chat, Anthropic messages,
+    responses and embeddings; other kinds of request are refused.
     """
+    if call_type not in SUPPORTED_CALLS:
+        raise GatewayError(
+            403,
+            {
+                "type": "block",
+                "message": "This kind of request is not available through the company gateway.",
+                "reasons": [f"Unsupported request type: {call_type}"],
+                "approved_alternative": "Use the chat or messages interface of the gateway.",
+            },
+        )
+    messages, unmaskable = inspection_view(data, call_type)
     payload = {
         "user_id": user_id,
         "team": team,
         "model": str(data.get("model", "default")),
-        "messages": [
-            {"role": m.get("role", "user"), "content": m.get("content") or ""}
-            for m in data.get("messages", [])
-            if isinstance(m.get("content") or "", str)
-        ],
+        "messages": messages,
     }
     try:
         resp = await client.post(f"{brain_url}/v1/inspect", json=payload, timeout=10.0)
@@ -71,9 +152,26 @@ async def apply_decision(
     decision = verdict.get("decision", "allow")
     reasons = verdict.get("reasons", [])
 
+    if decision == "mask" and unmaskable:
+        # A file, tool result or list of inputs cannot be rewritten in place: ask first instead.
+        decision = "warn"
+        reasons = [*reasons, "Sensitive data in a file or tool output cannot be masked automatically"]
     if decision == "mask" and verdict.get("masked_messages"):
-        data["messages"] = verdict["masked_messages"]
+        if call_type in CHAT_CALLS:
+            data["messages"] = verdict["masked_messages"]
+        else:
+            _write_masked(data, call_type, verdict["masked_messages"][-1]["content"])
         data.setdefault("metadata", {})["dna_session_id"] = verdict.get("session_id")
+    elif decision == "local" and call_type in EMBEDDING_CALLS:
+        raise GatewayError(
+            403,
+            {
+                "type": "block",
+                "message": "This text is confidential and cannot be sent to an embedding service.",
+                "reasons": reasons,
+                "approved_alternative": "Use the company chat, which keeps data inside.",
+            },
+        )
     elif decision == "local":
         data["model"] = LOCAL_MODEL
     elif decision == "warn" and not _ack_given(headers):

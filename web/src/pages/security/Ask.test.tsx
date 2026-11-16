@@ -53,4 +53,35 @@ describe("Ask", () => {
     render(<AskPage />);
     expect(await screen.findByText("We could not load the questions.")).toBeInTheDocument();
   });
+
+  it("answers a question typed in free text and shows the SQL", async () => {
+    mockApi({
+      "/v1/ask/presets": presets,
+      "/v1/ask": { ...answer, id: "free", question: "which teams?" },
+    });
+    const user = userEvent.setup();
+    render(<AskPage />);
+    await user.type(await screen.findByLabelText("Or ask in your own words"), "which teams?");
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    expect(await screen.findByRole("columnheader", { name: "Requests" })).toBeInTheDocument();
+    expect(screen.getByLabelText("SQL for this answer")).toBeInTheDocument();
+  });
+
+  it("shows the plain reason when the question cannot be answered", async () => {
+    mockApi({ "/v1/ask/presets": presets });
+    const user = userEvent.setup();
+    render(<AskPage />);
+    await user.type(await screen.findByLabelText("Or ask in your own words"), "do something odd");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ detail: "Only questions that read data are allowed." }), {
+            status: 422,
+          }),
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only questions that read data");
+  });
 });

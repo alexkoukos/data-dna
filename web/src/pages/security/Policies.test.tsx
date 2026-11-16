@@ -34,7 +34,8 @@ describe("Policies", () => {
     await user.selectOptions(select, "block");
     expect(screen.getByText(/If you save:.*not sent/)).toBeInTheDocument();
     // Nothing was sent yet.
-    expect(fetchMock).toHaveBeenCalledTimes(1); // only the load
+    const policyCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes("/v1/policies"));
+    expect(policyCalls).toHaveLength(1); // only the load
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -51,6 +52,43 @@ describe("Policies", () => {
     expect(await screen.findAllByText(/^Today:.*not sent/)).toHaveLength(2);
     expect(select).toHaveValue("block");
     expect(screen.queryByRole("button", { name: "Save payment cards" })).not.toBeInTheDocument();
+  });
+
+  it("offers shadow mode and the compliance report", async () => {
+    mockApi({
+      "/v1/policies": policies,
+      "/v1/shadow-mode": { enabled: false, would_have: {}, total: 0 },
+    });
+    render(<PoliciesPage />);
+    expect(await screen.findByRole("switch")).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("link", { name: "Download the PDF report" })).toHaveAttribute(
+      "href",
+      "/api/v1/compliance-report.pdf",
+    );
+  });
+
+  it("tries a change on the last 14 days before saving", async () => {
+    mockApi({
+      "/v1/policies/preview": {
+        days: 14,
+        incidents_checked: 40,
+        changed: 6,
+        stricter: 6,
+        looser: 0,
+        moves: [{ from: "mask", to: "block", count: 6 }],
+      },
+      "/v1/shadow-mode": { enabled: false, would_have: {}, total: 0 },
+      "/v1/policies": policies,
+    });
+    const user = userEvent.setup();
+    render(<PoliciesPage />);
+    await user.selectOptions(
+      await screen.findByLabelText("What happens to payment cards"),
+      "block",
+    );
+    await user.click(screen.getByRole("button", { name: "Try on the last 14 days" }));
+    expect(await screen.findByText(/would have changed 6 of 40 incidents/)).toBeInTheDocument();
+    expect(screen.getByText(/6 messages masked would be blocked/)).toBeInTheDocument();
   });
 
   it("cancel puts the old choice back", async () => {

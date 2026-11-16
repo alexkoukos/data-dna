@@ -37,6 +37,12 @@ rule database_connection_string {
 rule password_assignment {
   meta: category = "secret" entity = "PASSWORD"
   strings:
-    $a = /(password|passwd|pwd|secret|api[_-]?key|token)\s*[=:]\s*["'][^"'\s]{8,}["']/ nocase
+    $a = /(password|passwd|pwd|secret|api[_-]?key|token)["']?\s*[=:]\s*["'][^"'\s]{8,}["']/ nocase
+  condition: $a
+}
+
+rule json_web_token {
+  meta: category = "secret" entity = "JWT"
+  strings: $a = /eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/
   condition: $a
 }

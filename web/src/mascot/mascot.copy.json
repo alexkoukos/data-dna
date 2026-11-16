@@ -1,0 +1,32 @@
+{
+  "idle": {
+    "en": "On duty. Every prompt passes the gate.",
+    "el": "Σε υπηρεσία. Κάθε prompt περνά από την πύλη."
+  },
+  "allow": {
+    "en": "The gate opened. Nothing sensitive.",
+    "el": "Η πύλη άνοιξε. Τίποτα ευαίσθητο."
+  },
+  "warn": { "en": "Heads up. Check before it goes out.", "el": "Προσοχή. Έλεγξε πριν φύγει." },
+  "mask": {
+    "en": "Masked. The rest went through.",
+    "el": "Έκρυψα τα ευαίσθητα. Τα υπόλοιπα πέρασαν."
+  },
+  "local": {
+    "en": "Answered locally. Nothing left the building.",
+    "el": "Απαντήθηκε τοπικά. Τίποτα δεν βγήκε έξω."
+  },
+  "block": { "en": "Blocked. The gate stays shut.", "el": "Μπλοκαρίστηκε. Η πύλη μένει κλειστή." },
+  "thinking": {
+    "en": "Checking your message at the gate…",
+    "el": "Ελέγχω το μήνυμά σου στην πύλη…"
+  },
+  "empty": {
+    "en": "Nothing has come through the gate yet.",
+    "el": "Τίποτα δεν έχει περάσει ακόμα από την πύλη."
+  },
+  "error": {
+    "en": "Sorry, I could not reach the server. Try again.",
+    "el": "Δεν βρήκα τον server. Δοκίμασε ξανά."
+  }
+}

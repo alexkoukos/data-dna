@@ -31,9 +31,55 @@ _SECRETS = [
     ("private_key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
 ]
 
+# X6: Greek identifiers with no checksum. Letters are the ones shared by the Greek and Latin
+# alphabets, because that is all that appears on Greek plates and ID cards. Written with either.
+_L = "ΑΒΕΖΗΙΚΜΝΟΡΤΥΧABEZHIKMNOPTYX"
+_GREEK_IDS = [
+    # Police ID card (ADT): one or two letters and six digits, e.g. "ΑΕ 123456".
+    ("ADT", "greek_id", re.compile(rf"(?<![\w])(?P<v>[{_L}]{{1,2}}[ -]?\d{{6}})(?![\w])")),
+    # Number plate: three letters and four digits, e.g. "ΥΝΑ-1234".
+    ("PLATE", "greek_id", re.compile(rf"(?<![\w])(?P<v>[{_L}]{{3}}[ -]?\d{{4}})(?![\w])")),
+    # Passport: two letters and seven digits, only next to the word passport.
+    (
+        "PASSPORT",
+        "greek_id",
+        re.compile(
+            r"(?:passport|διαβατήριο|διαβατηριο)[^\n.]{0,25}?(?<![A-Za-z])(?P<v>[A-Z]{2}\s?\d{7})(?!\d)",
+            re.IGNORECASE,
+        ),
+    ),
+    # Business registry (GEMI) number: twelve digits, only next to its name.
+    (
+        "GEMI",
+        "greek_id",
+        re.compile(
+            r"(?:GEMI|ΓΕΜΗ|Γ\.Ε\.ΜΗ\.)[^\n.]{0,20}?(?<!\d)(?P<v>\d{12})(?!\d)", re.IGNORECASE
+        ),
+    ),
+    # Greek phone numbers: +30 or 0030 or none, then a mobile (69) or area (2) number.
+    (
+        "PHONE_GR",
+        "person_email_phone",
+        re.compile(
+            r"(?<![\w+])(?P<v>(?:(?:\+|00)30[ -]?)?69\d[ -]?\d{3}[ -]?\d{4}"
+            r"|(?:\+|00)30[ -]?2\d{2,3}[ -]?\d{3}[ -]?\d{4}"
+            r"|2\d{2,3}[ -]\d{3}[ -]?\d{4})(?![\w])"
+        ),
+    ),
+]
+
+
+def _find_greek_ids(text: str) -> list[Finding]:
+    out: list[Finding] = []
+    for entity, category, rx in _GREEK_IDS:
+        for m in rx.finditer(text):
+            out.append(Finding(entity, category, m.start("v"), m.end("v"), m.group("v")))
+    return out
+
 
 def find_patterns(text: str) -> list[Finding]:
     found: list[Finding] = []
+    found.extend(_find_greek_ids(text))
     for m in _IBAN.finditer(text):
         if iban_ok(m.group(0)):
             found.append(Finding("IBAN", "iban", m.start(), m.end(), m.group(0)))

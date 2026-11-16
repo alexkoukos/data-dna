@@ -81,6 +81,8 @@ services:
       # a second), so the thread count is set on the model. See eval/local_llm_bench.md.
       LOCAL_THREADS: ${LOCAL_THREADS:-4}
       OLLAMA_KEEP_ALIVE: 30m
+    ports:
+      - "11434:11434"
     volumes:
       - ollama:/root/.ollama
     healthcheck:

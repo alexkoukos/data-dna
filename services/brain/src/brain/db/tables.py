@@ -64,6 +64,16 @@ incidents = sa.Table(
     sa.Column("reasons", sa.JSON),
     sa.Column("masked_preview", sa.Text),
     sa.Column("expires_at", sa.DateTime(timezone=True)),
+    sa.Column("trace", sa.JSON),
+    sa.Column("shadow", sa.Boolean, server_default=sa.false()),
+)
+settings = sa.Table(
+    "settings",
+    metadata,
+    sa.Column("key", sa.Text, primary_key=True),
+    sa.Column("value", sa.Text, nullable=False),
+    sa.Column("updated_by", sa.Text),
+    sa.Column("updated_at", sa.DateTime(timezone=True)),
 )
 ai_tools = sa.Table(
     "ai_tools",
@@ -98,6 +108,16 @@ counters_daily = sa.Table(
     sa.Column("llm_tokens", sa.Integer, server_default="0"),
 )
 
+honeytokens = sa.Table(
+    "honeytokens",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("document_id", sa.Integer, sa.ForeignKey("documents.id", ondelete="CASCADE")),
+    sa.Column("kind", sa.Text, nullable=False),
+    sa.Column("value", sa.Text, nullable=False, unique=True),
+    sa.Column("created_at", sa.DateTime(timezone=True)),
+)
+
 reveal_requests = sa.Table(
     "reveal_requests",
     metadata,
@@ -119,6 +139,7 @@ doc_chunks = sa.Table(
     sa.Column("minhash", sa.LargeBinary),
     sa.Column("embedding", Vector(384).with_variant(sa.JSON, "sqlite")),
     sa.Column("text_demo", sa.Text),
+    sa.Column("lang", sa.Text),
 )
 
 session_coverage = sa.Table(

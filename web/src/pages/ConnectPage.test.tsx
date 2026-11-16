@@ -22,10 +22,14 @@ describe("snippets", () => {
     expect(py.code).toContain('api_key="sk-abc"');
   });
 
-  it("marks Claude Code and MCP as not available instead of faking a snippet", () => {
-    const rest = buildSnippets("u", "k", "m").filter((s) => ["claude-code", "mcp"].includes(s.id));
-    expect(rest).toHaveLength(2);
-    expect(rest.every((s) => s.code === null && s.note.startsWith("Not available"))).toBe(true);
+  it("gives Claude Code and MCP real setup text", () => {
+    const all = buildSnippets("http://h:4000/v1", "sk-k", "demo-mock");
+    const cc = all.find((s) => s.id === "claude-code");
+    const mcp = all.find((s) => s.id === "mcp");
+    expect(cc?.code).toContain('ANTHROPIC_BASE_URL="http://h:4000"');
+    expect(cc?.code).toContain('ANTHROPIC_AUTH_TOKEN="sk-k"');
+    expect(mcp?.code).toContain("mcp_proxy.py --");
+    expect(mcp?.code).toContain("http://h:8001");
   });
 });
 
@@ -34,7 +38,7 @@ describe("ConnectPage", () => {
     mockApi({ "/v1/keys": key, "/seen": { seen: false } });
     render(<ConnectPage />);
     expect(screen.getByRole("status", { name: "Loading your connection details" })).toBeVisible();
-    expect(await screen.findByLabelText("Gateway address")).toHaveValue("http://localhost:4000/v1");
+    expect(await screen.findByLabelText("Gate address")).toHaveValue("http://localhost:4000/v1");
     expect(screen.getByLabelText("Personal key")).not.toHaveValue("sk-test-key-123");
     expect(screen.getByText(/Waiting for first request/)).toBeInTheDocument();
   });
@@ -60,14 +64,14 @@ describe("ConnectPage", () => {
     await user.click(screen.getByRole("tab", { name: "curl" }));
     expect(screen.getByText(/Authorization: Bearer sk-test-key-123/)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Claude Code" }));
-    expect(screen.getByText(/Not available yet/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Copy this code" })).not.toBeInTheDocument();
+    expect(screen.getByText(/ANTHROPIC_AUTH_TOKEN/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy this code" })).toBeInTheDocument();
   });
 
-  it("turns to Connected once the gateway has seen a request", async () => {
+  it("turns to Connected once the gate has seen a request", async () => {
     mockApi({ "/v1/keys": key, "/seen": { seen: true } });
     render(<ConnectPage />);
-    expect(await screen.findByText(/Connected\. The gateway has checked/)).toBeInTheDocument();
+    expect(await screen.findByText(/Connected\. The gate has checked/)).toBeInTheDocument();
   });
 
   it("keeps polling while waiting", async () => {

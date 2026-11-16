@@ -13,8 +13,8 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **G2** P0 Unmask in answers + output filtering `/v1/inspect-output` (PRD 8). Owner: Alexandros.
 - [x] **G3** P0 Warn (409 + ack header) and block (403) responses with reasons and approved alternative (PRD 8). Owner: Alexandros. Block verified by unit test only until D6 can trigger it live.
 - [x] **L1** P1 Local model: benchmark llama.cpp vs Ollama, 1B to 4B, Greek quality, on Sat 14; add the winner to compose, never on the critical path (PRD 21b). Owner: Stelios.
-- [ ] **G4** P2 Anthropic-format endpoint (Claude Code demo). Owner: Alexandros.
-- [ ] **M1** P2 MCP proxy with injection checks on tool results (PRD 9.5). Owner: Stelios.
+- [x] **G4** P2 Anthropic-format endpoint (Claude Code demo). Owner: Alexandros.
+- [x] **M1** P2 MCP proxy with injection checks on tool results (PRD 9.5). Owner: Stelios.
 
 ## Detection
 - [x] **D0** Validators (AFM, AMKA, IBAN, Luhn), normalisation, secrets regex, masking, policy precedence. (scaffold)
@@ -24,7 +24,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **D4** P0 File upload text extraction (PDF, DOCX) into the pipeline (PRD 9.1). Owner: Stelios.
 - [x] **D5** P1 Session memory: rebuild across prompts (PRD 9.4). Owner: Stelios.
 - [x] **D6** P1 Prompt-injection classifier (PRD 9.5). Owner: Stelios.
-- [ ] **D7** P2 LLM judge for borderline scores, cached (PRD 9.6). Owner: Stelios.
+- [~] (evaluated, not adopted: see PROGRESS) **D7** P2 LLM judge for borderline scores, cached (PRD 9.6). Owner: Stelios.
 - [x] **P1** P0 Policies from DB + `policies.yaml` seed, editable (PRD 10). Owner: Alexandros.
 
 ## Shadow AI, DNA, analyst
@@ -34,7 +34,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **N1** P1 DNA marks: propose, approve, issue copies, attribution with confidence (PRD 12). Owner: Stelios.
 - [x] **N2** P1 Sealed identity + two-person reveal + audit log (PRD 12). Owner: Alexandros.
 - [x] **A1** P1 Analyst preset questions with SQL shown (PRD 13). Owner: Alexandros.
-- [ ] **A2** P2 Free-text analyst questions over read-only views (PRD 13). Owner: Alexandros.
+- [x] **A2** P2 Free-text analyst questions over read-only views (PRD 13). Owner: Alexandros.
 
 ## Web (PRD 16)
 - [x] **W1** P0 Company Chat: messages, five outcome chips, "Why?" disclosure, warn card, file upload. Owner: Alexandros.
@@ -62,3 +62,6 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [ ] **R2** P1 Video (private YouTube) linked at the top of README. Owner: Konstantinos with Alexandros. Thu 19.
 - [ ] **R3** P1 Slides. Owner: Konstantinos. Draft Thu 19, final Tue 24.
 - [ ] **R4** P0 Freeze Thu 19 20:00, submit Fri 20 by noon, judges have repo access. Owner: Alexandros.
+
+## Extra features
+Full list, owners and priorities are in `docs/EXTRA_FEATURES.md` (X1 to X26). Technical items are Alexandros's; business and writing items stay with Vasilis and Konstantinos.

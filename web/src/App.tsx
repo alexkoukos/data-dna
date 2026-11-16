@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from "react-router-dom";
+import BreakItPage from "./pages/BreakItPage";
 import ChatPage from "./pages/ChatPage";
 import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
@@ -11,11 +12,13 @@ import PoliciesPage from "./pages/security/PoliciesPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 import { Placeholder } from "./pages/Placeholder";
+import { Companion } from "./components/Companion";
 
 const links = [
   { to: "/chat", label: "Company Chat" },
   { to: "/connect", label: "Connect a tool" },
   { to: "/security", label: "Security" },
+  { to: "/break-it", label: "Try to break it" },
 ];
 
 export default function App() {
@@ -25,13 +28,13 @@ export default function App() {
         aria-label="Main"
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
       >
-        <span className="mr-4 py-2 font-bold">Data DNA</span>
+        <img src="/pyli-logo.svg" alt="Pyli" className="mr-4 h-8 self-center" />
         {links.map((l) => (
           <NavLink
             key={l.to}
             to={l.to}
             className={({ isActive }) =>
-              `min-h-11 rounded-lg px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`
+              `min-h-11 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`
             }
           >
             {l.label}
@@ -39,9 +42,15 @@ export default function App() {
         ))}
       </nav>
       <Routes>
-        <Route path="/" element={<Placeholder title="Data DNA" note="Pick a screen above." />} />
+        <Route
+          path="/"
+          element={
+            <Placeholder title="Every prompt passes the gate." note="Pick a screen above." />
+          }
+        />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/connect" element={<ConnectPage />} />
+        <Route path="/break-it" element={<BreakItPage />} />
         <Route path="/security" element={<SecurityLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />
@@ -52,6 +61,7 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
+      <Companion />
     </div>
   );
 }

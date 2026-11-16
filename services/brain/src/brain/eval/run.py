@@ -8,6 +8,7 @@ Writes eval/report.md and eval/report.json at the repo root.
 
 import csv
 import json
+import random
 import statistics
 import sys
 import time
@@ -21,12 +22,22 @@ from sqlalchemy.pool import StaticPool
 
 from brain.db import tables as t
 from brain.detection.entities import ClientMatcher, EntityDetector
+from brain.detection.greeklish import find_greeklish_names
 from brain.detection.patterns import find_patterns
 from brain.detection.pipeline import inspect_text
 from brain.detection.yara_rules import find_yara
+from brain.dna.marks import (
+    assign_vectors,
+    attribute,
+    copy_code,
+    propose_marks,
+    render,
+    sentences,
+)
 from brain.documents.embeddings import E5Embedder
-from brain.documents.loader import load_documents
+from brain.documents.loader import load_documents, parse
 from brain.documents.registry import DocumentIndex
+from brain.honeytokens import HoneytokenStore
 from brain.injection.heuristics import injection_finder
 from brain.seed.spec import load as load_spec
 
@@ -81,6 +92,85 @@ def load_rows(data_dir: Path) -> tuple[list[Row], str]:
     raise SystemExit("No evaluation prompts found. See TASKS.md T3 and scripts/gen_eval_sample.py.")
 
 
+@dataclass
+class Attack:
+    id: str
+    category: str
+    text: str
+    expected: str
+    notes: str
+
+
+@dataclass
+class AttackResult:
+    attack: Attack
+    decision: str
+
+    @property
+    def caught(self) -> bool:
+        return self.decision != "allow"
+
+
+# What counts as "caught" for each kind of attack. The clean look-alikes must stay allowed.
+SCRIPT_TRICKS = ("look_alike", "other_digits", "greeklish")
+
+
+def load_attacks(data_dir: Path) -> list[Attack]:
+    """The red-team file (X2). Missing is fine: the report just has no attack section."""
+    path = data_dir / "eval" / "attacks_scripts.csv"
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8", newline="") as f:
+        return [
+            Attack(r["id"], r["category"], r["text"], r["expected_decision"], r.get("notes", ""))
+            for r in csv.DictReader(f)
+            if r.get("text")
+        ]
+
+
+def summarise_attacks(results: list[AttackResult]) -> dict[str, Any] | None:
+    if not results:
+        return None
+    hostile = [x for x in results if x.attack.expected != "allow"]
+    clean = [x for x in results if x.attack.expected == "allow"]
+    cats: dict[str, Any] = {}
+    for cat in sorted({x.attack.category for x in results}):
+        rs = [x for x in results if x.attack.category == cat]
+        cats[cat] = {
+            "n": len(rs),
+            "caught": pct(sum(x.caught for x in rs), len(rs)) if cat != "clean_lookalike" else None,
+            "decision_matches": pct(sum(x.decision == x.attack.expected for x in rs), len(rs)),
+            "false_alarms": pct(sum(x.caught for x in rs), len(rs))
+            if cat == "clean_lookalike"
+            else None,
+        }
+    tricks = [x for x in hostile if x.attack.category in SCRIPT_TRICKS]
+    decoys = [x for x in hostile if x.attack.category == "honeytoken"]
+    return {
+        "n": len(results),
+        "caught": pct(sum(x.caught for x in hostile), len(hostile)),
+        "decision_matches": pct(
+            sum(x.decision == x.attack.expected for x in results), len(results)
+        ),
+        "false_alarms": pct(sum(x.caught for x in clean), len(clean)),
+        "script_trick_recall": pct(sum(x.caught for x in tricks), len(tricks)),
+        "honeytoken_catch": pct(sum(x.decision == "block" for x in decoys), len(decoys)),
+        "categories": cats,
+        "gaps": [
+            {
+                "id": x.attack.id,
+                "category": x.attack.category,
+                "expected": x.attack.expected,
+                "got": x.decision,
+                "text": x.attack.text[:90],
+                "notes": x.attack.notes,
+            }
+            for x in results
+            if x.decision != x.attack.expected
+        ],
+    }
+
+
 def baseline_flags(text: str) -> bool:
     low = text.lower()
     return bool(find_patterns(text)) or any(k in low for k in KEYWORDS)
@@ -93,6 +183,43 @@ def pct(n: int, d: int) -> float | None:
 def percentile(values: list[float], q: float) -> float:
     s = sorted(values)
     return s[min(len(s) - 1, int(q * len(s)))] if s else 0.0
+
+
+def attribution_accuracy(data: Path, copies: int = 8, trials: int = 40) -> float | None:
+    """Issue copies of each document, "leak" random excerpts of them, and check the right copy is
+    named. Only excerpts that still carry at least 3 marks count (PRD 17). Excerpts are shouted
+    or stripped of punctuation first, the way a careless leaker might."""
+    rng = random.Random(7)
+    hits = total = 0
+    for path in sorted((data / "documents").glob("*.md")):
+        parsed = parse(path.read_text(encoding="utf-8"))
+        if parsed is None:
+            continue
+        text = parsed[1]
+        try:
+            marks = propose_marks(text)
+        except ValueError:
+            continue
+        vectors = assign_vectors([], copies, len(marks))
+        issued = {copy_code(1, v): v for v in vectors}
+        for _ in range(trials):
+            code, vec = rng.choice(list(issued.items()))
+            sents = sentences(render(text, marks, vec))
+            start = rng.randrange(0, max(1, len(sents) // 3))
+            end = (
+                rng.randrange(start + max(2, len(sents) // 2), len(sents) + 1)
+                if len(sents) > 3
+                else len(sents)
+            )
+            excerpt = " ".join(sents[start:end])
+            if rng.random() < 0.5:
+                excerpt = excerpt.upper()
+            seen = attribute(excerpt, marks, issued)
+            if seen is None or seen.marks_found < 3:
+                continue
+            total += 1
+            hits += seen.copy_code == code
+    return None if total == 0 else round(100.0 * hits / total, 1)
 
 
 def run(data_dir: Path | None = None) -> dict[str, Any]:
@@ -110,13 +237,26 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
     spec = load_spec(data)
     names = [n for c in spec.org.clients for n in [c["name"], *(c.get("aliases") or [])]]
     # Same order as the live service: stronger signals first, so a loose entity never hides them.
-    finders = [find_yara, injection_finder, entities.find, ClientMatcher(names).find]
+    finders = [
+        find_yara,
+        injection_finder,
+        find_greeklish_names,
+        entities.find,
+        ClientMatcher(names).find,
+    ]
+    decoys = HoneytokenStore(engine, ttl_seconds=3600).find
     index.match("warm up the index and the embedding model with a short sentence of words")
 
     results: list[Result] = []
     for r in rows:
         start = time.perf_counter()
-        out = inspect_text(r.text, finders=finders, doc_matcher=index.match)
+        out = inspect_text(
+            r.text,
+            finders=finders,
+            doc_matcher=index.match,
+            view_finders=[find_yara, injection_finder],
+            priority_finder=decoys,
+        )
         ms = (time.perf_counter() - start) * 1000
         decision = str(out.verdict.decision)
         results.append(
@@ -130,7 +270,65 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
                 out.verdict.reasons,
             )
         )
-    return summarise(results, source)
+    script_attacks = [
+        AttackResult(
+            a,
+            str(
+                inspect_text(
+                    a.text,
+                    None,
+                    finders,
+                    index.match,
+                    view_finders=[find_yara, injection_finder],
+                    priority_finder=decoys,
+                ).verdict.decision
+            ),
+        )
+        for a in load_attacks(data)
+    ]
+    rep = summarise(results, source, attribution_accuracy(data), summarise_attacks(script_attacks))
+    rep["attacks"] = run_attacks(data / "eval" / "attacks.csv", finders, index)
+    return rep
+
+
+def run_attacks(path: Path, finders: list[Any], index: DocumentIndex) -> dict[str, Any] | None:
+    """X2: the red-team file. An attack is caught when the decision is one of the accepted ones."""
+    if not path.exists():
+        return None
+    by: dict[str, list[int]] = {}
+    misses: list[dict[str, str]] = []
+    with path.open(encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            out = inspect_text(
+                r["text"],
+                finders=finders,
+                doc_matcher=index.match,
+                view_finders=[find_yara, injection_finder],
+            )
+            got = str(out.verdict.decision)
+            ok = got in r["expected"].split("|")
+            tally = by.setdefault(r["technique"], [0, 0])
+            tally[0] += int(ok)
+            tally[1] += 1
+            if not ok:
+                misses.append(
+                    {
+                        "id": r["id"],
+                        "technique": r["technique"],
+                        "expected": r["expected"],
+                        "got": got,
+                        "text": r["text"][:90],
+                    }
+                )
+    total = sum(v[1] for v in by.values())
+    caught = sum(v[0] for v in by.values())
+    return {
+        "total": total,
+        "caught": caught,
+        "rate": round(100 * caught / total, 1) if total else None,
+        "by_technique": {k: {"caught": v[0], "total": v[1]} for k, v in by.items()},
+        "misses": misses,
+    }
 
 
 def _recall(rs: list[Result], base: bool = False) -> float | None:
@@ -145,7 +343,12 @@ def _doc_recall(rs: list[Result]) -> float | None:
     return pct(sum(1 for x in rs if x.matched_doc), len(rs))
 
 
-def summarise(results: list[Result], source: str) -> dict[str, Any]:
+def summarise(
+    results: list[Result],
+    source: str,
+    attribution: float | None = None,
+    attacks: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     leaks = [x for x in results if x.row.label == "leak"]
     doc_leaks = [x for x in leaks if x.row.leak_type in ("copy", "edit", "paraphrase", "split")]
     paraphrases = [x for x in leaks if x.row.leak_type == "paraphrase"]
@@ -188,7 +391,7 @@ def summarise(results: list[Result], source: str) -> dict[str, Any]:
         "latency_p95_ms": round(percentile(latencies, 0.95), 1),
         "zero_llm_share": 100.0,
         "llm_tokens": 0,
-        "copy_attribution_accuracy": None,
+        "copy_attribution_accuracy": attribution,
     }
     targets: list[tuple[str, str, float | None, Callable[[float], bool]]] = [
         (
@@ -200,8 +403,34 @@ def summarise(results: list[Result], source: str) -> dict[str, Any]:
         ("False alarms on clean prompts", "<= 5%", metrics["false_alarm_rate"], lambda v: v <= 5),
         ("Added latency p95", "< 100 ms", metrics["latency_p95_ms"], lambda v: v < 100),
         ("Prompts with zero LLM tokens", ">= 90%", metrics["zero_llm_share"], lambda v: v >= 90),
-        ("Correct copy named (needs DNA marks, N1)", ">= 90%", None, lambda v: v >= 90),
+        (
+            "Correct copy named (leaks with 3 or more marks)",
+            ">= 90%",
+            metrics["copy_attribution_accuracy"],
+            lambda v: v >= 90,
+        ),
     ]
+    if attacks is not None:
+        targets += [
+            (
+                "Greeklish, look-alike and foreign-digit attacks caught (X5)",
+                ">= 80%",
+                attacks["script_trick_recall"],
+                lambda v: v >= 80,
+            ),
+            (
+                "Decoy credentials raise the alarm (X4)",
+                "100%",
+                attacks["honeytoken_catch"],
+                lambda v: v >= 100,
+            ),
+            (
+                "False alarms on clean look-alikes (X2)",
+                "<= 5%",
+                attacks["false_alarms"],
+                lambda v: v <= 5,
+            ),
+        ]
     verdicts = [
         {"metric": n, "target": tg, "value": v, "pass": None if v is None else bool(ok(v))}
         for n, tg, v, ok in targets
@@ -225,6 +454,7 @@ def summarise(results: list[Result], source: str) -> dict[str, Any]:
         "by_language": by_lang,
         "targets": verdicts,
         "misses": misses,
+        "script_attacks": attacks,
     }
 
 
@@ -294,6 +524,69 @@ def to_markdown(rep: dict[str, Any]) -> str:
             lines.append(f"| {x['id']} | {x['type']} | {x['expected']} | {x['got']} | {text} |")
     else:
         lines.append("None.")
+    atk = rep.get("attacks")
+    if atk:
+        lines += [
+            "",
+            "## Attack set (data/eval/attacks.csv)",
+            "",
+            f"{atk['caught']} of {atk['total']} attacks handled as expected ({atk['rate']}%).",
+            "",
+            "| Technique | Handled | Of |",
+            "| --- | --- | --- |",
+        ]
+        for k, v in atk["by_technique"].items():
+            lines.append(f"| {k} | {v['caught']} | {v['total']} |")
+        if atk["misses"]:
+            lines += [
+                "",
+                "Missed:",
+                "",
+                "| Id | Technique | Expected | Got | Text |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+            for x in atk["misses"]:
+                text = x["text"].replace("|", "/").replace("\n", " ")
+                lines.append(
+                    f"| {x['id']} | {x['technique']} | {x['expected']} | {x['got']} | {text} |"
+                )
+    scr = rep.get("script_attacks")
+    if scr:
+        lines += [
+            "",
+            "## Script and decoy attacks: data/eval/attacks_scripts.csv (X4, X5)",
+            "",
+            f"{scr['n']} attacks. Caught (any action but allow): {_fmt(scr['caught'])}%. "
+            f"Exact decision as expected: {_fmt(scr['decision_matches'])}%. "
+            f"False alarms on the clean look-alikes: {_fmt(scr['false_alarms'])}%.",
+            "",
+            "| Kind | Attacks | Caught % | Decision as expected % |",
+            "| --- | --- | --- | --- |",
+        ]
+        for k, v in scr["categories"].items():
+            shown = (
+                f"false alarms {_fmt(v['false_alarms'])}"
+                if v["caught"] is None
+                else _fmt(v["caught"])
+            )
+            lines.append(f"| {k} | {v['n']} | {shown} | {_fmt(v['decision_matches'])} |")
+        lines += [
+            "",
+            "Attacks whose outcome differs from the expectation (known gaps stay on purpose):",
+            "",
+        ]
+        if scr["gaps"]:
+            lines += [
+                "| Id | Kind | Expected | Got | Text | Note |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ]
+            for x in scr["gaps"]:
+                text = x["text"].replace("|", "/").replace("\n", " ")
+                lines.append(
+                    f"| {x['id']} | {x['category']} | {x['expected']} | {x['got']} | {text} | {x['notes']} |"
+                )
+        else:
+            lines.append("None.")
     return "\n".join(lines) + "\n"
 
 

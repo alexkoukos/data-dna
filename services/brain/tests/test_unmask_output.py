@@ -61,4 +61,9 @@ def test_inspect_output_masks_echoed_secret() -> None:
 
 def test_inspect_output_leaves_clean_text() -> None:
     r = client.post("/v1/inspect-output", json={"text": "Hello [IBAN_1]"})
-    assert r.json() == {"text": "Hello [IBAN_1]", "changed": False, "findings": []}
+    assert r.json() == {
+        "text": "Hello [IBAN_1]",
+        "changed": False,
+        "withheld": False,
+        "findings": [],
+    }

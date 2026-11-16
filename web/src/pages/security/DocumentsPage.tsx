@@ -7,7 +7,7 @@ import { useFetch } from "../../lib/useFetch";
 
 function DocumentCard({ d }: { d: DocumentRow }) {
   return (
-    <li className="rounded-2xl border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-white p-4">
       <h3 className="text-base font-semibold text-ink-900">{d.title}</h3>
       <dl className="mt-2 flex flex-wrap gap-x-8 gap-y-2 text-sm text-ink-600">
         <div>
@@ -55,7 +55,7 @@ export default function DocumentsPage() {
     body = (
       <EmptyPanel title="No protected documents yet">
         <p>
-          Once a confidential document is registered, the gateway recognises it even when it is
+          Once a confidential document is registered, the gate recognises it even when it is
           rewritten, and it shows up here.
         </p>
       </EmptyPanel>
@@ -64,8 +64,8 @@ export default function DocumentsPage() {
     body = (
       <>
         <p className="max-w-prose text-ink-600">
-          Documents the gateway protects. The sensitivity decides what happens when someone pastes
-          them into an AI tool; change that on the Policies tab.
+          Documents the gate protects. The sensitivity decides what happens when someone pastes them
+          into an AI tool; change that on the Policies tab.
         </p>
         <ul className="mt-4 space-y-3">
           {state.data.map((d) => (

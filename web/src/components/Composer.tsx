@@ -29,12 +29,12 @@ export function Composer({ value, onChange, onSend, disabled }: Props) {
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKey}
         placeholder="Ask anything. Shift+Enter adds a new line."
-        className="min-h-11 flex-1 resize-none rounded-xl border border-ink-300 bg-white px-3 py-2 text-base"
+        className="min-h-11 flex-1 resize-none rounded-md border border-ink-300 bg-white px-3 py-2 text-base"
       />
       <button
         type="submit"
         disabled={!canSend}
-        className="min-h-11 rounded-xl bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+        className="min-h-11 rounded-md bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
       >
         Send
       </button>

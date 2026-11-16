@@ -51,14 +51,26 @@ def inspect_text(
     policies: PolicySet | None = None,
     finders: Sequence[Finder] = (),
     doc_matcher: Callable[[str], list[DocMatch]] | None = None,
+    priority_finder: Finder | None = None,
+    view_finders: Sequence[Finder] = (),
 ) -> InspectResult:
     norm = normalise(text)
     findings = find_patterns(norm.text)
+    if priority_finder is not None:
+        # Decoy credentials look like real keys. They are looked for first and replace the
+        # ordinary secret finding, so the alarm names a leaked document, not just "a key".
+        decoys = priority_finder(norm.text)
+        findings = _add_without_overlap(decoys, findings)
     for finder in finders:
         findings = _add_without_overlap(findings, finder(norm.text))
     hidden: list[Finding] = []
     for view in norm.extra_views:
         hidden.extend(find_patterns(view))
+        for vf in view_finders:
+            hidden.extend(vf(view))
+    for view in norm.phrase_views:
+        for vf in view_finders:
+            hidden.extend(vf(view))
     categories = [f.category for f in findings + hidden]
     doc_matches = doc_matcher(norm.text) if doc_matcher else []
     verdict = decide(
