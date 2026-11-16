@@ -15,6 +15,12 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros, UI flow and new mascot
+**Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
+**State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.
+**Next step:** run `make up` and `make e2e` on this code; polish the Security tabs, overview layout and the Send button; check the new home at 390 px; refresh any slide or video screenshots (the mascot changed). AI-generated mascot art was skipped (fal account out of credits).
+**Problems / decisions needed:** the docs and the component still say Thyro; the mascot is now unnamed art for Pyli. Two Claude sessions edited the same checkout at once (App.tsx got duplicate imports), so use one worktree per session.
+**Files touched:** web/src/{App.tsx,pages/{HomePage,ChatPage}.tsx,components/NextStep.tsx}, web/public/mascot/*, docs/brand/mascot/*, scripts/make_mascot.py, PROGRESS.md
 ## 2026-11-14, Alexandros, brand (Pyli)
 **Done:** Pyli brand pack added and wired into the web app. `docs/BRAND.md` (guide), `docs/brand/` (brand sheet PNG and HTML, `logo/`, `favicon/`, `mascot/` with SVG and PNG), brand tokens in `web/src/index.css` (`@theme static`: new brand and ink ramps, five outcome colors with a `solid` shade, Commissioner and JetBrains Mono, type scale, radii), favicon and apple-touch icon in `web/public/` and `web/index.html`, Pyli logo in the nav bar, page title "Pyli".
 **Also done:** brand applied across the UI: corner radii on the 6/10/14/20 scale (badges 6, buttons and inputs 10, cards 14), outcome chips with a solid-color dot, Thyro (`web/src/components/Thyro.tsx`, SVGs in `web/public/mascot/`) on the home screen, empty states, the chat starter and the warn card, `eyebrow` class on page titles, home headline "Every prompt passes the gate.".
