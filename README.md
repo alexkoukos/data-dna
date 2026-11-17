@@ -28,7 +28,7 @@ The brief's questions are answered one by one, with the number and the demo step
 - **Why this decision (X23).** Every decision carries a short list of the checks that fired (patterns, rules, injection phrases, people and contact model, client list, document matching with its score, session memory, the policy). It is stored on the incident and shown on the incident page. It holds only entity names and masked previews, never the prompt.
 - **Shadow mode (X11).** On the Policies page, one switch lets every message through while the dashboard records what the policy would have done ("would have blocked 12"). Use it for the first weeks in a company. The setting is stored in the database and every change is audited.
 - **Compliance report (X17).** The Policies page has a PDF button (`GET /v1/compliance-report.pdf`). It maps what the gateway does to GDPR, NIS2 and the EU AI Act with the live numbers behind each line. It supports a company's own review; it is not legal advice. The same table is in `docs/business/compliance-mapping.md`.
-- **Attack set (X2).** `data/eval/attacks.csv` holds 80 red-team prompts (invisible characters, look-alike letters, hex, URL, ROT13, reversed, spaced, leetspeak, prompt injection, document rewrites, secrets, combined tricks, and normal prompts that must not be flagged). `make eval` reports how many are handled and lists the misses honestly: 76 of 80 today.
+- **Attack set (X2).** `data/eval/attacks.csv` holds 80 red-team prompts (invisible characters, look-alike letters, hex, URL, ROT13, reversed, spaced, leetspeak, prompt injection, document rewrites, secrets, combined tricks, and normal prompts that must not be flagged). `make eval` reports how many are handled and lists the misses honestly: 80 of 80 today, after the seven known gaps were fixed.
 - **More Greek identifiers (X6).** Police ID (ADT), number plates, Greek mobile and landline numbers (with or without +30), and, next to their names, passport and GEMI numbers are found and masked. They have no checksum, so a few look-alikes such as "TAX 1234" can match a plate shape; the cost is one needless mask.
 - **Answer check (X7).** What a model says is checked before the person sees it: echoed secrets and identifiers are masked (patterns and YARA rules), and an answer that reproduces a protected document is withheld whole.
 - **Try a policy first (X12).** On the Policies page, "Try on the last 14 days" shows how many past incidents a change would have made stricter or looser, before you save. It replays the stored categories and matched document, so no raw prompt is ever kept.
@@ -81,14 +81,14 @@ Measured on 17 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; full tabl
 
 | What | Result | Target |
 | --- | --- | --- |
-| Paraphrased document leaks found | 97.5%, 39 of 40 (baseline 5.0%) | 80% |
+| Paraphrased document leaks found | 100%, 40 of 40 (baseline 5.0%; tuned on this set) | 80% |
 | False alarms on clean prompts | 2.1% | 5% |
-| Added latency, brain only (p50 / p95) | 12.2 / 30.4 ms | p95 under 100 ms |
+| Added latency, brain only (p50 / p95) | 12.3 / 28.3 ms | p95 under 100 ms |
 | Latency under load, 3 users for 15 s (`make loadtest`) | p50 58 ms, p95 95 to 101 ms over five runs on a quiet machine (4 of 5 under target), 0 errors | p95 under 100 ms |
 | Prompts needing zero LLM tokens | 100% | 90% |
 | Correct copy named when a document leaks | 99.2% | 90% |
-| Attack set `attacks.csv` handled as expected | 76 of 80 | |
-| Attack set `attacks_scripts.csv` as expected | 77 of 80 | |
+| Attack set `attacks.csv` handled as expected | 80 of 80 | |
+| Attack set `attacks_scripts.csv` as expected | 80 of 80 | |
 | promptfoo curated cases (`make redteam`) | 25 of 25 | |
 
 The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test p95 sits on the target: 4 of 5 runs passed, by a few milliseconds. Unit tests: 365 brain tests at 91% coverage and 79 web tests (`make check`); end-to-end and accessibility checks: 41 specs (`make e2e`).
@@ -109,7 +109,7 @@ Other protections: API keys live in `.env` only (gitleaks runs in CI); model ans
 
 ## Known limits
 - **Only traffic through the gateway is checked.** Personal devices and tools that bypass it are seen in usage logs, not stopped.
-- **Detection is probabilistic.** Measured misses: 4 of 80 and 3 of 80 attacks, one reworded question about the Delphi agreement (P0105), and many model-attack prompts from garak that carry no company data and still reach the model (the gateway flagged only 4 of 27 in one family, 5 of 40 in another). A clean Greek prompt was sent to the local model (P0159). See `docs/BRIEF_MAP.md`.
+- **Detection is probabilistic.** Both attack sets and the 40 paraphrases pass on our own files, but the fixes were written after seeing the failures, so new forms of attack can still pass. What we know gets through: many model-attack prompts from garak that carry no company data and still reach the model (the gateway flagged only 4 of 27 in one family, 5 of 40 in another). A clean Greek prompt was sent to the local model (P0159). See `docs/BRIEF_MAP.md`.
 - **Meaning without matching words** can pass; a strong paraphrase goes to the local model rather than being blocked, to avoid false blocks. A document can carry translations (`name.en.md` next to `name.md`) so rewrites in another language are compared with text in their own language; that is how Greek salary bands are protected against English rewrites. Translations have to be supplied for each document and language.
 - **Slow leaks** beyond the session window, and anything retyped by hand or photographed, are not caught.
 - **No login.** The brain API is unauthenticated in demo mode and uses a default master key. Do not expose ports 8001 and 4000 beyond a trusted network. Roles, TLS and a key store are roadmap.
@@ -120,7 +120,7 @@ Other protections: API keys live in `.env` only (gitleaks runs in CI); model ans
 
 **Try to break it (X1).** Open `/break-it`, type anything you think the gateway will miss and press "Check it". The page shows the outcome, the reasons and the eight levels of the pipeline in order, with the ones that found something marked. Nothing typed there is stored and nobody's practice shows up as an incident. A starter button per kind of attack comes from `data/eval/attacks_scripts.csv`. `web/e2e/break-it.spec.ts` types ten evasions into the real page and checks each one is stopped.
 
-**Attack file (X2).** `data/eval/attacks_scripts.csv` (next to the technique-based `attacks.csv`) holds 80 invented attacks in 10 kinds (spaced out, encoded, look-alike letters, foreign digits, Greeklish, injection, hidden keys, rewritten documents, decoys, and 8 harmless look-alikes), each with the decision we expect. The expectation is written before looking at the result, so known gaps stay in the file and `make eval` lists them under "Script and decoy attacks" (today: reversed text, base64 injection, a key split by string concatenation, a surname with no common ending, one rewritten salary table). Rows come from `scripts/gen_attacks_scripts.py`; to add your own, append rows to the CSV and do not re-run the generator, or add them to the script.
+**Attack file (X2).** `data/eval/attacks_scripts.csv` (next to the technique-based `attacks.csv`) holds 80 invented attacks in 10 kinds (spaced out, encoded, look-alike letters, foreign digits, Greeklish, injection, hidden keys, rewritten documents, decoys, and 8 harmless look-alikes), each with the decision we expect. The expectation is written before looking at the result, so known gaps stay in the file and `make eval` lists them under "Script and decoy attacks" (none left today; the seven that were open are fixed and listed in `docs/BRIEF_MAP.md`). Rows come from `scripts/gen_attacks_scripts.py`; to add your own, append rows to the CSV and do not re-run the generator, or add them to the script.
 
 **Decoy credentials (X4).** A confidential document can carry fake keys and mailboxes that exist nowhere else (`honeytokens:` in its header, or `POST /v1/documents/{id}/honeytokens`, which returns lines to paste in). If one appears in a prompt the decision is block, the reason names the document ("that document has left the company"), the incident is linked to it and `audit_log` gets `honeytoken.triggered`. Matching is an exact string compare against random 20 to 40 character values, so ordinary text and look-alike keys never trigger it (tested on 400 random keys). The three demo documents carry two decoys each. The new category `honeytoken` is on the Policies page and defaults to block.
 

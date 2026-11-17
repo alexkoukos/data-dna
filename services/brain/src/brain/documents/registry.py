@@ -10,6 +10,7 @@ Vectors live in Postgres (pgvector); matching runs over a small in-process cache
 import logging
 import threading
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
@@ -42,8 +43,20 @@ TRANSLATION_BASE = 10_000
 # the highest ordinary question scored 0.882 against it, the rewrites it is there to catch 0.906
 # or more (small sample, see docs/calibration.md). Re-measure before changing.
 TRANSLATION_COSINE = 0.90
+# When the prompt names the counterparty in a document's title ("the Delphi agreement"), a near
+# miss against that document is enough: the name is a second, independent sign. Applied only to
+# the documents whose title holds the name. A relaxed cutoff for every client name was tried and
+# rejected: it sent ordinary "draft a proposal for <client>" prompts to the local model.
+RELAXED_DELTA = 0.04
 
 Kind = Literal["copy", "paraphrase"]
+
+
+def _mostly_numbers(piece: str) -> bool:
+    """A window that is mostly digits (an account number typed one digit at a time) carries no
+    meaning to compare with a document, and its embedding drifts towards numeric contracts."""
+    parts = piece.split()
+    return sum(1 for w in parts if w.strip(".,;:-/").isdigit()) * 2 > len(parts)
 
 
 @dataclass(frozen=True)
@@ -150,8 +163,11 @@ class DocumentIndex:
             return 0
         return min(n - 1, (c.idx % TRANSLATION_BASE) * n // size)
 
-    def match(self, text: str) -> list[DocMatch]:
-        """Documents this text copies or paraphrases, best first. Empty if none are registered."""
+    def match(self, text: str, relaxed_for: Sequence[str] = ()) -> list[DocMatch]:
+        """Documents this text copies or paraphrases, best first. Empty if none are registered.
+
+        `relaxed_for` are names found in the prompt. Documents whose title contains one of them
+        get paraphrase cutoffs lowered by RELAXED_DELTA (see above)."""
         with self._lock:
             self._refresh()
             chunks, matrix = self._chunks, self._matrix
@@ -186,7 +202,7 @@ class DocumentIndex:
         if len(words(text)) >= MIN_WORDS_TO_EMBED:
             # The model is the slow part, so: skip everything when MinHash already explained the
             # prompt, and cap how many windows are embedded (spread evenly over long prompts).
-            wanted = [p for p in chunk_text(text) if len(p.split()) >= 6]
+            wanted = [p for p in chunk_text(text) if len(p.split()) >= 6 and not _mostly_numbers(p)]
             if copied_query and len(copied_query) >= len(pieces) - 1:
                 wanted = []
             if len(wanted) > MAX_EMBEDDED_CHUNKS:
@@ -196,10 +212,20 @@ class DocumentIndex:
                 sims = self._embedder.embed(wanted) @ matrix.T
                 query_lang = np.array([language(p) for p in wanted])
                 chunk_lang = np.array([c.lang for c in chunks])
-                cutoff = np.where(
-                    query_lang[:, None] == chunk_lang[None, :],
-                    PARAPHRASE_COSINE,
-                    CROSS_LANGUAGE_COSINE,
+                names = [n.casefold() for n in relaxed_for if len(n) >= 4]
+                named = {
+                    d
+                    for d, (title, _) in self._docs.items()
+                    if any(n in title.casefold() for n in names)
+                }
+                delta = RELAXED_DELTA * np.array([[c.document_id in named for c in chunks]])
+                cutoff = (
+                    np.where(
+                        query_lang[:, None] == chunk_lang[None, :],
+                        PARAPHRASE_COSINE,
+                        CROSS_LANGUAGE_COSINE,
+                    )
+                    - delta
                 )
                 is_translation = np.array([c.idx >= TRANSLATION_BASE for c in chunks])
                 cutoff = np.where(

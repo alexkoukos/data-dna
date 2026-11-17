@@ -261,3 +261,32 @@ def test_the_loader_reads_name_lang_md_as_a_translation_of_name_md(
             conn.execute(sa.text("SELECT COUNT(*) FROM doc_chunks WHERE idx >= 10000")).scalar_one()
             > 0
         )
+
+
+def test_a_name_from_a_documents_title_lowers_the_cutoff_for_that_document_only(
+    engine: sa.Engine,
+) -> None:
+    emb = HashingEmbedder()
+    register_document(engine, emb, "Services agreement: Delphi Insurance", "confidential", MEMO)
+    register_document(engine, emb, "Board memo", "confidential", GREEK_MEMO)
+    index = DocumentIndex(engine, emb, ttl_seconds=0)
+    # With the hashing embedder a rewrite never reaches the cutoff, so lowering it to nothing
+    # shows which documents the name applies to.
+    import brain.documents.registry as registry
+
+    old = registry.PARAPHRASE_COSINE
+    registry.PARAPHRASE_COSINE = 1.5  # nothing can match normally
+    try:
+        text = "management wants offices in Sofia and Belgrade next spring with a large budget"
+        assert index.match(text) == []
+        registry.RELAXED_DELTA, saved = 1.5, registry.RELAXED_DELTA
+        try:
+            hits = index.match(text, relaxed_for=["Delphi"])
+            titles = {h.title for h in hits}
+            assert "Services agreement: Delphi Insurance" in titles
+            assert "Board memo" not in titles
+            assert index.match(text, relaxed_for=["Del"]) == []  # too short to count as a name
+        finally:
+            registry.RELAXED_DELTA = saved
+    finally:
+        registry.PARAPHRASE_COSINE = old

@@ -9,7 +9,7 @@ Company data leaving through AI tools: personal identifiers (AFM, AMKA, IBAN, ca
 | Actor | Example | Stopped? |
 |---|---|---|
 | Careless employee | Pastes a client list into a public chatbot | **Yes**, if the traffic goes through the gateway |
-| Employee in a hurry | Pastes a document, changes a few words | **Mostly**: copies and near copies are caught; paraphrases 97.5% on our test set (39 of 40), so close to 100 but not 100: one reworded question about a contract got through (`make eval`, `eval/report.md`; cutoff in `docs/calibration.md`) |
+| Employee in a hurry | Pastes a document, changes a few words | **Mostly**: copies and near copies are caught; paraphrases 40 of 40 on our own test set, which we tuned on, so expect less on rewrites nobody has tried (`make eval`; `docs/calibration.md` has the trade-off and the holdout results) |
 | Curious employee who tries to trick it | Spaced digits, base64, look-alike letters, Greeklish | **Mostly**: the normaliser undoes the common tricks; the "Try to break it" page lets you test |
 | Prompt injection inside a file or tool result | "Ignore previous instructions" in a PDF | **Yes** for known phrasings and the classifier; novel attacks may pass |
 | Malicious insider with intent | Retypes a document by hand, photographs the screen | **No** for the typing and the photo. We can only deter: marked copies (DNA) make a leaked copy traceable to its recipient |
