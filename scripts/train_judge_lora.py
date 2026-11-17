@@ -153,7 +153,7 @@ def main() -> None:
     print(f"validation: precision {tp / max(1, tp + fp):.0%}, recall {tp / max(1, tp + fn):.0%}, "
           f"false positives {fp} of {fp + tn}, not valid JSON {bad} of {len(rows)}")
 
-    merged = model.merge_and_unload()
+    merged = model.merge_and_unload().to(torch.bfloat16)  # half the file size; GGUF conversion reads it fine
     merged.save_pretrained(args.out / "merged", safe_serialization=True)
     tok.save_pretrained(args.out / "merged")
     print(f"saved {args.out / 'adapter'} and {args.out / 'merged'}")
