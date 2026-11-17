@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Pyli</title>
+    <link rel="stylesheet" href="palette.css" />
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="popup">
+    <header>
+      <img
+        src="mascot/thyro-allow.svg"
+        alt=""
+        width="40"
+        height="40"
+        id="mascot"
+      />
+      <h1>Pyli</h1>
+    </header>
+    <p id="status" role="status">Checking the connection…</p>
+    <h2>Today in this browser</h2>
+    <dl class="counts">
+      <div>
+        <dt>Masked</dt>
+        <dd id="masked">0</dd>
+      </div>
+      <div>
+        <dt>Warned</dt>
+        <dd id="warned">0</dd>
+      </div>
+      <div>
+        <dt>Blocked</dt>
+        <dd id="blocked">0</dd>
+      </div>
+    </dl>
+    <p>
+      <a
+        id="incidents"
+        class="btn primary"
+        target="_blank"
+        rel="noopener noreferrer"
+        href="#"
+        >See my incidents</a
+      >
+    </p>
+    <p>
+      <a id="options" class="btn" href="options.html" target="_blank"
+        >Settings</a
+      >
+    </p>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

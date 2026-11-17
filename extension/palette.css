@@ -1,0 +1,21 @@
+/* The one place the extension's colours live (Amber Minimal, the Pyli core brand).
+   Swapping the brand later means editing this file only. */
+:root,
+.pyli-root {
+  --pyli-bg: #ffffff;
+  --pyli-text: #262626;
+  --pyli-muted-text: #525252;
+  --pyli-border: #e5e7eb;
+  --pyli-muted: #f3f4f6;
+  --pyli-subtle: #f9fafb;
+  --pyli-tint: #fffbeb;
+  --pyli-primary: #f59e0b;
+  --pyli-on-primary: #262626; /* white on amber fails WCAG AA, so text on amber is dark */
+  --pyli-focus: #b45309;
+  /* Outcomes stay distinct from the brand amber and always come with text and icon. */
+  --pyli-mask: #1d4ed8;
+  --pyli-warn: #b45309;
+  --pyli-block: #b91c1c;
+  --pyli-local: #0f766e;
+  --pyli-font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}

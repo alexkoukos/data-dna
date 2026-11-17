@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros, task X27 (browser extension)
+**Done:** `extension/` (Manifest V3, plain JS, load unpacked): paste and send checks on chatgpt.com (Enter and the send button), mask, warn with "Send anyway" (recorded), block and local with "Use Company AI", shadow mode records only, fail open with a "Pyli offline" badge, popup with today's counts and a link to the user's history, options page for the key and gate address. Brain: `POST /v1/extension/inspect|ack`, `GET /v1/extension/me`; `identity.py` resolves a personal key to user and team through the gateway's `/key/info` (client never names a user); CORS only for `chrome-extension://$EXTENSION_ID` on `/v1/extension/*`; incidents get tool "ChatGPT (personal)" and channel `browser`. Colours are in one file, `extension/palette.css` (Amber Minimal).
+**State:** branch `task/x27-extension`, worktree `~/data-dna-x27`. Brain tests green (20 new in `test_x27_extension.py`), 9 Playwright tests green in `web/e2e/extension.spec.ts` (saved page `extension/test/fixture.html`, stand-in brain on port 8011, no `make up` needed). Not yet done: a real `make up` run with the salary table, the manual run on live chatgpt.com and its screen recording (R2), PR.
+**Next step:** `make up`, load `extension/`, set `EXTENSION_ID`, paste a key from /connect, paste the table from `data/documents/salary-bands.md` into chatgpt.com, check the incident appears. Record it. Then X28.
+**Problems / decisions needed:** `task/judge-finetune` and `task/judging-prep` owners: please add X27 to your docs. For `docs/BRIEF_MAP.md` question 1 and `docs/DEMO.md`: the extension now answers "browser extension", and the demo can show it. We did not touch those files. ChatGPT's page may change, so the selectors in `content.js` are the first thing to check if the live run fails.
+**Files touched:** extension/*, web/e2e/extension.spec.ts, services/brain/src/brain/{identity.py,main.py,records.py,config.py,api/schemas.py}, services/brain/tests/test_x27_extension.py, docker-compose.yml, .env.example, README.md, docs/PRD.md, docs/EXTRA_FEATURES.md, PROGRESS.md
+
+---
+
 ## 2026-11-17, Alexandros, UI flow and new mascot
 **Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
 **State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.

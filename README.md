@@ -47,6 +47,19 @@ Open http://localhost:3000 (app) and http://localhost:8001/docs (API).
 ## Architecture
 _Diagram and services table (R1). Source: docs/PRD.md section 7._
 
+## Browser extension
+
+Personal ChatGPT in the browser bypasses the gate, so the extension (`extension/`, Chrome or Edge, Manifest V3, plain JavaScript, no build step) checks paste and send on `chatgpt.com` against the same `POST /v1/inspect` the gate uses, before the text leaves the page.
+
+**Load it (3 clicks)**
+1. Open `chrome://extensions`, turn on *Developer mode*, press *Load unpacked* and choose the `extension/` folder.
+2. Copy the extension ID shown on its card (or on the Settings page), put it in `.env` as `EXTENSION_ID=...` and run `make up` again. The brain allows browser calls only from `chrome-extension://<that ID>`.
+3. Open the extension's Settings, paste your personal key from the **Connect** page and press Save. The gate address defaults to `http://localhost:8001`.
+
+**What it does.** Allow: nothing. Mask: the composer text is replaced with the masked text and a note names the entity types and the "Why?" reasons. Warn: a card with the reasons and *Send anyway*, which is recorded on the incident like the gate's `X-DNA-Ack`. Block and local: the send is stopped and the card offers *Use Company AI*. Every non-allow decision is an incident with the tool "ChatGPT (personal)" and channel `browser`, so the Shadow AI view shows it was intercepted. In shadow mode (X11) nothing is changed or stopped; it is only recorded. The user is the owner of the key, resolved by the brain through the gateway; the extension never sends a user or team. The extension stores only the key, the gate address and a daily counter for its popup, and makes no network calls except to the gate address.
+
+**Limits.** One site (`chatgpt.com`); other sites and the ChatGPT desktop or phone apps are not covered, and a person can disable or remove the extension (the Squid and Zeek logs still see that). Only text is checked: pasted images and file uploads are not. If the gate cannot be reached the extension **fails open**: nothing is blocked, a small "Pyli offline" badge shows, and nothing is recorded. ChatGPT changes its page often, so the composer and send-button selectors in `extension/content.js` may need an update. The test (`web/e2e/extension.spec.ts`) runs against a saved composer page, `extension/test/fixture.html`, not the live site.
+
 ## Evaluation
 _Results from `make eval` (E1)._
 

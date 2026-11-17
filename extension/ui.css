@@ -1,0 +1,107 @@
+body {
+  margin: 0;
+  background: var(--pyli-bg);
+  color: var(--pyli-text);
+  font: 14px/1.5 var(--pyli-font);
+}
+body.popup {
+  width: 300px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+body.options main {
+  max-width: 520px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+h1 {
+  font-size: 20px;
+  margin: 0;
+}
+h2 {
+  font-size: 13px;
+  margin: 16px 0 8px;
+  color: var(--pyli-muted-text);
+  font-weight: 600;
+}
+.counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.counts div {
+  background: var(--pyli-subtle);
+  border: 1px solid var(--pyli-border);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+}
+.counts dt {
+  font-size: 12px;
+  color: var(--pyli-muted-text);
+}
+.counts dd {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+.btn,
+button.btn {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--pyli-border);
+  background: var(--pyli-bg);
+  color: var(--pyli-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn.primary {
+  background: var(--pyli-primary);
+  border-color: var(--pyli-primary);
+  color: var(--pyli-on-primary);
+}
+:is(a, button, input):focus-visible {
+  outline: 3px solid var(--pyli-focus);
+  outline-offset: 2px;
+}
+label {
+  display: block;
+  font-weight: 600;
+  margin: 16px 0 4px;
+}
+input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--pyli-border);
+  border-radius: 8px;
+  font: inherit;
+}
+.hint {
+  color: var(--pyli-muted-text);
+  font-size: 13px;
+}
+#status.ok::before {
+  content: "● Connected. ";
+  color: #15803d;
+  font-weight: 600;
+}
+#status.bad::before {
+  content: "● Not connected. ";
+  color: var(--pyli-block);
+  font-weight: 600;
+}
