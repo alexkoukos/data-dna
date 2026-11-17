@@ -65,3 +65,4 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 
 ## Extra features
 Full list, owners and priorities are in `docs/EXTRA_FEATURES.md` (X1 to X26). Technical items are Alexandros's; business and writing items stay with Vasilis and Konstantinos.
+- [x] **SS1** P1 Split storage: two vaults, additive shares, HMAC integrity, tests and demo (branch `task/split-storage`). Done when: `docker compose up` works from a clean clone and `make split-test` passes.

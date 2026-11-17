@@ -116,6 +116,7 @@ from brain.policy.store import PolicyError, PolicyStore
 from brain.records import record_decision, user_row_id
 from brain.seed.load import run_seed
 from brain.sessions import sessions
+from brain.splitstore.routes import router as vault_router
 from brain.trace import build_trace
 
 log = logging.getLogger(__name__)
@@ -173,6 +174,19 @@ def _finders() -> list[Finder]:
     ]
 
 
+async def _recover_loop(store: Any, every_seconds: int = 60) -> None:
+    """Settle interrupted split writes now and then. Only entries older than 30 s are touched,
+    so a write in flight (here or in another app instance) is never disturbed."""
+    while True:
+        try:
+            n = await asyncio.to_thread(store.recover)
+            if n:
+                log.warning("Settled %d interrupted split write(s)", n)
+        except Exception:
+            log.exception("Settling interrupted split writes failed; will retry")
+        await asyncio.sleep(every_seconds)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     if policy_store.engine is not None:
@@ -186,6 +200,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             log.info("Seeded %d policies", added)
     except sa.exc.SQLAlchemyError:
         log.warning("Could not seed policies, using the seed file until the database is up")
+    recover_task: asyncio.Task[None] | None = None
+    if settings.vault_a_url and settings.vault_b_url:
+        try:  # settle split writes a crash left half-done, and check the key matches the vaults
+            from brain.splitstore import get_store
+
+            store = await asyncio.to_thread(get_store)
+            recover_task = asyncio.create_task(_recover_loop(store))
+        except Exception:  # the app still serves; vault routes report the problem themselves
+            log.exception("Split storage is not ready (vaults down or HMAC key mismatch)")
     try:
         await asyncio.to_thread(embedder.warm_up)
     except Exception:  # without the model only exact copies are caught, not rewrites
@@ -222,11 +245,14 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         except Exception:
             log.exception("Registering the documents failed")
     yield
+    if recover_task is not None:
+        recover_task.cancel()
 
 
 _attempts: deque[Attempt] = deque(maxlen=50)
 
 app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
+app.include_router(vault_router)
 
 
 @app.get("/healthz")
