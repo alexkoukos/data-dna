@@ -156,6 +156,16 @@ def main() -> None:
     merged = model.merge_and_unload().to(torch.bfloat16)  # half the file size; GGUF conversion reads it fine
     merged.save_pretrained(args.out / "merged", safe_serialization=True)
     tok.save_pretrained(args.out / "merged")
+    # Newer transformers write an extra <image_soft_token> (id = vocab size). The text-only 1B model has no slot
+    # for it and llama.cpp's converter stops on it, so drop it from the saved tokenizer.
+    tj_path = args.out / "merged" / "tokenizer.json"
+    tj = json.loads(tj_path.read_text(encoding="utf-8"))
+    tj["added_tokens"] = [a for a in tj["added_tokens"] if a["id"] < model.config.vocab_size]
+    tj_path.write_text(json.dumps(tj, ensure_ascii=False), encoding="utf-8")
+    tc_path = args.out / "merged" / "tokenizer_config.json"
+    tc = json.loads(tc_path.read_text(encoding="utf-8"))
+    tc.pop("image_token", None)
+    tc_path.write_text(json.dumps(tc, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"saved {args.out / 'adapter'} and {args.out / 'merged'}")
 
 

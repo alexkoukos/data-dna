@@ -64,6 +64,11 @@ docker compose --profile local cp scripts/dna-judge.gguf ollama:/tmp/dna-judge.g
 docker compose --profile local cp scripts/judge.Modelfile ollama:/tmp/judge.Modelfile
 docker compose --profile local exec ollama sh -c "cd /tmp && ollama create dna-judge -f judge.Modelfile"
 ```
+If `convert_hf_to_gguf.py` stops with `assert max(tokenizer.vocab.values()) < vocab_size`, the saved tokenizer has an extra
+`<image_soft_token>` (id 262144) from a newer transformers. `train_judge_lora.py` now removes it; for a model trained before
+that, delete the entry with `"id": 262144` from `added_tokens` in `merged/tokenizer.json` (and `image_token` in
+`tokenizer_config.json`) and run the converter again. The model weights are not affected.
+
 (`f16` is about 2 GB; a 4-bit file is smaller but check quality first.) If the model answers with garbage or never
 stops, the template is the usual suspect: compare with `ollama show --modelfile gemma3:1b`.
 
