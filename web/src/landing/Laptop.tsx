@@ -1,25 +1,25 @@
 import type { ReactNode } from "react";
-import { HOLE } from "./geometry";
+import { HOLE, ORIGIN_X, VIEW_H, VIEW_W } from "./geometry";
 import { LaptopArt } from "./LaptopArt";
 import { Scaled } from "./Scaled";
 
 // The hero screen sits behind a vector laptop (LaptopArt) whose display is a real hole.
-export const LAPTOP_W = 812;
-export const LAPTOP_H = 480;
+export const LAPTOP_W = VIEW_W;
+export const LAPTOP_H = VIEW_H;
 // The browser window is 720 x 450; a 26 px menu bar above it makes 720 x 476, the hole's ratio.
 const CONTENT = { w: 720, h: 476 };
 const FIT = HOLE.w / CONTENT.w;
 
 export function Laptop({ children }: { children: ReactNode }) {
   return (
-    <Scaled width={LAPTOP_W} height={LAPTOP_H} className="laptop-wrap">
+    <Scaled width={LAPTOP_W} height={LAPTOP_H} max={1.05} className="laptop-wrap">
       <div className="laptop">
         <div className="laptop-glow" aria-hidden="true" />
         <div className="laptop-contact" aria-hidden="true" />
         <LaptopArt className="laptop-reflection" />
         <div
           className="laptop-hole"
-          style={{ left: HOLE.x, top: HOLE.y, width: HOLE.w, height: HOLE.h }}
+          style={{ left: HOLE.x - ORIGIN_X, top: HOLE.y, width: HOLE.w, height: HOLE.h }}
         >
           <div
             className="laptop-content"

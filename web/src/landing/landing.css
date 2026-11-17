@@ -263,7 +263,7 @@
 }
 .hero-loop {
   width: 100%;
-  max-width: 920px;
+  max-width: 980px;
 }
 
 /* Sections */
@@ -516,7 +516,7 @@
 }
 .laptop {
   position: relative;
-  width: 812px;
+  width: 771px;
   height: 480px;
   /* a slight tilt, hinged at the bottom edge, so the lid leans back a touch */
   transform: perspective(1700px) rotateX(2.5deg);
@@ -552,7 +552,7 @@
   position: absolute;
   left: 0;
   top: 100%;
-  width: 812px;
+  width: 771px;
   height: 480px;
   max-width: none;
   margin-top: -22px;
@@ -634,7 +634,7 @@
 .laptop-frame {
   position: absolute;
   inset: 0;
-  width: 812px;
+  width: 771px;
   height: 480px;
   max-width: none;
   pointer-events: none;

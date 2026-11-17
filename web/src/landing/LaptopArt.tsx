@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { HOLE } from "./geometry";
+import { HOLE, ORIGIN_X, VIEW_H, VIEW_W } from "./geometry";
 
 // A front-view laptop drawn as vector, in the 812 x 480 space of the hero. The display is a real
 // hole (even-odd), so whatever sits behind this drawing shows through. No logo, no photo.
@@ -18,9 +18,9 @@ export function LaptopArt({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      width="812"
-      height="480"
-      viewBox="0 0 812 480"
+      width={VIEW_W}
+      height={VIEW_H}
+      viewBox={`${ORIGIN_X} 0 ${VIEW_W} ${VIEW_H}`}
       aria-hidden="true"
       focusable="false"
     >
