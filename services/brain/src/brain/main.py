@@ -15,7 +15,17 @@ from pathlib import Path
 from typing import Any
 
 import sqlalchemy as sa
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import HTMLResponse
 
 from brain import alerts, coaching, compliance, insights, queries, reveal, settings_store
@@ -29,6 +39,10 @@ from brain.api.schemas import (
     DnaState,
     DocumentHit,
     DocumentOut,
+    ExtensionAck,
+    ExtensionInspect,
+    ExtensionMe,
+    ExtensionVerdict,
     FindingOut,
     GroupPolicy,
     GroupPolicyUpdate,
@@ -106,6 +120,7 @@ from brain.honeytokens import (
     plant_block,
     record_alarm,
 )
+from brain.identity import GatewayUnavailable, Identity, bearer_token, resolve_key
 from brain.injection.classifier import InjectionClassifier
 from brain.injection.heuristics import injection_finder
 from brain.keys import KeyError_, create_key, default_model
@@ -113,7 +128,7 @@ from brain.policy import groups
 from brain.policy.engine import Decision
 from brain.policy.preview import preview as policy_preview
 from brain.policy.store import PolicyError, PolicyStore
-from brain.records import record_decision, user_row_id
+from brain.records import record_ack, record_decision, user_row_id
 from brain.seed.load import run_seed
 from brain.sessions import sessions
 from brain.trace import build_trace
@@ -227,6 +242,36 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 _attempts: deque[Attempt] = deque(maxlen=50)
 
 app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
+
+
+def extension_origin() -> str | None:
+    """X27: the only browser origin allowed to call the brain, set by EXTENSION_ID in .env."""
+    ident = settings.extension_id.strip()
+    return f"chrome-extension://{ident}" if ident else None
+
+
+@app.middleware("http")
+async def extension_cors(request: Request, call_next: Callable[[Request], Any]) -> Response:
+    """CORS for the extension endpoints, and only for the extension origin (X27).
+
+    Everything else gets no CORS headers, so no other website can read the brain's answers.
+    """
+    if not request.url.path.startswith("/v1/extension/"):
+        return await call_next(request)  # type: ignore[no-any-return]
+    allowed = extension_origin()
+    origin = request.headers.get("origin")
+    ok = allowed is not None and origin == allowed
+    if request.method == "OPTIONS":
+        resp = Response(status_code=204 if ok else 403)
+    else:
+        resp = await call_next(request)
+    if ok and allowed is not None:
+        resp.headers["Access-Control-Allow-Origin"] = allowed
+        resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        resp.headers["Access-Control-Max-Age"] = "600"
+        resp.headers["Vary"] = "Origin"
+    return resp
 
 
 @app.get("/healthz")
@@ -377,6 +422,8 @@ def inspect(
         copy_code=leaked_copy,
         trace=steps,
         shadow=shadow,
+        tool=req.tool,
+        channel=req.channel,
     )
     for owner in decoys:
         background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
@@ -412,6 +459,81 @@ def inspect(
             )
             for m in result.doc_matches
         ],
+    )
+
+
+def _who(authorization: str | None) -> Identity:
+    """The user behind a personal gateway key. The client is never trusted to name itself."""
+    key = bearer_token(authorization)
+    if key is None:
+        raise HTTPException(status_code=401, detail="Add your personal key in the extension.")
+    try:
+        found = resolve_key(key)
+    except GatewayUnavailable as err:
+        raise HTTPException(status_code=503, detail=str(err)) from err
+    if found is None:
+        raise HTTPException(
+            status_code=401, detail="This key is not known to the gate. Copy it again from Connect."
+        )
+    return found
+
+
+@app.post("/v1/extension/inspect", response_model=ExtensionVerdict)
+def extension_inspect(
+    body: ExtensionInspect,
+    background: BackgroundTasks,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> ExtensionVerdict:
+    """X27: check text typed or pasted into a personal AI tool in the browser."""
+    who = _who(authorization)
+    out = inspect(
+        InspectRequest(
+            user_id=who.user_id,
+            team=who.team,
+            model=body.model,
+            tool=body.model,
+            channel="browser",
+            messages=[Message(role="user", content=body.text)],
+        ),
+        background,
+        response,
+    )
+    masked = out.masked_messages[-1].content if out.masked_messages else None
+    types = sorted({f.entity for f in out.findings})
+    return ExtensionVerdict(
+        decision=out.decision,
+        reasons=out.reasons,
+        entity_types=types,
+        masked_text=masked,
+        shadow=out.shadow_decision is not None,
+        would_have=out.shadow_decision,
+        alternative_url=settings.company_ai_url,
+        user_id=who.user_id,
+    )
+
+
+@app.post("/v1/extension/ack")
+def extension_ack(
+    body: ExtensionAck,
+    background: BackgroundTasks,
+    authorization: str | None = Header(default=None),
+) -> dict[str, str]:
+    """X27: the person chose "Send anyway" on a warning. Recorded like the gateway's X-DNA-Ack."""
+    who = _who(authorization)
+    background.add_task(record_ack, policy_store.engine, who.user_id, body.reason)
+    return {"status": "recorded"}
+
+
+@app.get("/v1/extension/me", response_model=ExtensionMe)
+def extension_me(authorization: str | None = Header(default=None)) -> ExtensionMe:
+    """X27: lets the popup show who the key belongs to and whether shadow mode is on."""
+    who = _who(authorization)
+    return ExtensionMe(
+        user_id=who.user_id,
+        team=who.team,
+        shadow_mode=settings_store.get_bool(policy_store.engine, settings_store.SHADOW),
+        incidents_url=f"{settings.web_url}/security/history?user={who.user_id}",
     )
 
 

@@ -18,6 +18,8 @@ class InspectRequest(BaseModel):
     user_id: str = "anonymous"
     team: str = "unknown"
     model: str = "default"
+    tool: str = "Company AI"
+    channel: str = "gateway"
     messages: list[Message]
     attachments: list[Attachment] = Field(default_factory=list)
 
@@ -369,3 +371,33 @@ class Attempt(BaseModel):
     caught_by: str | None = None
     preview: str
     length: int
+
+
+class ExtensionInspect(BaseModel):
+    """What the browser extension sends. Who the user is comes from the key, never from here."""
+
+    text: str = Field(max_length=200_000)
+    model: str = Field(default="ChatGPT (personal)", max_length=80)
+
+
+class ExtensionVerdict(BaseModel):
+    decision: str
+    reasons: list[str]
+    entity_types: list[str] = Field(default_factory=list)
+    masked_text: str | None = None
+    shadow: bool = False
+    would_have: str | None = None
+    alternative: str = "Company AI"
+    alternative_url: str = ""
+    user_id: str = ""
+
+
+class ExtensionAck(BaseModel):
+    reason: str = Field(default="", max_length=200)
+
+
+class ExtensionMe(BaseModel):
+    user_id: str
+    team: str
+    shadow_mode: bool
+    incidents_url: str

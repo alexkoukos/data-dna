@@ -72,6 +72,7 @@ def record_decision(
     copy_code: str | None = None,
     trace: list[dict[str, Any]] | None = None,
     shadow: bool = False,
+    channel: str = "gateway",
 ) -> None:
     if engine is None:
         return
@@ -87,7 +88,7 @@ def record_decision(
                         user_id=uid,
                         team=team,
                         tool=tool,
-                        channel="gateway",
+                        channel=channel,
                         decision=decision,
                         categories=sorted(set(categories)),
                         reasons=reasons,
@@ -102,3 +103,38 @@ def record_decision(
                 )
     except sa.exc.SQLAlchemyError:
         log.warning("Could not record a decision, continuing")
+
+
+def record_ack(engine: Engine | None, user: str, reason: str) -> None:
+    """X27: add "sent anyway" to the person's latest browser warning, within the last 10 minutes."""
+    if engine is None:
+        return
+    since = datetime.now(UTC) - timedelta(minutes=10)
+    note = "Sent anyway by the user" + (f": {reason.strip()}" if reason.strip() else "")
+    try:
+        with engine.begin() as conn:
+            uid = conn.execute(
+                sa.select(t.users.c.id).where(t.users.c.pseudonym == user)
+            ).scalar_one_or_none()
+            if uid is None:
+                return
+            row = conn.execute(
+                sa.select(t.incidents.c.id, t.incidents.c.reasons)
+                .where(
+                    t.incidents.c.user_id == uid,
+                    t.incidents.c.channel == "browser",
+                    t.incidents.c.decision == "warn",
+                    t.incidents.c.ts >= since,
+                )
+                .order_by(t.incidents.c.ts.desc())
+                .limit(1)
+            ).first()
+            if row is None:
+                return
+            conn.execute(
+                sa.update(t.incidents)
+                .where(t.incidents.c.id == row.id)
+                .values(reasons=[*(row.reasons or []), note])
+            )
+    except sa.exc.SQLAlchemyError:
+        log.warning("Could not record an acknowledgement, continuing")

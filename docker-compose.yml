@@ -26,6 +26,7 @@ services:
       GATEWAY_URL: http://gateway:4000
       DEMO_MODE: ${DEMO_MODE:-true}
       DATA_DIR: /data
+      EXTENSION_ID: ${EXTENSION_ID:-}
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
       # Few threads per model: many small requests beat one wide one (see the load test).
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
