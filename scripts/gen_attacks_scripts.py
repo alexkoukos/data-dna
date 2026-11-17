@@ -219,6 +219,8 @@ add("clean_lookalike", "Summarise the history of the Greek island of Naxos in th
 
 assert len(rows) == 80, len(rows)
 out = ROOT / "data" / "eval" / "attacks_scripts.csv"
+for r in rows:
+    r["source"], r["added"] = "seed", ""  # X28 appends rows with source=breakit
 with out.open("w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator="\n")
     w.writeheader()

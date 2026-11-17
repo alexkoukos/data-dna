@@ -22,7 +22,16 @@ def test_attack_file_has_80_attacks_in_the_agreed_columns() -> None:
     with (DATA / "eval" / "attacks_scripts.csv").open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
     assert len(rows) == 80
-    assert set(rows[0]) == {"id", "category", "lang", "text", "expected_decision", "notes"}
+    assert set(rows[0]) == {
+        "id",
+        "category",
+        "lang",
+        "text",
+        "expected_decision",
+        "notes",
+        "source",
+        "added",
+    }
     assert len({r["id"] for r in rows}) == 80
     assert {r["expected_decision"] for r in rows} <= {"allow", "mask", "warn", "local", "block"}
     cats = {r["category"] for r in rows}

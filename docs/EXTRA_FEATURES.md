@@ -1,4 +1,4 @@
-# Extra features (X1 to X27)
+# Extra features (X1 to X28)
 
 These sit on top of the P0 and P1 items in `TASKS.md`. A feature counts only if it has tests and one paragraph in the README. Priority: **P1** if the core works, **P2** is cut first.
 Suggested order: X1, X2, X4, X5, X11, X17, X23. All small, no new infrastructure, and visible in a demo.
@@ -38,6 +38,7 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 - [x] **X21** P2 Paste guard: a small local program that watches the clipboard, calls `/v1/inspect` and offers the masked version. Not part of `docker compose`. Owner: Alexandros.
 - [x] **X22** P2 Guide for pointing a company's AI traffic at the gateway (env vars, base URL, Squid ICAP sketch). Owner: Konstantinos.
 - [x] **X27** P1 Browser extension for personal ChatGPT (Chrome or Edge, `chatgpt.com`): checks paste and send with `/v1/inspect`, masks, warns, blocks or records in shadow mode, and fails open with a "Pyli offline" badge. Key-to-user lookup and extension-only CORS in the brain. Owner: Alexandros.
+- [x] **X28** P1 Break it leaderboard and self-growing attack set: `/break-it` shows today's attempts, stopped, got through and catch rate (misses by masked preview and kind only), an optional nickname for a top-breakers list, and "It got through", which sends the text to a review queue (Security, "Break it review"). Approved rows are appended to `data/eval/attacks_scripts.csv` with `source=breakit` and the date; rejected rows are deleted at once; `make eval` reports them as "found live, still missed: N". Owner: Alexandros.
 
 ## 6. Trust and explanation
 - [x] **X23** P1 "Why?" on every decision: which layers fired and with what score, stored on the incident. Owner: Alexandros.
