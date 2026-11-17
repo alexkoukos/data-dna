@@ -1,6 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+const BRAIN = process.env.BRAIN_URL ?? "http://localhost:8001";
+const GATEWAY = process.env.GATEWAY_URL ?? "http://localhost:4000";
+const WEB = process.env.BASE_URL ?? "http://localhost:3000";
+
 const ROUTES = [
   "/",
   "/chat",
@@ -104,7 +108,7 @@ test("policies: change one, see it saved, then put it back", async ({ page }) =>
     await page.reload();
     await expect(page.getByLabel("What happens to client names")).toHaveValue(other);
   } finally {
-    await page.request.put("http://localhost:8001/v1/policies", {
+    await page.request.put(`${BRAIN}/v1/policies`, {
       data: { scope: "category", key: "client_name", action: original, updated_by: "e2e" },
     });
   }
@@ -117,7 +121,7 @@ test("connect page turns to Connected after a real request with the shown key", 
   await expect(page.getByText(/Waiting for first request/)).toBeVisible();
   await page.getByRole("button", { name: "Show personal key" }).click();
   const key = await page.getByRole("textbox", { name: "Personal key" }).inputValue();
-  const res = await page.request.post("http://localhost:4000/v1/chat/completions", {
+  const res = await page.request.post(`${GATEWAY}/v1/chat/completions`, {
     headers: { Authorization: `Bearer ${key}` },
     data: { model: "demo-mock", messages: [{ role: "user", content: "Hello" }] },
   });
@@ -137,14 +141,10 @@ test("ask: a preset question shows a table and the SQL", async ({ page }) => {
 
 test("incident detail: the name stays sealed until a second person approves", async ({ page }) => {
   // Earlier runs leave reveal requests behind, so pick an incident that has none yet.
-  const list = await (
-    await page.request.get("http://localhost:8001/v1/incidents?limit=100")
-  ).json();
+  const list = await (await page.request.get(`${BRAIN}/v1/incidents?limit=100`)).json();
   let fresh: number | null = null;
   for (const item of list.items as { id: number }[]) {
-    const d = await (
-      await page.request.get(`http://localhost:8001/v1/incidents/${item.id}`)
-    ).json();
+    const d = await (await page.request.get(`${BRAIN}/v1/incidents/${item.id}`)).json();
     if (d.reveals.length === 0) {
       fresh = item.id;
       break;
@@ -177,9 +177,7 @@ test("incident detail: the name stays sealed until a second person approves", as
 });
 
 test("documents: add one, set up marks, issue a copy and open it", async ({ page }) => {
-  const people = await (
-    await page.request.get("http://localhost:8001/v1/incidents?limit=5")
-  ).json();
+  const people = await (await page.request.get(`${BRAIN}/v1/incidents?limit=5`)).json();
   const person = people.items[0].user as string;
   const title = `E2E memo ${Date.now()}`;
   const body = Array.from(
@@ -209,7 +207,7 @@ test("documents: add one, set up marks, issue a copy and open it", async ({ page
   const link = card.getByRole("link", { name: /Open copy/ });
   await expect(link).toBeVisible();
   const href = await link.getAttribute("href");
-  const copy = await page.request.get(`http://localhost:3000${href}`);
+  const copy = await page.request.get(`${WEB}${href}`);
   expect(copy.ok()).toBe(true);
   expect(await copy.text()).toContain("Item 1 says the supplier");
 });
