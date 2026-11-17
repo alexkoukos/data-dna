@@ -85,4 +85,10 @@ calibrate: ## Sweep the paraphrase cutoff and write docs/calibration.md and .svg
 eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
 	cd services/brain && uv run python -m brain.eval.run
 
-.PHONY: split-test split-demo calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+judge-data: ## Regenerate the judge fine-tune data from data/train_org (D7, deterministic, no dependencies)
+	python3 scripts/gen_finetune.py
+
+judge-eval: ## Compare gemma3:1b with the tuned judge on the test set (needs `make local` and the dna-judge model, see docs/JUDGE_FINETUNE.md)
+	python3 scripts/eval_judge.py gemma3:1b dna-judge --out eval/judge_eval.md
+
+.PHONY: judge-data judge-eval split-test split-demo calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
