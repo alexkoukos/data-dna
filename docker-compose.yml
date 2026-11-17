@@ -24,15 +24,20 @@ services:
     image: postgres:16
     command: ["postgres", "-c", "max_prepared_transactions=20"] # two-phase commit for split writes
     environment:
-      POSTGRES_USER: ${VAULT_A_USER:-vault_a}
-      POSTGRES_PASSWORD: ${VAULT_A_PASSWORD:-change-me-a}
+      # Admin account: only used to create the schema and the app role at first start.
+      POSTGRES_USER: ${VAULT_A_ADMIN_USER:-vault_a_admin}
+      POSTGRES_PASSWORD: ${VAULT_A_ADMIN_PASSWORD:-change-me-a-admin}
       POSTGRES_DB: vault
+      # The role the app connects as (not a superuser).
+      APP_USER: ${VAULT_A_USER:-vault_a}
+      APP_PASSWORD: ${VAULT_A_PASSWORD:-change-me-a}
     volumes:
       - vault-a-data:/var/lib/postgresql/data
-      - ./infra/vault/init.sql:/docker-entrypoint-initdb.d/01-shares.sql:ro
+      - ./infra/vault/init.sql:/schema/init.sql:ro
+      - ./infra/vault/create-app-role.sh:/docker-entrypoint-initdb.d/01-create-app-role.sh:ro
     networks: [vault-a-net]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${VAULT_A_USER:-vault_a} -d vault"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${VAULT_A_ADMIN_USER:-vault_a_admin} -d vault"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -41,15 +46,20 @@ services:
     image: postgres:16
     command: ["postgres", "-c", "max_prepared_transactions=20"] # two-phase commit for split writes
     environment:
-      POSTGRES_USER: ${VAULT_B_USER:-vault_b}
-      POSTGRES_PASSWORD: ${VAULT_B_PASSWORD:-change-me-b}
+      # Admin account: only used to create the schema and the app role at first start.
+      POSTGRES_USER: ${VAULT_B_ADMIN_USER:-vault_b_admin}
+      POSTGRES_PASSWORD: ${VAULT_B_ADMIN_PASSWORD:-change-me-b-admin}
       POSTGRES_DB: vault
+      # The role the app connects as (not a superuser).
+      APP_USER: ${VAULT_B_USER:-vault_b}
+      APP_PASSWORD: ${VAULT_B_PASSWORD:-change-me-b}
     volumes:
       - vault-b-data:/var/lib/postgresql/data
-      - ./infra/vault/init.sql:/docker-entrypoint-initdb.d/01-shares.sql:ro
+      - ./infra/vault/init.sql:/schema/init.sql:ro
+      - ./infra/vault/create-app-role.sh:/docker-entrypoint-initdb.d/01-create-app-role.sh:ro
     networks: [vault-b-net]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${VAULT_B_USER:-vault_b} -d vault"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${VAULT_B_ADMIN_USER:-vault_b_admin} -d vault"]
       interval: 5s
       timeout: 3s
       retries: 20

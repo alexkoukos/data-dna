@@ -176,9 +176,7 @@ class SplitStore:
         """
         canary = ig.tag(self._key, "K", "-", "canary", "k", b"")
         with psycopg.connect(self._dsn_b) as c:
-            c.execute(
-                "CREATE TABLE IF NOT EXISTS meta (name TEXT PRIMARY KEY, value BYTEA NOT NULL)"
-            )
+            # `meta` comes from infra/vault/init.sql; the app role may not create tables.
             c.execute(
                 "INSERT INTO meta (name, value) VALUES ('key_canary', %s) ON CONFLICT DO NOTHING",
                 (canary,),

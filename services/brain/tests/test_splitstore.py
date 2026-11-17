@@ -309,7 +309,6 @@ def test_aggregate_detects_moved_and_missing_shares(store: SplitStore, ns: str) 
 def test_wrong_key_is_reported_as_key_mismatch(store: SplitStore) -> None:
     from brain.splitstore import KeyMismatchError
 
-    _exec(URL_B, "CREATE TABLE IF NOT EXISTS meta (name TEXT PRIMARY KEY, value BYTEA NOT NULL)")
     saved = _exec(URL_B, "SELECT value FROM meta WHERE name = 'key_canary'")
     _exec(URL_B, "DELETE FROM meta WHERE name = 'key_canary'")
     try:
@@ -388,3 +387,15 @@ def test_http_store_reveal_aggregate(client, ns: str) -> None:  # type: ignore[n
             "/v1/vault/store", json={"record_id": "r", "field": "f", "value": bad}, headers=AUTH
         )
         assert r.status_code == 422
+
+
+def test_app_role_is_not_a_superuser(store: SplitStore) -> None:
+    for url in (URL_A, URL_B):
+        sup, create_role, create_db = _exec(
+            url,
+            "SELECT rolsuper, rolcreaterole, rolcreatedb FROM pg_roles "
+            "WHERE rolname = current_user",
+        )[0]
+        assert not (sup or create_role or create_db)
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            _exec(url, "CREATE TABLE evil (x int)")
