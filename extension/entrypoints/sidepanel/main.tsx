@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import "@fontsource/plus-jakarta-sans/400.css";
+import "@fontsource/plus-jakarta-sans/700.css";
+import "@fontsource/plus-jakarta-sans/800.css";
 import "../../src/ui.css";
 
 interface Turn {
@@ -57,7 +60,11 @@ function Panel() {
 
   return (
     <div className="wrap" style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <div className="row" style={{ justifyContent: "space-between" }}>
+      <img className="wordmark" src="/brand/hive-wordmark.svg" alt="Hive" width={96} />
+      <div
+        className="row"
+        style={{ justifyContent: "space-between", marginTop: 12, flexWrap: "wrap" }}
+      >
         <h1>Company AI</h1>
         <span className="badge">Stays inside the company</span>
       </div>

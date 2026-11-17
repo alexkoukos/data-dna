@@ -44,7 +44,7 @@ test("a value hidden with spaces asks first, and Send anyway goes through", asyn
 
   const card = page.getByRole("alertdialog");
   await expect(card).toBeVisible();
-  await expect(card).toContainText("Check before you send");
+  await expect(card).toContainText("Let's check this before it leaves.");
   expect(await received(request)).toEqual([]);
 
   await card.getByRole("button", { name: "Send anyway" }).click();

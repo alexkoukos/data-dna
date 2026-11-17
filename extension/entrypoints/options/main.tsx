@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import "@fontsource/plus-jakarta-sans/400.css";
+import "@fontsource/plus-jakarta-sans/700.css";
+import "@fontsource/plus-jakarta-sans/800.css";
 import "../../src/ui.css";
 import { pair, refreshPolicy } from "../../src/api";
 import { getSettings, saveSettings } from "../../src/storage";
@@ -68,7 +71,8 @@ function Options() {
 
   return (
     <div className="wrap" style={{ maxWidth: 640, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 22, margin: "8px 0 4px" }}>Pyli settings</h1>
+      <img className="wordmark" src="/brand/hive-wordmark.svg" alt="Hive" width={96} />
+      <h1 style={{ fontSize: 22, margin: "12px 0 4px" }}>Settings</h1>
       <p className="muted">
         In a company, IT sets this for you with a browser policy. These fields are for the demo.
       </p>
@@ -118,7 +122,7 @@ function Options() {
       <div className="bubble">
         <p>
           <b>Checked:</b> the text you paste or send in an AI chat, before it is sent. First in your
-          browser, then on your company&apos;s own server. It is never sent to Pyli&apos;s makers or
+          browser, then on your company&apos;s own server. It is never sent to Hive&apos;s makers or
           to any outside service.
         </p>
         <p>

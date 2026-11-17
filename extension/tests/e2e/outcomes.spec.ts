@@ -72,7 +72,7 @@ for (const lang of ["en", "el"]) {
       await page.locator("#prompt").fill(text);
       await page.locator("#prompt").press("Enter");
       const card = page.getByRole("alertdialog");
-      await expect(card).toContainText("Check before you send");
+      await expect(card).toContainText("Let's check this before it leaves.");
       await expect(card).toContainText("client name");
       expect(await received(request)).toEqual([]);
       await card.getByLabel(/Why do you need to send this/).fill("Follow-up the client asked for");
@@ -90,7 +90,7 @@ for (const lang of ["en", "el"]) {
       await page.locator("#prompt").fill(sample(lang, "4-redirect"));
       await page.locator("#prompt").press("Enter");
       const card = page.getByRole("alertdialog");
-      await expect(card).toContainText("Use the company AI for this");
+      await expect(card).toContainText("Company AI can answer this safely.");
       await expect(card).toContainText("Salary bands 2027");
       await expect(card.getByRole("button", { name: "Ask the company AI" })).toBeVisible();
       expect(await received(request)).toEqual([]);
@@ -102,7 +102,7 @@ for (const lang of ["en", "el"]) {
       await page.locator("#prompt").fill(sample(lang, "5-block"));
       await page.locator("#prompt").press("Enter");
       const card = page.getByRole("alertdialog");
-      await expect(card).toContainText("This was not sent");
+      await expect(card).toContainText("This stays in the hive.");
       await expect(card).toContainText("Board memo");
       await expect(card).toContainText(/Company policy does not allow/);
       expect(await received(request)).toEqual([]);

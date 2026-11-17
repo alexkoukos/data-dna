@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import "@fontsource/plus-jakarta-sans/400.css";
+import "@fontsource/plus-jakarta-sans/700.css";
+import "@fontsource/plus-jakarta-sans/800.css";
 import "../../src/ui.css";
 import { getSettings, type DayStats, type RecentEvent } from "../../src/storage";
+
+const WORD: Record<string, string> = {
+  allow: "Allowed",
+  mask: "Masked",
+  warn: "Warned",
+  local: "Answered locally",
+  block: "Blocked",
+};
 
 const EMPTY: DayStats = { day: "", checked: 0, masked: 0, warned: 0, blocked: 0, local: 0 };
 
@@ -34,12 +45,20 @@ function Popup() {
   };
 
   return (
-    <div className="wrap" style={{ width: 340 }}>
+    <div className="wrap" style={{ width: 360, background: "var(--tint)" }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <h1>Pyli</h1>
+        <img className="wordmark" src="/brand/hive-wordmark.svg" alt="Hive" width={96} />
         <span className="muted status">{who ? `Signed in as ${who}` : "Not paired yet"}</span>
       </div>
-      <h2>Today</h2>
+      <p className="saves">
+        <b>{stats.masked + stats.blocked + stats.local}</b>
+        <span>{stats.masked + stats.blocked + stats.local === 1 ? "save" : "saves"} today</span>
+      </p>
+      <p className="muted" style={{ margin: "0 0 12px" }}>
+        {stats.masked + stats.blocked + stats.local > 0
+          ? "Nothing of the hive left."
+          : "Paste into an AI chat and I'll check it first."}
+      </p>
       <div className="grid" role="list" aria-label="Today">
         {[
           ["Checked", stats.checked],
@@ -55,12 +74,12 @@ function Popup() {
       </div>
       <h2>Last events</h2>
       {recent.length === 0 ? (
-        <p className="muted">Nothing yet. Paste something into an AI chat and it shows up here.</p>
+        <p className="muted">Nothing yet. Each check shows up here.</p>
       ) : (
         <ul className="events">
           {recent.map((e) => (
             <li key={e.ts}>
-              <span className={`tag ${e.action}`}>{e.action}</span>
+              <span className={`tag ${e.action}`}>{WORD[e.action] ?? e.action}</span>
               <span>{e.tool}</span>
               <span className="muted" style={{ marginLeft: "auto" }}>
                 {new Date(e.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -86,7 +105,7 @@ function Popup() {
       </p>
       <div className="row" style={{ marginTop: 8 }}>
         <button className="primary" onClick={openPanel} style={{ flex: 1 }}>
-          Open company AI
+          Open Company AI
         </button>
         <button onClick={() => chrome.runtime.openOptionsPage()}>Settings</button>
       </div>

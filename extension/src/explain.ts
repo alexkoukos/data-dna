@@ -20,10 +20,10 @@ export function label(category: string): string {
 export function titleFor(action: Action): string {
   return {
     allow: "Looks fine",
-    mask: "Sensitive values hidden",
-    warn: "Check before you send",
-    local: "Use the company AI for this",
-    block: "This was not sent",
+    mask: "That's hive honey. I kept it in.",
+    warn: "Let's check this before it leaves.",
+    local: "Company AI can answer this safely.",
+    block: "This stays in the hive.",
   }[action];
 }
 
@@ -38,22 +38,22 @@ export function reasonsFor(action: Action, categories: string[], document?: stri
     case "mask":
       return [
         `Your message contains ${list}.`,
-        "Pyli replaced the values with placeholders before sending. The AI never sees the real values, and they come back in the answer on this page only.",
+        "I replaced the values with placeholders before anything was sent. The AI never sees the real ones, and they come back in the answer on this page only.",
       ];
     case "warn":
       return [
         `Your message may contain ${list}.`,
-        "Company policy asks you to confirm before it goes to an outside AI tool. Remove it, or send anyway and say why.",
+        "Company policy asks you to confirm before this goes to an outside AI tool. Next time: remove it, or send anyway and say why.",
       ];
     case "local":
       return [
         `Your message contains or resembles ${list}.`,
-        "It stays inside the company if you ask the company AI instead. Same question, same answer quality for this task.",
+        "Next time: Company AI can read this safely. Same question, answered on our own servers.",
       ];
     case "block":
       return [
         `Your message contains ${list}.`,
-        "Company policy does not allow this to be sent to an outside AI tool. Ask the data owner, or use the company AI with a shorter excerpt.",
+        "I stopped this send. Next time: use Company AI, which can see this safely, or ask the data owner.",
       ];
     default:
       return [];

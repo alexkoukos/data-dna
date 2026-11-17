@@ -147,9 +147,9 @@ export default defineContentScript({
           // We could not rewrite the composer safely, so we do not send the original.
           await overlay.card({
             action: "warn",
-            title: "Could not hide the values",
+            title: "I could not hide the values.",
             reasons: [
-              "Pyli found sensitive values but could not replace them in this page, so nothing was sent.",
+              "I found sensitive values but could not replace them on this page, so nothing was sent.",
               "Remove the values yourself, then send again.",
             ],
             buttons: [{ id: "edit", label: "Edit message", kind: "primary" }],
@@ -160,7 +160,7 @@ export default defineContentScript({
         const n = Object.keys(r.placeholders).length;
         resubmit(a);
         overlay.note(
-          `${n} item${n > 1 ? "s" : ""} masked before sending. Real values return in the answer, on this page only.${note}`,
+          `${n} item${n > 1 ? "s" : ""} masked before sending. Real values come back in the answer, on this page only.${note}`,
         );
         return;
       }
@@ -185,7 +185,7 @@ export default defineContentScript({
           askReason: true,
           preview: r.rewrite ? { label: "Safer version", text: r.rewrite } : undefined,
           buttons: [
-            { id: "edit", label: "Edit message", kind: "secondary" },
+            { id: "edit", label: "Edit message", kind: r.rewrite ? "secondary" : "primary" },
             ...(r.rewrite
               ? [{ id: "rewrite", label: "Use safer version", kind: "primary" as const }]
               : []),

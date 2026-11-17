@@ -1,25 +1,46 @@
+/* Hive brand kit v1. Amber is a fill, never text: ink goes on amber, amber-text when amber must be read. */
 :root {
   color-scheme: light dark;
+  --tint: #fffbeb;
   --bg: #ffffff;
-  --fg: #1b2430;
-  --muted: #5a6779;
-  --line: #d5dbe5;
-  --brand: #1f4fd8;
-  --brand-fg: #ffffff;
-  --card: #f5f7fb;
-  --ok: #16794a;
-  --warn: #c77700;
-  --bad: #b42318;
+  --subtle: #f9fafb;
+  --muted-bg: #f3f4f6;
+  --line: #e5e7eb;
+  --fg: #262626;
+  --muted: #525252;
+  --subtle-fg: #6b7280;
+  --amber: #f59e0b;
+  --amber-bee: #e9a516;
+  --amber-text: #b45309;
+  --on-amber: #262626;
+
+  --mask-bg: #f4ecff;
+  --mask-fg: #553674;
+  --mask-solid: #764aa2;
+  --block-bg: #ffebe9;
+  --block-fg: #7e2122;
+  --block-solid: #b02a2d;
+  --warn-bg: #f9efda;
+  --warn-fg: #704500;
+  --warn-solid: #915b00;
+  --local-bg: #e5f2ff;
+  --local-fg: #154a7a;
+  --local-solid: #1666aa;
+  --allow-bg: #e5f6e3;
+  --allow-fg: #245420;
+  --allow-solid: #30752a;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #131a26;
-    --fg: #e8edf5;
-    --muted: #9aa8bd;
-    --line: #2b3a52;
-    --brand: #6a93ff;
-    --brand-fg: #0b1220;
-    --card: #1a2333;
+    --tint: #262626;
+    --bg: #1f1f1f;
+    --subtle: #2b2b2b;
+    --muted-bg: #333333;
+    --line: #404040;
+    --fg: #fafaf9;
+    --muted: #d4d4d4;
+    --subtle-fg: #a3a3a3;
+    --amber-text: #fbbf24;
   }
 }
 * {
@@ -28,25 +49,26 @@
 body {
   margin: 0;
   font:
-    14px/1.5 system-ui,
+    400 15px/23px "Plus Jakarta Sans",
+    system-ui,
     -apple-system,
     "Segoe UI",
-    Roboto,
     sans-serif;
-  background: var(--bg);
+  background: var(--tint);
   color: var(--fg);
 }
 h1 {
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 800;
   margin: 0;
 }
 h2 {
-  font-size: 13px;
-  margin: 16px 0 6px;
-  color: var(--muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 700;
+  margin: 20px 0 8px;
+  color: var(--fg);
 }
 p {
   margin: 0 0 8px;
@@ -55,12 +77,32 @@ p {
   color: var(--muted);
 }
 .wrap {
-  padding: 14px 16px 18px;
+  padding: 16px 16px 20px;
 }
 .row {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+.wordmark {
+  display: block;
+  width: 96px;
+  height: auto;
+}
+.saves {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 12px 0 2px;
+}
+.saves b {
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 800;
+}
+.saves span {
+  font-size: 17px;
+  font-weight: 700;
 }
 .grid {
   display: grid;
@@ -68,7 +110,8 @@ p {
   gap: 8px;
 }
 .stat {
-  background: var(--card);
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 8px 6px;
   text-align: center;
@@ -76,10 +119,12 @@ p {
 .stat b {
   display: block;
   font-size: 20px;
-  line-height: 1.2;
+  line-height: 26px;
+  font-weight: 800;
 }
 .stat span {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--muted);
 }
 ul.events {
@@ -90,52 +135,88 @@ ul.events {
   gap: 6px;
 }
 ul.events li {
-  background: var(--card);
-  border-radius: 8px;
-  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
   display: flex;
   gap: 8px;
-  align-items: baseline;
+  align-items: center;
 }
+/* Outcome chips: always the word and an icon, never colour alone */
 .tag {
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 700;
-  border-radius: 5px;
-  padding: 1px 6px;
-  text-transform: uppercase;
-  border: 1px solid currentColor;
+  border-radius: 9999px;
+  padding: 2px 9px 2px 7px;
+}
+.tag::before {
+  font-size: 9px;
+  line-height: 1;
 }
 .tag.mask {
-  color: #6d3fd1;
+  background: var(--mask-bg);
+  color: var(--mask-fg);
+}
+.tag.mask::before {
+  content: "◐";
 }
 .tag.warn {
-  color: var(--warn);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.tag.warn::before {
+  content: "▲";
 }
 .tag.local {
-  color: #0b7a8a;
+  background: var(--local-bg);
+  color: var(--local-fg);
+}
+.tag.local::before {
+  content: "⌂";
 }
 .tag.block {
-  color: var(--bad);
+  background: var(--block-bg);
+  color: var(--block-fg);
+}
+.tag.block::before {
+  content: "■";
 }
 .tag.allow {
-  color: var(--ok);
+  background: var(--allow-bg);
+  color: var(--allow-fg);
+}
+.tag.allow::before {
+  content: "✓";
 }
 button,
 .btn {
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 16px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--bg);
   color: var(--fg);
-  font: inherit;
-  font-weight: 600;
+  font:
+    700 14px/1 "Plus Jakarta Sans",
+    system-ui,
+    sans-serif;
   cursor: pointer;
 }
+button:hover {
+  background: var(--muted-bg);
+}
 button.primary {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--brand-fg);
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--on-amber);
+}
+button.primary:hover {
+  background: var(--amber-bee);
 }
 button:disabled {
   opacity: 0.55;
@@ -159,35 +240,47 @@ textarea {
 }
 label {
   display: block;
-  font-weight: 600;
+  font-weight: 700;
   margin: 12px 0 4px;
 }
+/* Focus: ink ring with an amber halo, readable on every ground */
 :focus-visible {
-  outline: 3px solid var(--brand);
+  outline: 2px solid var(--fg);
   outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--amber);
 }
 .badge {
-  display: inline-block;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: #d7f1f5;
-  color: #064b55;
+  padding: 2px 9px 2px 7px;
+  border-radius: 9999px;
+  background: var(--local-bg);
+  color: var(--local-fg);
+}
+.badge::before {
+  content: "⌂";
+  font-size: 10px;
 }
 .bubble {
-  background: var(--card);
-  border-radius: 12px;
-  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 14px;
   white-space: pre-wrap;
   margin-bottom: 10px;
 }
 .bubble.me {
-  background: var(--brand);
-  color: var(--brand-fg);
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--on-amber);
   margin-left: 24px;
 }
 .status {
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 20px;
   margin-top: 6px;
 }
