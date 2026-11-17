@@ -97,7 +97,7 @@ input {
 }
 #status.ok::before {
   content: "● Connected. ";
-  color: #15803d;
+  color: var(--pyli-allow);
   font-weight: 600;
 }
 #status.bad::before {
