@@ -230,3 +230,17 @@ def test_logs_ingest_adds_squid_lines(client: TestClient, engine: sa.Engine) -> 
     )
     assert r.json()["rows"] == 1
     assert team  # the row is filed under the person's team
+
+
+def test_inventory_says_where_each_tool_was_seen(client: TestClient, engine: sa.Engine) -> None:
+    user, _ = _a_user(engine)
+    now = int(datetime.now(UTC).timestamp() * 1000)
+
+    def sources() -> list[str]:
+        tools = {x["name"]: x for x in client.get("/v1/inventory").json()}
+        return tools["ChatGPT (personal)"]["sources"]
+
+    assert sources() == ["logs"]
+    event = {"ts": now, "tool": "ChatGPT", "kind": "visit", "host": "chatgpt.com"}
+    client.post("/v1/events", headers={"X-Demo-User": user}, json={"events": [event]})
+    assert sources() == ["extension", "logs"]

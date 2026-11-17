@@ -11,6 +11,8 @@ export interface CheckResult {
   action: Action;
   /** Plain-language lines: what happened and why. */
   reasons: string[];
+  /** The server's own short reasons (which checks fired), shown under the plain-language text. */
+  why?: string[];
   findings: FindingView[];
   /** Where the answer came from: the browser alone, the company server, or the browser because the server was down. */
   source: "l1" | "l2" | "offline";

@@ -38,6 +38,7 @@ export const tool = (id: number, over: Partial<Tool> = {}): Tool => ({
   peak_users: 12,
   requests: 300,
   trend: [1, 2, 3, 4, 5, 6, 7],
+  sources: ["logs"],
   first_seen: "2026-10-31",
   ...over,
 });

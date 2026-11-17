@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocation } from "react-router-dom";
 import { DECISION_EVENT, SAYS } from "../lib/companion";
 import { fetchIncidents } from "../lib/securityApi";
 import { openVideoPip, openWindowPip, pipSupport, type VideoPip } from "../lib/pip";
@@ -85,8 +84,6 @@ export function Companion() {
   const timer = useRef<number | undefined>(undefined);
   const lastSeen = useRef<number | null>(null);
   const support = pipSupport();
-  // On the chat screen he sits above the message box, so he never covers what people type.
-  const onChat = useLocation().pathname.startsWith("/chat");
 
   const save = (next: Partial<{ corner: Corner; hidden: boolean }>) =>
     setPrefs((p) => {
@@ -194,7 +191,7 @@ export function Companion() {
   return (
     <aside
       aria-label="Thyro, your companion"
-      className={`pointer-events-none fixed z-40 flex flex-col gap-2 ${onChat ? "bottom-36" : "bottom-4 max-md:bottom-24"} ${side}`}
+      className={`pointer-events-none fixed z-40 flex flex-col gap-2 bottom-4 max-md:bottom-24 ${side}`}
     >
       {pipWin
         ? createPortal(

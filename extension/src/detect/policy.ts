@@ -16,6 +16,8 @@ export interface Policy {
   categories: Record<string, Action>;
   sensitivity: Record<string, Action>;
   failMode: Record<string, FailMode>;
+  /** Client names and aliases from the company's client list. */
+  clients: string[];
   tools: Record<
     string,
     { approval: "approved" | "tolerated" | "unapproved"; alternative?: string }
@@ -37,6 +39,7 @@ export const DEFAULT_POLICY: Policy = {
   },
   sensitivity: { internal: "local", confidential: "local", restricted: "block" },
   failMode: { restricted: "fail_closed", other: "fail_open" },
+  clients: [],
   tools: {},
 };
 

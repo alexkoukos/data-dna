@@ -4,15 +4,15 @@ import { Thyro } from "../components/Thyro";
 const STEPS = [
   {
     n: 1,
-    title: "An employee sends a risky prompt",
-    body: "A bank account number, an access key, a client name. The kind of thing people paste into AI tools without thinking.",
-    to: "/chat",
-    cta: "Open Company Chat",
+    title: "An employee pastes something risky",
+    body: "A bank account number, an access key, a client name. The kind of thing people paste into ChatGPT without thinking. The extension is right there in the browser.",
+    to: "/extension",
+    cta: "Get the extension",
   },
   {
     n: 2,
-    title: "Pyli catches it at the gate",
-    body: "Each message is checked before it leaves. It is allowed, masked, held for a second look, answered locally or blocked, with the reason in plain words.",
+    title: "Pyli catches it before it is sent",
+    body: "Each message is checked before it leaves the browser. It is allowed, masked, held for a second look, answered by the company AI or blocked, with the reason in plain words.",
     to: "/break-it",
     cta: "Try to break it",
   },
@@ -36,15 +36,16 @@ export default function HomePage() {
             Use AI at work without leaking company data.
           </h1>
           <p className="mt-4 max-w-prose text-lg text-ink-600">
-            Pyli checks every prompt before it reaches an AI model. Private data is masked or
-            stopped, and your security team sees what happened.
+            Pyli is a browser extension and a dashboard. It checks what people paste into AI chats,
+            masks or stops private data, and shows your security team which AI tools are really
+            used.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link
-              to="/chat"
+              to="/extension"
               className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-5 text-base font-semibold text-white hover:bg-brand-700"
             >
-              Start the demo
+              Get the extension
             </Link>
             <Link
               to="/security"

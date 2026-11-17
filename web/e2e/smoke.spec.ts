@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const ROUTES = [
   "/",
-  "/chat",
+  "/extension",
   "/connect",
   "/break-it",
   "/security",
@@ -65,31 +65,33 @@ test("AI tools lists unapproved tools first and can filter", async ({ page }) =>
   await expect(page.getByText("Unapproved", { exact: true })).toHaveCount(0);
 });
 
-test("chat masks a bank account number and still answers", async ({ page }) => {
-  await page.goto("/chat");
-  await page.getByRole("button", { name: "Try a bank account number" }).click();
-  await page.getByRole("button", { name: "Send" }).click();
-  const log = page.getByRole("log", { name: "Conversation" });
-  await expect(log.getByText("Masked")).toBeVisible();
-  // Thyro shows the matching pose next to the label (the label is what carries the meaning).
-  await expect(log.locator('img[src$="thyro-mask.svg"]')).toBeVisible();
-  await expect(log.getByText(/passed the safety check/)).toBeVisible();
+test("get the extension: download link, five samples and a pairing code", async ({ page }) => {
+  await page.goto("/extension");
+  await expect(page.getByRole("link", { name: /Download pyli-extension.zip/ })).toHaveAttribute(
+    "href",
+    "/extension.zip",
+  );
+  const zip = await page.request.get("/extension.zip");
+  expect(zip.ok()).toBe(true);
+  expect((await zip.body()).subarray(0, 2).toString()).toBe("PK");
+  const samples = page.getByRole("list", { name: "Sample texts" });
+  await expect(samples.getByRole("listitem")).toHaveCount(5);
+  await expect(samples.getByText(/IBAN GR16 0110 1250 0000 0001 2300 695/).first()).toBeVisible();
+  await page.getByLabel("Pair as this person").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "Show pairing code" }).click();
+  await expect(page.getByRole("status")).toContainText(/\d{6}/);
   const results = await new AxeBuilder({ page }).analyze();
   expect(
     results.violations.filter((v) => ["serious", "critical"].includes(v.impact ?? "")),
   ).toEqual([]);
 });
 
-test("chat holds a risky message and asks before sending", async ({ page }) => {
-  await page.goto("/chat");
-  await page
-    .getByLabel("Message")
-    .fill("AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695");
-  await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByText("Check before this goes out")).toBeVisible();
-  await page.getByLabel(/Say why/).fill("needed for an audit");
-  await page.getByRole("button", { name: "Send anyway" }).click();
-  await expect(page.getByText(/passed the safety check/)).toBeVisible();
+test("AI tools can be filtered by where they were seen", async ({ page }) => {
+  await page.goto("/security/tools");
+  await page.getByRole("button", { name: "Browser extension" }).click();
+  await expect(page.getByRole("heading", { level: 3 }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Network logs" }).click();
+  await expect(page.getByRole("heading", { level: 3 }).first()).toBeVisible();
 });
 
 test("policies: change one, see it saved, then put it back", async ({ page }) => {
@@ -113,6 +115,12 @@ test("policies: change one, see it saved, then put it back", async ({ page }) =>
 test("connect page turns to Connected after a real request with the shown key", async ({
   page,
 }) => {
+  // The gateway is optional now (`make gateway`).
+  const up = await page.request
+    .get("http://localhost:4000/health/liveliness", { timeout: 1500 })
+    .then((r) => r.ok())
+    .catch(() => false);
+  test.skip(!up, "needs the optional gateway: make gateway");
   await page.goto("/connect");
   await expect(page.getByText(/Waiting for first request/)).toBeVisible();
   await page.getByRole("button", { name: "Show personal key" }).click();

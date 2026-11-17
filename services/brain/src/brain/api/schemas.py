@@ -166,6 +166,8 @@ class ToolOut(BaseModel):
     requests: int
     trend: list[int]
     first_seen: str | None
+    # Where we saw it: the browser extension, network logs (Squid, Zeek, gateway), or both.
+    sources: list[str] = Field(default_factory=list)
 
 
 class DocumentOut(BaseModel):

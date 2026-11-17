@@ -1,0 +1,1 @@
+Draft a polite payment reminder for a customer. Their company tax number is 123456783 and they should pay to IBAN GR16 0110 1250 0000 0001 2300 695 by Friday.

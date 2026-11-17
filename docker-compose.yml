@@ -1,5 +1,6 @@
 # One command: docker compose up --build   (Netcompany rule: must build and start on Linux)
-# Gateway (LiteLLM) and the local model are added in TASKS.md items G1 and L1.
+# The product is the browser extension plus the dashboard. The LiteLLM gateway (another way in,
+# for scripts and coding tools) and the local model are optional profiles: `make gateway`, `make local`.
 name: data-dna
 
 services:
@@ -41,6 +42,7 @@ services:
         condition: service_healthy
 
   gateway:
+    profiles: ["gateway"]
     build: ./infra/gateway
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}
@@ -64,8 +66,6 @@ services:
       - "3000:3000"
     depends_on:
       brain:
-        condition: service_healthy
-      gateway:
         condition: service_healthy
 
   # Offline stand-in for ChatGPT, for the demo and the extension tests (http://localhost:3100).
@@ -113,7 +113,7 @@ services:
       - ./scripts:/scripts:ro
       - ./data:/data:ro
     depends_on:
-      gateway:
+      brain:
         condition: service_healthy
 
 volumes:

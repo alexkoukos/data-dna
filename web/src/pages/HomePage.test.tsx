@@ -10,7 +10,9 @@ describe("HomePage", () => {
         <HomePage />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("link", { name: "Start the demo" })).toHaveAttribute("href", "/chat");
+    const start = screen.getAllByRole("link", { name: "Get the extension" });
+    expect(start.length).toBeGreaterThan(0);
+    for (const link of start) expect(link).toHaveAttribute("href", "/extension");
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
     expect(screen.getByRole("link", { name: "Open the security view" })).toHaveAttribute(
       "href",

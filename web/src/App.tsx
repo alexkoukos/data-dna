@@ -1,7 +1,7 @@
 import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
-import ChatPage from "./pages/ChatPage";
+import ExtensionPage from "./pages/ExtensionPage";
 import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
 import GroupsPage from "./pages/security/GroupsPage";
@@ -18,7 +18,7 @@ import ToolsPage from "./pages/security/ToolsPage";
 import { Companion } from "./components/Companion";
 
 const links = [
-  { to: "/chat", label: "Company Chat" },
+  { to: "/extension", label: "Get the extension" },
   { to: "/break-it", label: "Try to break it" },
   { to: "/security", label: "Security" },
   { to: "/connect", label: "Connect a tool" },
@@ -53,7 +53,7 @@ export default function App() {
       </nav>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/extension" element={<ExtensionPage />} />
         <Route path="/connect" element={<ConnectPage />} />
         <Route path="/break-it" element={<BreakItPage />} />
         <Route path="/security" element={<SecurityLayout />}>

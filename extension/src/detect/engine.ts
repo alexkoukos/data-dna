@@ -98,6 +98,42 @@ function dedupe(items: Finding[]): Finding[] {
   return out;
 }
 
+const clientRx = new WeakMap<string[], RegExp | null>();
+
+/** Client names from the company's list. Names of 4+ letters match in any case; short aliases (HML) only as written. */
+export function findClients(text: string, clients: string[]): Finding[] {
+  if (!clients.length) return [];
+  let rx = clientRx.get(clients);
+  if (rx === undefined) {
+    const esc = (n: string) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const long = clients.filter((n) => n.length >= 4).map(esc);
+    const short = clients.filter((n) => n.length === 3).map(esc);
+    const W = "[\\p{L}\\p{N}_]";
+    const parts = [
+      long.length ? `(?<!${W})(?:${long.join("|")})(?!${W})` : "",
+      short.length ? `(?<!${W})(?:${short.join("|")})(?!${W})` : "",
+    ].filter(Boolean);
+    rx = parts.length ? new RegExp(parts.join("|"), "giu") : null;
+    clientRx.set(clients, rx);
+  }
+  if (!rx) return [];
+  const out: Finding[] = [];
+  for (const m of text.matchAll(rx)) {
+    const value = m[0];
+    // A three-letter alias must be written exactly as in the list (so "tec" the word is not a client).
+    if (value.length === 3 && !clients.includes(value)) continue;
+    const start = m.index ?? 0;
+    out.push({
+      entity: "CLIENT",
+      category: "client_name",
+      start,
+      end: start + value.length,
+      value,
+    });
+  }
+  return out;
+}
+
 export function looksLikeSourceCode(text: string): boolean {
   if (text.length < 40) return false;
   const hits = SOURCE_CODE.hints.filter((h) => h.test(text)).length;
@@ -112,9 +148,9 @@ export interface Scan {
   sourceCode: boolean;
 }
 
-export function scan(raw: string): Scan {
+export function scan(raw: string, clients: string[] = []): Scan {
   const norm = normalise(raw);
-  const direct = findPatterns(norm.text);
+  const direct = addWithoutOverlap(findPatterns(norm.text), findClients(norm.text, clients));
   const hidden: Finding[] = [];
   for (const view of norm.views) {
     for (const f of findPatterns(view)) hidden.push({ ...f, hidden: true });

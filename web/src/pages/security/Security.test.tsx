@@ -19,7 +19,7 @@ function renderAt(path: string) {
           <Route path="tools" element={<ToolsPage />} />
           <Route path="incidents" element={<IncidentsPage />} />
         </Route>
-        <Route path="/chat" element={<p>chat</p>} />
+        <Route path="/extension" element={<p>extension</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -41,14 +41,14 @@ describe("Overview", () => {
     expect(screen.getByText("Blocked")).toBeInTheDocument();
   });
 
-  it("explains the empty state and points to the chat", async () => {
+  it("explains the empty state and points to the extension", async () => {
     mockApi({
       "/v1/metrics": { ...metrics, prompts_checked: 0, zero_llm_share: null },
       "/v1/incidents": { total: 0, items: [] },
     });
     renderAt("/security");
     expect(await screen.findByText("Nothing checked yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open Company Chat" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Get the extension" })).toBeInTheDocument();
   });
 
   it("shows a friendly error and recovers on retry", async () => {
@@ -81,6 +81,29 @@ describe("AI tools", () => {
     ]);
     expect(screen.getAllByText("Use Company AI instead.")).toHaveLength(3);
     expect(screen.getAllByRole("img", { name: /Requests per day/ })).toHaveLength(4);
+  });
+
+  it("filters by where a tool was seen: the extension, network logs or both", async () => {
+    mockApi({
+      "/v1/inventory": [
+        tool(1, { name: "Only Logs", sources: ["logs"] }),
+        tool(2, { name: "Only Extension", sources: ["extension"] }),
+        tool(3, { name: "Both", sources: ["extension", "logs"] }),
+      ],
+    });
+    renderAt("/security/tools");
+    await screen.findByText("Only Logs");
+    expect(screen.getByText("browser extension and network logs")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Browser extension" }));
+    const names = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(names.sort()).toEqual(["Both", "Only Extension"]);
+    await userEvent.click(screen.getByRole("button", { name: "Network logs" }));
+    expect(
+      screen
+        .getAllByRole("heading", { level: 3 })
+        .map((h) => h.textContent)
+        .sort(),
+    ).toEqual(["Both", "Only Logs"]);
   });
 
   it("filters by approval and says when a group is empty", async () => {

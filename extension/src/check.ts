@@ -39,7 +39,7 @@ export async function runCheck(
   policy: Policy,
   l2: L2Fn | null,
 ): Promise<CheckResult> {
-  const s = scan(text);
+  const s = scan(text, policy.clients);
   const categories = s.findings.map((f) => f.category);
   if (s.sourceCode) categories.push("source_code");
   const hiddenFinding = s.findings.some((f) => f.hidden);
@@ -72,11 +72,18 @@ export async function runCheck(
     if (remote && remote.action) {
       const stricter = PRECEDENCE[remote.action] >= PRECEDENCE[result.action];
       if (stricter) {
+        const remoteCategories = (remote.findings ?? []).map((f) => f.category);
         result = {
           ...result,
           ...remote,
           findings: remote.findings?.length ? remote.findings : result.findings,
-          reasons: remote.reasons?.length ? remote.reasons : result.reasons,
+          // Our own plain wording stays on top; the server's short reasons go under it.
+          reasons: reasonsFor(
+            remote.action,
+            remote.document ? [] : remoteCategories.length ? remoteCategories : categories,
+            remote.document?.title,
+          ),
+          why: remote.reasons,
           source: "l2",
         } as CheckResult;
       } else {

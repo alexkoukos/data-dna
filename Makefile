@@ -14,6 +14,7 @@ setup: ## First time: install all dependencies exactly as locked
 	@test -f .env || cp .env.example .env
 	cd services/brain && uv sync --frozen
 	cd web && npm ci
+	cd extension && npm ci
 
 up: ## Build and start everything (the judges' command)
 	docker compose up --build -d --wait
@@ -28,26 +29,38 @@ logs: ## Follow logs
 reset: ## Stop and delete the database (fresh seed next time)
 	docker compose down -v
 
-test: ## Unit tests (brain + web)
+test: ## Unit tests (brain + web + extension)
 	cd services/brain && uv run pytest
 	cd web && npm test
+	cd extension && npm test
 
 lint: ## Linters and formatters in check mode
 	cd services/brain && uv run ruff check . && uv run ruff format --check .
 	cd web && npm run lint && npm run format:check
+	cd extension && npm run lint && npm run format:check
 
 typecheck: ## Static types
 	cd services/brain && uv run mypy
 	cd web && npm run build
+	cd extension && npm run typecheck
 
 fmt: ## Auto-format code
 	cd services/brain && uv run ruff format . && uv run ruff check --fix .
 	cd web && npm run format
 
-test-gateway: ## Integration test through the gateway (needs `make up`)
+gateway: ## Start the optional LiteLLM gateway (another way in, for scripts and coding tools)
+	docker compose --profile gateway up --build -d --wait gateway
+
+extension: ## Build the browser extension into extension/.output/chrome-mv3 (load it unpacked in Chrome)
+	cd extension && npm ci && npx wxt build
+
+e2e-extension: ## Extension tests in a real Chromium with the extension loaded (starts mock-ai itself)
+	cd extension && npx wxt build && npx playwright install chromium && npm run e2e
+
+test-gateway: ## Integration test through the gateway (needs `make gateway`)
 	cd services/brain && uv run pytest tests/test_gateway_live.py -p no:cacheprovider --no-cov
 
-simulate: ## Simulated employees chat through the gateway so the dashboard moves (needs `make up`)
+simulate: ## Simulated employees use AI sites with the extension, so the dashboard moves (needs `make up`)
 	docker compose --profile sim run --rm sim
 
 loadtest: ## Latency under concurrent load, p95 against the 100 ms target (needs `make up`)
@@ -76,4 +89,4 @@ calibrate: ## Sweep the paraphrase cutoff and write docs/calibration.md and .svg
 eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
 	cd services/brain && uv run python -m brain.eval.run
 
-.PHONY: calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+.PHONY: gateway extension e2e-extension calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval

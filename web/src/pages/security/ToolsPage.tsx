@@ -18,6 +18,13 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "tolerated", label: "Tolerated" },
   { id: "approved", label: "Approved" },
 ];
+type SourceFilter = "all" | Tool["sources"][number];
+const SOURCE_FILTERS: { id: SourceFilter; label: string }[] = [
+  { id: "all", label: "Any source" },
+  { id: "extension", label: "Browser extension" },
+  { id: "logs", label: "Network logs" },
+];
+const SOURCE_LABEL = { extension: "browser extension", logs: "network logs" } as const;
 const ORDER = { unapproved: 0, tolerated: 1, approved: 2 } as const;
 
 function ToolCard({ tool }: { tool: Tool }) {
@@ -51,6 +58,14 @@ function ToolCard({ tool }: { tool: Tool }) {
           </dd>
         </div>
         <div>
+          <dt>Seen by</dt>
+          <dd className="font-medium text-ink-900">
+            {tool.sources.length > 0
+              ? tool.sources.map((x) => SOURCE_LABEL[x]).join(" and ")
+              : "Nothing yet"}
+          </dd>
+        </div>
+        <div>
           <dt>Teams</dt>
           <dd className="font-medium text-ink-900">
             {tool.teams.length > 0 ? tool.teams.join(", ") : "None seen"}
@@ -77,6 +92,7 @@ function ToolCard({ tool }: { tool: Tool }) {
 export default function ToolsPage() {
   const [state, reload] = useFetch(fetchInventory);
   const [filter, setFilter] = useState<Filter>("all");
+  const [source, setSource] = useState<SourceFilter>("all");
 
   if (state.status === "loading") {
     return (
@@ -101,12 +117,14 @@ export default function ToolsPage() {
     f === "all" ? tools.length : tools.filter((t) => t.approval === f).length;
   const shown = tools
     .filter((t) => filter === "all" || t.approval === filter)
+    .filter((t) => source === "all" || t.sources.includes(source))
     .sort((a, b) => ORDER[a.approval] - ORDER[b.approval] || b.requests - a.requests);
 
   return (
     <>
       <p className="max-w-prose text-ink-600">
-        Every AI tool we can see in network logs and gate traffic. Unapproved tools come first.
+        Every AI tool we can see, from the browser extension and from network logs. Unapproved tools
+        come first.
       </p>
       <div role="group" aria-label="Filter by approval" className="mt-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
@@ -118,6 +136,19 @@ export default function ToolsPage() {
             className={`min-h-11 rounded-md border px-3 text-sm font-medium ${filter === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
           >
             {f.label} ({count(f.id)})
+          </button>
+        ))}
+      </div>
+      <div role="group" aria-label="Filter by source" className="mt-2 flex flex-wrap gap-2">
+        {SOURCE_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            aria-pressed={source === f.id}
+            onClick={() => setSource(f.id)}
+            className={`min-h-11 rounded-md border px-3 text-sm font-medium ${source === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+          >
+            {f.label}
           </button>
         ))}
       </div>

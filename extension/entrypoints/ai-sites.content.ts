@@ -165,9 +165,16 @@ export default defineContentScript({
         return;
       }
 
-      const details = r.findings.map((f) => `${label(f.category)}: ${f.preview}`);
-      if (r.document)
-        details.unshift(`Looks like "${r.document.title}" (${r.document.sensitivity}).`);
+      // With a document match the document is the story; a pile of small findings would only be noise.
+      const details = r.document
+        ? [
+            `Looks like "${r.document.title}" (${r.document.sensitivity}).` +
+              (r.document.coverage
+                ? ` About ${Math.round(r.document.coverage * 100)}% of it matches.`
+                : ""),
+            ...(r.why ?? []).filter((w) => !/^Contains /.test(w)),
+          ]
+        : r.findings.map((f) => `${label(f.category)}: ${f.preview}`);
 
       if (r.action === "warn") {
         const choice = await overlay.card({

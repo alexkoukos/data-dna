@@ -1,11 +1,13 @@
-"""Employee simulator: people with personal keys chat through the gateway, so the dashboard moves.
+"""Employee simulator: people with the browser extension use AI sites, so the dashboard moves.
 
 Local:   cd services/brain && uv run python ../../scripts/simulate.py --count 40
 Compose: docker compose --profile sim run --rm sim      (or: make simulate)
 
-Prompts come from data/eval/prompts.csv (or prompts.sample.csv). About 70% are clean, the rest are
-leaks, injections and evasion attempts. On a warning, half the people send anyway with a reason.
-Everything is invented. Needs the stack running (make up).
+Each step is what the extension does: report a visit to an AI site, send the prompt to
+`/v1/check` as one of the seeded demo people, and on a warning let half the people send anyway
+with a reason. Prompts come from data/eval/prompts.csv (or prompts.sample.csv): about 70% are
+clean, the rest are leaks, injections and evasion attempts. Everything is invented.
+Needs the stack running (make up).
 """
 
 import argparse
@@ -20,9 +22,15 @@ from pathlib import Path
 import httpx
 
 BRAIN = os.environ.get("BRAIN_URL", "http://localhost:8001")
-GATEWAY = os.environ.get("GATEWAY_URL", "http://localhost:4000")
-TEAMS = ["Engineering", "Sales", "Legal", "HR", "Finance", "Marketing", "Operations"]
 DATA = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[1] / "data"))
+# (host the person visits, name the extension reports, weight)
+SITES = [
+    ("chatgpt.com", "ChatGPT", 50),
+    ("claude.ai", "Claude.ai", 20),
+    ("gemini.google.com", "Gemini", 15),
+    ("perplexity.ai", "Perplexity", 10),
+    ("chat.deepseek.com", "DeepSeek", 5),
+]
 
 
 def load_prompts() -> tuple[list[str], list[str]]:
@@ -39,13 +47,8 @@ def load_prompts() -> tuple[list[str], list[str]]:
     sys.exit("No prompts found. See TASKS.md T3, or run scripts/gen_eval_sample.py.")
 
 
-def new_person(client: httpx.Client, n: int, rng: random.Random) -> tuple[str, str, str]:
-    """(pseudonym, key, model). Creates the key through the brain, like the Connect page does."""
-    user = f"sim-{n:03d}-{rng.randrange(16**4):04x}"
-    resp = client.post(f"{BRAIN}/v1/keys", json={"user_id": user, "team": rng.choice(TEAMS)})
-    resp.raise_for_status()
-    body = resp.json()
-    return user, body["key"], body["default_model"]
+def now_ms() -> int:
+    return int(time.time() * 1000)
 
 
 def main() -> int:
@@ -60,36 +63,56 @@ def main() -> int:
     rng = random.Random(args.seed)
     clean, risky = load_prompts()
     outcomes: Counter[str] = Counter()
-    with httpx.Client(timeout=60) as http:
+    with httpx.Client(timeout=60, base_url=BRAIN) as http:
         try:
-            people = [new_person(http, i, rng) for i in range(args.people)]
+            everyone = http.get("/v1/demo-users").raise_for_status().json()
         except httpx.HTTPError as err:
             sys.exit(f"Could not reach the brain at {BRAIN}. Is the stack running (make up)? {err}")
-        for i in range(args.count):
-            _, key, model = rng.choice(people)
+        if not everyone:
+            sys.exit("The brain lists no demo people. Is DEMO_MODE on?")
+        people = [p["user"] for p in rng.sample(everyone, min(args.people, len(everyone)))]
+        sites = [(s[0], s[1]) for s in SITES]
+        weights = [s[2] for s in SITES]
+        for _ in range(args.count):
+            who = {"X-Demo-User": rng.choice(people)}
+            host, tool = rng.choices(sites, weights)[0]
+            http.post(
+                "/v1/events",
+                headers=who,
+                json={"events": [{"ts": now_ms(), "tool": tool, "kind": "visit", "host": host}]},
+            )
             text = rng.choice(risky if rng.random() < args.risky else clean)
-            headers = {"Authorization": f"Bearer {key}"}
-            body = {"model": model, "messages": [{"role": "user", "content": text}]}
-            r = http.post(f"{GATEWAY}/v1/chat/completions", headers=headers, json=body)
-            if r.status_code == 409:
+            r = http.post(
+                "/v1/check",
+                headers=who,
+                json={"text": text, "tool": tool, "url": f"https://{host}/"},
+            ).json()
+            action = r["action"]
+            if action == "warn":
                 outcomes["warned"] += 1
                 if rng.random() < 0.5:
-                    r = http.post(
-                        f"{GATEWAY}/v1/chat/completions",
-                        headers={**headers, "X-DNA-Ack": "simulated: needed for work"},
-                        json=body,
+                    http.post(
+                        "/v1/events",
+                        headers=who,
+                        json={
+                            "events": [
+                                {
+                                    "ts": now_ms(),
+                                    "tool": tool,
+                                    "kind": "override",
+                                    "host": host,
+                                    "reason": "simulated: needed for work",
+                                }
+                            ]
+                        },
                     )
                     outcomes["sent anyway"] += 1
                 else:
                     outcomes["cancelled"] += 1
-            elif r.status_code == 403:
-                outcomes["blocked"] += 1
-            elif r.status_code == 200:
-                outcomes[r.headers.get("x-dna-decision", "allow")] += 1
             else:
-                outcomes[f"error {r.status_code}"] += 1
+                outcomes[{"local": "company AI"}.get(action, action)] += 1
             time.sleep(args.delay)
-    print(f"Sent {args.count} prompts as {args.people} people:")
+    print(f"Sent {args.count} prompts as {len(people)} people:")
     for k, v in outcomes.most_common():
         print(f"  {k:<12} {v}")
     print("Open http://localhost:3000/security to see them.")

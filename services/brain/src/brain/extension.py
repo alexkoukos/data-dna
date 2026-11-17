@@ -203,7 +203,8 @@ def check(
     placeholders = sessions.get(out.session_id, who.user) if out.session_id else None
     document = None
     if out.documents:
-        top = max(out.documents, key=lambda d: d.score)
+        rank = {"restricted": 2, "confidential": 1}
+        top = max(out.documents, key=lambda d: (rank.get(d.sensitivity, 0), d.score))
         title = _doc_titles([top.document_id]).get(top.document_id, f"Document {top.document_id}")
         coverage = len(top.matched_chunks) / max(top.total_chunks, 1)
         document = DocumentView(
@@ -250,6 +251,19 @@ def t_policies() -> sa.Table:
     return policies_table
 
 
+def _client_names() -> list[str]:
+    """Client names and aliases, so the browser can spot them without asking the server."""
+    engine = _engine()
+    if engine is None:
+        return []
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(sa.select(t.clients.c.name, t.clients.c.aliases)).all()
+    except sa.exc.SQLAlchemyError:
+        return []
+    return sorted({n for name, aliases in rows for n in [name, *(aliases or [])] if n})
+
+
 @router.get("/v1/policy")
 def get_policy(
     response: Response,
@@ -273,6 +287,7 @@ def get_policy(
             }
     body = {
         "version": _policy_version(),
+        "clients": _client_names(),
         "categories": {k: str(v) for k, v in effective.categories.items()},
         "sensitivity": {k: str(v) for k, v in effective.sensitivity.items()},
         "failMode": {"restricted": "fail_closed", "other": "fail_open"},

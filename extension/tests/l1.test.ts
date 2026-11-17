@@ -64,3 +64,19 @@ describe("speed", () => {
     expect(performance.now() - t).toBeLessThan(50);
   });
 });
+
+describe("client names from the policy", () => {
+  const clients = ["Pindos Telecom", "Pindos", "HML", "Argo Shipping"];
+  it("finds names and aliases", () => {
+    const r = scan("Email pindos telecom and Argo Shipping about HML work", clients);
+    expect(r.findings.map((f) => f.value)).toEqual(["pindos telecom", "Argo Shipping", "HML"]);
+    expect(r.findings.every((f) => f.category === "client_name")).toBe(true);
+  });
+  it("does not match inside other words, or short aliases in the wrong case", () => {
+    expect(scan("Pindosx and the hml file", clients).findings).toEqual([]);
+  });
+  it("keeps checksum findings and client names apart", () => {
+    const r = scan("Argo Shipping paid GR1601101250000000012300695", clients);
+    expect(r.findings.map((f) => f.entity).sort()).toEqual(["CLIENT", "IBAN"]);
+  });
+});

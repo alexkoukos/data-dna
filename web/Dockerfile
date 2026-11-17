@@ -20,5 +20,6 @@ FROM nginx:alpine
 COPY web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=ext /extension.zip /usr/share/nginx/html/extension.zip
+COPY samples /usr/share/nginx/html/samples
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --retries=6 CMD wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1

@@ -51,6 +51,8 @@ export interface Tool {
   requests: number;
   trend: number[];
   first_seen: string | null;
+  /** Where we saw it: the browser extension, network logs, or both. */
+  sources: ("extension" | "logs")[];
 }
 
 async function get<T>(path: string): Promise<T> {

@@ -99,10 +99,10 @@ export default function OverviewPage() {
       <EmptyPanel title="Nothing checked yet">
         <p>
           Once someone sends a message, the numbers appear here.{" "}
-          <Link to="/chat" className="font-medium text-brand-700 underline">
-            Open Company Chat
+          <Link to="/extension" className="font-medium text-brand-700 underline">
+            Get the extension
           </Link>{" "}
-          and send one to try it.
+          and paste something into the demo chat to try it.
         </p>
       </EmptyPanel>
     );

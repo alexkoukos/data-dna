@@ -27,9 +27,13 @@ export function titleFor(action: Action): string {
   }[action];
 }
 
-export function reasonsFor(action: Action, categories: string[]): string[] {
+export function reasonsFor(action: Action, categories: string[], document?: string): string[] {
   const names = [...new Set(categories)].map(label);
-  const list = names.length ? names.join(", ") : "sensitive content";
+  const list = document
+    ? `text from the document "${document}"${names.length ? `, and ${names.join(", ")}` : ""}`
+    : names.length
+      ? names.join(", ")
+      : "sensitive content";
   switch (action) {
     case "mask":
       return [
