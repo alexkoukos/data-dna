@@ -56,7 +56,7 @@ const firstRect = (page: Page, selector: string) =>
     selector,
   );
 
-test("MASK: the bee flies, goes away within 1.5 s, and the badge counts the masked values", async ({
+test("MASK: the bee flies, goes away within 4 s, and the badge counts the masked values", async ({
   context,
   request,
 }) => {
@@ -92,7 +92,7 @@ test("MASK: the bee flies, goes away within 1.5 s, and the badge counts the mask
 
   const seconds = await lifetime;
   expect(seconds, "a bee appeared and was removed").not.toBeNull();
-  expect(seconds!).toBeLessThan(1500);
+  expect(seconds!).toBeLessThan(4000);
   expect(await beeCount(page)).toBe(0);
   await expect.poll(() => badges(context), { timeout: 3000 }).toContain("2");
   await expect(page.locator("pyli-overlay")).toBeAttached();

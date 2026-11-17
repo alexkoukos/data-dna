@@ -111,11 +111,11 @@ export class Mascot {
           { transform: place(from, 0.3), opacity: 0 },
           { transform: place(from, 1), opacity: 1 },
         ],
-        { duration: 150, fill: "forwards" },
+        { duration: 320, easing: "cubic-bezier(.2,.9,.3,1.2)", fill: "forwards" },
       )
       .finished.catch(() => undefined);
     if (this.current?.el !== el) return; // replaced by a newer bee
-    // 150 to 350 ms: the honey drop lifts and sticks under the bee.
+    // Then the honey drop lifts and sticks under the bee.
     const drop = createDrop();
     bee.append(drop);
     await drop
@@ -124,7 +124,7 @@ export class Mascot {
           { transform: "translateY(10px)", opacity: 0 },
           { transform: "translateY(0)", opacity: 1 },
         ],
-        { duration: 200, fill: "forwards" },
+        { duration: 380, easing: "ease-out", fill: "forwards" },
       )
       .finished.catch(() => undefined);
     if (this.current?.el !== el) return;
@@ -134,7 +134,7 @@ export class Mascot {
       from,
       to: { x: innerWidth - 36, y: -40 },
       size: SIZE,
-      duration: 800,
+      duration: 2000,
       shrinkTo: 0.4,
       fadeOutAtEnd: true,
       arc: "up",
@@ -155,7 +155,7 @@ export class Mascot {
       from,
       to: { x: innerWidth - 20, y: innerHeight / 2 },
       size: SIZE,
-      duration: 800,
+      duration: 1600,
       shrinkTo: 0.5,
       fadeOutAtEnd: true,
       arc: "up",
@@ -218,7 +218,7 @@ export class Mascot {
         from: { x: innerWidth - 36, y: -40 },
         to,
         size: SIZE,
-        duration: 800,
+        duration: 1700,
         arc: "down",
       });
     } else if (sendRect) {
@@ -237,10 +237,10 @@ export class Mascot {
               opacity: 1,
             },
           ],
-          { duration: 150, fill: "forwards" },
+          { duration: 250, fill: "forwards" },
         )
         .finished.catch(() => undefined);
-      await sleep(600);
+      await sleep(900);
     }
     this.done(el);
     if (perched.isConnected) {
