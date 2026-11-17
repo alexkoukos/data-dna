@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros, Hive landing page with the looping laptop
+**Done:** `/` is now the Hive landing page (`web/src/landing/`), the old home moved to `/app` (every other route unchanged). Hero is a MacBook photo (`web/public/brand/macbook-frame.png`, transparent display, notch) with the browser window behind it, looping 4 scenes (~24 s): payroll table masked, IBAN and AFM blocked, API key removed, confidential memo answered locally. The guard bee flies from the toolbar icon in a figure 8 and the bee card slides up; the toolbar counter goes up. A pure state machine (`loop.ts`) drives it, `Screen.tsx` renders (scene, phase) so the same component draws the still frames in "How it works". Sections: how it works, what the bee catches, for security teams, who watches the watcher, footer. Reduced motion shows the 4 scenes as still frames with a Next button; the loop also pauses when the tab is hidden, the hero is off-screen, or the Pause button is pressed. Brand: Hive brand kit v1 tokens scoped to `.hive` in `landing.css`; Plus Jakarta Sans via `@fontsource/plus-jakarta-sans` (woff2 bundled, loaded only on `/`); logo, bee, app icon extracted as outlined SVG from the PDF into `web/public/brand/`.
+**State:** branch `task/landing-page`. Vitest 85 pass, new `e2e/landing.spec.ts` 8 pass (against `vite preview`; full `make e2e` needs the stack). Lighthouse on the production build: performance 94, accessibility 100.
+**Next step:** run `make up` and `make e2e` once to confirm the smoke tests with the new `/app` route; decide whether the rest of the app (still Pyli teal, Commissioner font) should move to the Hive brand.
+**Problems / decisions needed:** the MacBook image came from a stock site (`download (4).png`, faint watermark on the base, 812 x 480 so soft on retina): confirm its licence or swap the file, `Laptop.tsx` has the hole coordinates in one place. The "Overview screenshot" is a static Hive-coloured picture (`OverviewMock.tsx`), because the real Overview is still Pyli teal with the old mascot and would clash. Replace it with a real screenshot once the app is rebranded. The app nav and the landing page use different tokens on purpose until then.
+**Files touched:** web/src/App.tsx, web/src/App.test.tsx, web/src/landing/*, web/public/brand/* (incl. macbook-frame.png), web/e2e/landing.spec.ts, web/e2e/smoke.spec.ts, web/package.json, web/package-lock.json, PROGRESS.md
+
+---
+
 ## 2026-11-17, Alexandros (with Claude), T5 business pack
 **Done:** `docs/business/` now has market (with sourced figures), competitors, SWOT, customer and pricing, roadmap, privacy and regulation, engagement. README sections Privacy, Business case and Roadmap link to them.
 **State:** branch `task/T5-business-pack`, docs only. Figures come from web searches of secondary sources; competitor claims are untested; prices are hypotheses.
