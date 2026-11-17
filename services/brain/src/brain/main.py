@@ -72,7 +72,7 @@ from brain.api.schemas import (
     UnmaskResponse,
 )
 from brain.ask.free import AskError, run_free
-from brain.ask.presets import BY_ID, PRESETS, run_preset
+from brain.ask.presets import BY_ID, PRESETS, match_preset, run_preset
 from brain.clients import ClientStore
 from brain.config import settings
 from brain.db import tables as t
@@ -952,6 +952,15 @@ def ask(req: AskRequest) -> AskOut:
             status_code=503, detail="The database is not connected. Try again soon."
         )
     if req.question and not req.preset:
+        known = match_preset(req.question)
+        if known is not None:
+            # Same sentence as a reviewed preset: use its fixed SQL, no model call.
+            try:
+                return AskOut(**run_preset(engine, known))
+            except sa.exc.SQLAlchemyError as err:
+                raise HTTPException(
+                    status_code=503, detail="The data could not be read. Try again soon."
+                ) from err
         try:
             return AskOut(**run_free(engine, req.question))
         except AskError as err:

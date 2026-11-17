@@ -117,3 +117,61 @@ def test_a_refused_query_is_a_422_and_no_model_says_what_to_do(
     r = client.post("/v1/ask", json={"question": "anything at all"})
     assert r.status_code == 422 and "preset" in r.json()["detail"]
     assert client.post("/v1/ask", json={"question": "x"}).status_code == 422  # too short
+
+
+BRIEF_QUESTION = "Which teams sent client data to unapproved AI tools this week?"
+
+
+def test_the_brief_question_is_the_first_preset_and_returns_the_expected_teams(
+    client: TestClient,
+) -> None:
+    presets = client.get("/v1/ask/presets").json()
+    assert presets[0]["question"] == BRIEF_QUESTION
+    out = client.post("/v1/ask", json={"preset": presets[0]["id"]}).json()
+    assert out["id"] == "client_data_unapproved" and out["columns"][0] == "team"
+    # Seed 42 (the demo data): these teams, most client-data incidents first.
+    assert [r[0] for r in out["rows"]] == ["Engineering", "Operations", "HR", "Legal"]
+    # Every team listed really has client data caught and unapproved-tool requests.
+    engine = main.policy_store.engine
+    assert engine is not None
+    with engine.connect() as conn:
+        with_client = {
+            r[0]
+            for r in conn.execute(
+                sa.text(
+                    "SELECT team FROM incidents WHERE CAST(categories AS TEXT) LIKE '%client_name%'"
+                )
+            )
+        }
+    assert {r[0] for r in out["rows"]} <= with_client
+    assert all(r[1] > 0 for r in out["rows"])
+
+
+@pytest.mark.parametrize(
+    "typed",
+    [
+        BRIEF_QUESTION,
+        "which teams sent client data to unapproved ai tools this week",
+        "  WHICH teams sent client data to unapproved AI tools this week??  ",
+    ],
+)
+def test_the_same_sentence_typed_in_free_text_uses_the_preset_without_a_model(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, typed: str
+) -> None:
+    def no_model(_q: str) -> str:
+        raise AssertionError("the model must not be called for a preset question")
+
+    monkeypatch.setattr(free, "write_sql", no_model)
+    body = client.post("/v1/ask", json={"question": typed}).json()
+    assert body["id"] == "client_data_unapproved"
+
+
+def test_a_different_question_still_goes_to_the_model(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    create_views(engine)
+    monkeypatch.setattr(free, "write_sql", lambda q: GOOD[1])
+    body = client.post("/v1/ask", json={"question": "which tools are unapproved?"}).json()
+    assert body["id"] == "free"

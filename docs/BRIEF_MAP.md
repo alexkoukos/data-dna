@@ -1,0 +1,39 @@
+# Brief to evidence map
+
+One row per thing the brief asks for. Every number was produced by the command named next to it, run on branch `task/judging-prep` on 17 Nov 2026 (WSL 2 Linux, synthetic data, `gen_org.py --seed 42`). Nothing here is from memory. Re-run the command to check any line. The misses are kept in on purpose. Demo step numbers refer to `docs/DEMO.md`.
+
+## The four expected outcomes
+
+| What the brief asks | Our answer in one line | Where it lives | Measured | Demo step |
+| --- | --- | --- | --- | --- |
+| A working prototype | `docker compose up --build` starts four services (database, brain, gateway, web) with seeded data and no key needed. | `docker-compose.yml`, README "Setup and run" | Build and start 81 s; start after `make reset` 66 s (`docker compose up`, timed). `make check`: 365 brain tests, 91% coverage, 79 web tests, all passing. `make e2e`: 41 of 41 specs pass (12 break-it specs, 29 smoke specs; the smoke file was run against this branch's stack on shifted ports because the default ports were taken, see PROGRESS.md). | 0 |
+| A risk and policy model | Every finding becomes one of five outcomes (allow, mask, warn, answer locally, block) by a policy table that is editable, audited and tried on the last 14 days before saving. | `services/brain/src/brain/policy/`, `/security/policies`, `docs/PRD.md` section 10 | Policy edits and group exceptions covered by `make test` (`test_policy_store.py`, `test_x13_groups.py`). | 6 |
+| A live demo: prompt detected, acted on, explained | Chat shows the outcome in words; the incident page shows which checks fired ("Why this decision"). | `/chat`, `/security/incidents/:id`, `web/src/components/WhyPanel.tsx` | Scripted run of steps 1 to 6: 2.7 s of system time in total, first answer 1.3 s (Playwright on a fresh stack). | 1, 2, 2b, 3 |
+| Approach and rationale: architecture, how accuracy was measured, how inspected data is protected | Gateway in front of every model call, cheapest check first, measured against a labelled set and a regex baseline; raw prompts are never stored. | README "Architecture", "Evaluation", "Privacy and governance"; `docs/PRD.md`, `docs/THREAT_MODEL.md` | See the rows below and the privacy claims table. | 4, 5 |
+
+## The six guiding questions
+
+| Question | Our answer in one line | Where it lives | Measured | Demo step |
+| --- | --- | --- | --- | --- |
+| 1. Where do you look? | In an AI gateway in front of every model call (chat, SDK, agents, MCP), plus proxy and DNS logs for tools that bypass it. | `infra/gateway/`, `scripts/mcp_proxy.py`, `/security/tools`, `docs/GATEWAY_SETUP.md` | Brain adds p50 9.5 ms, p95 24.4 ms to a request (`make eval`, target under 100 ms). Under load (`make loadtest`, 3 simulated users, 15 s, 773 requests): p50 53 ms, p95 91 ms, p99 127 ms, max 404 ms, 0 errors, 51 requests per second. That p95 is close to the 100 ms target and was measured with two stacks on one laptop. | 1, 4 |
+| 2. What counts as sensitive? | Identifiers with checksums (AFM, AMKA, IBAN, cards), secrets, people and client names, source code, and registered confidential documents even when reworded. | `services/brain/src/brain/detection/`, `data/documents/`, `docs/THREAT_MODEL.md` | Paraphrased document leaks found: 92.5% (target 80%). Prompts with 3 or more marks name the right copy: 99.2%. (`make eval`) | 3 |
+| 3. Rules, ML or LLM? | All three, cheapest first; no LLM judge is needed on the evaluation set. | `services/brain/src/brain/detection/pipeline.py`, `docs/PRD.md` section 9 | Prompts with zero LLM tokens: 100% (`make eval`). Regex-and-keyword baseline recall on paraphrases: 5.0%, ours 92.5%. Overall false alarms: 2.1% (target 5%); Greek prompts 5.6% on 18 clean prompts (one prompt, P0159, a spreadsheet question sent to the local model). | 1, 3 |
+| 4. What happens on a hit? | Five outcomes with a plain-words reason and an approved alternative; masked text is restored in the person's own answer. | `/chat`, `infra/gateway/dna_guardrail.py`, `web/src/lib/explain.ts` | The decision matched the label's expected decision on 92.3% of prompts (`make eval`). 15 prompts differ: 9 expected "local" and got "block" (stricter than the label), P0105 local became warn, P0112 and P0115 (reworded salary-band sentences) expected local and got **allow** (misses), P0159 a clean Greek prompt went local (false alarm), P0050 and P0194 differ between mask and warn. | 1, 2, 3, 6 |
+| 5. How do you prove it works? | A labelled synthetic set with a baseline, two attack sets, and an external red-team run. | `data/eval/`, `eval/report.md`, `scripts/redteam.py` | `make eval`: main attack set **76 of 80** handled, 4 missed (A010 spaced digits that went local instead of mask, A016 and A017 Greek capitals that look like Latin letters, A044 Greeklish injection). Second attack set `attacks_scripts.csv`: **77 of 80** exactly as expected, 3 missed (A039 an upper-case Greeklish name, A059 a key split by string concatenation, A067 an English rewrite of the salary bands). 0.0% false alarms on 8 clean look-alikes. `make redteam`: promptfoo curated cases 24 of 25 (the miss: an account number with zero-width characters between the letters of "GR16"); garak known attack prompts flagged by the gateway: promptinject 34 of 40, dan 29 of 40, latentinjection 20 of 40, goodside 4 of 27, encoding 5 of 40. Most of these attack the model rather than carry data, so a low share there is expected, but it is a gap and we say so. | 5 |
+| 6. Who watches the watcher? | Raw prompts are not stored, identities are pseudonyms until two people approve, every sensitive action is audited, incidents expire, and shadow mode is logged. Each claim points to code and a test. | README "Privacy and governance" (claims table), `services/brain/tests/test_privacy_claims.py` | `make test` passes the claims tests, including one that sends prompts through every outcome and finds no raw text in any table, and one that fails when a table gains a text column that could hold a prompt. | 2b, 6 |
+
+## The brief's own example question
+
+The brief says analysts should be able to ask "Which teams sent client data to unapproved AI tools this week?". It is the first preset on `/security/ask` with fixed, reviewed SQL and no model call. Typing the same sentence in the free-text box uses the preset. On the seeded data it returns Engineering (47 requests to unapproved tools, 14 client-data incidents), Operations (48, 6), HR (7, 3) and Legal (4, 1). Tested in `test_ask_free.py`. Demo steps 4 and 4b.
+
+One honest detail: client data is caught at the gateway, which only sees approved tools, while use of unapproved tools is seen in usage logs that hold no content. The answer therefore joins the two by team: it names the teams that did both, not the exact prompts.
+
+## Known misses and limits (what the testing director should look for)
+
+- Main attack set: 4 of 80 missed, listed above. Second set: 3 of 80 missed.
+- `make redteam`: 1 of 25 curated cases fails (zero-width characters inside "GR16").
+- Document paraphrase recall is 92.5%, not 100%: P0112 and P0115 (English reworded salary bands and pay-range rules) passed as allow.
+- Greek clean prompts have a higher false alarm rate (5.6% on 18 prompts) than English (0.0% on 30), on a small sample.
+- Load test p95 of 91 ms is under the 100 ms target by 9 ms, measured while a second stack ran on the same machine.
+- No login: the brain API is unauthenticated in demo mode (`docs/THREAT_MODEL.md`).
+- Windows (WSL 2) and Linux start times beyond this machine, and offline start, were not measured.
