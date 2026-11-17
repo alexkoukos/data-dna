@@ -15,10 +15,11 @@ Template:
 
 ---
 
-## 2026-11-17, Alexandros (with Claude), split storage (additive secret sharing)
+## 2026-11-17, Alexandros, split storage (additive secret sharing)
 **Done:** `brain.splitstore` (`shares.py` pure splitting, `integrity.py` HMAC tags and key loading, `store.py` store/reveal/aggregate_sum, `demo.py`). Two new compose services `vault-a` and `vault-b` (postgres:16, own credentials, volume and internal network; only `brain` is on both; schema in `infra/vault/init.sql`), `brain` waits for both. HMAC key is the compose secret `secrets/hmac_key` (`scripts/gen_hmac_key.sh`, gitignored). Tests: `make split-test` (inside containers, vaults must be reachable or the run fails). Demo: `make split-demo`. README section "Split storage".
+**Hardening (same day):** two-phase commit for writes plus `recover()` at startup; `aggregate_sum` checks share tags by default (`verify_tags=False` for the fast path); key canary in vault-b so a wrong key gives `KeyMismatchError`, not fake tampering; HTTP routes `/v1/vault/store|reveal|aggregate` behind `VAULT_API_TOKEN` (off when empty); `gen_hmac_key.sh` replaces the empty directory Docker leaves behind.
 **State:** branch `task/split-storage`, not pushed. New compose variables are in `.env.example` with defaults. The brain Dockerfile gained `test` and `app` stages (`app` is last, so the default image is unchanged).
-**Next step:** push, open the PR; decide who calls `store` from the real features (nothing stores real fields yet and there is no HTTP endpoint). Run `make split-test` after pulling.
+**Next step:** push, open the PR; decide who calls `store` from the real features (nothing stores real fields yet; the HTTP routes need a token and the app still has no login). Run `make split-test` after pulling.
 **Problems / decisions needed:** compose creates an empty directory when a file secret is missing, so on a clean clone the app generates a key into the `keys` volume (warning in the log). Use `scripts/gen_hmac_key.sh` before storing real data; changing the key later breaks old values. After pulling run `make reset` (new volumes are fine, but `docker compose down -v` also drops the vaults).
 **Files touched:** docker-compose.yml, Makefile, .env.example, .gitignore, README.md, infra/vault/init.sql, scripts/gen_hmac_key.sh, services/brain/{Dockerfile,src/brain/config.py,src/brain/splitstore/*,tests/test_splitstore.py}
 

@@ -22,6 +22,7 @@ services:
   # each other, and `internal: true` also cuts them off from the internet.
   vault-a:
     image: postgres:16
+    command: ["postgres", "-c", "max_prepared_transactions=20"] # two-phase commit for split writes
     environment:
       POSTGRES_USER: ${VAULT_A_USER:-vault_a}
       POSTGRES_PASSWORD: ${VAULT_A_PASSWORD:-change-me-a}
@@ -38,6 +39,7 @@ services:
 
   vault-b:
     image: postgres:16
+    command: ["postgres", "-c", "max_prepared_transactions=20"] # two-phase commit for split writes
     environment:
       POSTGRES_USER: ${VAULT_B_USER:-vault_b}
       POSTGRES_PASSWORD: ${VAULT_B_PASSWORD:-change-me-b}
@@ -60,6 +62,7 @@ services:
       VAULT_A_URL: postgresql://${VAULT_A_USER:-vault_a}:${VAULT_A_PASSWORD:-change-me-a}@vault-a:5432/vault
       VAULT_B_URL: postgresql://${VAULT_B_USER:-vault_b}:${VAULT_B_PASSWORD:-change-me-b}@vault-b:5432/vault
       HMAC_KEY_FILE: /run/secrets/hmac_key
+      VAULT_API_TOKEN: ${VAULT_API_TOKEN:-}
       DATABASE_URL: postgresql+psycopg://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/${DB_NAME:-dna}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}

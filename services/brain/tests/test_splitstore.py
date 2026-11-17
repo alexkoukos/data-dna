@@ -221,3 +221,170 @@ def test_vault_a_dump_has_no_plaintext(store: SplitStore, ns: str) -> None:
     rows_b = _exec(URL_B, "SELECT num, data FROM shares WHERE record_id = %s", ns)
     assert all(r[0] != 4_250_00 for r in rows_b)
     assert not any(r[1] is not None and "Γιώργος".encode() in bytes(r[1]) for r in rows_b)
+
+
+# ---- atomic writes, recovery, tag-checked aggregate, key canary ------------------------------
+def _count(url: str, ns: str) -> int:
+    return _exec(url, "SELECT count(*) FROM shares WHERE record_id = %s", ns)[0][0]
+
+
+def _fail_nth(monkeypatch: pytest.MonkeyPatch, name: str, nth: int) -> None:
+    real = getattr(psycopg.Connection, name)
+    calls = {"n": 0}
+
+    def wrapper(self, *a, **k):  # type: ignore[no-untyped-def]
+        calls["n"] += 1
+        if calls["n"] == nth:
+            raise OSError("simulated crash")
+        return real(self, *a, **k)
+
+    monkeypatch.setattr(psycopg.Connection, name, wrapper)
+
+
+def test_failed_prepare_leaves_nothing_in_either_vault(
+    store: SplitStore, ns: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fail_nth(monkeypatch, "tpc_prepare", 2)  # vault-b cannot prepare
+    with pytest.raises(OSError):
+        store.store(ns, "f", 5)
+    monkeypatch.undo()
+    assert _count(URL_A, ns) == _count(URL_B, ns) == 0
+    store.store(ns, "f", 5)
+    assert store.reveal(ns, "f", ADMIN) == 5
+
+
+@pytest.mark.parametrize("fail_commit", [1, 2])  # 1: before A commits, 2: A done, B not
+def test_crash_between_prepare_and_commit_is_recovered(
+    store: SplitStore, ns: str, monkeypatch: pytest.MonkeyPatch, fail_commit: int
+) -> None:
+    _fail_nth(monkeypatch, "tpc_commit", fail_commit)
+    with pytest.raises(OSError):
+        store.store(ns, "f", 123_00)
+    monkeypatch.undo()
+    # the write finished (rolled forward), never half-way
+    assert _count(URL_A, ns) == _count(URL_B, ns) == 1
+    assert store.reveal(ns, "f", ADMIN) == 123_00
+
+
+def test_recover_rolls_back_a_prepare_that_only_vault_a_has(store: SplitStore, ns: str) -> None:
+    gid = "split-" + uuid.uuid4().hex
+    with psycopg.connect(URL_A, autocommit=True) as c:
+        c.execute("BEGIN")
+        c.execute(
+            "INSERT INTO shares (record_id, field, kind, num, tag) VALUES (%s, 'f', 'n', 1, %s)",
+            (ns, b"x"),
+        )
+        c.execute(f"PREPARE TRANSACTION '{gid}'")
+    assert store.recover(60) == 0  # too young: left alone (it could still be in flight)
+    assert store.recover(0) >= 1
+    assert _count(URL_A, ns) == 0
+    assert _exec(URL_A, "SELECT count(*) FROM pg_prepared_xacts WHERE gid = %s", gid)[0][0] == 0
+
+
+def test_aggregate_checks_share_tags(store: SplitStore, ns: str) -> None:
+    field = "pay-" + ns
+    for i, v in enumerate([100, 200, 300]):
+        store.store(f"{ns}-{i}", field, v)
+    assert store.aggregate_sum(field) == 600
+    _exec(URL_A, f"UPDATE shares SET num = (num + 1) %% {sh.P} WHERE record_id = %s", ns + "-1")
+    with pytest.raises(IntegrityError):
+        store.aggregate_sum(field)  # tampering caught
+    assert store.aggregate_sum(field, verify_tags=False) == 601  # fast path trusts the vaults
+
+
+def test_aggregate_detects_moved_and_missing_shares(store: SplitStore, ns: str) -> None:
+    field = "pay-" + ns
+    store.store(ns + "-1", field, 1_000)
+    store.store(ns + "-2", field, 9_000)
+    _exec(URL_B, "UPDATE shares SET record_id = %s WHERE record_id = %s", ns + "-tmp", ns + "-1")
+    _exec(URL_B, "UPDATE shares SET record_id = %s WHERE record_id = %s", ns + "-1", ns + "-2")
+    _exec(URL_B, "UPDATE shares SET record_id = %s WHERE record_id = %s", ns + "-2", ns + "-tmp")
+    with pytest.raises(IntegrityError):  # shares swapped between records
+        store.aggregate_sum(field)
+    _exec(URL_A, "DELETE FROM shares WHERE record_id = %s", ns + "-1")
+    with pytest.raises(IntegrityError):
+        store.aggregate_sum(field)
+
+
+def test_wrong_key_is_reported_as_key_mismatch(store: SplitStore) -> None:
+    from brain.splitstore import KeyMismatchError
+
+    _exec(URL_B, "CREATE TABLE IF NOT EXISTS meta (name TEXT PRIMARY KEY, value BYTEA NOT NULL)")
+    saved = _exec(URL_B, "SELECT value FROM meta WHERE name = 'key_canary'")
+    _exec(URL_B, "DELETE FROM meta WHERE name = 'key_canary'")
+    try:
+        store.check_key()  # first use writes the canary
+        store.check_key()  # and the same key passes again
+        with pytest.raises(KeyMismatchError):
+            SplitStore(URL_A, URL_B, b"other-key" * 8).check_key()
+    finally:
+        _exec(URL_B, "DELETE FROM meta WHERE name = 'key_canary'")
+        if saved:  # put back what the running app had written
+            _exec(URL_B, "INSERT INTO meta VALUES ('key_canary', %s)", bytes(saved[0][0]))
+
+
+# ---- HTTP routes -----------------------------------------------------------------------------
+@pytest.fixture
+def client(store: SplitStore, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from brain.splitstore import routes
+
+    monkeypatch.setattr(routes, "get_store", lambda: store)
+    monkeypatch.setattr(routes.settings, "vault_api_token", "tok-123")
+    app = FastAPI()
+    app.include_router(routes.router)
+    return TestClient(app)
+
+
+AUTH = {"Authorization": "Bearer tok-123"}
+
+
+def test_http_needs_a_token(client, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
+    body = {"record_id": "r", "field": "f", "actor": "a", "role": "admin"}
+    assert client.post("/v1/vault/reveal", json=body).status_code == 401
+    assert (
+        client.post("/v1/vault/reveal", json=body, headers={"Authorization": "x"}).status_code
+        == 401
+    )
+    from brain.splitstore import routes
+
+    monkeypatch.setattr(routes.settings, "vault_api_token", "")
+    assert client.post("/v1/vault/reveal", json=body, headers=AUTH).status_code == 503  # off
+
+
+def test_http_store_reveal_aggregate(client, ns: str) -> None:  # type: ignore[no-untyped-def]
+    field = "pay-" + ns
+    for i, v in enumerate([1_00, 2_50]):
+        r = client.post(
+            "/v1/vault/store",
+            json={"record_id": f"{ns}-{i}", "field": field, "value": v},
+            headers=AUTH,
+        )
+        assert r.status_code == 204
+    client.post(
+        "/v1/vault/store", json={"record_id": ns, "field": "name", "value": "Μαρία"}, headers=AUTH
+    )
+    ask = {"record_id": ns, "field": "name", "actor": "ann", "role": "dpo"}
+    r = client.post("/v1/vault/reveal", json=ask, headers=AUTH)
+    assert r.status_code == 200 and r.json()["value"] == "Μαρία"
+    r = client.post("/v1/vault/reveal", json={**ask, "role": "intern"}, headers=AUTH)
+    assert r.status_code == 403
+    assert (
+        client.post(
+            "/v1/vault/reveal", json={**ask, "record_id": ns + "-no"}, headers=AUTH
+        ).status_code
+        == 404
+    )
+    r = client.post("/v1/vault/aggregate", json={"field": field}, headers=AUTH)
+    assert r.json()["sum"] == 3_50
+    _exec(URL_A, f"UPDATE shares SET num = (num + 1) %% {sh.P} WHERE record_id = %s", ns + "-0")
+    assert (
+        client.post("/v1/vault/aggregate", json={"field": field}, headers=AUTH).status_code == 409
+    )
+    for bad in (True, 1.5, None, ["x"]):
+        r = client.post(
+            "/v1/vault/store", json={"record_id": "r", "field": "f", "value": bad}, headers=AUTH
+        )
+        assert r.status_code == 422

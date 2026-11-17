@@ -18,3 +18,6 @@ CREATE TABLE IF NOT EXISTS shares (
       OR (kind <> 'n' AND data IS NOT NULL AND num IS NULL))
 );
 CREATE INDEX IF NOT EXISTS shares_field_idx ON shares (field);
+-- Key canary (vault-b only, written by the app): HMAC of a constant under the key. It lets the
+-- app say "wrong key" instead of reporting tampering. It reveals nothing about the key.
+CREATE TABLE IF NOT EXISTS meta (name TEXT PRIMARY KEY, value BYTEA NOT NULL);

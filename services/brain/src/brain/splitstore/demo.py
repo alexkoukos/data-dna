@@ -79,6 +79,11 @@ def main() -> None:
         print("   NOT DETECTED (this is a bug)")
     except IntegrityError as e:
         print(f"   detected: IntegrityError ({e})")
+    try:
+        store.aggregate_sum("salary_cents")
+        print("   NOT DETECTED by the aggregate (this is a bug)")
+    except IntegrityError as e:
+        print(f"   the payroll total refuses to add it up too: {e}")
     print(
         "   audit trail:",
         [(a, act, t) for a, act, t, _ in audit if "integrity" in act or "denied" in act],
