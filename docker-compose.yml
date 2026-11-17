@@ -17,9 +17,49 @@ services:
       timeout: 3s
       retries: 20
 
-  brain:
-    build: ./services/brain
+  # Split storage (services/brain/src/brain/splitstore). Two independent vaults: own credentials,
+  # own volume, own internal network. Only brain is on both networks; the vaults cannot reach
+  # each other, and `internal: true` also cuts them off from the internet.
+  vault-a:
+    image: postgres:16
     environment:
+      POSTGRES_USER: ${VAULT_A_USER:-vault_a}
+      POSTGRES_PASSWORD: ${VAULT_A_PASSWORD:-change-me-a}
+      POSTGRES_DB: vault
+    volumes:
+      - vault-a-data:/var/lib/postgresql/data
+      - ./infra/vault/init.sql:/docker-entrypoint-initdb.d/01-shares.sql:ro
+    networks: [vault-a-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VAULT_A_USER:-vault_a} -d vault"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  vault-b:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${VAULT_B_USER:-vault_b}
+      POSTGRES_PASSWORD: ${VAULT_B_PASSWORD:-change-me-b}
+      POSTGRES_DB: vault
+    volumes:
+      - vault-b-data:/var/lib/postgresql/data
+      - ./infra/vault/init.sql:/docker-entrypoint-initdb.d/01-shares.sql:ro
+    networks: [vault-b-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VAULT_B_USER:-vault_b} -d vault"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  brain:
+    build:
+      context: ./services/brain
+      target: app
+    environment:
+      VAULT_A_URL: postgresql://${VAULT_A_USER:-vault_a}:${VAULT_A_PASSWORD:-change-me-a}@vault-a:5432/vault
+      VAULT_B_URL: postgresql://${VAULT_B_USER:-vault_b}:${VAULT_B_PASSWORD:-change-me-b}@vault-b:5432/vault
+      HMAC_KEY_FILE: /run/secrets/hmac_key
       DATABASE_URL: postgresql+psycopg://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/${DB_NAME:-dna}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}
@@ -34,10 +74,17 @@ services:
       - models:/models
       - ./data:/data:ro
       - logs:/var/dna/logs
+      - keys:/var/dna/keys # app-only: fallback HMAC key when secrets/hmac_key is absent
     ports:
       - "8001:8001"
+    networks: [default, vault-a-net, vault-b-net]
+    secrets: [hmac_key]
     depends_on:
       db:
+        condition: service_healthy
+      vault-a:
+        condition: service_healthy
+      vault-b:
         condition: service_healthy
 
   gateway:
@@ -91,6 +138,25 @@ services:
       timeout: 5s
       retries: 90
 
+  # Split storage tests, run inside the containers: `docker compose run --rm splitstore-tests`.
+  # REQUIRE_VAULTS makes a missing vault a failure instead of a skip.
+  splitstore-tests:
+    profiles: ["test"]
+    build:
+      context: ./services/brain
+      target: test
+    entrypoint: ["pytest", "tests/test_splitstore.py", "--no-cov", "-p", "no:cacheprovider"]
+    environment:
+      VAULT_A_URL: postgresql://${VAULT_A_USER:-vault_a}:${VAULT_A_PASSWORD:-change-me-a}@vault-a:5432/vault
+      VAULT_B_URL: postgresql://${VAULT_B_USER:-vault_b}:${VAULT_B_PASSWORD:-change-me-b}@vault-b:5432/vault
+      REQUIRE_VAULTS: "1"
+    networks: [vault-a-net, vault-b-net]
+    depends_on:
+      vault-a:
+        condition: service_healthy
+      vault-b:
+        condition: service_healthy
+
   # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
   sim:
     profiles: ["sim"]
@@ -108,8 +174,24 @@ services:
       gateway:
         condition: service_healthy
 
+networks:
+  vault-a-net:
+    internal: true
+  vault-b-net:
+    internal: true
+
+# The HMAC key for the split store. Only brain gets it; the vaults never see it.
+# Create it with scripts/gen_hmac_key.sh (`make up` does that first). Without it the app generates
+# a key into the app-only `keys` volume, so a plain `docker compose up` still works.
+secrets:
+  hmac_key:
+    file: ./secrets/hmac_key
+
 volumes:
+  vault-a-data:
+  vault-b-data:
   dbdata:
   models:
   logs:
+  keys:
   ollama:

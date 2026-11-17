@@ -44,6 +44,23 @@ docker compose up --build
 ```
 Open http://localhost:3000 (app) and http://localhost:8001/docs (API).
 
+## Split storage (additive secret sharing)
+Sensitive fields (salaries, names) are never stored whole. Each value is split into two shares kept in two separate Postgres vaults, so a dump of one vault is random noise.
+
+- **Splitting.** Numbers are integer cents mod `P = 2^127 - 1`: `share_a` is random, `share_b = (value - share_a) mod P`, decoded centered so negatives work. Text and bytes are XOR-split with a random pad (UTF-8, so Greek works).
+- **Isolation.** `vault-a` and `vault-b` have their own credentials, volume and `internal` network. Only `brain` is on both; the vaults cannot see each other. `brain` starts only when both are healthy. Schema: `infra/vault/init.sql`.
+- **Integrity.** Three HMAC-SHA256 tags: `tag_a` (in vault-a), `tag_b` and `value_tag` (in vault-b). The key is the compose secret `secrets/hmac_key` and is never in a vault. `reveal` checks both share tags, rebuilds the value, checks `value_tag` (constant-time compares) and on any mismatch raises `IntegrityError` and writes an audit event. Tags bind `record_id` and `field`, so moving a share to another record fails.
+- **API** (`brain.splitstore`): `store(record_id, field, value)`, `reveal(record_id, field, actor)` (roles `admin`, `dpo`, `payroll`; every call, allowed or not, goes to `audit_log`, never with values) and `aggregate_sum(field, record_ids=None)` (each vault sums its own shares, only the two sums are combined; share tags are not checked there, only row counts).
+- **Limits.** `aggregate_sum` must fit in about +/-1.7e38. The two vault writes are not one transaction (a failed second write removes the first). There is no HTTP endpoint yet.
+
+Key (optional, `./scripts/gen_hmac_key.sh` creates `secrets/hmac_key`). If the file is missing, compose mounts an empty directory instead, so on a plain `docker compose up` the app generates a key once into an app-only volume and logs a warning. Create the real key before storing data you care about: switching keys later makes old values fail their integrity check.
+
+```bash
+docker compose up --build -d --wait                          # whole stack, both vaults included
+docker compose --profile test run --rm --build splitstore-tests   # tests, inside the containers
+docker compose run --rm brain python -m brain.splitstore.demo     # seed, dump vault-a, aggregate, tamper
+```
+
 ## Architecture
 _Diagram and services table (R1). Source: docs/PRD.md section 7._
 

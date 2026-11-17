@@ -18,3 +18,11 @@ ENV HF_HUB_OFFLINE=1
 EXPOSE 8001
 HEALTHCHECK --interval=10s --timeout=3s --retries=12 CMD python -c "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8001/healthz').status==200 else 1)"
 CMD ["uvicorn", "brain.main:app", "--host", "0.0.0.0", "--port", "8001"]
+
+# Test image: the runtime plus dev dependencies and tests (compose service `splitstore-tests`).
+FROM runtime AS test
+RUN uv sync --frozen
+COPY tests ./tests
+
+# Keep the runtime image the default (last) target.
+FROM runtime AS app

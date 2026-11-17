@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros (with Claude), split storage (additive secret sharing)
+**Done:** `brain.splitstore` (`shares.py` pure splitting, `integrity.py` HMAC tags and key loading, `store.py` store/reveal/aggregate_sum, `demo.py`). Two new compose services `vault-a` and `vault-b` (postgres:16, own credentials, volume and internal network; only `brain` is on both; schema in `infra/vault/init.sql`), `brain` waits for both. HMAC key is the compose secret `secrets/hmac_key` (`scripts/gen_hmac_key.sh`, gitignored). Tests: `make split-test` (inside containers, vaults must be reachable or the run fails). Demo: `make split-demo`. README section "Split storage".
+**State:** branch `task/split-storage`, not pushed. New compose variables are in `.env.example` with defaults. The brain Dockerfile gained `test` and `app` stages (`app` is last, so the default image is unchanged).
+**Next step:** push, open the PR; decide who calls `store` from the real features (nothing stores real fields yet and there is no HTTP endpoint). Run `make split-test` after pulling.
+**Problems / decisions needed:** compose creates an empty directory when a file secret is missing, so on a clean clone the app generates a key into the `keys` volume (warning in the log). Use `scripts/gen_hmac_key.sh` before storing real data; changing the key later breaks old values. After pulling run `make reset` (new volumes are fine, but `docker compose down -v` also drops the vaults).
+**Files touched:** docker-compose.yml, Makefile, .env.example, .gitignore, README.md, infra/vault/init.sql, scripts/gen_hmac_key.sh, services/brain/{Dockerfile,src/brain/config.py,src/brain/splitstore/*,tests/test_splitstore.py}
+
+---
+
 ## 2026-11-17, Alexandros, UI flow and new mascot
 **Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
 **State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.
