@@ -83,7 +83,7 @@ Measured on 17 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; full tabl
 | --- | --- | --- |
 | Paraphrased document leaks found | 97.5%, 39 of 40 (baseline 5.0%) | 80% |
 | False alarms on clean prompts | 2.1% | 5% |
-| Added latency, brain only (p50 / p95) | 12.6 / 28.4 ms | p95 under 100 ms |
+| Added latency, brain only (p50 / p95) | 12.2 / 30.4 ms | p95 under 100 ms |
 | Latency under load, 3 users for 15 s (`make loadtest`) | p50 58 ms, p95 95 to 101 ms over five runs on a quiet machine (4 of 5 under target), 0 errors | p95 under 100 ms |
 | Prompts needing zero LLM tokens | 100% | 90% |
 | Correct copy named when a document leaks | 99.2% | 90% |
