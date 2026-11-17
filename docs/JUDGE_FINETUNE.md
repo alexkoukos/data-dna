@@ -12,7 +12,7 @@ steps are not. Do the short trial run (step 3) before the full one.
 | File | What it is |
 |---|---|
 | `data/train_org/` | the invented training company (Taygetos Oils): 8 documents |
-| `data/finetune/train.jsonl`, `val.jsonl` | 1286 + 227 examples, 30% YES, about half Greek (made by `python3 scripts/gen_finetune.py`) |
+| `data/finetune/train.jsonl`, `val.jsonl` | round 2: 1643 + 289 examples, 30% YES, 44% Greek (made by `python3 scripts/gen_finetune.py`) |
 | `data/finetune/test.jsonl` | 639 rows from two other companies, never trained on (`scripts/gen_judge_test.py`) |
 | `scripts/judge_format.py` | the exact input and output the judge sees (used by data, training and eval) |
 | `scripts/train_judge_lora.py` | the training script |
@@ -57,12 +57,15 @@ unzip dna-judge.zip
 git clone --depth 1 https://github.com/ggml-org/llama.cpp && pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt
 python llama.cpp/convert_hf_to_gguf.py dna-judge/merged --outfile scripts/dna-judge.gguf --outtype f16
 ```
-Then add it to the Ollama that `make local` starts:
+Then give it its own Ollama. Do NOT use the one from `make local`: `make up` (or `docker compose up`) recreates the stack and
+removes it, which killed two evaluation runs. `make judge-ollama` starts a separate container (`judge-ollama`, port 11435)
+that reuses the same model volume:
 ```bash
-make local
-docker compose --profile local cp scripts/dna-judge.gguf ollama:/tmp/dna-judge.gguf
-docker compose --profile local cp scripts/judge.Modelfile ollama:/tmp/judge.Modelfile
-docker compose --profile local exec ollama sh -c "cd /tmp && ollama create dna-judge -f judge.Modelfile"
+make local            # once, so that gemma3:1b and dna-local exist in the volume
+make judge-ollama
+docker cp scripts/dna-judge.gguf judge-ollama:/tmp/dna-judge.gguf
+docker cp scripts/judge.Modelfile judge-ollama:/tmp/judge.Modelfile
+docker exec judge-ollama sh -c "cd /tmp && sed -i 's#FROM ./dna-judge.gguf#FROM /tmp/dna-judge.gguf#' judge.Modelfile && ollama create dna-judge -f judge.Modelfile"
 ```
 If `convert_hf_to_gguf.py` stops with `assert max(tokenizer.vocab.values()) < vocab_size`, the saved tokenizer has an extra
 `<image_soft_token>` (id 262144) from a newer transformers. `train_judge_lora.py` now removes it; for a model trained before
@@ -74,12 +77,28 @@ stops, the template is the usual suspect: compare with `ollama show --modelfile 
 
 ## 5. Measure
 ```bash
-python3 scripts/eval_judge.py gemma3:1b dna-judge --out eval/judge_eval.md     # or: make judge-eval
+make judge-eval      # = eval_judge.py dna-judge dna-local --url http://localhost:11435 (dna-local is gemma3:1b with 4 threads); about 30 to 50 minutes per model on a laptop CPU
 ```
 Read, in this order: the false positives on the original 60 (was 42 with the untuned model), precision at 30% leaks,
 recall, then the per-slice table. The `gold_new` slices are the ones written for this test.
 Rough bar for adopting the judge (our suggestion, change it if the team disagrees): at most 5 of the 60 wrong, recall of
 80% or more, and at least 95% of answers valid JSON.
+
+## Results so far
+Round 1 (1286 + 227 examples), on the 639-row test set, tuned against plain gemma3:1b (`eval/judge_eval.md`,
+`eval/judge_eval_tuned.md`, wrong answers in `eval/judge_errors.md`):
+
+| | gemma3:1b | tuned |
+|---|---|---|
+| false positives on the original 60 | 36 | 1 |
+| precision at 30% leaks | 35% | 92% |
+| recall | 94% | 91% |
+| valid JSON with a short reason | 0% | 100% |
+
+The 40 wrong answers pointed at client names (13 missed), short document fragments, surnames alone, public-newsletter text and
+a few doubtful labels. Round 2 data adds, for exactly those: about 3 times more client-name examples (13 new invented clients, with look-alike
+words such as Meltemi or Kronos used in their ordinary meaning as negatives), 62 short fragments, a second public document,
+more surnames, editing and number-only prompts. Retrain on the new `train.jsonl` and `val.jsonl` and run `make judge-eval` again.
 
 ## 6. If it is not good enough
 - **Great on `val.jsonl`, weak on the test set:** it learned our templates. Add more different documents and more

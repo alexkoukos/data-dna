@@ -25,3 +25,4 @@ documents:
   - { file: strategy-deck-2028.md, lang: en, sensitivity: restricted }
   - { file: export-price-list-2028.md, lang: el, sensitivity: confidential }
   - { file: newsletter-harvest-2028.md, lang: el, sensitivity: public }
+  - { file: visitor-shop-info.md, lang: en, sensitivity: public }

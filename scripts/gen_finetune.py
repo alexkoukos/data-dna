@@ -45,6 +45,8 @@ from judge_format import (  # noqa: E402
 SEED = 42
 YES_SHARE = 0.30
 VAL_SHARE = 0.15
+PRIORITY_SUBS = ("client_name", "surname_only")  # kept first when positives must be cut to hold 30/70
+PRIORITY_CAP = 40
 AUG_SHARE = 0.25  # share of each split rewritten as Greeklish, capitals, no accents or typos (same label)
 TARGET_TOTAL = 1000
 TRAIN_ORG = ROOT / "data" / "train_org"
@@ -62,6 +64,7 @@ DOCS = {  # key: (file, short name used in reasons)
     "strat": ("strategy-deck-2028.md", "strategy deck"),
     "plist": ("export-price-list-2028.md", "export price list"),
     "pub": ("newsletter-harvest-2028.md", "public newsletter"),
+    "pub2": ("visitor-shop-info.md", "public visitor page"),
 }
 
 # (doc, anchor in the document, [2 same-language rewrites], [2 other-language rewrites],
@@ -457,6 +460,29 @@ PUBLIC_FACTS = [
       "Customer service answers every day from nine to five by phone and through the website form."]),
 ]
 
+PUBLIC_FACTS2 = [
+    ("welcomes visitors to the Kalamata mill",
+     ["Visitors can come to the mill in Kalamata every day except Sunday and join a tasting at eleven or at four.",
+      "The Kalamata mill is open Monday to Saturday and offers guided tastings twice a day, in the morning and in the afternoon.",
+      "Το ελαιουργείο στην Καλαμάτα δέχεται επισκέπτες από Δευτέρα έως Σάββατο με ξεναγήσεις και γευσιγνωσία δύο φορές την ημέρα."]),
+    ("Orders from our online shop ship within two working days",
+     ["Online orders leave our warehouse within two working days, and shipping inside Greece costs nothing above sixty euros.",
+      "If you order from the web shop it ships in two working days and delivery in Greece is free when the basket is over 60 euros.",
+      "Οι παραγγελίες από το ηλεκτρονικό κατάστημα αποστέλλονται σε δύο εργάσιμες και η παράδοση στην Ελλάδα είναι δωρεάν πάνω από εξήντα ευρώ."]),
+    ("Unopened bottles can be returned",
+     ["You can send back bottles that were never opened within two weeks of delivery and get all your money back.",
+      "Our return policy: unopened bottles, fourteen days from delivery, full refund.",
+      "Μπορείτε να επιστρέψετε ανοιχτά μη χρησιμοποιημένα μπουκάλια μέσα σε δεκατέσσερις ημέρες από την παράδοση και να πάρετε πλήρη επιστροφή χρημάτων."]),
+    ("cold extracted within hours of harvest",
+     ["The oil is cold extracted a few hours after the olives are picked and is sold in half litre and one litre glass bottles.",
+      "We press our extra virgin oil cold soon after harvest and bottle it in glass, 500 ml or one litre.",
+      "Το έξτρα παρθένο ελαιόλαδο παράγεται με ψυχρή εκχύλιση λίγες ώρες μετά τη συγκομιδή και διατίθεται σε γυάλινες φιάλες μισού λίτρου και ενός λίτρου."]),
+    ("Schools and groups can book a free educational visit",
+     ["Teachers can book a free visit to the mill for their class during the olive harvest.",
+      "During the harvest season schools and other groups may reserve an educational tour of the mill at no cost.",
+      "Τα σχολεία και οι ομάδες μπορούν να κλείσουν δωρεάν εκπαιδευτική επίσκεψη στο ελαιουργείο την περίοδο της συγκομιδής."]),
+]
+
 # One indirect question that leaks and one made-up-numbers request that does not, per document.
 DOC_EXTRA = [
     ("sal", "εργάτες παραγωγής της πρώτης βαθμίδας",
@@ -558,6 +584,40 @@ GENERIC += [
     ("Calculate how many bottles are in 12 pallets of 48 cases with 6 bottles each.", ["plist", "nord"]),
     ("Convert 5,000 litres to kilograms using a density of 0.916.", ["price", "plist"]),
     ("Η συνάντηση είναι στις 14:30 στο δωμάτιο 12, επιβεβαίωσε με τη reception.", ["hr", "board"]),
+]
+
+GENERIC += [
+    ("Make this sound friendlier: We cannot approve the request this week.", ["hr", "nord"]),
+    ("Διόρθωσε τα ορθογραφικά: Ευχαριστώ πολύ για την βοήθια σας και ελπίζω να τα πούμε σύντομα.", ["hr", "plist"]),
+    ("Rewrite in a formal tone: hey, just checking if you got my last message?", ["nord", "plist"]),
+    ("Συντόμευσε αυτή την πρόταση: Θα ήθελα να σας ενημερώσω ότι η συνάντηση που είχαμε προγραμματίσει έχει μετατεθεί.", ["board", "hr"]),
+    ("Translate to English: Η εβδομάδα ξεκίνησε καλά και η ομάδα είναι χαρούμενη.", ["strat", "hr"]),
+    ("Summarise in one line: The new coffee machine in the kitchen is working again after the repair.", ["hr", "board"]),
+    ("Give me three subject lines for a thank you email after a trade fair.", ["plist", "strat"]),
+    ("Βάλε σε λίστα: αγορά χαρτιού, μελάνι εκτυπωτή, νέα πρίζα για το γραφείο.", ["board", "hr"]),
+    ("Fix the grammar: The team have finish the report yesterday and sends it today.", ["strat", "nord"]),
+    ("Rephrase politely: You are late again and this is unacceptable.", ["hr", "sal"]),
+    ("Check whether this IBAN looks well formed: GR00 0000 0000 0000 0000 0000 000", ["nord", "plist"]),
+    ("Το τιμολόγιο 2028/001234 είναι 3.450,00 ευρώ με ΦΠΑ· γράψε ένα σύντομο σημείωμα για το λογιστήριο.", ["plist", "nord"]),
+    ("Add 24% VAT to a net amount of 1.250 euros and show the calculation.", ["price", "plist"]),
+    ("Η αποστολή 778-4421 φεύγει Τρίτη, φτιάξε ένα μήνυμα προς τον μεταφορέα.", ["nord", "plist"]),
+    ("Convert 250 grams of olives to ounces and give me the number.", ["plist", "strat"]),
+    ("What is 12.5 percent of 480?", ["price", "sal"]),
+    ("Ο κωδικός προϊόντος AB-5521 δεν βρίσκεται στο σύστημα, πώς το ελέγχω;", ["plist", "price"]),
+    ("Tracking code TX 90 4412 shows the parcel is in Athens, reply to the customer.", ["nord", "plist"]),
+    ("According to the International Olive Council, Spain is the world's largest olive oil producer. Summarise this for a slide.", ["strat", "plist"]),
+    ("Η ελληνική κατανάλωση ελαιολάδου ανά κάτοικο είναι από τις υψηλότερες στον κόσμο· γράψε μια φράση για το ενημερωτικό δελτίο.", ["plist", "strat"]),
+    ("The EU minimum VAT rate is set by directive, explain it in two sentences.", ["price", "plist"]),
+    ("Σύμφωνα με τη Eurostat η ανεργία στην ευρωζώνη υποχώρησε το τελευταίο έτος, κάνε μια περίληψη.", ["hr", "sal"]),
+    ("Public data say the harvest in the Mediterranean usually runs from October to January, add that to the leaflet.", ["plist", "board"]),
+    ("Το ελαιόλαδο περιέχει κυρίως μονοακόρεστα λιπαρά οξέα, εξήγησέ το απλά.", ["plist", "hr"]),
+    ("Per the European Commission, labels must show the country of origin for virgin olive oil. Write a reminder for the packaging team.", ["plist", "board"]),
+    ("Write a two line farewell message for a colleague who is retiring next month.", ["hr", "sal"]),
+    ("Πρότεινε τρεις τίτλους για ένα άρθρο σχετικά με τα οφέλη της μεσογειακής διατροφής.", ["plist", "strat"]),
+    ("Make this paragraph shorter without losing the main point: The workshop covered several topics including planning, tools and teamwork.", ["strat", "hr"]),
+    ("Μετάφρασε στα ελληνικά: Thank you for your patience while we fix the website.", ["plist", "strat"]),
+    ("Turn these notes into a short email: meeting moved, bring laptops, lunch provided.", ["hr", "board"]),
+    ("Which format is better for a customer survey, five stars or a number from one to ten?", ["strat", "plist"]),
 ]
 
 FRAMES_EL = ["", "", "Βελτίωσε τη διατύπωση: {t}", "Μπορείς να το συνοψίσεις; {t}",
@@ -688,6 +748,78 @@ PUBLIC_FIGURES += [
     ("Ιπποκράτη", "Ο γιατρός που ακολουθεί τον όρκο του Ιπποκράτη δεσμεύεται να μην βλάψει κανέναν."),
 ]
 
+SURNAMES += [("Σταμάτη", "Stamati"), ("Ξένου", "Xenou"), ("Λάμπρου", "Lambrou"), ("Γιαννακού", "Giannakou"),
+             ("Τσίρου", "Tsirou"), ("Βαρελά", "Varela"), ("Σαββίδη", "Savvidi"), ("Τσιμάρα", "Tsimara"),
+             ("Μπεκιάρη", "Bekiari"), ("Νικολαΐδη", "Nikolaidi"), ("Καλογήρου", "Kalogirou"), ("Ιωαννίδη", "Ioannidi")]
+SURNAME_ONLY += [
+    "Πες στην {n} να περάσει από το HR αύριο το πρωί.", "Ο μισθός της {n} αναθεωρείται τον Ιανουάριο, μην το πεις σε κανέναν.",
+    "Η αξιολόγηση της {n} ήταν θετική, γράψε μια σύντομη σημείωση.",
+    "Don't forward this to {n}, it is about the pay review.", "{n} is on sick leave until Friday, move the meeting.",
+    "Ask {n} for the signed contract before we ship.", "I spoke with {n} about the transfer to the Kalamata mill.",
+]
+EN_PERSON += [
+    "Could you check the holiday balance of {first} {n} before payroll closes?",
+    "{first} {n} will lead the new bottling line project from March.",
+    "Please send the draft contract to {first} {n} and keep it confidential.",
+]
+LOOKALIKE += [
+    ("Summer", ["Summer sales usually peak in July, add a note to the forecast template."]),
+    ("Dawn", ["Dawn deliveries save time, write a note to the drivers about the early schedule."]),
+    ("Hunter", ["The Hunter green label was approved by the printer, update the proof."]),
+    ("Faith", ["Have some faith in the process and keep the team calm, rewrite this for a newsletter."]),
+    ("Lily", ["Lily pads float on the pond behind the mill, write a short caption for the photo."]),
+    ("Ivy", ["Ivy covers the old stone wall of the mill, describe it in one sentence."]),
+    ("Crystal", ["Crystal clear bottles show the colour of the oil, suggest a tagline."]),
+    ("Pearl", ["Pearl onions are on the supplier list for the pickles line."]),
+    ("Ruby", ["Ruby grapefruit slices go well with oil and herbs, write a menu note."]),
+    ("Violet", ["Violet labels are for the lavender range, check the artwork."]),
+    ("Heather", ["Heather honey is sold at the visitor shop, add it to the price board."]),
+    ("Κρόνος", ["Ο Κρόνος είναι ο δεύτερος σε μέγεθος πλανήτης του ηλιακού συστήματος, εξήγησέ το σε παιδιά."]),
+]
+PUBLIC_FIGURES += [
+    ("Σεφέρης", "Ο Σεφέρης τιμήθηκε με Νόμπελ λογοτεχνίας το 1963, γράψε μια σύντομη εισαγωγή."),
+    ("Παπαδιαμάντης", "Ο Παπαδιαμάντης έγραψε διηγήματα για τη Σκιάθο, κάνε μια περίληψη για μαθητές."),
+    ("Θεοδωράκης", "Ο Μίκης Θεοδωράκης συνέθεσε τη μουσική του Ζορμπά, βρες μια ωραία φράση για την πρόσκληση."),
+    ("Charles Darwin", "Charles Darwin published On the Origin of Species in 1859, explain the idea in two lines."),
+    ("Galileo", "Galileo observed the moons of Jupiter with a telescope, write a short caption for the poster."),
+    ("Shakespeare", "Shakespeare wrote Hamlet around the year 1600, give me a quote for the card."),
+    ("Mozart", "Mozart began composing as a child, write a fun fact for the newsletter."),
+    ("Alexander Fleming", "Alexander Fleming discovered penicillin in 1928, summarise it for the school visit."),
+    ("Dante", "Dante wrote the Divine Comedy, write one sentence for the library display."),
+    ("Mother Teresa", "Mother Teresa received the Nobel Peace Prize, add a line to the charity page."),
+]
+CLIENTS2 = [("Kronos Retail", "Kronos"), ("Meltemi Cafés", "Meltemi"), ("Pelagos Catering", "Pelagos"), ("Brisa Markets", "Brisa"),
+            ("Tavira Gourmet", "Tavira"), ("Aldenmoor Fine Foods", "Aldenmoor"), ("Lumenor Hotels", "Lumenor"),
+            ("Varnavas Trading", "Varnavas"), ("Ostria Delicatessen", "Ostria"), ("Solenne Épicerie", "Solenne"),
+            ("Κρόνος Retail", "Κρόνος"), ("Μελτέμι Καφέδες", "Μελτέμι"), ("Πέλαγος Catering", "Πέλαγος")]
+CLIENT2_EN = [
+    "Please prepare the price list for {c} before Thursday's call.",
+    "{c} complained that the last pallet arrived damaged, draft an apology.",
+    "Our contract with {c} ends in June, list the points we should renegotiate.",
+    "Send the invoice to {c} and copy the export team.",
+    "What discount did we agree with {c} last year?",
+    "{c} wants to add organic oil to its next order, check stock.",
+    "Write a short note for the sales meeting about the order from {c}.",
+    "Is {c} still on the approved list for the Gulf shipment?",
+]
+CLIENT2_EL = [
+    "Ετοίμασε τον τιμοκατάλογο για την {c} πριν την κλήση της Πέμπτης.",
+    "Η {c} παραπονέθηκε ότι η τελευταία παλέτα έφτασε χαλασμένη, γράψε μια συγγνώμη.",
+    "Το συμβόλαιο με την {c} λήγει τον Ιούνιο, γράψε τι πρέπει να ξαναδιαπραγματευτούμε.",
+    "Στείλε το τιμολόγιο στην {c} και βάλε σε κοπία την ομάδα εξαγωγών.",
+    "Ποια έκπτωση συμφωνήσαμε με την {c} πέρυσι;",
+    "Η {c} θέλει να προσθέσει βιολογικό λάδι στην επόμενη παραγγελία, έλεγξε το απόθεμα.",
+]
+CLIENT2_NO = [
+    ("Kronos", "In Greek mythology Kronos was the father of Zeus, write two lines for the school quiz."),
+    ("Meltemi", "The Meltemi wind blows strongly in August, write a weather note for the guests."),
+    ("πέλαγος", "Το Αιγαίο πέλαγος ήταν ήρεμο σήμερα, φτιάξε ένα σύντομο ποστ για τα μέσα κοινωνικής δικτύωσης."),
+    ("brisa", "A light brisa from the sea cools the terrace in the evening, translate this phrase."),
+    ("μελτέμι", "Το μελτέμι φέτος ήρθε νωρίς και τα καΐκια έμειναν στο λιμάνι, κάνε το πιο λογοτεχνικό."),
+    ("Tavira", "Tavira is a small town in the Algarve, suggest a weekend trip plan."),
+    ("Solenne", "A solenne ceremony opens the festival every year, polish this sentence."),
+    ("όστρια", "Η όστρια φυσάει από τον νότο και φέρνει υγρασία, εξήγησέ το σε μαθητές."),
+]
 CLIENT_SPANS = ["Nordmarkt Feinkost", "Nordmarkt", "Evripos Supermarkets", "Evripos", "Baltic Delikatessen", "Baltic"]
 CLIENT_YES_EN = [
     "{c} wants to renegotiate the supply contract before the harvest.",
@@ -895,28 +1027,38 @@ def doc_examples(rng: random.Random) -> list[dict]:
             out.append(make(p, cand(doc, ci, p, "copy", True), "YES",
                             rng.choice(REASONS["doc_yes"]["copy"]).format(d=short),
                             {"type": "doc_chunk", "sub": "partial_copy", "doc": doc}))
+        for _ in range(2):  # short fragments (6 to 9 words): a piece of a document pasted on its own
+            if len(w) < 10:
+                break
+            n = rng.randint(6, 9)
+            s = rng.randint(0, len(w) - n)
+            frag = " ".join(w[s : s + n])
+            p = frame_for(rng, frag) if rng.random() < 0.5 else frag
+            out.append(make(p, cand(doc, ci, p, "copy", True), "YES",
+                            rng.choice(REASONS["doc_yes"]["copy"]).format(d=short),
+                            {"type": "doc_chunk", "sub": "fragment_copy", "doc": doc}))
         others = [j for j in range(len(chunks[doc])) if j != ci]
         for text in safe:
             for j in [ci] + rng.sample(others, min(2, len(others))):
                 out.append(make(text, cand(doc, j, text, "paraphrase", False), "NO",
                                 rng.choice(REASONS["doc_no"]).format(d=short),
                                 {"type": "doc_chunk", "sub": "same_topic_safe", "doc": doc, "hard": True}))
-    pub_doc = docs["pub"][2]
-    pub_sents = sentences(pub_doc)
-    for anchor, texts in PUBLIC_FACTS:
-        ci = best_overlap(anchor, chunks["pub"])
-        orig = pub_sents[best_overlap(anchor, pub_sents)]
-        w = orig.split()
-        parts = list(texts)
-        for _ in range(3):  # partial copies of a public text are fine too
-            n = max(6, int(len(w) * rng.uniform(0.5, 0.8)))
-            s = rng.randint(0, len(w) - n)
-            parts.append(" ".join(w[s : s + n]))
-        for k, text in enumerate(parts):
-            p = frame_for(rng, text)
-            kind = "copy" if k >= len(texts) else "paraphrase"
-            out.append(make(p, cand("pub", ci, p, kind, False), "NO", rng.choice(REASONS["public_no"]),
-                            {"type": "doc_chunk", "sub": "public_doc", "doc": "pub", "hard": True}))
+    for pkey, pfacts in (("pub", PUBLIC_FACTS), ("pub2", PUBLIC_FACTS2)):
+        pub_sents = sentences(docs[pkey][2])
+        for anchor, texts in pfacts:
+            ci = best_overlap(anchor, chunks[pkey])
+            orig = pub_sents[best_overlap(anchor, pub_sents)]
+            w = orig.split()
+            parts = list(texts)
+            for _ in range(3):  # partial copies of a public text are fine too
+                n = max(6, int(len(w) * rng.uniform(0.5, 0.8)))
+                s = rng.randint(0, len(w) - n)
+                parts.append(" ".join(w[s : s + n]))
+            for k, text in enumerate(parts):
+                p = frame_for(rng, text)
+                kind = "copy" if k >= len(texts) else "paraphrase"
+                out.append(make(p, cand(pkey, ci, p, kind, False), "NO", rng.choice(REASONS["public_no"]),
+                                {"type": "doc_chunk", "sub": "public_doc", "doc": pkey, "hard": True}))
     for doc, anchor, pos_q, neg_q in DOC_EXTRA:
         ci = best_overlap(anchor, chunks[doc])
         short = DOCS[doc][1]
@@ -982,7 +1124,7 @@ def entity_examples(rng: random.Random) -> list[dict]:
         latin = rng.random() > 0.15
         first, sur = (fl, sl) if latin else (fg, sg)
         add(t.format(first=first, n=sur), "PERSON", f"{first} {sur}", "YES", "PERSON_yes", "name_en_sentence", False)
-    for _ in range(40):  # surname alone, the Greek surnames without common endings
+    for _ in range(60):  # surname alone, the Greek surnames without common endings
         sg, sl = rng.choice(SURNAMES)
         t = rng.choice(SURNAME_ONLY)
         name = sg if language(t) == "el" else sl
@@ -1000,6 +1142,17 @@ def entity_examples(rng: random.Random) -> list[dict]:
     for span, s in CLIENT_NO:
         add(s, "CLIENT", span, "NO", "CLIENT_no", "client_lookalike", True)
 
+    seen2: set[tuple[str, str]] = set()
+    while len(seen2) < 60:  # many more client names, in Greek and Latin letters, in business sentences
+        full, short = rng.choice(CLIENTS2)
+        form = rng.choice([full, short])
+        tmpl = rng.choice(CLIENT2_EL if rng.random() < 0.45 else CLIENT2_EN)
+        if (form, tmpl) in seen2:
+            continue
+        seen2.add((form, tmpl))
+        add(tmpl.format(c=form), "CLIENT", form, "YES", "CLIENT_yes", "client_name", False)
+    for span, s in CLIENT2_NO:
+        add(s, "CLIENT", span, "NO", "CLIENT_no", "client_lookalike", True)
     for _lang, t, xs in SALARY_YES:
         for x in xs:
             add(t.format(x=x), "AMOUNT", x, "YES", "AMOUNT_yes", "salary_figure", False)
@@ -1013,7 +1166,7 @@ def entity_examples(rng: random.Random) -> list[dict]:
         if _lang == "el" and not x.endswith("ευρώ"):
             x = f"{v:,}".replace(",", ".") + " ευρώ"
         add(t.format(x=x), "AMOUNT", x, "YES", "AMOUNT_yes", "salary_figure", False)
-    for _ in range(45):  # random quantities and ids, each template gets the kind of number it expects
+    for _ in range(110):  # random quantities and ids, each template gets the kind of number it expects
         n = rng.randint(6, 60)
         big = rng.randint(8, 48) * 1000 + rng.choice([0, 500])
         kinds = {
@@ -1031,7 +1184,7 @@ def entity_examples(rng: random.Random) -> list[dict]:
         lang, t = rng.choice(PHONE_YES)
         p = f"69{rng.randint(0, 9)}0 00{rng.randint(0, 9)} {rng.randint(100, 999)}".replace(" ", "")
         add(t.format(n=(fg if lang == "el" else fl), p=p), "PHONE", p, "YES", "PHONE_yes", "phone", False)
-    for _ in range(16):
+    for _ in range(26):
         lang, t = rng.choice(PHONE_NO)
         p = f"69{rng.randint(0, 9)}0 00{rng.randint(0, 9)} {rng.randint(100, 999)}".replace(" ", "")
         add(t.format(p=p), "PHONE", p, "NO", "PHONE_no", "reference_number", True)
@@ -1117,7 +1270,14 @@ def balance(examples: list[dict], rng: random.Random) -> list[dict]:
         neg = [e for e in pool if e["verdict"] == "NO"]
         n_pos = min(len(pos), int(len(neg) * YES_SHARE / (1 - YES_SHARE)))
         n_neg = round(n_pos * (1 - YES_SHARE) / YES_SHARE)
-        out += rng.sample(pos, n_pos) + rng.sample(neg, n_neg)
+        # the kinds the first test round got wrong (client names, surnames alone) are kept first, up to a cap
+        first: list[dict] = []
+        for sub in PRIORITY_SUBS:
+            first += rng.sample([e for e in pos if e["meta"]["sub"] == sub],
+                                min(PRIORITY_CAP, sum(e["meta"]["sub"] == sub for e in pos)))
+        rest = [e for e in pos if e not in first]
+        chosen = (first + rng.sample(rest, max(0, min(len(rest), n_pos - len(first)))))[:n_pos]
+        out += chosen + rng.sample(neg, n_neg)
     rng.shuffle(out)
     return out
 
@@ -1150,6 +1310,15 @@ def augment_split(rows: list[dict], rng: random.Random) -> list[dict]:
                 if a:
                     out.append(a)
                     break
+    public = [e for e in rows if e["meta"].get("sub") == "public_doc"]  # capitals and Greeklish of public text must stay NO
+    for e in rng.sample(public, len(public) // 2):
+        kinds = judge_aug.KINDS_DOC
+        i = rng.randrange(len(kinds))
+        for k in range(len(kinds)):
+            a = judge_aug.augment(e, kinds[(i + k) % len(kinds)], rng, language)
+            if a:
+                out.append(a)
+                break
     return out
 
 
