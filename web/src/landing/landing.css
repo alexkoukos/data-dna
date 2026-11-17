@@ -519,10 +519,67 @@
 }
 
 /* Laptop (design size 812 x 480): the screen sits behind a photo with a transparent display */
+.laptop-wrap {
+  margin-bottom: 44px;
+}
 .laptop {
   position: relative;
   width: 812px;
   height: 480px;
+  /* a slight tilt, hinged at the bottom edge, so the lid leans back a touch */
+  transform: perspective(1700px) rotateX(2.5deg);
+  transform-origin: 50% 96%;
+}
+/* Warm light thrown by the display onto the desk behind it */
+.laptop-glow {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  top: 40px;
+  bottom: 20px;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    rgba(245, 158, 11, 0.22),
+    rgba(245, 158, 11, 0) 68%
+  );
+  filter: blur(26px);
+}
+/* Where the base touches the surface: a tight dark line and a wide soft shadow */
+.laptop-contact {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  top: 452px;
+  height: 22px;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(38, 38, 38, 0.38), rgba(38, 38, 38, 0) 62%),
+    radial-gradient(ellipse at 50% 20%, rgba(38, 38, 38, 0.18), rgba(38, 38, 38, 0) 78%);
+  filter: blur(4px);
+}
+.laptop-reflection {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 812px;
+  height: 480px;
+  max-width: none;
+  margin-top: -22px;
+  transform: scaleY(-1);
+  opacity: 0.16;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 20%);
+  mask-image: linear-gradient(to bottom, #000, transparent 20%);
+}
+/* Screen light catching the aluminium lip */
+.laptop-spill {
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  top: 440px;
+  height: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
+  mix-blend-mode: soft-light;
+  pointer-events: none;
 }
 .laptop-hole {
   position: absolute;
@@ -589,7 +646,6 @@
   height: 480px;
   max-width: none;
   pointer-events: none;
-  filter: drop-shadow(0 14px 18px rgba(38, 38, 38, 0.18));
 }
 
 /* ---------- Screen (design size 720 x 450) ---------- */

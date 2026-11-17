@@ -14,6 +14,14 @@ export function Laptop({ children }: { children: ReactNode }) {
   return (
     <Scaled width={LAPTOP_W} height={LAPTOP_H} className="laptop-wrap">
       <div className="laptop">
+        <div className="laptop-glow" aria-hidden="true" />
+        <div className="laptop-contact" aria-hidden="true" />
+        <img
+          className="laptop-reflection"
+          src="/brand/macbook-frame.png"
+          alt=""
+          aria-hidden="true"
+        />
         <div
           className="laptop-hole"
           style={{ left: HOLE.x, top: HOLE.y, width: HOLE.w, height: HOLE.h }}
@@ -65,6 +73,7 @@ export function Laptop({ children }: { children: ReactNode }) {
             <div className="glass" aria-hidden="true" />
           </div>
         </div>
+        <div className="laptop-spill" aria-hidden="true" />
         <img
           className="laptop-frame"
           src="/brand/macbook-frame.png"
