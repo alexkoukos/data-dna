@@ -9,7 +9,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **P-3** P0 Brain API for the extension: `/v1/check`, `/v1/events`, `/v1/policy`, `/v1/pair`, `/v1/ask-local`, `/v1/logs/ingest`; tables `devices`, `ext_events`. Owner: Alexandros.
 - [x] **P-4** P0 Dashboard: Get the extension page (zip, install steps, pairing code, samples), inventory by source, Company Chat removed. Owner: Alexandros.
 - [x] **P-5** P0 `mock-ai`, `samples/` (five outcomes, English and Greek), compose profile for the gateway, extension zip in the web image. Owner: Alexandros.
-- [ ] **P-6** P0 Run `docker compose up --build` from a fresh clone on Linux, macOS and WSL and fix what breaks (no Docker was available when P-1 to P-5 were built). Owner: Alexandros.
+- [~] (Alexandros) **P-6** P0 Run `docker compose up --build` from a fresh clone on Linux, macOS and WSL and fix what breaks. Done on WSL 2 on 17 Nov: builds, all healthy, `make e2e` and extension e2e pass, numbers in the README. Still to do: native Linux and macOS arm64.
 - [ ] **P-7** P1 Try the chatgpt.com, claude.ai and gemini adapters on the real sites and fix selectors (only the demo chat is tested). Owner: Alexandros.
 - [ ] **P-8** P1 Fail mode per category in the policy editor; Firefox build (P2).
 

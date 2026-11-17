@@ -100,15 +100,16 @@ Optional, never needed for the demo:
 
 **Build the extension yourself.** `make extension` builds it into `extension/.output/chrome-mv3`. Load that folder unpacked.
 
-Measured on macOS Apple silicon (arm64, OrbStack, fresh clone, no build cache, 13 Nov 2026, before the pivot to the extension, with the gateway running):
+Measured on Windows 11 with WSL 2 (Ubuntu 24.04, Docker Desktop, 16 CPUs, 15.6 GB), fresh clone, no build cache, 17 Nov 2026:
 
 | What | Result |
 | --- | --- |
-| Build from scratch (`docker compose build --no-cache`) | 72 s |
-| Start until all services are healthy | 48 s |
-| RAM when idle (web, gateway, brain, database) | about 770 MB (gateway 658, brain 70, database 34, web 9) |
+| Build from scratch (`docker compose build --no-cache`) | 113 s |
+| Start until all four services are healthy (images built, empty database, demo data seeded) | 31 s |
+| RAM when idle | about 770 MB: brain 682 (it holds the embedding and language models), database 57, demo chat 15, dashboard 15 |
+| Image sizes | brain 2.5 GB, database 741 MB, demo chat 239 MB, dashboard 95 MB |
 
-The gateway is optional now, so the default stack is lighter than this. A new measurement on Linux, macOS and Windows (WSL 2) is still to be made (task S2). We have not yet run the full compose stack on Linux.
+On the same machine every Playwright test passes against this stack: 20 of 21 extension tests (the 21st only runs when the server is stopped) and 40 of 41 dashboard tests (the skipped one needs the optional gateway). Before the pivot, on macOS Apple silicon (OrbStack), a build took 72 s and a start 48 s with the gateway running. Native Linux and macOS arm64 runs of the new stack are still to be done.
 
 ## Architecture
 
@@ -189,7 +190,7 @@ Why the extension asks for each permission:
 - Only Chrome is supported. There is no Firefox build.
 - The ChatGPT, Claude and Gemini adapters are written from the sites' current page structure and have only been tested on the demo chat. A site redesign breaks one adapter (one file) and nothing else. Other AI sites get the telemetry and the unapproved-tool banner but no text check.
 - A person can leave the extension off, use another browser or a personal device. The network logs catch the visit but not the text.
-- The full compose stack has not yet been timed on Linux or Windows. The extension and the brain were tested together with a lightweight database, not with the Postgres container.
+- The stack was run and timed on Windows with WSL 2 only. Native Linux and macOS arm64 runs of the new stack have not been made yet (the arm64 image build runs in CI).
 - Paraphrase detection is 92.5%, not 100%. Short Greek business text can wrongly match a long contract (for example a payment reminder that resembles the Delphi agreement). The risk is a needless "use the company AI" card.
 - Free-text analyst questions need a model (OpenAI key or `make local`). The five presets always work.
 - Fail mode is fixed: if the server is unreachable, everything the browser's own checks find is still applied and the rest is let through and logged. It is not yet editable per category in the dashboard.
