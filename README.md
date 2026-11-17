@@ -89,7 +89,7 @@ Measured on 17 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; full tabl
 | Correct copy named when a document leaks | 99.2% | 90% |
 | Attack set `attacks.csv` handled as expected | 76 of 80 | |
 | Attack set `attacks_scripts.csv` as expected | 77 of 80 | |
-| promptfoo curated cases (`make redteam`) | 24 of 25 | |
+| promptfoo curated cases (`make redteam`) | 25 of 25 | |
 
 The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test p95 sits on the target: 4 of 5 runs passed, by a few milliseconds. Unit tests: 365 brain tests at 91% coverage and 79 web tests (`make check`); end-to-end and accessibility checks: 41 specs (`make e2e`).
 
@@ -109,7 +109,7 @@ Other protections: API keys live in `.env` only (gitleaks runs in CI); model ans
 
 ## Known limits
 - **Only traffic through the gateway is checked.** Personal devices and tools that bypass it are seen in usage logs, not stopped.
-- **Detection is probabilistic.** Measured misses: 4 of 80 and 3 of 80 attacks, one reworded question about the Delphi agreement (P0105), one of 25 red-team cases, and many model-attack prompts from garak that carry no company data and still reach the model (the gateway flagged only 4 of 27 in one family, 5 of 40 in another). A clean Greek prompt was sent to the local model (P0159). See `docs/BRIEF_MAP.md`.
+- **Detection is probabilistic.** Measured misses: 4 of 80 and 3 of 80 attacks, one reworded question about the Delphi agreement (P0105), and many model-attack prompts from garak that carry no company data and still reach the model (the gateway flagged only 4 of 27 in one family, 5 of 40 in another). A clean Greek prompt was sent to the local model (P0159). See `docs/BRIEF_MAP.md`.
 - **Meaning without matching words** can pass; a strong paraphrase goes to the local model rather than being blocked, to avoid false blocks. A document can carry translations (`name.en.md` next to `name.md`) so rewrites in another language are compared with text in their own language; that is how Greek salary bands are protected against English rewrites. Translations have to be supplied for each document and language.
 - **Slow leaks** beyond the session window, and anything retyped by hand or photographed, are not caught.
 - **No login.** The brain API is unauthenticated in demo mode and uses a default master key. Do not expose ports 8001 and 4000 beyond a trusted network. Roles, TLS and a key store are roadmap.
