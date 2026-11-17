@@ -15,6 +15,13 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros (with Claude), T5 business pack
+**Done:** `docs/business/` now has market (with sourced figures), competitors, SWOT, customer and pricing, roadmap, privacy and regulation, engagement. README sections Privacy, Business case and Roadmap link to them.
+**State:** branch `task/T5-business-pack`, docs only. Figures come from web searches of secondary sources; competitor claims are untested; prices are hypotheses.
+**Next step:** Vasilis reviews pricing and competitor claims; check EU AI Act Art. 50 date on EUR-Lex; check the IBM shadow-AI premium (USD 670k vs one source saying 200k) in the PDF before it goes on a slide.
+**Problems / decisions needed:** none for the code.
+**Files touched:** docs/business/*.md, README.md, TASKS.md, PROGRESS.md
+
 ## 2026-11-17, Alexandros, split storage (additive secret sharing)
 **Latest change:** the app no longer connects to the vaults as a Postgres superuser. `infra/vault/create-app-role.sh` (runs on a fresh volume) loads `init.sql` as `VAULT_*_ADMIN_USER` and creates the limited app role `VAULT_*_USER`. Interrupted-write recovery now runs every 60 s in the brain (entries older than 30 s only), so it is safe with more than one instance. Vault healthchecks use TCP (`-h 127.0.0.1`) so they cannot pass on Postgres' temporary init server. **After pulling: `make reset`** (vault volumes are recreated; only demo data is lost). New variables `VAULT_A_ADMIN_*`, `VAULT_B_ADMIN_*` are in `.env.example`; copy them into your `.env`.
 **Done:** `brain.splitstore` (`shares.py` pure splitting, `integrity.py` HMAC tags and key loading, `store.py` store/reveal/aggregate_sum, `demo.py`). Two new compose services `vault-a` and `vault-b` (postgres:16, own credentials, volume and internal network; only `brain` is on both; schema in `infra/vault/init.sql`), `brain` waits for both. HMAC key is the compose secret `secrets/hmac_key` (`scripts/gen_hmac_key.sh`, gitignored). Tests: `make split-test` (inside containers, vaults must be reachable or the run fails). Demo: `make split-demo`. README section "Split storage".
