@@ -1,4 +1,4 @@
-# The scanner also reads the decoy credentials of X4 and the attacks of X2. They are invented,
+# The scanner also reads the decoy credentials of X4, the attacks of X2 and the L1 fixtures (fake keys such as AKIAABCDEFGHIJ234567). They are invented,
 # random and planted on purpose, so only those files are allowed. Everything else is still scanned.
 [extend]
 useDefault = true
@@ -9,4 +9,5 @@ paths = [
   '''data/documents/.*\.md''',
   '''data/eval/attacks.*\.csv''',
   '''services/brain/tests/.*''',
+  '''shared/fixtures/.*\.json''',
 ]
