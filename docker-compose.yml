@@ -26,6 +26,13 @@ services:
       GATEWAY_URL: http://gateway:4000
       DEMO_MODE: ${DEMO_MODE:-true}
       DATA_DIR: /data
+      # X30: SIEM push. All off unless set in .env; see docs/siem/README.md.
+      SIEM_SYSLOG_HOST: ${SIEM_SYSLOG_HOST:-}
+      SIEM_SYSLOG_PORT: ${SIEM_SYSLOG_PORT:-514}
+      SIEM_SYSLOG_PROTO: ${SIEM_SYSLOG_PROTO:-udp}
+      SIEM_WEBHOOK_URL: ${SIEM_WEBHOOK_URL:-}
+      SIEM_WEBHOOK_SECRET: ${SIEM_WEBHOOK_SECRET:-}
+      SIEM_EXPORT_TOKEN: ${SIEM_EXPORT_TOKEN:-}
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
       # Few threads per model: many small requests beat one wide one (see the load test).
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
@@ -90,6 +97,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 90
+
+  # X30 demo SOC: a tiny syslog receiver that prints the incidents the brain pushes. Not started by
+  # `up`: set SIEM_SYSLOG_HOST=syslog-receiver in .env, then run `make siem`.
+  syslog-receiver:
+    profiles: ["siem"]
+    image: python:3.12-alpine
+    command: ["python", "-u", "/receiver.py"]
+    volumes:
+      - ./infra/siem/receiver.py:/receiver.py:ro
 
   # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
   sim:

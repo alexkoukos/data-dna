@@ -70,10 +70,15 @@ check: validate lint typecheck test ## Everything CI checks. Run before every co
 e2e: ## End-to-end + accessibility (needs `make up` first)
 	cd web && npx playwright install chromium && npm run e2e
 
+siem: ## Start the demo SOC (syslog receiver) and follow the incidents arriving (X30; set SIEM_SYSLOG_HOST=syslog-receiver in .env first)
+	docker compose --profile siem up -d syslog-receiver
+	docker compose up -d brain
+	docker compose logs -f --tail=20 syslog-receiver
+
 calibrate: ## Sweep the paraphrase cutoff and write docs/calibration.md and .svg (X25)
 	cd services/brain && uv run python ../../scripts/calibrate.py
 
 eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
 	cd services/brain && uv run python -m brain.eval.run
 
-.PHONY: calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+.PHONY: siem calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval

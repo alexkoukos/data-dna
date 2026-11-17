@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     seed_on_start: bool = True
     data_dir: str = ""
     log_dir: str = "/var/dna/logs"
+    # X30: where new incidents are pushed. Everything is off until a value is set.
+    siem_syslog_host: str = ""
+    siem_syslog_port: int = 514
+    siem_syslog_proto: str = "udp"  # udp or tcp
+    siem_webhook_url: str = ""
+    siem_webhook_secret: str = ""
+    siem_export_token: str = (
+        ""  # when set, GET /v1/export/incidents needs "Authorization: Bearer <it>"
+    )
 
 
 settings = Settings()

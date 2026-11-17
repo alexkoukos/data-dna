@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros, task X30 (SIEM export)
+**Done:** `brain/siem.py`: event builder (named fields only), CEF line, HMAC-SHA256 signing, syslog sender (UDP or TCP), signed webhook, and `GET /v1/export/incidents?since=&limit=` (JSON lines, optional `SIEM_EXPORT_TOKEN`). `records.record_decision` pushes every new non-allow incident after saving it; a down SIEM never fails or slows the request. `docs/siem/` (README, Sigma rule, Splunk, Elastic), compose profile `siem` with a tiny receiver (`infra/siem/receiver.py`), `make siem`, new `.env.example` variables.
+**State:** branch `task/x30-siem`, worktree `~/data-dna-x30`, branched from main (independent of X27/X28). 16 new tests in `test_x30_siem.py` green, ruff and mypy clean. The receiver and both syslog senders were run together locally. `make check` green (371 brain, 79 web tests). Not run: a real `make up` with `make siem` (other stacks hold the ports).
+**Next step:** `make up` with `SIEM_SYSLOG_HOST=syslog-receiver` in `.env` and `make siem`; send a blocked message and watch the line arrive. Merging with the X27 branch will conflict on README, EXTRA_FEATURES, PROGRESS and `.env.example` (keep both); `record_decision` on the X27 branch also gained a `channel` argument, which the SIEM push ignores.
+**Problems / decisions needed:** The export has no login (like every other brain endpoint); set `SIEM_EXPORT_TOKEN` if the brain port is reachable by others. The Sigma `count() by` aggregation uses the older, widely supported syntax.
+**Files touched:** services/brain/src/brain/{siem.py,records.py,main.py,config.py}, services/brain/tests/test_x30_siem.py, infra/siem/receiver.py, docs/siem/*, docker-compose.yml, Makefile, .env.example, README.md, docs/EXTRA_FEATURES.md, PROGRESS.md
+
+---
+
 ## 2026-11-17, Alexandros, UI flow and new mascot
 **Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
 **State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.

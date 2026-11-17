@@ -66,6 +66,8 @@ _To be written._
 
 **Greeklish and look-alike characters (X5).** Before any check the text is cleaned of tricks that keep its length: digits from other scripts (Arabic-Indic, Devanagari, Thai) become 0 to 9, Greek or Cyrillic letters inside a word that mixes scripts or holds a number are folded to the matching Latin ones (a mostly Greek word goes the other way), a capital O or a lower-case l in a long number is read as 0 or 1, and hex, percent-encoded and HTML-entity text is decoded. Names such as "giorgos papadopoulos" are found by Greek surname endings and a list of common surnames, with no model call. `make eval` reports the attacks of these three kinds as one target: 96.2% caught against a target of 80%. A Greek surname with no common ending (for example "Papadaki" in capitals) is still missed.
 
+**SIEM export (X30).** How an incident reaches the SOC: `GET /v1/export/incidents?since=...` returns JSON lines, and `.env` can also turn on a syslog sender (CEF, UDP or TCP) and an HMAC-signed webhook that push every new incident. An event holds the time, the user key ID (never the name), team, tool, decision, categories, matched document ID and rule IDs, and never any prompt text or masked preview. `docs/siem/` has a Sigma rule (3 or more blocks for one user in 10 minutes) and Splunk and Elastic examples. `make siem` starts a demo syslog receiver (compose profile `siem`) so the events can be watched arriving. Tests: `services/brain/tests/test_x30_siem.py`.
+
 ## Roadmap
 _From docs/business (T5)._
 
