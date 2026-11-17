@@ -136,6 +136,11 @@ export default function ConnectPage() {
         Point any tool that speaks the OpenAI format at the address below, with your personal key.
         Every request is then checked before it leaves the company.
       </p>
+      <p className="mt-2 max-w-prose rounded-md bg-ink-100 p-3 text-sm text-ink-700">
+        This is the other way in, for scripts and coding tools that do not run in a browser. It
+        needs the optional gateway: run <code className="rounded bg-white px-1">make gateway</code>.
+        For people at their browser, use the extension.
+      </p>
 
       {state.status === "loading" && (
         <div role="status" aria-label="Loading your connection details" className="mt-6 space-y-3">

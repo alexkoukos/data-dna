@@ -1,3 +1,5 @@
+> **Update 17 Nov 2026.** The product front door is now a browser extension plus the dashboard, not the gateway and Company Chat described below. See [PIVOT.md](PIVOT.md). The detection, policy and data sections still apply.
+
 # PRD: Pyli (Data DNA), the AI gate that keeps company data inside
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.

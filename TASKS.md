@@ -3,10 +3,20 @@
 Status: `[ ]` open, `[~] (name)` in progress, `[x]` done. Claim a task by changing its status in your branch. One person per task. Section numbers point to `docs/PRD.md`.
 Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 
+## Pivot to the browser extension (17 Nov, see docs/PIVOT.md)
+- [x] **P-1** P0 `docs/PIVOT.md`: keep, park, delete. Owner: Alexandros.
+- [x] **P-2** P0 `extension/` (WXT): L1 from `shared/rules.json`, mask and unmask, five cards, offline path, popup, side panel, settings, managed policy. Owner: Alexandros.
+- [x] **P-3** P0 Brain API for the extension: `/v1/check`, `/v1/events`, `/v1/policy`, `/v1/pair`, `/v1/ask-local`, `/v1/logs/ingest`; tables `devices`, `ext_events`. Owner: Alexandros.
+- [x] **P-4** P0 Dashboard: Get the extension page (zip, install steps, pairing code, samples), inventory by source, Company Chat removed. Owner: Alexandros.
+- [x] **P-5** P0 `mock-ai`, `samples/` (five outcomes, English and Greek), compose profile for the gateway, extension zip in the web image. Owner: Alexandros.
+- [ ] **P-6** P0 Run `docker compose up --build` from a fresh clone on Linux, macOS and WSL and fix what breaks (no Docker was available when P-1 to P-5 were built). Owner: Alexandros.
+- [ ] **P-7** P1 Try the chatgpt.com, claude.ai and gemini adapters on the real sites and fix selectors (only the demo chat is tested). Owner: Alexandros.
+- [ ] **P-8** P1 Fail mode per category in the policy editor; Firefox build (P2).
+
 ## Foundation
 - [x] **S0** Scaffold: locks, tests, CI, devcontainer, Makefile. (Alexandros)
 - [x] **S1** P0 `make up` works on a real machine; fix Dockerfiles; CI smoke green. Owner: Alexandros. Done when: fresh clone, `make up`, both URLs load, CI green.
-- [~] (Alexandros) **S2** P0 Platform check: Linux, macOS Apple silicon, Windows WSL. Owner: Alexandros. Done when: `make up` works on all three; RAM and first-start time written in README.
+- [~] (Alexandros) **S2** P0 Platform check (see P-6): Linux, macOS Apple silicon, Windows WSL. Owner: Alexandros. Done when: `make up` works on all three; RAM and first-start time written in README.
 
 ## Gateway and routing
 - [x] **G1** P0 Add LiteLLM gateway service (pin the latest stable image tag from its releases page), per-user virtual keys, custom guardrail calling `brain /v1/inspect` (PRD 7, 8). Owner: Alexandros. Done when: an OpenAI SDK client with a personal key gets a masked-and-answered reply through the gateway; integration test passes.

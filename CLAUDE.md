@@ -3,7 +3,7 @@
 This repo is shared by four people who hand work to each other, often mid-feature, when someone runs out of tokens. Your job is to keep the repo in a state where anyone can pick it up in five minutes.
 
 ## What we are building
-Pyli (πύλη, "the gate"; the repo and some code still say Data DNA), an AI gate for Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection and Data Protection). The full spec is `docs/PRD.md`. The plain-language version for the whole team is `docs/IDEA_AND_TEAM.md`. Read the PRD section you need before writing code; do not guess the design.
+Pyli (πύλη, "the gate"; the repo and some code still say Data DNA), a Chrome extension plus an admin dashboard for Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection and Data Protection). The extension checks what people paste into AI chats; the brain (`services/brain`) decides; the dashboard (`web`) shows it. `docs/PIVOT.md` says what changed from the gateway design; the full spec is `docs/PRD.md`. The plain-language version for the whole team is `docs/IDEA_AND_TEAM.md`. Read the PRD section you need before writing code; do not guess the design.
 
 Deadline: Friday 20 Nov 2026, judged from the repo alone. If `docker compose up --build` fails on a judge's machine, the submission is void.
 
@@ -40,6 +40,7 @@ The next person must be able to continue from the PROGRESS entry alone.
 ## Code conventions
 - Brain: Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2. `ruff` and `mypy --strict` must pass. Tests in `services/brain/tests`, coverage at least 80%.
 - Detection order is cheapest first (PRD section 9). Keep functions pure where possible; I/O at the edges.
+- Extension (`extension/`): WXT, TypeScript strict. All DOM selectors live in `src/adapters/` and nowhere else. The L1 rules live in `shared/rules.json`; change a rule there, regenerate fixtures with `scripts/gen_l1_fixtures.py`, and both `make test` suites must pass. Never call `chrome.storage.managed` without a timeout (it hangs on a browser with no policy). Rebuild (`make extension`) before `make e2e-extension`.
 - Web: React + TypeScript + Tailwind v4. Tokens are in `web/src/index.css` `@theme`; use only those. Presentational components in `src/components`, screens and data fetching in `src/pages`. Tests next to components (`*.test.tsx`).
 - Every user-facing message says what happened and what to do next, in plain words.
 
@@ -52,4 +53,4 @@ Refactoring UI, Baranov's typography, Nielsen's 10 heuristics, Better Stories co
 - Works at 390 px wide. Loading (skeletons), empty, error and success states designed for every screen.
 
 ## Commands
-`make help` lists everything. Most used: `make setup`, `make up`, `make check`, `make test`, `make validate`, `make e2e`, `make down`.
+`make help` lists everything. Most used: `make setup`, `make up`, `make check`, `make test`, `make validate`, `make e2e`, `make e2e-extension`, `make extension`, `make down`. The LiteLLM gateway is optional: `make gateway`.

@@ -1,6 +1,6 @@
 # PIVOT: from AI gateway to browser extension
 
-Status: proposal, waiting for Alex's OK. Nothing has been deleted or moved yet.
+Status: approved by Alex on 17 Nov 2026 with all recommendations accepted. Done on branch `task/pivot-extension`; see "What was done" at the end.
 Branch: `task/pivot-extension`. Date: Tue 17 Nov 2026.
 
 ## What changes
@@ -64,3 +64,13 @@ Nothing in the brain is deleted.
 1. Scaffold `extension/`, `mock-ai/`, `shared/rules.json`; mock-ai mask and unmask loop with Vitest and one Playwright test.
 2. Add the extension zip to the web image so `docker compose up --build` serves `/extension.zip`.
 3. `/v1/check`, policy ETag, events, pairing. Then adapters, overlay cards, inventory from telemetry and logs, dashboard changes.
+
+## What was done (17 Nov 2026)
+
+- Deleted: Company Chat page, its components, its tests and its e2e steps. Home is now a short "Get the extension" start page.
+- Kept the brain, detection, documents, policy, incidents, reveal, inventory and analyst code. Added `brain/extension.py` (`/v1/check`, `/v1/events`, `/v1/policy` with ETag, `/v1/pair`, `/v1/ask-local`, `/v1/logs/ingest`, `/v1/demo-users`), two tables (`devices`, `ext_events`, file `infra/db/06-extension.sql`) and CORS.
+- Added `extension/` (WXT, TypeScript strict), `mock-ai/`, `shared/rules.json` with `shared/fixtures/l1.json` (tested by both the brain and the extension), `samples/`, `deploy/`.
+- Decisions as proposed: directory names kept (`services/brain`, `web`); L1 subset in `shared/rules.json` while Greeklish, confusables, YARA and entities stay in Python; the gateway is behind the compose profile `gateway` (`make gateway`); web build context is the repository root so the web image also builds `/extension.zip`.
+- Parked: gateway, `/v1/keys`, MCP proxy, paste guard, Connect page, Break-it page.
+- Seed: browser tools now produce extension incidents and visit events on every team except Operations, so the logs-only story (unapproved DeepSeek in Operations) shows in the inventory.
+- Not done: fail mode per category in the policy editor, Firefox build, a measurement of the compose stack on Linux (no Docker in the session that built this).
