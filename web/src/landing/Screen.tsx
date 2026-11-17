@@ -177,7 +177,9 @@ export function Screen({ scene: sceneIndex, phase, still = false }: Props) {
         </div>
       </div>
 
-      <img className="bee" src="/brand/hive-guard-bee.svg" alt="" />
+      <span className="bee-path">
+        <img className="bee" src="/brand/hive-guard-bee.svg" alt="" />
+      </span>
       {still ? null : (
         <svg
           className="cursor"

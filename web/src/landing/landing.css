@@ -195,15 +195,6 @@
 }
 
 /* Type */
-.eyebrow {
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--amber-text);
-  margin-bottom: 12px;
-}
 .hive h1 {
   font-size: 56px;
   line-height: 60px;
@@ -229,7 +220,20 @@
 
 /* Hero */
 .hero {
+  position: relative;
+  isolation: isolate;
   padding: 40px 24px 48px;
+}
+/* A very faint honeycomb, strongest behind the laptop and fading out toward the edges */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%23F59E0B' stroke-opacity='.32'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='%23F59E0B' stroke-opacity='.32'/%3E%3C/svg%3E");
+  -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 72%, #000 0%, transparent 100%);
+  mask-image: radial-gradient(ellipse 60% 55% at 50% 72%, #000 0%, transparent 100%);
+  pointer-events: none;
 }
 .hero-in {
   max-width: 1120px;
@@ -290,39 +294,27 @@
   overflow: hidden;
   margin-bottom: 16px;
 }
-.step-n {
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-subtle);
-  margin-bottom: 4px;
-}
 .step h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 8px;
+}
+.step-n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: var(--amber);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 800;
 }
 .step p:last-child {
   color: var(--ink-muted);
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.catch {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 6px 8px 6px 16px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 9999px;
-}
-.catch-label {
-  font-weight: 700;
 }
 
 .chip {
@@ -1021,30 +1013,48 @@
   background: #fff;
 }
 
-/* Bee and cursor. Only transform and opacity ever animate. */
-.bee {
+/* Bee and cursor. Only transform and opacity ever animate.
+   The bee is two layers: .bee-path moves sideways, .bee moves up and down with different easing,
+   so the flight bends into a swoop instead of a straight line. */
+.bee-path {
   position: absolute;
   left: 555px;
   top: 5px;
   width: 36px;
-  height: auto;
   opacity: 0;
-  transform: translate(0, 0);
+  transform: translateX(0);
   transition:
-    transform 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.6s cubic-bezier(0.55, 0, 0.35, 1),
     opacity 0.25s;
   z-index: 5;
   pointer-events: none;
 }
-.screen[data-phase="bee"] .bee {
+.bee {
+  display: block;
+  width: 36px;
+  height: auto;
+  transform: translateY(0);
+  transition: transform 0.6s cubic-bezier(0.1, 0.75, 0.3, 1);
+}
+.screen[data-phase="bee"] .bee-path {
   opacity: 1;
-  transform: translate(calc(var(--bx) - 555px), calc(var(--by) - 5px));
-  animation: waggle 0.7s ease-in-out 0.48s 1 both;
+  transform: translateX(calc(var(--bx) - 555px));
+}
+.screen[data-phase="bee"] .bee {
+  transform: translateY(calc(var(--by) - 5px));
+  animation: waggle 0.7s ease-in-out 0.5s 1 both;
+}
+/* Leaving the dance: rise first, then slide across, so the path bends the other way */
+.screen[data-phase="card"] .bee-path,
+.screen[data-phase="hold"] .bee-path {
+  opacity: 1;
+  transform: translateX(calc(var(--px) - 555px));
+  transition-timing-function: cubic-bezier(0.1, 0.75, 0.3, 1);
 }
 .screen[data-phase="card"] .bee,
 .screen[data-phase="hold"] .bee {
-  opacity: 1;
-  transform: translate(calc(var(--px) - 555px), calc(var(--py) - 5px));
+  transform: translateY(calc(var(--py) - 5px));
+  transition-timing-function: cubic-bezier(0.55, 0, 0.35, 1);
   animation: bob 1.6s ease-in-out infinite;
 }
 .cursor {
@@ -1062,12 +1072,12 @@
   transition: none !important;
   animation: none !important;
 }
-.screen.is-still .bee {
+.screen.is-still .bee-path {
   opacity: 1;
 }
-.screen[data-phase="idle"].is-still .bee,
-.screen[data-phase="type"].is-still .bee,
-.screen[data-phase="paste"].is-still .bee {
+.screen[data-phase="idle"].is-still .bee-path,
+.screen[data-phase="type"].is-still .bee-path,
+.screen[data-phase="paste"].is-still .bee-path {
   opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1259,5 +1269,158 @@
   }
   .ov-tool {
     display: none;
+  }
+}
+
+/* What the bee catches: pick a data type, see what leaves */
+.hive .section-sub {
+  margin: -16px 0 32px;
+  color: var(--ink-muted);
+}
+.catches {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+  gap: 32px;
+  align-items: start;
+}
+.catch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.catch-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink-muted);
+  font:
+    500 15px/1.3 "Plus Jakarta Sans",
+    system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+.catch-btn:hover {
+  background: var(--muted);
+  color: var(--ink);
+}
+.catch-btn[aria-pressed="true"] {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+.catch-panel {
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+}
+.catch-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  animation: swap 0.3s ease-out;
+}
+.catch-side {
+  padding: 16px 18px;
+  border-radius: var(--r-lg);
+  background: var(--subtle);
+  border: 1px solid var(--border);
+  min-height: 112px;
+}
+.catch-side-out {
+  background: var(--tint);
+}
+.hive .catch-cap {
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 700;
+  color: var(--ink-subtle);
+}
+.hive .catch-text {
+  font-size: 17px;
+  line-height: 28px;
+  overflow-wrap: anywhere;
+}
+.catch-none {
+  color: var(--ink-muted);
+}
+.catch-arrow {
+  font-size: 22px;
+  color: var(--ink-subtle);
+}
+.catch-foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  animation: swap 0.3s ease-out;
+}
+.catch-say {
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 700;
+}
+.catch-text .pill {
+  font-size: 13px;
+  line-height: 22px;
+}
+@keyframes swap {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 1000px) {
+  .catches {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .catch-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .catch-btn {
+    width: auto;
+    border-color: var(--border);
+    background: var(--surface);
+  }
+}
+@media (max-width: 600px) {
+  .catch-panel {
+    padding: 16px;
+  }
+  .catch-flow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .catch-arrow {
+    transform: rotate(90deg);
+    justify-self: center;
+  }
+  .catch-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catch-flow,
+  .catch-foot {
+    animation: none;
   }
 }

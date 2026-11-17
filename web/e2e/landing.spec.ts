@@ -24,6 +24,20 @@ test("the old home page still works at /app", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("picking a kind of data shows what is pasted and what leaves", async ({ page }) => {
+  await page.goto("/");
+  const section = page.locator("#catches");
+  await section.getByRole("button", { name: "IBAN" }).click();
+  await expect(section.getByRole("button", { name: "IBAN" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(section.getByText("[IBAN_1]")).toBeVisible();
+  await expect(section.locator(".catch-foot .chip")).toContainText("Blocked");
+  await section.getByRole("button", { name: "Source code" }).click();
+  await expect(section.locator(".catch-foot .chip")).toContainText("Warned");
+});
+
 test.describe("with motion", () => {
   test.use({ reducedMotion: "no-preference" });
 
