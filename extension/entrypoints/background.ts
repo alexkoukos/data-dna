@@ -84,6 +84,9 @@ export default defineBackground(() => {
           });
           reply({ ok: true });
           return;
+        case "askLocal":
+          reply(await askLocal(msg.prompt));
+          return;
         case "openPanel": {
           await chrome.storage.session.set({ pendingPrompt: msg.prompt });
           if (sender.tab?.id !== undefined) await chrome.sidePanel.open({ tabId: sender.tab.id });
@@ -95,13 +98,5 @@ export default defineBackground(() => {
       }
     })();
     return true;
-  });
-
-  chrome.runtime.onMessage.addListener((raw: { type?: string; prompt?: string }, _s, reply) => {
-    if (raw.type === "askLocal" && raw.prompt) {
-      void askLocal(raw.prompt).then(reply);
-      return true;
-    }
-    return false;
   });
 });

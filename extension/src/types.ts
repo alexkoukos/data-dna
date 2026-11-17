@@ -53,6 +53,7 @@ export type Msg =
     }
   | { type: "visit"; tool: string; host: string }
   | { type: "openPanel"; prompt: string }
+  | { type: "askLocal"; prompt: string }
   | { type: "override"; reason: string; tool: string; host: string }
   | { type: "policy" }
   | { type: "stats" };
