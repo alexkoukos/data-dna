@@ -44,7 +44,7 @@ export function samplePath(opts: FlightOptions): Point[] {
   const back = to.x >= from.x ? -1 : 1;
   const p1 = inside({ x: from.x + back * 130, y: from.y + (arc === "up" ? -190 : 190) });
   const p2 = inside({ x: to.x - Math.sign(to.x - from.x || 1) * 340, y: to.y + 260 });
-  const amp = opts.sway ?? 26;
+  const amp = opts.sway ?? 64;
   const points: Point[] = [];
   for (let i = 0; i <= STEPS; i++) {
     const t = i / STEPS;
