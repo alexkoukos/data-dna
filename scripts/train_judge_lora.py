@@ -118,10 +118,12 @@ def main() -> None:
         att = torch.tensor([[1] * len(b["input_ids"]) + [0] * (n - len(b["input_ids"])) for b in batch])
         return {"input_ids": ids, "labels": lab, "attention_mask": att}
 
+    steps_per_epoch = -(-len(train) // (args.batch * args.accum))
+    warmup = max(1, int(0.05 * steps_per_epoch * args.epochs))  # a step count works in old and new transformers
     kw = dict(
         output_dir=str(args.out / "trainer"), num_train_epochs=args.epochs, learning_rate=args.lr,
         per_device_train_batch_size=args.batch, per_device_eval_batch_size=args.batch,
-        gradient_accumulation_steps=args.accum, lr_scheduler_type="cosine", warmup_ratio=0.05,
+        gradient_accumulation_steps=args.accum, lr_scheduler_type="cosine", warmup_steps=warmup,
         logging_steps=10, save_strategy="no", report_to="none", bf16=bf16, seed=args.seed,
         remove_unused_columns=False, optim="adamw_torch")
     key = "eval_strategy" if "eval_strategy" in inspect.signature(TrainingArguments.__init__).parameters else "evaluation_strategy"
