@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.output
+**/.wxt
+**/test-results
+**/playwright-report
+**/.venv
+**/__pycache__
+.git
+data/eval/*.tmp
