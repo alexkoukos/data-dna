@@ -24,7 +24,7 @@ export interface FlightOptions {
 }
 
 export const STEPS = 60;
-const START_SCALE = 0.35;
+const START_SCALE = 0.6;
 const TAIL = 0.85;
 
 export function bezier(p0: number, p1: number, p2: number, p3: number, t: number): number {

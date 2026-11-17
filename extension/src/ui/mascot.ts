@@ -6,17 +6,17 @@ export const BEE_STYLE = `
 .bee-wrap svg { width: 100%; height: 100%; overflow: visible; }
 .bee-fly { position: absolute; left: 0; top: 0; will-change: transform; pointer-events: none; }
 .bee-fixed { position: absolute; pointer-events: none; transition: opacity .2s ease; }
-.bee-drop { position: absolute; left: 62%; top: 70%; width: 14px; height: 14px; pointer-events: none; }
-.bee-drop.big { width: 20px; height: 20px; }
+.bee-drop { position: absolute; left: 62%; top: 70%; width: 18px; height: 18px; pointer-events: none; }
+.bee-drop.big { width: 26px; height: 26px; }
 .bee-glow { position: absolute; border-radius: 4px; background: rgba(233,165,22,.45);
   box-shadow: 0 0 0 3px rgba(233,165,22,.35); pointer-events: none; animation: glow .3s ease-out forwards; }
 @keyframes glow { from { opacity: 1; } to { opacity: 0; } }
-.perch { position: absolute; top: -40px; left: 14px; width: 52px; height: 52px; pointer-events: none; }
+.perch { position: absolute; top: -52px; left: 14px; width: 68px; height: 68px; pointer-events: none; }
 .bee-wrap.still * { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .bee-glow { animation: none; opacity: 0; } }
 `;
 
-const SIZE = 56;
+const SIZE = 72;
 const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
 export interface Perch {
@@ -135,7 +135,7 @@ export class Mascot {
       to: { x: innerWidth - 36, y: -40 },
       size: SIZE,
       duration: 2000,
-      shrinkTo: 0.4,
+      shrinkTo: 0.7,
       fadeOutAtEnd: true,
       arc: "up",
     });
@@ -156,7 +156,7 @@ export class Mascot {
       to: { x: innerWidth - 20, y: innerHeight / 2 },
       size: SIZE,
       duration: 1600,
-      shrinkTo: 0.5,
+      shrinkTo: 0.75,
       fadeOutAtEnd: true,
       arc: "up",
     });
@@ -166,7 +166,7 @@ export class Mascot {
   /** A bee sitting on a card's top-left corner. WARN flies it in from the corner; BLOCK pops it in at the send button. */
   perch(card: HTMLElement, mode: "warn" | "block", sendRect?: DOMRect | null): Perch {
     this.endCurrent();
-    const perched = createBee("alert", 52);
+    const perched = createBee("alert", 68);
     perched.classList.add("perch");
     card.append(perched);
     const still = this.still();
@@ -192,7 +192,7 @@ export class Mascot {
         const el = document.createElement("div");
         el.className = "bee-fixed";
         Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px` });
-        const bee = createBee(kind, 52);
+        const bee = createBee(kind, 68);
         el.append(bee);
         this.layer.append(el);
         remove();
