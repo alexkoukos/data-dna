@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     seed_on_start: bool = True
     data_dir: str = ""
     log_dir: str = "/var/dna/logs"
+    # Split storage (brain.splitstore). Empty URLs mean the feature is off (unit tests).
+    vault_a_url: str = ""
+    vault_b_url: str = ""
+    hmac_key_file: str = "/run/secrets/hmac_key"
+    # Bearer token for /v1/vault/*. Empty = those routes answer 503 (off until you set one).
+    vault_api_token: str = ""
 
 
 settings = Settings()

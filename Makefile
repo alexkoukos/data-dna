@@ -16,6 +16,7 @@ setup: ## First time: install all dependencies exactly as locked
 	cd web && npm ci
 
 up: ## Build and start everything (the judges' command)
+	@sh scripts/gen_hmac_key.sh
 	docker compose up --build -d --wait
 	@echo "Web: http://localhost:3000   Brain API: http://localhost:8001/docs"
 
@@ -67,6 +68,14 @@ validate: ## Check the team's data files (prompts, AI tools, org)
 
 check: validate lint typecheck test ## Everything CI checks. Run before every commit.
 
+split-test: ## Split storage tests inside the containers (vaults start automatically)
+	@sh scripts/gen_hmac_key.sh
+	docker compose --profile test run --rm --build splitstore-tests
+
+split-demo: ## Split storage demo: seed salaries, dump vault-a, aggregate, tamper
+	@sh scripts/gen_hmac_key.sh
+	docker compose run --rm brain python -m brain.splitstore.demo
+
 e2e: ## End-to-end + accessibility (needs `make up` first)
 	cd web && npx playwright install chromium && npm run e2e
 
@@ -76,4 +85,4 @@ calibrate: ## Sweep the paraphrase cutoff and write docs/calibration.md and .svg
 eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
 	cd services/brain && uv run python -m brain.eval.run
 
-.PHONY: calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+.PHONY: split-test split-demo calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
