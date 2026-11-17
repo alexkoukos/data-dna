@@ -128,6 +128,7 @@ def inventory(conn: sa.Connection) -> list[ToolOut]:
                 requests=sum(per_day_requests.values()),
                 trend=trend,
                 first_seen=min(per_day_requests).isoformat() if per_day_requests else None,
+                allowed_categories=list(tool["allowed_categories"] or []),
             )
         )
     return out

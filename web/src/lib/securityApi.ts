@@ -51,6 +51,7 @@ export interface Tool {
   requests: number;
   trend: number[];
   first_seen: string | null;
+  allowed_categories?: string[];
 }
 
 async function get<T>(path: string): Promise<T> {

@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros, task X29 (request and approve an AI tool)
+**Done:** `brain/toolrequests.py` and `POST|GET /v1/tool-requests`, `POST /v1/tool-requests/{id}/decision`, `POST /v1/users/{id}/tool-request-outcomes`. Approval updates `ai_tools` (approval, risk, alternative, new `allowed_categories` column) or adds an unseen tool; reject changes nothing on the tool. Audit rows for request, approve, reject and outcome seen. Web: `RequestToolForm` (Chat page link and after a block), notices above the chat on the next message, "Requests" tab on the AI tools page (`RequestsTab.tsx`) next to the inventory.
+**State:** branch `task/x29-tool-requests`, worktree `~/data-dna-x29`, from main (independent of X27, X28, X30). `make check` green (366 brain, 87 web tests). New table `tool_requests` and column `ai_tools.allowed_categories` are in `infra/db/06-tool-requests.sql` and in `ensure_schema`, so an old volume works without `make reset`. Not run: a real `make up` and `make e2e` (other stacks hold the ports); no Playwright spec for the flow yet.
+**Next step:** `make up`, open /chat, request a tool, approve it in Security, check the inventory and ROI show it approved, send another chat message and see the note.
+**Problems / decisions needed:** There is no login, so the requester comes from the personal key's user ID in the browser and the reviewer is a typed name. The approval does not change detection policy: allowed categories are stored and shown only (say so if a judge asks). The `06-` SQL file shares its number with the X28 file; both are idempotent and independent.
+**Files touched:** services/brain/src/brain/{toolrequests.py,main.py,queries.py,api/schemas.py,db/tables.py,db/engine.py}, services/brain/tests/test_x29_tool_requests.py, infra/db/06-tool-requests.sql, web/src/{pages/ChatPage.tsx,pages/ToolRequests.test.tsx,pages/security/{ToolsPage,RequestsTab}.tsx,components/RequestToolForm.tsx,lib/{toolRequestsApi,securityApi}.ts}, README.md, docs/EXTRA_FEATURES.md, PROGRESS.md
+
+---
+
 ## 2026-11-17, Alexandros, UI flow and new mascot
 **Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
 **State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.
