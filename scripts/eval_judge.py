@@ -200,8 +200,17 @@ def legacy_cases(score: float, negatives_file: Path | None) -> list[dict]:
 def run_model(model: str, cases: list[dict], url: str, timeout: float) -> dict:
     started = time.perf_counter()
     results = []
-    for c in cases:
-        raw = ask(url, model, c["input"], timeout)
+    for n, c in enumerate(cases, 1):
+        for attempt in range(8):  # Ollama may restart or reload a model: wait and retry instead of losing the run
+            try:
+                raw = ask(url, model, c["input"], timeout)
+                break
+            except (urllib.error.URLError, TimeoutError, OSError, ConnectionError):
+                if attempt == 7:
+                    raise
+                time.sleep(15)
+        if n % 50 == 0:
+            print(f"{model}: {n}/{len(cases)} rows, {time.perf_counter() - started:.0f}s", file=sys.stderr, flush=True)
         v = parse_verdict(raw)
         reason = ""
         try:
@@ -239,7 +248,12 @@ def metrics(res: dict) -> dict:
         sc = [c for c in cs if c["slice"] == sl]
         ok = sum(c["pred"] == c["gold"] for c in sc)
         by_slice[sl] = (ok, len(sc), sc[0]["gold"] if len({c["gold"] for c in sc}) == 1 else "mixed")
+    by_source = {}
+    for so in sorted({c["source"] for c in cs}):
+        sc = [c for c in cs if c["source"] == so]
+        by_source[so] = (sum(c["pred"] == c["gold"] for c in sc), len(sc))
     return {
+        "by_source": by_source,
         "precision": prec, "recall": rec, "precision_at_base_rate": p30, "fp": fp, "negatives": fp + tn,
         "d7_fp": sum(c["pred"] == "YES" for c in d7), "d7_n": len(d7), "by_type": by_type, "by_slice": by_slice,
         "unparsed": sum(c["pred"] is None for c in cs), "format_ok": sum(c["format_ok"] for c in cs) / len(cs),
@@ -268,6 +282,11 @@ def report(all_metrics: list[tuple[str, dict]], cases: list[dict]) -> str:
         cells = [f"{'recall ' + format(r, '.0%') if r is not None else ''}{' / ' if r is not None and f is not None else ''}"
                  f"{'FP ' + format(f, '.0%') if f is not None else ''}" for r, f in m["by_type"].values()]
         lines.append(f"| {name} | " + " | ".join(cells) + " |")
+    sources = sorted(all_metrics[0][1]["by_source"])
+    lines += ["", "### By source (correct / rows)", "", "| source | " + " | ".join(n for n, _ in all_metrics) + " |",
+              "|---|" + "---|" * len(all_metrics)]
+    for so in sources:
+        lines.append(f"| {so} | " + " | ".join(f"{m['by_source'][so][0]}/{m['by_source'][so][1]}" for _, m in all_metrics) + " |")
     slices = sorted(all_metrics[0][1]["by_slice"])
     lines += ["", "### By slice (correct / rows; for a YES slice that is recall, for a NO slice it is 1 minus the false positive rate)", "",
               "| slice | kind | " + " | ".join(n for n, _ in all_metrics) + " |", "|---|---|" + "---|" * len(all_metrics)]
@@ -290,6 +309,7 @@ def main() -> None:
     ap.add_argument("--score", type=float, default=0.89, help="legacy only: stand-in similarity score for paraphrase candidates")
     ap.add_argument("--negatives", type=Path, help="legacy only: replace the 60 negatives (csv with text column, json list or text file)")
     ap.add_argument("--out", type=Path, help="also write the tables to this markdown file")
+    ap.add_argument("--dump", type=Path, help="write every answer (gold, prediction, raw text) to this jsonl file, for error analysis")
     ap.add_argument("--timeout", type=float, default=120)
     ap.add_argument("--dry-run", action="store_true", help="only describe the test set")
     args = ap.parse_args()
@@ -310,10 +330,16 @@ def main() -> None:
     results = []
     for model in args.models:
         try:
-            m = metrics(run_model(model, cases, args.url, args.timeout))
+            res = run_model(model, cases, args.url, args.timeout)
+            m = metrics(res)
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             sys.exit(f"Could not reach Ollama at {args.url} for {model}: {e}. Start it with `make local`.")
         results.append((model, m))
+        if args.dump:
+            with args.dump.open("a", encoding="utf-8") as f:
+                for c in res["cases"]:
+                    f.write(json.dumps({"model": model, **{k: c[k] for k in ("gold", "pred", "type", "source", "slice", "d7", "raw", "input")}},
+                                       ensure_ascii=False) + "\n")
         print(f"{model}: precision {m['precision']:.0%}, recall {m['recall']:.0%}, "
               f"false positives on the 60: {m['d7_fp']}/{m['d7_n']}", file=sys.stderr)
     text = report(results, cases)
