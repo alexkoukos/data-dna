@@ -235,12 +235,12 @@ def test_logs_ingest_adds_squid_lines(client: TestClient, engine: sa.Engine) -> 
 def test_inventory_says_where_each_tool_was_seen(client: TestClient, engine: sa.Engine) -> None:
     user, _ = _a_user(engine)
     now = int(datetime.now(UTC).timestamp() * 1000)
-
-    def sources() -> list[str]:
-        tools = {x["name"]: x for x in client.get("/v1/inventory").json()}
-        return tools["ChatGPT (personal)"]["sources"]
-
-    assert sources() == ["logs"]
-    event = {"ts": now, "tool": "ChatGPT", "kind": "visit", "host": "chatgpt.com"}
+    tools = {x["name"]: x["sources"] for x in client.get("/v1/inventory").json()}
+    # Seen by both: the extension is on most teams and the proxy logs see the same visits.
+    assert tools["ChatGPT (personal)"] == ["extension", "logs"]
+    # Only Operations uses it, and Operations has no extension yet: the logs are the only witness.
+    assert tools["DeepSeek"] == ["logs"]
+    event = {"ts": now, "tool": "DeepSeek", "kind": "visit", "host": "chat.deepseek.com"}
     client.post("/v1/events", headers={"X-Demo-User": user}, json={"events": [event]})
-    assert sources() == ["extension", "logs"]
+    after = {x["name"]: x["sources"] for x in client.get("/v1/inventory").json()}
+    assert after["DeepSeek"] == ["extension", "logs"]

@@ -151,7 +151,7 @@ def insert_org(
                 "user_id": idx_to_id[i.user_idx],
                 "team": i.team,
                 "tool": i.tool,
-                "channel": "gateway",
+                "channel": i.channel,
                 "decision": i.decision,
                 "categories": i.categories,
                 "document_id": doc_ids[i.document_idx]
@@ -166,6 +166,22 @@ def insert_org(
         ]
     ):
         conn.execute(sa.insert(t.incidents), chunk)
+    for chunk in _chunks(
+        [
+            {
+                "ts": e.ts,
+                "user_id": idx_to_id[e.user_idx],
+                "team": e.team,
+                "tool_id": tool_id[e.tool],
+                "tool": e.tool,
+                "kind": "visit",
+                "expires_at": e.ts + timedelta(days=RETENTION_DAYS),
+            }
+            for e in org.ext_events
+            if e.tool in tool_id
+        ]
+    ):
+        conn.execute(sa.insert(t.ext_events), chunk)
     return tool_id
 
 

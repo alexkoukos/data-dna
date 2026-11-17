@@ -47,8 +47,23 @@ def test_storyline_events_exist(org) -> None:  # type: ignore[no-untyped-def]
     assert any("rebuilding this document" in r for r in reasons)
     assert any(i.decision == "block" and "rebuilding" in " ".join(i.reasons) for i in org.incidents)
     assert any(
-        i.tool == "Claude Code (gateway)" and i.categories == ["secret"] for i in org.incidents
+        i.tool == "ChatGPT (personal)"
+        and i.team == "Engineering"
+        and i.categories == ["secret"]
+        and i.channel == "extension"
+        for i in org.incidents
     )
+
+
+def test_the_extension_sees_browser_tools_on_every_team_but_operations(org) -> None:  # type: ignore[no-untyped-def]
+    assert org.ext_events
+    assert {e.team for e in org.ext_events}.isdisjoint({"Operations"})
+    assert "Sales" in {e.team for e in org.ext_events}
+    # Only browser tools are seen by the extension; gateway and desktop tools are not.
+    assert not {e.tool for e in org.ext_events} & {"Company AI", "Otter.ai", "Midjourney"}
+    assert {i.channel for i in org.incidents} == {"gateway", "extension"}
+    ext_tools = {i.tool for i in org.incidents if i.channel == "extension"}
+    assert "ChatGPT (personal)" in ext_tools
 
 
 def test_unapproved_tool_spike_shows_in_proxy_traffic(files, org) -> None:  # type: ignore[no-untyped-def]

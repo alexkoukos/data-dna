@@ -413,6 +413,7 @@ def _store_visit(
             tool_id=tool_id,
             tool=tool,
             kind="visit",
+            action="counted",  # also added to the daily usage just below
             expires_at=when + timedelta(days=EVENT_RETENTION_DAYS),
         )
     )
