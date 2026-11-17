@@ -69,7 +69,21 @@ function Popup() {
           ))}
         </ul>
       )}
-      <p className="muted status">Policy version {version ?? "not loaded yet"}</p>
+      <p className="muted status">
+        Policy version {version ?? "not loaded yet"}{" "}
+        <button
+          type="button"
+          onClick={async () => {
+            const p = (await chrome.runtime.sendMessage({ type: "policy", force: true })) as {
+              version?: number;
+            } | null;
+            setVersion(p?.version ?? null);
+          }}
+          style={{ minHeight: 44, marginLeft: 4 }}
+        >
+          Refresh now
+        </button>
+      </p>
       <div className="row" style={{ marginTop: 8 }}>
         <button className="primary" onClick={openPanel} style={{ flex: 1 }}>
           Open company AI

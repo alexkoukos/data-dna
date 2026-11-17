@@ -34,9 +34,17 @@ async function flush() {
 }
 
 export default defineBackground(() => {
+  // A service worker can be stopped and started at any time, so the timers are re-checked on every start.
+  void chrome.alarms.get("policy").then((a) => {
+    if (!a) void chrome.alarms.create("policy", { periodInMinutes: 1 });
+  });
+  void chrome.alarms.get("flush").then((a) => {
+    if (!a) void chrome.alarms.create("flush", { periodInMinutes: 0.5 });
+  });
+  void refreshPolicy();
   chrome.runtime.onInstalled.addListener(() => {
     void refreshPolicy();
-    void chrome.alarms.create("policy", { periodInMinutes: 5 });
+    void chrome.alarms.create("policy", { periodInMinutes: 1 });
     void chrome.alarms.create("flush", { periodInMinutes: 0.5 });
   });
   chrome.alarms.onAlarm.addListener((a) => {
@@ -52,9 +60,9 @@ export default defineBackground(() => {
           reply(await checkRemote(msg.text, msg.tool, msg.url));
           return;
         case "policy": {
-          const p = await getPolicy();
-          void refreshPolicy();
-          reply(p);
+          // `force` is the popup's "Refresh now": wait for the server's answer instead of the cache.
+          reply(msg.force ? await refreshPolicy() : await getPolicy());
+          if (!msg.force) void refreshPolicy();
           return;
         }
         case "visit":

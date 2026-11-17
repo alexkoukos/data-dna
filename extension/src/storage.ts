@@ -1,14 +1,27 @@
 import { DEFAULT_POLICY, type Policy } from "./detect/policy";
 import { DEFAULT_SETTINGS, type Settings } from "./types";
 
-export async function getSettings(): Promise<Settings> {
-  const [local, managed] = await Promise.all([
-    chrome.storage.local.get("settings"),
+/**
+ * Settings set by IT with a Chrome policy. On a browser with no policy, managed storage can hang
+ * instead of answering, so it only gets a moment, and the answer is remembered for a while.
+ */
+let managedCache: { at: number; value: Partial<Settings> } | null = null;
+
+async function readManaged(): Promise<Partial<Settings>> {
+  if (managedCache && Date.now() - managedCache.at < 60_000) return managedCache.value;
+  const value = await Promise.race([
     chrome.storage.managed.get(null).catch(() => ({})),
+    new Promise<Record<string, never>>((resolve) => setTimeout(() => resolve({}), 150)),
   ]);
+  managedCache = { at: Date.now(), value: value as Partial<Settings> };
+  return managedCache.value;
+}
+
+export async function getSettings(): Promise<Settings> {
+  const [local, managed] = await Promise.all([chrome.storage.local.get("settings"), readManaged()]);
   return {
     ...DEFAULT_SETTINGS,
-    ...(managed as Partial<Settings>),
+    ...managed,
     ...(local.settings as Partial<Settings>),
   };
 }

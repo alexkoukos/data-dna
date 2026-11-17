@@ -5,6 +5,8 @@ export default defineConfig({
   manifest: {
     name: "Pyli",
     description: "Checks what you paste into AI chats and keeps company data inside.",
+    // IT sets the server and the identity with a Chrome policy (deploy/chrome-policy.json).
+    storage: { managed_schema: "managed-schema.json" },
     permissions: ["storage", "sidePanel", "alarms"],
     host_permissions: [
       "http://localhost/*",

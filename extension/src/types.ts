@@ -57,5 +57,5 @@ export type Msg =
   | { type: "openPanel"; prompt: string }
   | { type: "askLocal"; prompt: string }
   | { type: "override"; reason: string; tool: string; host: string }
-  | { type: "policy" }
+  | { type: "policy"; force?: boolean }
   | { type: "stats" };
