@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { LaptopArt, HOLE } from "./LaptopArt";
+import { HOLE } from "./geometry";
+import { LaptopArt } from "./LaptopArt";
 import { Scaled } from "./Scaled";
 
 // The hero screen sits behind a vector laptop (LaptopArt) whose display is a real hole.

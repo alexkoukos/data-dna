@@ -1,8 +1,8 @@
 import { useId } from "react";
+import { HOLE } from "./geometry";
 
 // A front-view laptop drawn as vector, in the 812 x 480 space of the hero. The display is a real
 // hole (even-odd), so whatever sits behind this drawing shows through. No logo, no photo.
-export const HOLE = { x: 106, y: 30, w: 579, h: 383 };
 
 export function LaptopArt({ className }: { className?: string }) {
   const id = useId().replace(/:/g, "");
