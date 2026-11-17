@@ -7,6 +7,7 @@ import { label, titleFor } from "../src/explain";
 import { Overlay } from "../src/overlay";
 import type { CheckResult, Msg } from "../src/types";
 import { Unmasker } from "../src/unmask";
+import { anchorPoint, findingRect } from "../src/ui/anchor";
 
 function send<T>(msg: Msg): Promise<T | null> {
   return new Promise((resolve) => {
@@ -37,6 +38,20 @@ export default defineContentScript({
     let policy: Policy = DEFAULT_POLICY;
     let bypass = false;
     let busy = false;
+
+    // The bee is decoration: its on/off switch lives in the options page.
+    void chrome.storage.local.get("settings").then((v) => {
+      overlay.setAnimations(
+        (v.settings as { animations?: boolean } | undefined)?.animations !== false,
+      );
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && changes.settings) {
+        overlay.setAnimations(
+          (changes.settings.newValue as { animations?: boolean } | undefined)?.animations !== false,
+        );
+      }
+    });
 
     void send<Policy>({ type: "policy" }).then((p) => {
       if (p) policy = p;
@@ -143,6 +158,18 @@ export default defineContentScript({
 
       if (r.action === "mask") {
         const masked = r.maskedText;
+        // Where the caught text sits has to be read before the composer is rewritten.
+        const caught = scan(original).findings.filter((f) => !f.hidden);
+        const composer = a.getComposer();
+        const beeStart = composer
+          ? anchorPoint(composer, caught[0])
+          : { x: innerWidth / 2, y: innerHeight - 120 };
+        const beeRects = composer
+          ? caught
+              .slice(0, 5)
+              .map((f) => findingRect(composer, f))
+              .filter((x): x is DOMRect => x !== null)
+          : [];
         if (!masked || !r.placeholders || !a.setText(masked)) {
           // We could not rewrite the composer safely, so we do not send the original.
           await overlay.card({
@@ -159,6 +186,13 @@ export default defineContentScript({
         unmasker.remember(r.placeholders);
         const n = Object.keys(r.placeholders).length;
         resubmit(a);
+        // The decision is already applied. The bee only shows it: it never delays or blocks the send.
+        void overlay.mascot.mask({
+          from: beeStart,
+          rects: beeRects,
+          count: n,
+          onLanded: () => void send({ type: "bee:landed", count: n }),
+        });
         overlay.note(
           `${n} item${n > 1 ? "s" : ""} masked before sending. Real values return in the answer, on this page only.${note}`,
         );
@@ -183,6 +217,7 @@ export default defineContentScript({
           reasons: [...r.reasons, ...(note ? [note.trim()] : [])],
           details,
           askReason: true,
+          bee: { mode: "warn" },
           preview: r.rewrite ? { label: "Safer version", text: r.rewrite } : undefined,
           buttons: [
             { id: "edit", label: "Edit message", kind: "secondary" },
@@ -217,7 +252,16 @@ export default defineContentScript({
             { id: "ask", label: "Ask the company AI", kind: "primary" },
           ],
         });
-        if (choice.id === "ask") void send({ type: "openPanel", prompt: original });
+        if (choice.id === "ask") {
+          void send({ type: "openPanel", prompt: original });
+          // The prompt becomes a drop and the bee carries it towards the side panel. The panel does not wait for it.
+          const box = a.getComposer()?.getBoundingClientRect();
+          void overlay.mascot.redirect(
+            box
+              ? { x: box.left + box.width / 2, y: box.top + box.height / 2 }
+              : { x: innerWidth / 2, y: innerHeight - 120 },
+          );
+        }
         return;
       }
 
@@ -227,6 +271,7 @@ export default defineContentScript({
           title: titleFor("block"),
           reasons: r.reasons,
           details: [...details, `Policy version ${r.policyVersion ?? 0}.`],
+          bee: { mode: "block", sendRect: a.getSendButton()?.getBoundingClientRect() },
           buttons: [
             { id: "edit", label: "Edit message", kind: "secondary" },
             { id: "ask", label: "Open company AI", kind: "primary" },

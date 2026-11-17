@@ -41,6 +41,23 @@ export async function savePolicy(policy: Policy & { etag?: string }) {
   await chrome.storage.local.set({ policy });
 }
 
+/** How many values were masked in each tab, for the toolbar badge. Lives only for the browser session. */
+export async function addMasked(tabId: number, count: number): Promise<number> {
+  const { maskedByTab } = await chrome.storage.session.get("maskedByTab");
+  const map = { ...((maskedByTab as Record<string, number> | undefined) ?? {}) };
+  map[tabId] = (map[tabId] ?? 0) + count;
+  await chrome.storage.session.set({ maskedByTab: map });
+  return map[tabId];
+}
+
+export async function resetMasked(tabId: number) {
+  const { maskedByTab } = await chrome.storage.session.get("maskedByTab");
+  const map = { ...((maskedByTab as Record<string, number> | undefined) ?? {}) };
+  if (!(tabId in map)) return;
+  delete map[tabId];
+  await chrome.storage.session.set({ maskedByTab: map });
+}
+
 export interface DayStats {
   day: string;
   checked: number;

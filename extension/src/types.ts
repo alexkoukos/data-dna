@@ -33,6 +33,8 @@ export interface Settings {
   token: string;
   demoUser: string;
   userLabel: string;
+  /** The guard bee's flights. Off means it sits still or stays away. */
+  animations: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -40,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   token: "",
   demoUser: "",
   userLabel: "",
+  animations: true,
 };
 
 /** Messages from the page scripts to the service worker. */
@@ -58,4 +61,6 @@ export type Msg =
   | { type: "askLocal"; prompt: string }
   | { type: "override"; reason: string; tool: string; host: string }
   | { type: "policy"; force?: boolean }
-  | { type: "stats" };
+  | { type: "stats" }
+  /** The bee finished carrying masked values to the toolbar: bump this tab's badge. */
+  | { type: "bee:landed"; count: number };

@@ -1,4 +1,5 @@
 import type { Action } from "./detect/policy";
+import { BEE_STYLE, Mascot } from "./ui/mascot";
 
 /**
  * Everything the person sees on top of an AI site. It lives in a Shadow DOM so the site's CSS
@@ -42,6 +43,7 @@ button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px sol
 .banner button { min-height: 32px; padding: 0 12px; }
 .note { position: absolute; right: 16px; bottom: 16px; max-width: 320px; background: #eaf6ee; color: #14532d; border: 1px solid #86c99b;
   border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+.banner .bee-wrap { flex: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (prefers-color-scheme: dark) {
   .card { background: #182130; color: #e8edf5; } p, ul, label { color: #b9c4d6; }
@@ -77,6 +79,8 @@ export interface CardOptions {
   askReason?: boolean;
   /** Placed under the details, e.g. a safer rewrite. */
   preview?: { label: string; text: string };
+  /** The guard bee: flies in for a warning, stands in front of the send button for a block. */
+  bee?: { mode: "warn" | "block"; sendRect?: DOMRect | null };
 }
 
 export interface CardChoice {
@@ -91,12 +95,14 @@ export class Overlay {
   private live: HTMLElement;
   private chipTimer = 0;
   private lastFocus: Element | null = null;
+  private animations = true;
+  readonly mascot: Mascot;
 
   constructor() {
     this.host = document.createElement("pyli-overlay");
     this.root = this.host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = STYLE;
+    style.textContent = STYLE + BEE_STYLE;
     this.layer = document.createElement("div");
     this.layer.className = "layer";
     this.live = document.createElement("div");
@@ -104,9 +110,19 @@ export class Overlay {
     this.live.setAttribute("aria-live", "polite");
     this.root.append(style, this.layer, this.live);
     document.documentElement.append(this.host);
+    this.mascot = new Mascot(
+      this.layer,
+      (t) => this.announce(t),
+      () => this.animations,
+    );
   }
 
-  private announce(text: string) {
+  /** The "Animations" option. Off means every bee sits still or does not appear. */
+  setAnimations(on: boolean) {
+    this.animations = on;
+  }
+
+  announce(text: string) {
     this.live.textContent = "";
     window.setTimeout(() => (this.live.textContent = text), 30);
   }
@@ -143,6 +159,7 @@ export class Overlay {
     const el = document.createElement("div");
     el.className = "banner";
     el.setAttribute("role", "status");
+    el.append(this.mascot.restingBee());
     const span = document.createElement("span");
     span.textContent = text;
     el.append(span);
@@ -217,10 +234,13 @@ export class Overlay {
     actions.className = "actions";
     el.append(actions);
     this.layer.append(el);
+    const perch = opts.bee ? this.mascot.perch(el, opts.bee.mode, opts.bee.sendRect) : null;
     this.announce(`${opts.title}. ${opts.reasons.join(" ")}`);
 
     return new Promise<CardChoice>((resolve) => {
       const done = (id: string) => {
+        // On "Send anyway" the bee rests; on anything else it hops. Then it fades.
+        perch?.finish(id === "send" ? "rest" : "happy");
         el.remove();
         document.removeEventListener("keydown", onKey, true);
         if (this.lastFocus instanceof HTMLElement) this.lastFocus.focus();

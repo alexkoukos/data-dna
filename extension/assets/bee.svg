@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="bee" role="img" aria-label="Guard bee">
+  <style>
+    .bee { --ink:#141414; --amber:#E9A516; --wing:#FFFFFF; --wing-back:#EEF3F8; overflow: visible; }
+    .bee .o { stroke: #141414; stroke-width: 7; stroke-linejoin: round; stroke-linecap: round; }
+    .bee .hover   { animation: bee-hover 1.6s ease-in-out infinite; }
+    .bee .wing    { transform-box: fill-box; transform-origin: 10% 95%; animation: bee-flap .28s ease-in-out infinite alternate; }
+    .bee .wing-b  { animation-delay: -.14s; }
+    .bee .eye     { transform-box: fill-box; transform-origin: center; animation: bee-blink 4.2s infinite; }
+    .bee .ant     { transform-box: fill-box; transform-origin: 100% 100%; animation: bee-ant 2.4s ease-in-out infinite; }
+    .bee .ant-2   { animation-delay: -.6s; }
+    .bee .pupil   { transition: transform .25s ease; }
+
+    /* states: add is-alert / is-happy / is-rest to the root svg */
+    .bee.is-alert .wing  { animation-duration: .09s; }
+    .bee.is-alert .hover { animation: bee-shake .35s ease-in-out infinite; }
+    .bee.is-alert .pupil { transform: translate(-3px,-2px) scale(1.15); }
+    .bee.is-happy .hover { animation: bee-hop .6s ease-in-out infinite; }
+    .bee.is-rest  .wing  { animation-duration: 1.2s; }
+
+    @keyframes bee-flap  { from { transform: rotate(0) scaleY(1); } to { transform: rotate(-18deg) scaleY(.55); } }
+    @keyframes bee-hover { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes bee-blink { 0%,90%,100% { transform: scaleY(1); } 93% { transform: scaleY(.08); } 96% { transform: scaleY(1); } }
+    @keyframes bee-ant   { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-12deg); } }
+    @keyframes bee-shake { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(-3px,-2px) rotate(-4deg); } 75% { transform: translate(3px,-1px) rotate(4deg); } }
+    @keyframes bee-hop   { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-14px); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bee * { animation: none !important; transition: none !important; }
+    }
+  </style>
+  <defs>
+    <clipPath id="bee-body-clip"><ellipse cx="122" cy="108" rx="48" ry="33"/></clipPath>
+  </defs>
+
+  <g class="hover">
+    <g transform="translate(-11 11) rotate(35 110 105)">
+      <!-- back wing -->
+      <path class="wing wing-b o" fill="#EEF3F8"
+            d="M100 84 C 82 58, 84 30, 104 30 C 112 18, 134 24, 128 46 C 124 62, 112 76, 104 86 Z"/>
+      <!-- antennae -->
+      <g class="ant o" fill="none">
+        <path d="M58 76 C 50 62, 34 60, 26 68 C 22 73, 28 78, 32 74"/>
+      </g>
+      <g class="ant ant-2 o" fill="none">
+        <path d="M72 72 C 68 54, 52 46, 42 52 C 37 56, 41 62, 46 59"/>
+      </g>
+      <!-- body -->
+      <path class="o" fill="#141414" d="M160 94 L 194 108 L 160 122 Z"/>
+      <ellipse class="o" cx="122" cy="108" rx="48" ry="33" fill="#E9A516"/>
+      <g clip-path="url(#bee-body-clip)" fill="#141414">
+        <rect x="100" y="60" width="13" height="100" rx="3"/>
+        <rect x="126" y="60" width="13" height="100" rx="3"/>
+        <rect x="151" y="60" width="11" height="100" rx="3"/>
+      </g>
+      <ellipse cx="122" cy="108" rx="48" ry="33" fill="none" class="o"/>
+      <!-- head -->
+      <circle class="o" cx="68" cy="102" r="31" fill="#E9A516"/>
+      <!-- eye -->
+      <g class="eye">
+        <circle class="o" cx="58" cy="98" r="12" fill="#fff" style="stroke-width:4"/>
+        <circle class="pupil" cx="55" cy="99" r="5.5" fill="#141414"/>
+      </g>
+      <!-- front wing -->
+      <path class="wing o" fill="#FFFFFF"
+            d="M108 82 C 96 50, 104 18, 128 22 C 140 8, 170 20, 160 46 C 154 64, 132 78, 114 86 Z"/>
+    </g>
+  </g>
+</svg>

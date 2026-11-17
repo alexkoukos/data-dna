@@ -1,5 +1,5 @@
 import { askLocal, checkRemote, postEvents, refreshPolicy } from "../src/api";
-import { bumpStats, getPolicy } from "../src/storage";
+import { addMasked, bumpStats, getPolicy, resetMasked } from "../src/storage";
 import type { Msg } from "../src/types";
 
 interface QueuedEvent {
@@ -52,6 +52,12 @@ export default defineBackground(() => {
     if (a.name === "flush") void flush();
   });
 
+  // The badge counts what was masked in this tab; Chrome clears the badge on a new page load, so the count restarts too.
+  chrome.tabs.onUpdated.addListener((tabId, info) => {
+    if (info.status === "loading") void resetMasked(tabId);
+  });
+  chrome.tabs.onRemoved.addListener((tabId) => void resetMasked(tabId));
+
   chrome.runtime.onMessage.addListener((raw: Msg, sender, reply) => {
     const msg = raw;
     (async () => {
@@ -95,6 +101,17 @@ export default defineBackground(() => {
         case "askLocal":
           reply(await askLocal(msg.prompt));
           return;
+        case "bee:landed": {
+          const tabId = sender.tab?.id;
+          if (tabId !== undefined && msg.count > 0) {
+            const total = await addMasked(tabId, msg.count);
+            await chrome.action.setBadgeBackgroundColor({ tabId, color: "#E9A516" });
+            await chrome.action.setBadgeTextColor({ tabId, color: "#141414" });
+            await chrome.action.setBadgeText({ tabId, text: String(total) });
+          }
+          reply({ ok: true });
+          return;
+        }
         case "openPanel": {
           await chrome.storage.session.set({ pendingPrompt: msg.prompt });
           if (sender.tab?.id !== undefined) await chrome.sidePanel.open({ tabId: sender.tab.id });

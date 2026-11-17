@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="el"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guard bee: animation demo</title>
+<style>
+:root{--ink:#141414;--muted:#5b6170;--line:#e6e8ec;--bg:#f7f7f5;--amber:#E9A516;--amber-50:#FFF6E0;--red:#C2410C}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+main{max-width:980px;margin:0 auto;padding:40px 20px 64px}
+h1{font-size:26px;line-height:1.2;margin:0 0 6px}
+h2{font-size:17px;margin:0 0 4px}
+p.lead{color:var(--muted);margin:0 0 32px;max-width:60ch}
+.grid{display:grid;grid-template-columns:280px 1fr;gap:24px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.panel{background:#fff;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(0,0,0,.05);padding:20px}
+.stage{display:grid;place-items:center;height:200px}
+.stage svg{width:170px;height:170px}
+.states{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{font:inherit;border:0;border-radius:9px;padding:8px 14px;background:#f0f1f3;color:var(--ink);cursor:pointer}
+button[aria-pressed=true]{background:var(--ink);color:#fff}
+button.primary{background:var(--amber);color:var(--ink);font-weight:600}
+button:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+.sizes{display:flex;align-items:end;gap:18px;margin-top:18px;color:var(--muted);font-size:12px}
+.sizes figure{margin:0;text-align:center}
+/* fake browser */
+.browser{position:relative;overflow:hidden;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.05),0 10px 30px rgba(0,0,0,.08);height:440px;display:flex;flex-direction:column}
+.chrome{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#eceef1;border-bottom:1px solid var(--line)}
+.url{flex:1;background:#fff;border-radius:999px;padding:5px 14px;color:var(--muted);font-size:13px}
+.ext{position:relative;width:30px;height:30px;border-radius:8px;display:grid;place-items:center}
+.ext svg{width:24px;height:24px}
+.ext svg *{animation:none!important}
+.badge{position:absolute;right:-4px;bottom:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;transform:scale(0);transition:transform .2s cubic-bezier(.3,1.6,.6,1)}
+.badge.on{transform:scale(1)}
+.chat{flex:1;padding:22px 26px;color:var(--muted)}
+.msg{background:#f4f4f5;border-radius:12px;padding:10px 14px;max-width:70%;color:var(--ink);margin-bottom:10px}
+.composer-wrap{position:relative;padding:0 22px 22px}
+.composer{border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-height:56px;font-size:14px;background:#fff}
+.composer mark{background:var(--amber-50);border-bottom:2px dotted var(--amber);padding:0 2px;border-radius:3px;color:inherit}
+.card{position:absolute;left:22px;right:22px;bottom:92px;background:#fff;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.14);padding:14px 16px 14px 70px;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none}
+.card.on{opacity:1;transform:none;pointer-events:auto}
+.card strong{display:block;margin-bottom:2px}
+.card .why{color:var(--muted);font-size:13px}
+.card .actions{display:flex;gap:8px;margin-top:10px}
+.flyer{position:absolute;left:0;top:0;width:58px;height:58px;pointer-events:none;z-index:5;opacity:0}
+.flyer svg{width:100%;height:100%}
+.controls{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+</style></head>
+<body><main>
+<h1>Guard bee</h1>
+<p class="lead">Η μασκότ σε SVG με CSS animations: φτερούγισμα, ανοιγοκλείσιμο ματιών, κεραίες, αιώρηση. Δεξιά, η πτήση από το εικονίδιο του extension προς το composer όταν γίνει paste κάτι ευαίσθητο.</p>
+<div class="grid">
+  <section class="panel" aria-labelledby="st">
+    <h2 id="st">Καταστάσεις</h2>
+    <div class="stage" id="showcase"><svg viewBox="0 0 200 200" class="bee" role="img" aria-label="Guard bee">
+  <style>
+    .bee { --ink:#141414; --amber:#E9A516; --wing:#FFFFFF; --wing-back:#EEF3F8; overflow: visible; }
+    .bee .o { stroke: #141414; stroke-width: 7; stroke-linejoin: round; stroke-linecap: round; }
+    .bee .hover   { animation: bee-hover 1.6s ease-in-out infinite; }
+    .bee .wing    { transform-box: fill-box; transform-origin: 10% 95%; animation: bee-flap .28s ease-in-out infinite alternate; }
+    .bee .wing-b  { animation-delay: -.14s; }
+    .bee .eye     { transform-box: fill-box; transform-origin: center; animation: bee-blink 4.2s infinite; }
+    .bee .ant     { transform-box: fill-box; transform-origin: 100% 100%; animation: bee-ant 2.4s ease-in-out infinite; }
+    .bee .ant-2   { animation-delay: -.6s; }
+    .bee .pupil   { transition: transform .25s ease; }
+
+    /* states: add is-alert / is-happy / is-rest to the root svg */
+    .bee.is-alert .wing  { animation-duration: .09s; }
+    .bee.is-alert .hover { animation: bee-shake .35s ease-in-out infinite; }
+    .bee.is-alert .pupil { transform: translate(-3px,-2px) scale(1.15); }
+    .bee.is-happy .hover { animation: bee-hop .6s ease-in-out infinite; }
+    .bee.is-rest  .wing  { animation-duration: 1.2s; }
+
+    @keyframes bee-flap  { from { transform: rotate(0) scaleY(1); } to { transform: rotate(-18deg) scaleY(.55); } }
+    @keyframes bee-hover { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes bee-blink { 0%,90%,100% { transform: scaleY(1); } 93% { transform: scaleY(.08); } 96% { transform: scaleY(1); } }
+    @keyframes bee-ant   { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-12deg); } }
+    @keyframes bee-shake { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(-3px,-2px) rotate(-4deg); } 75% { transform: translate(3px,-1px) rotate(4deg); } }
+    @keyframes bee-hop   { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-14px); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bee * { animation: none !important; transition: none !important; }
+    }
+  </style>
+  <defs>
+    <clipPath id="bee-body-clip"><ellipse cx="122" cy="108" rx="48" ry="33"/></clipPath>
+  </defs>
+
+  <g class="hover">
+    <g transform="translate(-11 11) rotate(35 110 105)">
+      <!-- back wing -->
+      <path class="wing wing-b o" fill="#EEF3F8"
+            d="M100 84 C 82 58, 84 30, 104 30 C 112 18, 134 24, 128 46 C 124 62, 112 76, 104 86 Z"/>
+      <!-- antennae -->
+      <g class="ant o" fill="none">
+        <path d="M58 76 C 50 62, 34 60, 26 68 C 22 73, 28 78, 32 74"/>
+      </g>
+      <g class="ant ant-2 o" fill="none">
+        <path d="M72 72 C 68 54, 52 46, 42 52 C 37 56, 41 62, 46 59"/>
+      </g>
+      <!-- body -->
+      <path class="o" fill="#141414" d="M160 94 L 194 108 L 160 122 Z"/>
+      <ellipse class="o" cx="122" cy="108" rx="48" ry="33" fill="#E9A516"/>
+      <g clip-path="url(#bee-body-clip)" fill="#141414">
+        <rect x="100" y="60" width="13" height="100" rx="3"/>
+        <rect x="126" y="60" width="13" height="100" rx="3"/>
+        <rect x="151" y="60" width="11" height="100" rx="3"/>
+      </g>
+      <ellipse cx="122" cy="108" rx="48" ry="33" fill="none" class="o"/>
+      <!-- head -->
+      <circle class="o" cx="68" cy="102" r="31" fill="#E9A516"/>
+      <!-- eye -->
+      <g class="eye">
+        <circle class="o" cx="58" cy="98" r="12" fill="#fff" style="stroke-width:4"/>
+        <circle class="pupil" cx="55" cy="99" r="5.5" fill="#141414"/>
+      </g>
+      <!-- front wing -->
+      <path class="wing o" fill="#FFFFFF"
+            d="M108 82 C 96 50, 104 18, 128 22 C 140 8, 170 20, 160 46 C 154 64, 132 78, 114 86 Z"/>
+    </g>
+  </g>
+</svg>
+</div>
+    <div class="states" role="group" aria-label="Κατάσταση μέλισσας">
+      <button aria-pressed="true" data-state="">Idle</button>
+      <button aria-pressed="false" data-state="is-alert">Alert</button>
+      <button aria-pressed="false" data-state="is-happy">Happy</button>
+      <button aria-pressed="false" data-state="is-rest">Rest</button>
+    </div>
+    <div class="sizes" aria-label="Μεγέθη εικονιδίου">
+      <figure><div id="s16" style="width:16px;height:16px"></div><figcaption>16</figcaption></figure>
+      <figure><div id="s32" style="width:32px;height:32px"></div><figcaption>32</figcaption></figure>
+      <figure><div id="s48" style="width:48px;height:48px"></div><figcaption>48</figcaption></figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="fl">
+    <div class="browser" id="browser">
+      <div class="chrome">
+        <span class="url">chat.mock-ai.local</span>
+        <span class="ext" id="ext" aria-label="Extension"><svg viewBox="0 0 200 200" class="bee" role="img" aria-label="Guard bee">
+  <style>
+    .bee { --ink:#141414; --amber:#E9A516; --wing:#FFFFFF; --wing-back:#EEF3F8; overflow: visible; }
+    .bee .o { stroke: #141414; stroke-width: 7; stroke-linejoin: round; stroke-linecap: round; }
+    .bee .hover   { animation: bee-hover 1.6s ease-in-out infinite; }
+    .bee .wing    { transform-box: fill-box; transform-origin: 10% 95%; animation: bee-flap .28s ease-in-out infinite alternate; }
+    .bee .wing-b  { animation-delay: -.14s; }
+    .bee .eye     { transform-box: fill-box; transform-origin: center; animation: bee-blink 4.2s infinite; }
+    .bee .ant     { transform-box: fill-box; transform-origin: 100% 100%; animation: bee-ant 2.4s ease-in-out infinite; }
+    .bee .ant-2   { animation-delay: -.6s; }
+    .bee .pupil   { transition: transform .25s ease; }
+
+    /* states: add is-alert / is-happy / is-rest to the root svg */
+    .bee.is-alert .wing  { animation-duration: .09s; }
+    .bee.is-alert .hover { animation: bee-shake .35s ease-in-out infinite; }
+    .bee.is-alert .pupil { transform: translate(-3px,-2px) scale(1.15); }
+    .bee.is-happy .hover { animation: bee-hop .6s ease-in-out infinite; }
+    .bee.is-rest  .wing  { animation-duration: 1.2s; }
+
+    @keyframes bee-flap  { from { transform: rotate(0) scaleY(1); } to { transform: rotate(-18deg) scaleY(.55); } }
+    @keyframes bee-hover { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes bee-blink { 0%,90%,100% { transform: scaleY(1); } 93% { transform: scaleY(.08); } 96% { transform: scaleY(1); } }
+    @keyframes bee-ant   { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-12deg); } }
+    @keyframes bee-shake { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(-3px,-2px) rotate(-4deg); } 75% { transform: translate(3px,-1px) rotate(4deg); } }
+    @keyframes bee-hop   { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-14px); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bee * { animation: none !important; transition: none !important; }
+    }
+  </style>
+  <defs>
+    <clipPath id="bee-body-clip"><ellipse cx="122" cy="108" rx="48" ry="33"/></clipPath>
+  </defs>
+
+  <g class="hover">
+    <g transform="translate(-11 11) rotate(35 110 105)">
+      <!-- back wing -->
+      <path class="wing wing-b o" fill="#EEF3F8"
+            d="M100 84 C 82 58, 84 30, 104 30 C 112 18, 134 24, 128 46 C 124 62, 112 76, 104 86 Z"/>
+      <!-- antennae -->
+      <g class="ant o" fill="none">
+        <path d="M58 76 C 50 62, 34 60, 26 68 C 22 73, 28 78, 32 74"/>
+      </g>
+      <g class="ant ant-2 o" fill="none">
+        <path d="M72 72 C 68 54, 52 46, 42 52 C 37 56, 41 62, 46 59"/>
+      </g>
+      <!-- body -->
+      <path class="o" fill="#141414" d="M160 94 L 194 108 L 160 122 Z"/>
+      <ellipse class="o" cx="122" cy="108" rx="48" ry="33" fill="#E9A516"/>
+      <g clip-path="url(#bee-body-clip)" fill="#141414">
+        <rect x="100" y="60" width="13" height="100" rx="3"/>
+        <rect x="126" y="60" width="13" height="100" rx="3"/>
+        <rect x="151" y="60" width="11" height="100" rx="3"/>
+      </g>
+      <ellipse cx="122" cy="108" rx="48" ry="33" fill="none" class="o"/>
+      <!-- head -->
+      <circle class="o" cx="68" cy="102" r="31" fill="#E9A516"/>
+      <!-- eye -->
+      <g class="eye">
+        <circle class="o" cx="58" cy="98" r="12" fill="#fff" style="stroke-width:4"/>
+        <circle class="pupil" cx="55" cy="99" r="5.5" fill="#141414"/>
+      </g>
+      <!-- front wing -->
+      <path class="wing o" fill="#FFFFFF"
+            d="M108 82 C 96 50, 104 18, 128 22 C 140 8, 170 20, 160 46 C 154 64, 132 78, 114 86 Z"/>
+    </g>
+  </g>
+</svg>
+<span class="badge" id="badge">2</span></span>
+      </div>
+      <div class="chat"><div class="msg">Γράψε ένα email στον πελάτη για την πληρωμή.</div></div>
+      <div class="card" id="card" role="alertdialog" aria-labelledby="ct" aria-describedby="cw">
+        <strong id="ct">2 στοιχεία θα κρυφτούν πριν σταλούν</strong>
+        <span class="why" id="cw">Ένα IBAN και ένας ΑΦΜ. Το AI θα δει [IBAN_1] και [AFM_1], εσύ θα δεις τις κανονικές τιμές στην απάντηση.</span>
+        <div class="actions"><button class="primary" id="ok">Αποστολή με απόκρυψη</button><button id="undo">Αναίρεση</button></div>
+      </div>
+      <div class="composer-wrap"><div class="composer" id="composer" aria-label="Μήνυμα">Μήνυμα στο AI…</div></div>
+      <div class="flyer" id="flyer" aria-hidden="true"><svg viewBox="0 0 200 200" class="bee" role="img" aria-label="Guard bee">
+  <style>
+    .bee { --ink:#141414; --amber:#E9A516; --wing:#FFFFFF; --wing-back:#EEF3F8; overflow: visible; }
+    .bee .o { stroke: #141414; stroke-width: 7; stroke-linejoin: round; stroke-linecap: round; }
+    .bee .hover   { animation: bee-hover 1.6s ease-in-out infinite; }
+    .bee .wing    { transform-box: fill-box; transform-origin: 10% 95%; animation: bee-flap .28s ease-in-out infinite alternate; }
+    .bee .wing-b  { animation-delay: -.14s; }
+    .bee .eye     { transform-box: fill-box; transform-origin: center; animation: bee-blink 4.2s infinite; }
+    .bee .ant     { transform-box: fill-box; transform-origin: 100% 100%; animation: bee-ant 2.4s ease-in-out infinite; }
+    .bee .ant-2   { animation-delay: -.6s; }
+    .bee .pupil   { transition: transform .25s ease; }
+
+    /* states: add is-alert / is-happy / is-rest to the root svg */
+    .bee.is-alert .wing  { animation-duration: .09s; }
+    .bee.is-alert .hover { animation: bee-shake .35s ease-in-out infinite; }
+    .bee.is-alert .pupil { transform: translate(-3px,-2px) scale(1.15); }
+    .bee.is-happy .hover { animation: bee-hop .6s ease-in-out infinite; }
+    .bee.is-rest  .wing  { animation-duration: 1.2s; }
+
+    @keyframes bee-flap  { from { transform: rotate(0) scaleY(1); } to { transform: rotate(-18deg) scaleY(.55); } }
+    @keyframes bee-hover { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes bee-blink { 0%,90%,100% { transform: scaleY(1); } 93% { transform: scaleY(.08); } 96% { transform: scaleY(1); } }
+    @keyframes bee-ant   { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-12deg); } }
+    @keyframes bee-shake { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(-3px,-2px) rotate(-4deg); } 75% { transform: translate(3px,-1px) rotate(4deg); } }
+    @keyframes bee-hop   { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-14px); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bee * { animation: none !important; transition: none !important; }
+    }
+  </style>
+  <defs>
+    <clipPath id="bee-body-clip"><ellipse cx="122" cy="108" rx="48" ry="33"/></clipPath>
+  </defs>
+
+  <g class="hover">
+    <g transform="translate(-11 11) rotate(35 110 105)">
+      <!-- back wing -->
+      <path class="wing wing-b o" fill="#EEF3F8"
+            d="M100 84 C 82 58, 84 30, 104 30 C 112 18, 134 24, 128 46 C 124 62, 112 76, 104 86 Z"/>
+      <!-- antennae -->
+      <g class="ant o" fill="none">
+        <path d="M58 76 C 50 62, 34 60, 26 68 C 22 73, 28 78, 32 74"/>
+      </g>
+      <g class="ant ant-2 o" fill="none">
+        <path d="M72 72 C 68 54, 52 46, 42 52 C 37 56, 41 62, 46 59"/>
+      </g>
+      <!-- body -->
+      <path class="o" fill="#141414" d="M160 94 L 194 108 L 160 122 Z"/>
+      <ellipse class="o" cx="122" cy="108" rx="48" ry="33" fill="#E9A516"/>
+      <g clip-path="url(#bee-body-clip)" fill="#141414">
+        <rect x="100" y="60" width="13" height="100" rx="3"/>
+        <rect x="126" y="60" width="13" height="100" rx="3"/>
+        <rect x="151" y="60" width="11" height="100" rx="3"/>
+      </g>
+      <ellipse cx="122" cy="108" rx="48" ry="33" fill="none" class="o"/>
+      <!-- head -->
+      <circle class="o" cx="68" cy="102" r="31" fill="#E9A516"/>
+      <!-- eye -->
+      <g class="eye">
+        <circle class="o" cx="58" cy="98" r="12" fill="#fff" style="stroke-width:4"/>
+        <circle class="pupil" cx="55" cy="99" r="5.5" fill="#141414"/>
+      </g>
+      <!-- front wing -->
+      <path class="wing o" fill="#FFFFFF"
+            d="M108 82 C 96 50, 104 18, 128 22 C 140 8, 170 20, 160 46 C 154 64, 132 78, 114 86 Z"/>
+    </g>
+  </g>
+</svg>
+</div>
+    </div>
+    <div class="controls">
+      <button class="primary" id="paste">Κάνε paste ευαίσθητο κείμενο</button>
+      <button id="reset">Επαναφορά</button>
+    </div>
+  </section>
+</div>
+</main>
+<script>
+// unique clipPath ids per instance
+let n=0;document.querySelectorAll('svg.bee').forEach(s=>{const id='bee-body-clip-'+(n++);s.querySelector('clipPath').id=id;s.querySelector('[clip-path]').setAttribute('clip-path','url(#'+id+')')});
+const showcase=document.querySelector('#showcase svg');
+document.querySelectorAll('[data-state]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-state]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  showcase.classList.remove('is-alert','is-happy','is-rest'); if(b.dataset.state) showcase.classList.add(b.dataset.state);
+});
+['s16','s32','s48'].forEach(id=>{const c=showcase.cloneNode(true);c.querySelector('clipPath').id+=id;c.querySelector('[clip-path]').setAttribute('clip-path','url(#'+c.querySelector('clipPath').id+')');c.style.width='100%';c.style.height='100%';c.querySelectorAll('*').forEach(e=>e.style.animation='none');document.getElementById(id).appendChild(c)});
+
+const browser=document.getElementById('browser'),flyer=document.getElementById('flyer'),fbee=flyer.querySelector('svg');
+const ext=document.getElementById('ext'),badge=document.getElementById('badge'),card=document.getElementById('card'),composer=document.getElementById('composer');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rel=el=>{const a=el.getBoundingClientRect(),b=browser.getBoundingClientRect();return{x:a.left-b.left,y:a.top-b.top,w:a.width,h:a.height}};
+function bez(p0,p1,p2,p3,t){const u=1-t;return u*u*u*p0+3*u*u*t*p1+3*u*t*t*p2+t*t*t*p3}
+function fly(){
+  const S=58,e=rel(ext),c=rel(card);
+  const P0={x:e.x+e.w/2-S/2,y:e.y+e.h/2-S/2};
+  const P3={x:c.x+8,y:c.y+6};
+  const P1={x:P0.x-40,y:P0.y+170}, P2={x:P3.x+260,y:P3.y-120};
+  const frames=[];const N=40;
+  for(let i=0;i<=N;i++){const t=i/N;const x=bez(P0.x,P1.x,P2.x,P3.x,t),y=bez(P0.y,P1.y,P2.y,P3.y,t);
+    const s=i===0?.35:Math.min(1,.35+t*1.6);const tilt=Math.sin(t*Math.PI*3)*8;
+    frames.push({transform:`translate(${x}px,${y}px) scale(${s}) rotate(${tilt}deg)`,opacity:i===0?0:1,offset:t});}
+  fbee.classList.add('is-alert');
+  return flyer.animate(frames,{duration:850,easing:'cubic-bezier(.45,0,.2,1)',fill:'forwards'}).finished;
+}
+let busy=false;
+document.getElementById('paste').onclick=async()=>{
+  if(busy)return;busy=true;
+  composer.innerHTML='Η πληρωμή γίνεται στο <mark>GR16 0110 1250 0000 0001 2300 695</mark>, ΑΦΜ <mark>094014201</mark>.';
+  badge.classList.add('on');
+  card.classList.add('on');            // the card works immediately; the bee is decoration
+  if(!reduce){await fly();}
+  else{const c=rel(card);flyer.style.opacity=1;flyer.style.transform=`translate(${c.x+8}px,${c.y+6}px)`;}
+  fbee.classList.remove('is-alert');
+  document.getElementById('ok').focus();
+  busy=false;
+};
+document.getElementById('ok').onclick=()=>{card.classList.remove('on');composer.textContent='Η πληρωμή γίνεται στο [IBAN_1], ΑΦΜ [AFM_1].';fbee.classList.add('is-happy');setTimeout(()=>fbee.classList.remove('is-happy'),1400)};
+document.getElementById('undo').onclick=reset;document.getElementById('reset').onclick=reset;
+function reset(){flyer.getAnimations().forEach(a=>a.cancel());flyer.style.opacity=0;flyer.style.transform='';card.classList.remove('on');badge.classList.remove('on');composer.textContent='Μήνυμα στο AI…';fbee.className.baseVal='bee';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&card.classList.contains('on'))reset()});
+</script>
+</body></html>

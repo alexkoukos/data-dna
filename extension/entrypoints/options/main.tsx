@@ -16,12 +16,14 @@ function Options() {
   const [paired, setPaired] = useState("");
   const [users, setUsers] = useState<DemoUser[]>([]);
   const [msg, setMsg] = useState("");
+  const [animations, setAnimations] = useState(true);
 
   useEffect(() => {
     void (async () => {
       const s = await getSettings();
       setBrainUrl(s.brainUrl);
       setDemoUser(s.demoUser);
+      setAnimations(s.animations);
       if (s.token) setPaired(s.userLabel || "this device");
       loadUsers(s.brainUrl);
     })();
@@ -78,6 +80,24 @@ function Options() {
         <input id="server" value={brainUrl} onChange={(e) => setBrainUrl(e.target.value)} />
         <button onClick={saveServer}>Save</button>
       </div>
+
+      <h2>Animations</h2>
+      <label className="row" htmlFor="animations" style={{ alignItems: "center", gap: 8 }}>
+        <input
+          id="animations"
+          type="checkbox"
+          checked={animations}
+          onChange={(e) => {
+            setAnimations(e.target.checked);
+            void saveSettings({ animations: e.target.checked });
+          }}
+        />
+        Show the guard bee when Pyli catches something
+      </label>
+      <p className="muted">
+        The bee only decorates what Pyli already did. Turning it off changes nothing else, and your
+        browser's "reduce motion" setting is always respected.
+      </p>
 
       <h2>Pair with the dashboard</h2>
       <p className="muted">
