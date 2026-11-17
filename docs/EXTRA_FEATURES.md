@@ -1,4 +1,4 @@
-# Extra features (X1 to X26)
+# Extra features (X1 to X26, X32)
 
 These sit on top of the P0 and P1 items in `TASKS.md`. A feature counts only if it has tests and one paragraph in the README. Priority: **P1** if the core works, **P2** is cut first.
 Suggested order: X1, X2, X4, X5, X11, X17, X23. All small, no new infrastructure, and visible in a demo.
@@ -37,6 +37,7 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 ## 5. Prevention outside the gateway
 - [x] **X21** P2 Paste guard: a small local program that watches the clipboard, calls `/v1/inspect` and offers the masked version. Not part of `docker compose`. Owner: Alexandros.
 - [x] **X22** P2 Guide for pointing a company's AI traffic at the gateway (env vars, base URL, Squid ICAP sketch). Owner: Konstantinos.
+- [x] **X32** P2 Weekly team digest: one page per team lead for the last 7 days (counts per outcome and per kind of data, top tools approved or not, the trend against the week before, and 2 or 3 "do this instead" tips from the kinds of data that fired). Team-level counts only, said at the top. Built from SQL over the read-only views and fixed templates, no model call. "Digest" tab in Security with "Copy as email" and a Markdown download; nothing is emailed. Owner: Alexandros.
 
 ## 6. Trust and explanation
 - [x] **X23** P1 "Why?" on every decision: which layers fired and with what score, stored on the incident. Owner: Alexandros.

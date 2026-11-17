@@ -9,6 +9,7 @@ const tabs = [
   { to: "/security/groups", label: "Teams and roles", end: false },
   { to: "/security/history", label: "History", end: false },
   { to: "/security/impact", label: "Impact", end: false },
+  { to: "/security/digest", label: "Digest", end: false },
   { to: "/security/ask", label: "Ask", end: false },
 ];
 

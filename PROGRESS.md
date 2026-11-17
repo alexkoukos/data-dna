@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros, task X32 (weekly team digest)
+**Done:** `brain/digest.py`: per-team digest for the last 7 days against the 7 before (outcomes, kinds of data, top tools with approval, trend, 2 or 3 tips from templates), Markdown and an email draft. SQL only over `v_incidents` and `v_inventory`; the user column is never selected (a test spies on every statement). `GET /v1/digest/teams`, `/v1/digest?team=`, `/v1/digest.md?team=`. Web: "Digest" tab (`DigestPage.tsx`) with team picker, "Copy as email" (with a select-by-hand fallback) and "Download Markdown". Nothing is emailed.
+**State:** branch `task/x32-digest`, worktree `~/data-dna-x32`, from main. `make check` green (364 brain, 87 web tests). Not run: `make up` and `make e2e`; no Playwright spec yet (`/security/digest` is added to the smoke ROUTES in `web/e2e/smoke.spec.ts`, so the axe and 390 px checks cover it, but that run is pending).
+**Next step:** `make up`, open /security/digest, check the numbers against the Incidents tab for one team, press "Copy as email".
+**Problems / decisions needed:** "This week" ends at the newest incident, not today's date, so the seeded demo shows data; with live traffic it is the same thing. Shadow-mode incidents are included (the view has no shadow column). The digest is by team, not by named team lead, because the org file has no lead field and names are not wanted here.
+**Files touched:** services/brain/src/brain/{digest.py,main.py}, services/brain/tests/test_x32_digest.py, web/src/{pages/security/{DigestPage,Digest.test,SecurityLayout}.tsx,App.tsx,lib/digestApi.ts}, README.md, docs/EXTRA_FEATURES.md, PROGRESS.md
+
+---
+
 ## 2026-11-17, Alexandros, UI flow and new mascot
 **Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
 **State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.

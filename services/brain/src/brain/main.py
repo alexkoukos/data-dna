@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import HTMLResponse
 
-from brain import alerts, coaching, compliance, insights, queries, reveal, settings_store
+from brain import alerts, coaching, compliance, digest, insights, queries, reveal, settings_store
 from brain.api.schemas import (
     ApproveMarks,
     AskOut,
@@ -743,6 +743,31 @@ def list_incidents(
 ) -> IncidentPage:
     limit = max(1, min(limit, 100))
     return _read(lambda c: queries.incidents(c, decision, team, limit, max(offset, 0)))
+
+
+@app.get("/v1/digest/teams", response_model=list[str])
+def digest_teams() -> list[str]:
+    """X32: the teams that have a digest, one per team lead."""
+    return _read(digest.teams)
+
+
+@app.get("/v1/digest")
+def team_digest(team: str) -> dict[str, Any]:
+    """X32: the weekly digest for one team, with a Markdown version and an email draft."""
+    d = _read(lambda c: digest.build(c, team))
+    return {**d, "markdown": digest.to_markdown(d), "email": digest.to_email(d)}
+
+
+@app.get("/v1/digest.md")
+def team_digest_markdown(team: str) -> Response:
+    """X32: the same digest as a Markdown file. Nothing is emailed."""
+    d = _read(lambda c: digest.build(c, team))
+    safe = "".join(ch if ch.isalnum() else "-" for ch in team).strip("-").lower() or "team"
+    return Response(
+        content=digest.to_markdown(d),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="digest-{safe}.md"'},
+    )
 
 
 def _write[T](fn: Callable[[sa.Connection], T]) -> T:
