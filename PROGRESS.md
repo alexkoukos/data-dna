@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros, task X31 ("Send it to Company AI instead")
+**Done:** `InspectRequest.reroute` and `InspectResponse.rerouted` in the brain: when a stopped (block, warn or local) message is rerouted, the brain returns `local` with the masked text and a session ID, and `record_reroute` changes the person's latest incident to `rerouted` (no second incident). Not reroutable: injection, decoy credentials, rebuild-of-document escalation, attachments, shadow mode. Gateway (`infra/gateway/dna_inspect.py`): header `X-DNA-Reroute: 1` becomes the request flag; a rerouted answer swaps model to `local` and messages to the masked text, never the original destination; non-chat request types are refused. "rerouted" is in `insights.STOPPED` (ROI), the compliance evidence and the incident filter. Web: button on the warn card and after a block, answer marked "Answered by Company AI", new outcome chip "Sent to Company AI".
+**State:** branch `task/x31-reroute`, worktree `~/data-dna-x31`, from main. `make check` green (365 brain, 82 web tests). Not run: a real `make up` with `make test-gateway` (other stacks hold the ports), so the LiteLLM hook with the new header has only been tested through `dna_inspect.py` unit tests.
+**Next step:** `make up`, open /chat, send an IBAN with the IBAN policy set to block, press the button, see the answer and the incident as rerouted in Security. Add a live case to `tests/test_gateway_live.py` if time allows.
+**Problems / decisions needed:** The gateway does not check who may reroute: anyone with a key can ask, but a reroute only ever masks and keeps data inside, so it is not an escalation. A rerouted request does not add to the "checked" counter. The extension (X27) block card is unchanged.
+**Files touched:** services/brain/src/brain/{main.py,records.py,insights.py,compliance.py,api/schemas.py}, services/brain/tests/test_x31_reroute.py, infra/gateway/dna_inspect.py, web/src/{pages/ChatPage.tsx,pages/Reroute.test.tsx,pages/security/{IncidentsPage,IncidentDetailPage}.tsx,components/{WarnCard,OutcomeChip,MessageBubble,Thyro}.tsx,lib/{chatApi,securityApi,explain,policyText,companion}.ts}, README.md, docs/EXTRA_FEATURES.md, PROGRESS.md
+
+---
+
 ## 2026-11-17, Alexandros, UI flow and new mascot
 **Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
 **State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.

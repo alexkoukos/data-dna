@@ -102,3 +102,41 @@ def record_decision(
                 )
     except sa.exc.SQLAlchemyError:
         log.warning("Could not record a decision, continuing")
+
+
+def record_reroute(engine: Engine | None, user: str) -> None:
+    """X31: the person sent a stopped message to Company AI. Change the incident they just
+    caused to "rerouted" instead of adding a second one."""
+    if engine is None:
+        return
+    since = datetime.now(UTC) - timedelta(minutes=10)
+    try:
+        with engine.begin() as conn:
+            uid = conn.execute(
+                sa.select(t.users.c.id).where(t.users.c.pseudonym == user)
+            ).scalar_one_or_none()
+            if uid is None:
+                return
+            row = conn.execute(
+                sa.select(t.incidents.c.id, t.incidents.c.reasons)
+                .where(
+                    t.incidents.c.user_id == uid,
+                    t.incidents.c.decision.in_(("block", "warn", "local")),
+                    t.incidents.c.shadow.is_not(True),
+                    t.incidents.c.ts >= since,
+                )
+                .order_by(t.incidents.c.ts.desc())
+                .limit(1)
+            ).first()
+            if row is None:
+                return
+            conn.execute(
+                sa.update(t.incidents)
+                .where(t.incidents.c.id == row.id)
+                .values(
+                    decision="rerouted",
+                    reasons=[*(row.reasons or []), "Rerouted to Company AI by the user"],
+                )
+            )
+    except sa.exc.SQLAlchemyError:
+        log.warning("Could not record a reroute, continuing")
