@@ -43,9 +43,16 @@ export const DEFAULT_SETTINGS: Settings = {
 /** Messages from the page scripts to the service worker. */
 export type Msg =
   | { type: "l2"; text: string; tool: string; url: string }
-  | { type: "event"; tool: string; action: string; category?: string }
-  | { type: "visit"; tool: string }
+  | {
+      type: "event";
+      tool: string;
+      host: string;
+      action: string;
+      category?: string;
+      offline?: boolean;
+    }
+  | { type: "visit"; tool: string; host: string }
   | { type: "openPanel"; prompt: string }
-  | { type: "override"; reason: string; tool: string }
+  | { type: "override"; reason: string; tool: string; host: string }
   | { type: "policy" }
   | { type: "stats" };

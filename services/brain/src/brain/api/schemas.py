@@ -20,6 +20,8 @@ class InspectRequest(BaseModel):
     model: str = "default"
     messages: list[Message]
     attachments: list[Attachment] = Field(default_factory=list)
+    tool: str | None = None
+    channel: str = "gateway"
 
 
 class FindingOut(BaseModel):

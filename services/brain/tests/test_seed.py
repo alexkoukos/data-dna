@@ -144,7 +144,7 @@ def test_run_seed_fills_an_empty_database_once(tmp_path: Path) -> None:
     with engine.connect() as conn:
         n = lambda table: conn.execute(sa.select(sa.func.count()).select_from(table)).scalar_one()  # noqa: E731
         assert n(t.users) == 200
-        assert n(t.ai_tools) == 15
+        assert n(t.ai_tools) == 16
         assert n(t.incidents) > 300
         assert n(t.tool_usage_daily) > 100
         assert n(t.documents) == 3

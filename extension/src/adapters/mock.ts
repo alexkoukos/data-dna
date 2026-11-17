@@ -3,7 +3,7 @@ import { readText, writeText } from "./dom";
 
 export const mockAi: Adapter = {
   id: "mock-ai",
-  tool: "Mock AI",
+  tool: "Mock AI (demo)",
   matches: (u) => u.hostname === "localhost" && u.port === "3100",
   getComposer: () => document.querySelector<HTMLElement>("#prompt"),
   getText() {

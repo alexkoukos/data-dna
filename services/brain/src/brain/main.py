@@ -16,6 +16,7 @@ from typing import Any
 
 import sqlalchemy as sa
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from brain import alerts, coaching, compliance, insights, queries, reveal, settings_store
@@ -98,6 +99,7 @@ from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.registry import DocumentIndex, register_document
 from brain.documents.session import update_coverage
+from brain.extension import router as extension_router
 from brain.honeytokens import (
     Honeytoken,
     HoneytokenStore,
@@ -227,6 +229,18 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 _attempts: deque[Attempt] = deque(maxlen=50)
 
 app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
+# The browser extension calls the brain from its own origin. No cookies are used, so any origin is
+# safe to allow here; who is asking comes from the device token, not from the origin.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["ETag"],
+)
+
+
+app.include_router(extension_router)
 
 
 @app.get("/healthz")
@@ -363,6 +377,8 @@ def inspect(
         user=req.user_id,
         team=req.team,
         decision=would_have,
+        tool=req.tool or "Company AI",
+        channel=req.channel,
         categories=[f.category for f in result.findings],
         reasons=result.verdict.reasons,
         masked_preview=result.findings[0].masked_preview if result.findings else None,

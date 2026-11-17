@@ -63,7 +63,7 @@ def test_incident_paging_limits(client: TestClient) -> None:
 
 def test_inventory_lists_every_tool_with_usage(client: TestClient) -> None:
     tools = {x["name"]: x for x in client.get("/v1/inventory").json()}
-    assert len(tools) == 15
+    assert len(tools) == 16
     chatgpt = tools["ChatGPT (personal)"]
     assert chatgpt["approval"] == "unapproved"
     assert chatgpt["requests"] > 0

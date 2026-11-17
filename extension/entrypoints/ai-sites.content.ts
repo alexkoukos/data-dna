@@ -42,11 +42,11 @@ export default defineContentScript({
       if (p) policy = p;
       banIfNeeded();
     });
-    void send({ type: "visit", tool: adapter.tool });
+    void send({ type: "visit", tool: adapter.tool, host: location.hostname });
     unmasker.start(adapter.responseRoot());
 
     function banIfNeeded() {
-      const entry = policy.tools[adapter!.tool];
+      const entry = policy.tools[location.hostname];
       if (entry?.approval === "unapproved") {
         const alt = entry.alternative ?? "the company AI";
         overlay.banner(`${adapter!.tool} is not approved here. Use ${alt} instead.`, {
@@ -125,7 +125,14 @@ export default defineContentScript({
 
     async function handle(a: Adapter, original: string, r: CheckResult) {
       const category = r.findings[0]?.category;
-      void send({ type: "event", tool: a.tool, action: r.action, category });
+      void send({
+        type: "event",
+        tool: a.tool,
+        host: location.hostname,
+        action: r.action,
+        category,
+        offline: r.source === "offline",
+      });
       const note =
         r.source === "offline" ? " (company server not reached, checked in your browser only)" : "";
 
@@ -181,7 +188,12 @@ export default defineContentScript({
         if (choice.id === "rewrite" && r.rewrite) {
           if (a.setText(r.rewrite)) resubmit(a);
         } else if (choice.id === "send") {
-          void send({ type: "override", tool: a.tool, reason: choice.reason || "no reason given" });
+          void send({
+            type: "override",
+            tool: a.tool,
+            host: location.hostname,
+            reason: choice.reason || "no reason given",
+          });
           resubmit(a);
         }
         return;

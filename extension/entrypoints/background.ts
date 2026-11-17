@@ -5,6 +5,8 @@ import type { Msg } from "../src/types";
 interface QueuedEvent {
   ts: number;
   tool: string;
+  host: string;
+  offline?: boolean;
   kind: "visit" | "decision" | "override";
   action?: string;
   category?: string;
@@ -56,22 +58,30 @@ export default defineBackground(() => {
           return;
         }
         case "visit":
-          await enqueue({ ts: Date.now(), tool: msg.tool, kind: "visit" });
+          await enqueue({ ts: Date.now(), tool: msg.tool, host: msg.host, kind: "visit" });
           reply({ ok: true });
           return;
         case "event":
           await enqueue({
             ts: Date.now(),
             tool: msg.tool,
+            host: msg.host,
             kind: "decision",
             action: msg.action,
             category: msg.category,
+            offline: msg.offline,
           });
           await bumpStats(msg.action, msg.tool, msg.category ?? "");
           reply({ ok: true });
           return;
         case "override":
-          await enqueue({ ts: Date.now(), tool: msg.tool, kind: "override", reason: msg.reason });
+          await enqueue({
+            ts: Date.now(),
+            tool: msg.tool,
+            host: msg.host,
+            kind: "override",
+            reason: msg.reason,
+          });
           reply({ ok: true });
           return;
         case "openPanel": {

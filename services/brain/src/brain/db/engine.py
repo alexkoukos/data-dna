@@ -33,6 +33,21 @@ def ensure_schema(engine: Engine) -> None:
                 "value TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ DEFAULT now())"
             )
         )
+        conn.execute(
+            sa.text(
+                "CREATE TABLE IF NOT EXISTS devices (id SERIAL PRIMARY KEY, "
+                "token_hash TEXT NOT NULL UNIQUE, user_id INT REFERENCES users(id), team TEXT, "
+                "label TEXT, created_at TIMESTAMPTZ DEFAULT now())"
+            )
+        )
+        conn.execute(
+            sa.text(
+                "CREATE TABLE IF NOT EXISTS ext_events (id BIGSERIAL PRIMARY KEY, "
+                "ts TIMESTAMPTZ NOT NULL, user_id INT REFERENCES users(id), team TEXT, "
+                "tool_id INT REFERENCES ai_tools(id), tool TEXT, kind TEXT NOT NULL, "
+                "action TEXT, expires_at TIMESTAMPTZ)"
+            )
+        )
         conn.execute(sa.text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS trace JSONB"))
         conn.execute(
             sa.text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS shadow BOOLEAN DEFAULT FALSE")
