@@ -1,0 +1,265 @@
+{
+  "cases": [
+    {
+      "name": "clean english",
+      "text": "Please summarise the attached meeting notes in three bullet points.",
+      "expect": []
+    },
+    {
+      "name": "clean greek",
+      "text": "Μπορείς να γράψεις ένα σύντομο email για την αλλαγή ωραρίου;",
+      "expect": []
+    },
+    {
+      "name": "afm valid",
+      "text": "Ο ΑΦΜ του πελάτη είναι 123456783.",
+      "expect": [
+        {
+          "entity": "AFM",
+          "value": "123456783"
+        }
+      ]
+    },
+    {
+      "name": "afm bad checksum",
+      "text": "Ο ΑΦΜ είναι 123456789 αλλά είναι λάθος.",
+      "expect": []
+    },
+    {
+      "name": "amka valid",
+      "text": "AMKA 01019001237 for the new hire",
+      "expect": [
+        {
+          "entity": "AMKA",
+          "value": "01019001237"
+        }
+      ]
+    },
+    {
+      "name": "card valid",
+      "text": "Charge card 4111111111111111 for the order",
+      "expect": [
+        {
+          "entity": "CARD",
+          "value": "4111111111111111"
+        }
+      ]
+    },
+    {
+      "name": "card bad luhn",
+      "text": "Order number 4111111111111112 is not a card",
+      "expect": []
+    },
+    {
+      "name": "iban valid",
+      "text": "Pay to GR1601101250000000012300695 today",
+      "expect": [
+        {
+          "entity": "IBAN",
+          "value": "GR1601101250000000012300695"
+        }
+      ]
+    },
+    {
+      "name": "iban spaced",
+      "text": "Pay to GR16 0110 1250 0000 0001 2300 695 today",
+      "expect": [
+        {
+          "entity": "IBAN",
+          "value": "GR16 0110 1250 0000 0001 2300 695"
+        }
+      ]
+    },
+    {
+      "name": "iban bad checksum",
+      "text": "Pay to GR1601101250000000012300690 today",
+      "expect": []
+    },
+    {
+      "name": "openai key",
+      "text": "export OPENAI_API_KEY=sk-proj-Ab3dE6gH9jK2mN5pQ8sT",
+      "expect": [
+        {
+          "entity": "OPENAI_KEY",
+          "value": "sk-proj-Ab3dE6gH9jK2mN5pQ8sT"
+        }
+      ]
+    },
+    {
+      "name": "aws key",
+      "text": "aws_access_key_id = AKIAABCDEFGHIJ234567",
+      "expect": [
+        {
+          "entity": "AWS_ACCESS_KEY",
+          "value": "AKIAABCDEFGHIJ234567"
+        }
+      ]
+    },
+    {
+      "name": "github token",
+      "text": "git clone https://ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8@github.com/x/y",
+      "expect": [
+        {
+          "entity": "GITHUB_TOKEN",
+          "value": "ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
+        }
+      ]
+    },
+    {
+      "name": "slack token",
+      "text": "SLACK=xoxb-123456789012-abcdefghij",
+      "expect": [
+        {
+          "entity": "SLACK_TOKEN",
+          "value": "xoxb-123456789012-abcdefghij"
+        }
+      ]
+    },
+    {
+      "name": "google key",
+      "text": "key=AIzaSyA1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q",
+      "expect": [
+        {
+          "entity": "GOOGLE_API_KEY",
+          "value": "AIzaSyA1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q"
+        }
+      ]
+    },
+    {
+      "name": "private key header",
+      "text": "-----BEGIN RSA PRIVATE KEY-----\nMIIE",
+      "expect": [
+        {
+          "entity": "PRIVATE_KEY",
+          "value": "-----BEGIN RSA PRIVATE KEY-----"
+        }
+      ]
+    },
+    {
+      "name": "police id",
+      "text": "Ταυτότητα ΑΕ 123456 του υπαλλήλου",
+      "expect": [
+        {
+          "entity": "ADT",
+          "value": "ΑΕ 123456"
+        }
+      ]
+    },
+    {
+      "name": "number plate",
+      "text": "The car, ΥΝΑ-1234, was parked outside",
+      "expect": [
+        {
+          "entity": "PLATE",
+          "value": "ΥΝΑ-1234"
+        }
+      ]
+    },
+    {
+      "name": "passport",
+      "text": "Passport number: AB1234567",
+      "expect": [
+        {
+          "entity": "PASSPORT",
+          "value": "AB1234567"
+        }
+      ]
+    },
+    {
+      "name": "gemi",
+      "text": "Η εταιρεία με ΓΕΜΗ 123456789012 έκλεισε",
+      "expect": [
+        {
+          "entity": "GEMI",
+          "value": "123456789012"
+        }
+      ]
+    },
+    {
+      "name": "greek mobile",
+      "text": "Πάρε με στο 6912345678 αύριο",
+      "expect": [
+        {
+          "entity": "PHONE_GR",
+          "value": "6912345678"
+        }
+      ]
+    },
+    {
+      "name": "greek mobile +30",
+      "text": "Call +30 6912345678 after lunch",
+      "expect": [
+        {
+          "entity": "PHONE_GR",
+          "value": "+30 6912345678"
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "text": "Send it to maria.papadopoulou@example.gr please",
+      "expect": [
+        {
+          "entity": "EMAIL",
+          "value": "maria.papadopoulou@example.gr"
+        }
+      ],
+      "l1Only": true
+    },
+    {
+      "name": "two findings",
+      "text": "IBAN GR1601101250000000012300695 and AFM 123456783",
+      "expect": [
+        {
+          "entity": "IBAN",
+          "value": "GR1601101250000000012300695"
+        },
+        {
+          "entity": "AFM",
+          "value": "123456783"
+        }
+      ]
+    },
+    {
+      "name": "afm spaced digits",
+      "text": "tax id 1 2 3 4 5 6 7 8 3",
+      "expect": [
+        {
+          "entity": "AFM",
+          "value": "123456783"
+        }
+      ],
+      "hidden": true,
+      "signals": [
+        "spaced_digits"
+      ]
+    },
+    {
+      "name": "base64 key",
+      "text": "token: a2V5PXNrLXByb2otQWIzZEU2Z0g5aksybU41cFE4c1Q=",
+      "expect": [
+        {
+          "entity": "OPENAI_KEY",
+          "value": "sk-proj-Ab3dE6gH9jK2mN5pQ8sT"
+        }
+      ],
+      "hidden": true,
+      "signals": [
+        "base64"
+      ]
+    },
+    {
+      "name": "invisible characters in afm",
+      "text": "AFM 1234​56783",
+      "expect": [
+        {
+          "entity": "AFM",
+          "value": "123456783"
+        }
+      ],
+      "signals": [
+        "invisible_characters"
+      ]
+    }
+  ]
+}

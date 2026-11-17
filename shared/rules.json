@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "note": "Source of truth for the L1 (in-browser) checks. Python and TypeScript both test against shared/fixtures/l1.json. {W} stands for a Unicode word character and is expanded per language. Named group syntax is Python's (?P<v>...); the TypeScript loader rewrites it.",
+  "iban": {
+    "entity": "IBAN",
+    "category": "iban",
+    "regex": "\\b[A-Z]{2}\\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,3})?\\b",
+    "lengths": { "GR": 27, "DE": 22, "FR": 27, "IT": 27, "ES": 24, "CY": 28, "GB": 22, "NL": 18 }
+  },
+  "digits": {
+    "regex": "(?<!\\d)\\d{9,19}(?!\\d)",
+    "checks": [
+      { "length": [9, 9], "validator": "afm", "entity": "AFM", "category": "greek_id" },
+      { "length": [11, 11], "validator": "amka", "entity": "AMKA", "category": "greek_id" },
+      { "length": [13, 19], "validator": "luhn", "entity": "CARD", "category": "card" }
+    ]
+  },
+  "secrets": [
+    { "entity": "OPENAI_KEY", "category": "secret", "regex": "\\bsk-(?:live-|proj-)?[A-Za-z0-9_\\-]{16,}\\b" },
+    { "entity": "AWS_ACCESS_KEY", "category": "secret", "regex": "\\bAKIA[0-9A-Z]{16}\\b" },
+    { "entity": "GITHUB_TOKEN", "category": "secret", "regex": "\\bghp_[A-Za-z0-9]{36}\\b" },
+    { "entity": "SLACK_TOKEN", "category": "secret", "regex": "\\bxox[baprs]-[A-Za-z0-9\\-]{10,}\\b" },
+    { "entity": "GOOGLE_API_KEY", "category": "secret", "regex": "\\bAIza[0-9A-Za-z_\\-]{35}\\b" },
+    { "entity": "PRIVATE_KEY", "category": "secret", "regex": "-----BEGIN [A-Z ]*PRIVATE KEY-----" }
+  ],
+  "patterns": [
+    {
+      "entity": "ADT",
+      "category": "greek_id",
+      "regex": "(?<![{W}])(?P<v>[ΑΒΕΖΗΙΚΜΝΟΡΤΥΧABEZHIKMNOPTYX]{1,2}[ -]?\\d{6})(?![{W}])"
+    },
+    {
+      "entity": "PLATE",
+      "category": "greek_id",
+      "regex": "(?<![{W}])(?P<v>[ΑΒΕΖΗΙΚΜΝΟΡΤΥΧABEZHIKMNOPTYX]{3}[ -]?\\d{4})(?![{W}])"
+    },
+    {
+      "entity": "PASSPORT",
+      "category": "greek_id",
+      "flags": "i",
+      "regex": "(?:passport|διαβατήριο|διαβατηριο)[^\\n.]{0,25}?(?<![A-Za-z])(?P<v>[A-Z]{2}\\s?\\d{7})(?!\\d)"
+    },
+    {
+      "entity": "GEMI",
+      "category": "greek_id",
+      "flags": "i",
+      "regex": "(?:GEMI|ΓΕΜΗ|Γ\\.Ε\\.ΜΗ\\.)[^\\n.]{0,20}?(?<!\\d)(?P<v>\\d{12})(?!\\d)"
+    },
+    {
+      "entity": "PHONE_GR",
+      "category": "person_email_phone",
+      "regex": "(?<![{W}+])(?P<v>(?:(?:\\+|00)30[ -]?)?69\\d[ -]?\\d{3}[ -]?\\d{4}|(?:\\+|00)30[ -]?2\\d{2,3}[ -]?\\d{3}[ -]?\\d{4}|2\\d{2,3}[ -]\\d{3}[ -]?\\d{4})(?![{W}])"
+    },
+    {
+      "entity": "EMAIL",
+      "category": "person_email_phone",
+      "l1Only": true,
+      "regex": "(?<![{W}.+-])(?P<v>[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.[A-Za-z]{2,})(?![{W}])"
+    }
+  ],
+  "normalise": {
+    "invisible": "[\\u200b-\\u200f\\u202a-\\u202e\\u2060-\\u2064\\ufeff]",
+    "spacedDigits": "(?<![{W}])(?:\\d[ .\\-/\\t\\r\\n]{0,2}){8,30}\\d(?![{W}])",
+    "base64": "(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{16,}={0,2}(?![A-Za-z0-9+/=])",
+    "hex": "(?<![0-9A-Za-z])(?:[0-9A-Fa-f]{2}){12,}(?![0-9A-Za-z])"
+  },
+  "sourceCode": {
+    "minHits": 3,
+    "hints": [
+      "\\bfunction\\s+\\w+\\s*\\(",
+      "\\b(?:const|let|var)\\s+\\w+\\s*=",
+      "\\bdef\\s+\\w+\\s*\\(",
+      "\\bclass\\s+\\w+\\s*[:{(]",
+      "\\bimport\\s+[\\w.{}*, ]+\\s+from\\s+['\"]",
+      "\\bpublic\\s+(?:static\\s+)?(?:void|class|int|string)\\b",
+      "=>\\s*[{(]",
+      "\\breturn\\s+[^;\\n]+;",
+      "^\\s*#include\\s*<",
+      "\\bSELECT\\b[\\s\\S]{0,80}\\bFROM\\b"
+    ]
+  }
+}
