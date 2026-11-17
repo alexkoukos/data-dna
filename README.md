@@ -81,17 +81,17 @@ Measured on 17 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; full tabl
 
 | What | Result | Target |
 | --- | --- | --- |
-| Paraphrased document leaks found | 92.5% (baseline 5.0%) | 80% |
+| Paraphrased document leaks found | 97.5%, 39 of 40 (baseline 5.0%) | 80% |
 | False alarms on clean prompts | 2.1% | 5% |
-| Added latency, brain only (p50 / p95) | 9.5 / 24.4 ms | p95 under 100 ms |
-| Latency under load, 3 users for 15 s (`make loadtest`) | p50 53, p95 91, p99 127 ms, 0 errors | p95 under 100 ms |
+| Added latency, brain only (p50 / p95) | 12.6 / 28.4 ms | p95 under 100 ms |
+| Latency under load, 3 users for 15 s (`make loadtest`) | p50 about 60 ms, p95 91 to 123 ms over five runs, 0 errors | p95 under 100 ms |
 | Prompts needing zero LLM tokens | 100% | 90% |
 | Correct copy named when a document leaks | 99.2% | 90% |
 | Attack set `attacks.csv` handled as expected | 76 of 80 | |
 | Attack set `attacks_scripts.csv` as expected | 77 of 80 | |
 | promptfoo curated cases (`make redteam`) | 24 of 25 | |
 
-The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test p95 is close to its target and was measured with a second stack running on the same machine. Unit tests: 365 brain tests at 91% coverage and 79 web tests (`make check`); end-to-end and accessibility checks: 41 specs (`make e2e`).
+The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test p95 sits on its target (not reliably under it) and was measured with a second stack running on the same machine. Unit tests: 365 brain tests at 91% coverage and 79 web tests (`make check`); end-to-end and accessibility checks: 41 specs (`make e2e`).
 
 ## Privacy and governance
 Pyli inspects what people type, so it holds itself to the same rule it enforces. Each claim below points at the code and at a test that fails if the claim stops being true (`services/brain/tests/test_privacy_claims.py` also checks that every test named here exists).
@@ -109,11 +109,11 @@ Other protections: API keys live in `.env` only (gitleaks runs in CI); model ans
 
 ## Known limits
 - **Only traffic through the gateway is checked.** Personal devices and tools that bypass it are seen in usage logs, not stopped.
-- **Detection is probabilistic.** Measured misses: 4 of 80 and 3 of 80 attacks, reworded salary sentences (P0112, P0115), one of 25 red-team cases, and many model-attack prompts from garak that carry no company data and still reach the model (the gateway flagged only 4 of 27 in one family, 5 of 40 in another). A clean Greek prompt was sent to the local model (P0159). See `docs/BRIEF_MAP.md`.
-- **Meaning without matching words** can pass; a strong paraphrase goes to the local model rather than being blocked, to avoid false blocks.
+- **Detection is probabilistic.** Measured misses: 4 of 80 and 3 of 80 attacks, one reworded question about the Delphi agreement (P0105), one of 25 red-team cases, and many model-attack prompts from garak that carry no company data and still reach the model (the gateway flagged only 4 of 27 in one family, 5 of 40 in another). A clean Greek prompt was sent to the local model (P0159). See `docs/BRIEF_MAP.md`.
+- **Meaning without matching words** can pass; a strong paraphrase goes to the local model rather than being blocked, to avoid false blocks. A document can carry translations (`name.en.md` next to `name.md`) so rewrites in another language are compared with text in their own language; that is how Greek salary bands are protected against English rewrites. Translations have to be supplied for each document and language.
 - **Slow leaks** beyond the session window, and anything retyped by hand or photographed, are not caught.
 - **No login.** The brain API is unauthenticated in demo mode and uses a default master key. Do not expose ports 8001 and 4000 beyond a trusted network. Roles, TLS and a key store are roadmap.
-- **Load test is close to its target** (p95 91 ms of 100 ms) and was run beside another stack. Linux and Windows start times are not measured on separate machines.
+- **Load test is at its target** (p95 91 to 123 ms against 100 ms over five runs) and was run beside another stack. Linux and Windows start times are not measured on separate machines.
 - Details and reasoning: `docs/THREAT_MODEL.md`.
 
 ## Extra features
