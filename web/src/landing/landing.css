@@ -528,6 +528,7 @@
   position: absolute;
   overflow: hidden;
   background: #fff;
+  border-radius: 2px 2px 4px 4px;
 }
 .laptop-content {
   position: relative;
@@ -548,7 +549,8 @@
   align-items: center;
   gap: 16px;
   padding: 0 18px;
-  background: #e5e7eb;
+  background: linear-gradient(180deg, #f3f4f6, #e2e4e8);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   font-size: 11px;
   line-height: 16px;
   font-weight: 500;
@@ -557,9 +559,28 @@
 .menubar-app {
   font-weight: 800;
 }
-.menubar-clock {
+.menubar-status {
   margin-left: auto;
-  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+}
+/* Glass: a soft reflection and a faint edge falloff, so the display reads as a real panel */
+.glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+  background:
+    linear-gradient(
+      118deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.05) 34%,
+      rgba(255, 255, 255, 0) 48%
+    ),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0) 14%);
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.1);
 }
 .laptop-frame {
   position: absolute;
@@ -600,10 +621,16 @@
   gap: 5px;
 }
 .dots i {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: #c5c9cf;
+  background: #ff5f57;
+}
+.dots i:nth-child(2) {
+  background: #febc2e;
+}
+.dots i:nth-child(3) {
+  background: #28c840;
 }
 .tab {
   width: 120px;
