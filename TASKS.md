@@ -7,6 +7,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **S0** Scaffold: locks, tests, CI, devcontainer, Makefile. (Alexandros)
 - [x] **S1** P0 `make up` works on a real machine; fix Dockerfiles; CI smoke green. Owner: Alexandros. Done when: fresh clone, `make up`, both URLs load, CI green.
 - [~] (Alexandros) **S2** P0 Platform check: Linux, macOS Apple silicon, Windows WSL. Owner: Alexandros. Done when: `make up` works on all three; RAM and first-start time written in README.
+- [~] (Stelios) **S3** P0 Docker hardening: brain health check start period, brain runs as non-root, nginx pinned, published ports on localhost only. Owner: Stelios. Done when: fresh `make reset && make up` healthy, CI green.
 
 ## Gateway and routing
 - [x] **G1** P0 Add LiteLLM gateway service (pin the latest stable image tag from its releases page), per-user virtual keys, custom guardrail calling `brain /v1/inspect` (PRD 7, 8). Owner: Alexandros. Done when: an OpenAI SDK client with a personal key gets a masked-and-answered reply through the gateway; integration test passes.

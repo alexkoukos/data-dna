@@ -15,6 +15,13 @@ Template:
 
 ---
 
+## 2026-11-17, Stelios (with Claude), S3 Docker hardening
+**Done:** brain health check has `--start-period=120s`, so a slow first start (model and NLP loading) is not marked unhealthy and does not stop gateway and web from starting. The brain `app` image runs as user `app` (uid 10001); `/models`, `/var/dna/logs` and `/var/dna/keys` are created and owned by that user in the image, so new named volumes get the right owner. The `test` stage is unchanged (still root). Web image pinned to `nginx:1.30-alpine` (stable line). Compose publishes brain 8001, gateway 4000, web 3000 and ollama 11434 on `127.0.0.1` only: the brain admin API has no login and the gateway uses the master key, so other machines on the network must not reach them. `localhost` URLs work as before.
+**State:** branch `task/S3-docker-hardening`. Verified: fresh `docker compose down -v && make up` all healthy (about 7 min including image builds), `id` in brain is uid 10001, logs are written, `make check` green (373 brain tests, 79 web tests), `make split-test` 55 passed, LAN IP and `[::1]` refused.
+**Next step:** after pulling run **`chmod 644 secrets/hmac_key`**, **`make reset`** and then `make up`. Old volumes were created by root and the non-root brain cannot write to them (logs, fallback HMAC key); a `secrets/hmac_key` made before `chmod 644` was added to `gen_hmac_key.sh` is unreadable to the app user. Alexandros: re-check S2 on macOS and WSL with this branch.
+**Problems / decisions needed:** ports are IPv4 localhost only. A client that resolves `localhost` to `::1` with no IPv4 fallback cannot connect; curl, browsers, Node 20+ and Python all fall back. Use `127.0.0.1` if that ever happens. On Linux the brain now reads the `./data` bind mount as uid 10001, so the checkout must be world-readable (normal with umask 022; a umask 077 clone gives an empty demo).
+**Files touched:** services/brain/Dockerfile, web/Dockerfile, docker-compose.yml, TASKS.md, PROGRESS.md
+
 ## 2026-11-17, Alexandros (with Claude), T5 business pack
 **Done:** `docs/business/` now has market (with sourced figures), competitors, SWOT, customer and pricing, roadmap, privacy and regulation, engagement. README sections Privacy, Business case and Roadmap link to them.
 **State:** branch `task/T5-business-pack`, docs only. Figures come from web searches of secondary sources; competitor claims are untested; prices are hypotheses.
