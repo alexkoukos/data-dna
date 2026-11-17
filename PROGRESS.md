@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-17, Alexandros (with Claude), T5 business pack
+**Done:** `docs/business/` now has market (with sourced figures), competitors, SWOT, customer and pricing, roadmap, privacy and regulation, engagement. README sections Privacy, Business case and Roadmap link to them.
+**State:** branch `task/T5-business-pack`, docs only. Figures come from web searches of secondary sources; competitor claims are untested; prices are hypotheses.
+**Next step:** Vasilis reviews pricing and competitor claims; check EU AI Act Art. 50 date on EUR-Lex; check the IBM shadow-AI premium (USD 670k vs one source saying 200k) in the PDF before it goes on a slide.
+**Problems / decisions needed:** none for the code.
+**Files touched:** docs/business/*.md, README.md, TASKS.md, PROGRESS.md
+
+---
+
 ## 2026-11-17, Alexandros, UI flow and new mascot
 **Done:** new home page (`web/src/pages/HomePage.tsx`): one primary action and a 3-step demo story. After a masked, held or blocked chat message a card links to the security incidents (`NextStep.tsx`). Nav order follows the demo, logo links home, the corner companion is hidden on `/`. New mascot: an arch-shaped gate guardian in all 10 poses, drawn by `scripts/make_mascot.py` (edit it, run `python3 scripts/make_mascot.py`, commit the SVGs). File names stay `thyro-<pose>.svg`.
 **State:** branch `task/flow-ui`, PR #38. Web checks green (tsc, oxlint, 73 tests). Brain `make check`, `make e2e` and `make up` were not run on this branch. Earlier on `task/brand-plus-X` a fresh `make up` and 41 of 41 e2e tests passed. `make up` can reuse old images: after pulling, run `docker compose build --no-cache web brain gateway` if the app looks stale.

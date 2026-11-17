@@ -55,7 +55,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **T2** P0 3 confidential documents in `data/documents/` (Greek + English). Owner: Konstantinos. Sat 14.
 - [x] **T3** P0 `data/eval/prompts.csv`: 60 rows by Sat 14, 200 by Mon 16. Owners: Konstantinos, Vasilis.
 - [x] **T4** P0 `data/ai_tools.csv`: about 15 tools rated. Owner: Vasilis. Sun 15.
-- [ ] **T5** P1 Business pack in `docs/business/`: market, competitors, SWOT, pricing, roadmap, GDPR/AI Act, engagement. Owner: Vasilis. Mon 16 to Wed 18.
+- [x] **T5** P1 Business pack in `docs/business/`: market, competitors, SWOT, pricing, roadmap, GDPR/AI Act, engagement. Owner: Vasilis. Mon 16 to Wed 18.
 
 ## Submission
 - [ ] **R1** P0 README in the required parts (PRD 22) with measured numbers. Owners: Konstantinos (text), Alexandros (setup).

@@ -51,7 +51,11 @@ _Diagram and services table (R1). Source: docs/PRD.md section 7._
 _Results from `make eval` (E1)._
 
 ## Privacy and governance
-_GDPR and EU AI Act (T5)._
+A watcher must keep little: masked previews and entity names instead of prompts, fingerprints instead of document text, pseudonyms with a two-person reveal and audit log, 30-day retention, local answers for confidential content, and split storage for the most sensitive fields. Plain-language page on GDPR, NIS2 and the EU AI Act (not legal advice): [docs/business/privacy-and-regulation.md](docs/business/privacy-and-regulation.md). Article table: [compliance-mapping.md](docs/business/compliance-mapping.md).
+
+## Business case
+Market and cost figures with sources: [market.md](docs/business/market.md). Competitors: [competitors.md](docs/business/competitors.md). SWOT: [swot.md](docs/business/swot.md). Customer, price and sales path (all hypotheses): [customer-and-pricing.md](docs/business/customer-and-pricing.md). Why people will use it: [engagement.md](docs/business/engagement.md). Honest limits: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
+
 
 ## Known limits
 _To be written._
@@ -67,7 +71,7 @@ _To be written._
 **Greeklish and look-alike characters (X5).** Before any check the text is cleaned of tricks that keep its length: digits from other scripts (Arabic-Indic, Devanagari, Thai) become 0 to 9, Greek or Cyrillic letters inside a word that mixes scripts or holds a number are folded to the matching Latin ones (a mostly Greek word goes the other way), a capital O or a lower-case l in a long number is read as 0 or 1, and hex, percent-encoded and HTML-entity text is decoded. Names such as "giorgos papadopoulos" are found by Greek surname endings and a list of common surnames, with no model call. `make eval` reports the attacks of these three kinds as one target: 96.2% caught against a target of 80%. A Greek surname with no common ending (for example "Papadaki" in capitals) is still missed.
 
 ## Roadmap
-_From docs/business (T5)._
+Next: (1) browser extension, (2) Slack and Teams, (3) SIEM export, (4) more languages, (5) a small-company edition with login and roles. Details and what is already built: [docs/business/roadmap.md](docs/business/roadmap.md).
 
 ## Team
 Alexandros, Stelios, Vasilis, Konstantinos.
