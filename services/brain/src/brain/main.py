@@ -24,6 +24,7 @@ from brain.api.schemas import (
     ApproveMarks,
     AskOut,
     AskRequest,
+    AttachmentText,
     Attempt,
     CopiesRequest,
     CopyOut,
@@ -349,9 +350,10 @@ def inspect(
     )
     stamped = _stamped_files(parts)
     if stamped:
-        # A stamped file never goes out. Keep "local" when the policy already chose it.
+        # A stamped file never goes to an outside tool. The company AI keeps it inside, so there
+        # it is answered locally. Keep "local" when the policy already chose it.
         if result.verdict.decision != Decision.LOCAL:
-            result.verdict.decision = Decision.BLOCK
+            result.verdict.decision = Decision.LOCAL if req.company_ai else Decision.BLOCK
         result.verdict.reasons.extend(stamped)
     decoys = _decoy_alarm(result)
     t_checks = time.perf_counter()
@@ -440,6 +442,9 @@ def inspect(
         ],
         masked_messages=masked,
         evasion_signals=result.evasion_signals,
+        attachment_texts=(
+            [AttachmentText(filename=n, text=t) for n, t in parts] if req.company_ai else []
+        ),
         documents=[
             DocumentHit(
                 document_id=m.document_id,

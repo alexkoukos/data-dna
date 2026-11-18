@@ -122,3 +122,21 @@ export async function pair(
     return null;
   }
 }
+
+/** Keeps a stopped text or file on the company server for ten minutes so the company AI can have it. */
+export async function createHandoff(
+  text: string,
+  attachments: { filename: string; content_base64: string }[],
+): Promise<string | null> {
+  try {
+    const res = await fetch(await url("/v1/handoff"), {
+      method: "POST",
+      headers: await headers(),
+      body: JSON.stringify({ text, attachments }),
+    });
+    if (!res.ok) return null;
+    return ((await res.json()) as { id: string }).id;
+  } catch {
+    return null;
+  }
+}

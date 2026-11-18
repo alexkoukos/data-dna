@@ -12,6 +12,29 @@ export interface ChatTurn {
   content: string;
 }
 
+/** A file added to a message. The server reads it, so the check sees what is inside. */
+export interface ChatAttachment {
+  filename: string;
+  content_base64: string;
+}
+
+const MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+};
+
+function fileBlock(a: ChatAttachment) {
+  const ext = a.filename.split(".").pop()?.toLowerCase() ?? "";
+  const mime = MIME[ext] ?? "application/octet-stream";
+  return {
+    type: "file",
+    file: { filename: a.filename, file_data: `data:${mime};base64,${a.content_base64}` },
+  };
+}
+
 export type ChatResult =
   | { kind: "answer"; text: string; outcome: Outcome; reasons: string[] }
   | { kind: "warn"; reasons: string[]; suggestion?: string }
@@ -72,11 +95,22 @@ export async function sendChat(
   identity: Identity,
   history: ChatTurn[],
   ack?: string,
+  attachments: ChatAttachment[] = [],
 ): Promise<ChatResult> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${identity.key}`,
+    // The company AI: the gate keeps everything inside and reads attached files.
+    "X-Hive-Company-Ai": "1",
   };
+  const messages: unknown[] = history.map((t) => ({ ...t }));
+  if (attachments.length && messages.length) {
+    const last = history[history.length - 1];
+    messages[messages.length - 1] = {
+      role: last.role,
+      content: [{ type: "text", text: last.content }, ...attachments.map(fileBlock)],
+    };
+  }
   if (ack) headers["X-DNA-Ack"] = ack;
 
   let res: Response;
@@ -84,7 +118,7 @@ export async function sendChat(
     res = await fetch("/gateway/v1/chat/completions", {
       method: "POST",
       headers,
-      body: JSON.stringify({ model: identity.model, messages: history }),
+      body: JSON.stringify({ model: identity.model, messages }),
     });
   } catch {
     return {
@@ -144,5 +178,20 @@ export async function countCoachingAccepted(): Promise<void> {
     await fetch("/api/v1/coaching/accepted", { method: "POST" });
   } catch {
     // counting is best effort; the message itself must not fail because of it
+  }
+}
+
+export interface Handoff {
+  text: string;
+  attachments: ChatAttachment[];
+}
+
+/** Text or files Hive stopped in the browser, passed on once so the company AI can have them. */
+export async function takeHandoff(id: string): Promise<Handoff | null> {
+  try {
+    const res = await fetch(`/api/v1/handoff/${encodeURIComponent(id)}`);
+    return res.ok ? ((await res.json()) as Handoff) : null;
+  } catch {
+    return null;
   }
 }

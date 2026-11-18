@@ -33,7 +33,9 @@ Turn the extension **on**, reload claude.ai.
 | claude.ai/new, `+`, Upload, choose the same PDF. | "Same file, same tool, but now Hive is in the browser." |
 | Stop on the red card **File not attached**. | "The file never reaches Claude. It says why, and offers the company's own AI instead." |
 | Click **Why?** and show the reason: `marked RESTRICTED`. | "The reason is in plain words, and it holds no content from the file." |
-| Drag the PDF onto the page. | "Dragging it in is caught too." (Same card.) |
+| Click **Open company AI**. | "Nothing is lost. The file comes with me." A new tab opens the company chat with the PDF attached and "Summarise this file." |
+| Press Send. | "Here the same file is allowed, because the company AI answers on our own servers. The outcome says Answered locally." |
+| Back on claude.ai drag the PDF onto the page. | "Dragging it in is caught too." (Same card.) |
 
 ## Clip 3: Text, three outcomes (60 s)
 

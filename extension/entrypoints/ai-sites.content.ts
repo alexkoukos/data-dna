@@ -232,7 +232,7 @@ export default defineContentScript({
           ],
         })
         .then((c) => {
-          if (c.id === "ask") void send({ type: "openPanel", prompt: "" });
+          if (c.id === "ask") void send({ type: "openPanel", prompt: original });
         });
     }
 
@@ -250,7 +250,7 @@ export default defineContentScript({
         }),
       onEvent: (action, category) =>
         void send({ type: "event", tool: adapter.tool, host: location.hostname, action, category }),
-      onOpenCompanyAi: () => void send({ type: "openPanel", prompt: "" }),
+      onOpenCompanyAi: (attachments) => void send({ type: "openPanel", prompt: "", attachments }),
     });
 
     document.addEventListener(

@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 ACK_HEADER = "x-dna-ack"
+COMPANY_AI_HEADER = "x-hive-company-ai"  # the company chat: keeps data inside, reads files
 LOCAL_MODEL = "local"
 
 
@@ -158,6 +159,29 @@ def _write_masked(data: dict[str, Any], call_type: str, masked_text: str) -> Non
     items[last]["content"] = masked_text
 
 
+def _company_ai_asked(headers: dict[str, str] | None) -> bool:
+    lowered = {k.lower(): v for k, v in (headers or {}).items()}
+    return lowered.get(COMPANY_AI_HEADER, "").strip() == "1"
+
+
+def inline_files(data: dict[str, Any], texts: list[dict[str, str]]) -> None:
+    """Replace the file blocks of the last user message with their text, in order. The local model
+    reads text only, so it gets what the brain extracted from each file."""
+    users = [m for m in data.get("messages", []) if m.get("role", "user") == "user"]
+    content = users[-1].get("content") if users else None
+    if not isinstance(content, list):
+        return
+    queue = list(texts)
+    out: list[Any] = []
+    for block in content:
+        if isinstance(block, dict) and _file_block(block, 0) and queue:
+            item = queue.pop(0)
+            out.append({"type": "text", "text": f"[File: {item['filename']}]\n{item['text']}"})
+        else:
+            out.append(block)
+    users[-1]["content"] = out
+
+
 def _ack_given(headers: dict[str, str] | None) -> bool:
     lowered = {k.lower(): v for k, v in (headers or {}).items()}
     return bool(lowered.get(ACK_HEADER, "").strip())
@@ -199,6 +223,9 @@ async def apply_decision(
     files = attached_files(data, call_type)
     if files:
         payload["attachments"] = files
+    company_ai = _company_ai_asked(headers) and call_type in CHAT_CALLS
+    if company_ai:
+        payload["company_ai"] = True
     try:
         resp = await client.post(f"{brain_url}/v1/inspect", json=payload, timeout=10.0)
         resp.raise_for_status()
@@ -260,6 +287,11 @@ async def apply_decision(
                 "approved_alternative": "Use the company chat, which keeps data inside.",
             },
         )
+
+    if company_ai:
+        # The company AI never leaves the company: answer on the local model, with each file as text.
+        inline_files(data, verdict.get("attachment_texts", []))
+        data["model"] = LOCAL_MODEL
 
     metadata = data.setdefault("metadata", {})
     metadata["dna_decision"] = decision

@@ -1,4 +1,4 @@
-import { askLocal, checkRemote, postEvents, refreshPolicy } from "../src/api";
+import { askLocal, checkRemote, createHandoff, postEvents, refreshPolicy } from "../src/api";
 import { bumpStats, getPolicy, getSettings } from "../src/storage";
 import type { Msg } from "../src/types";
 
@@ -96,18 +96,16 @@ export default defineBackground(() => {
           reply(await askLocal(msg.prompt));
           return;
         case "openPanel": {
-          await chrome.storage.session.set({ pendingPrompt: msg.prompt });
-          let opened = false;
-          try {
-            // Brave and some other browsers have no side panel API: this throws there.
-            if (sender.tab?.id !== undefined && chrome.sidePanel?.open) {
-              await chrome.sidePanel.open({ tabId: sender.tab.id });
-              opened = true;
-            }
-          } catch {
-            opened = false;
-          }
-          if (!opened) await chrome.tabs.create({ url: await companyChatUrl() });
+          // The company chat reads files too, and a tab works in every browser (Brave has no side
+          // panel). The text or file is passed on through the company server, once.
+          const id =
+            msg.prompt || msg.attachments?.length
+              ? await createHandoff(msg.prompt, msg.attachments ?? [])
+              : null;
+          const base = await companyChatUrl();
+          await chrome.tabs.create({
+            url: id ? `${base}?handoff=${encodeURIComponent(id)}` : base,
+          });
           reply({ ok: true });
           return;
         }

@@ -148,3 +148,74 @@ def test_check_endpoint_blocks_a_stamped_file(client: TestClient) -> None:
     )
     assert r.status_code == 200, r.text
     assert r.json()["action"] == "block"
+
+
+def _inspect(client: TestClient, *, company_ai: bool, data: bytes) -> dict:  # type: ignore[type-arg]
+    return client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "u-ai",
+            "team": "Finance",
+            "model": "m",
+            "company_ai": company_ai,
+            "messages": [{"role": "user", "content": "summarise this"}],
+            "attachments": [
+                {"filename": "r.pdf", "content_base64": base64.b64encode(data).decode()}
+            ],
+        },
+    ).json()
+
+
+def test_company_ai_answers_a_stamped_file_locally_and_returns_its_text(client: TestClient) -> None:
+    r = _inspect(client, company_ai=True, data=pdf_with_text(STAMPED))
+    assert r["decision"] == "local"
+    assert r["attachment_texts"][0]["filename"] == "r.pdf"
+    assert "RESTRICTED" in r["attachment_texts"][0]["text"]
+
+
+def test_outside_tools_still_block_it_and_get_no_text_back(client: TestClient) -> None:
+    r = _inspect(client, company_ai=False, data=pdf_with_text(STAMPED))
+    assert r["decision"] == "block"
+    assert r["attachment_texts"] == []
+
+
+def test_handoff_is_given_out_once(client: TestClient) -> None:
+    body = {"text": "secret plan", "attachments": []}
+    ident = client.post("/v1/handoff", json=body).json()["id"]
+    assert client.get(f"/v1/handoff/{ident}").json()["text"] == "secret plan"
+    assert client.get(f"/v1/handoff/{ident}").status_code == 404
+
+
+def test_ask_local_reads_an_attached_file(client: TestClient) -> None:
+    r = client.post(
+        "/v1/ask-local",
+        json={
+            "prompt": "summarise",
+            "attachments": [
+                {
+                    "filename": "a.pdf",
+                    "content_base64": base64.b64encode(pdf_with_text("Lunch on Friday")).decode(),
+                }
+            ],
+        },
+    )
+    assert r.status_code == 200
+
+
+def test_gateway_turns_file_blocks_into_text_for_the_company_ai() -> None:
+    b64 = base64.b64encode(b"%PDF-1.4").decode()
+    data = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "summarise"},
+                    {"type": "file", "file": {"filename": "a.pdf", "file_data": b64}},
+                ],
+            }
+        ]
+    }
+    dna.inline_files(data, [{"filename": "a.pdf", "text": "Q4 numbers"}])
+    blocks = data["messages"][0]["content"]
+    assert [b["type"] for b in blocks] == ["text", "text"]
+    assert "Q4 numbers" in blocks[1]["text"]

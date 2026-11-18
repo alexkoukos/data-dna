@@ -60,7 +60,11 @@ export type Msg =
       offline?: boolean;
     }
   | { type: "visit"; tool: string; host: string }
-  | { type: "openPanel"; prompt: string }
+  | {
+      type: "openPanel";
+      prompt: string;
+      attachments?: { filename: string; content_base64: string }[];
+    }
   | { type: "askLocal"; prompt: string }
   | { type: "override"; reason: string; tool: string; host: string }
   | { type: "policy"; force?: boolean }

@@ -15,7 +15,8 @@ export interface FileGuardOptions {
   /** Asks the company server. Null means it could not be reached. */
   check: (attachments: Attachment[]) => Promise<Partial<CheckResult> | null>;
   onEvent: (action: string, category?: string) => void;
-  onOpenCompanyAi: () => void;
+  /** Opens the company AI with these files, so they are not lost. */
+  onOpenCompanyAi: (attachments: Attachment[]) => void;
 }
 
 export async function toAttachment(file: File): Promise<Attachment> {
@@ -48,7 +49,8 @@ export function installFileGuard(opts: FileGuardOptions): void {
   async function guard(files: File[], release: () => void, drop: () => void) {
     const list = readable(files);
     if (!list.length) return release();
-    const out = await opts.check(await Promise.all(list.map(toAttachment)));
+    const attachments = await Promise.all(list.map(toAttachment));
+    const out = await opts.check(attachments);
     if (!out || !out.action || out.action === "allow") return release();
     opts.onEvent(out.action, out.findings?.[0]?.category ?? "document");
     const reasons = out.reasons?.length
@@ -78,7 +80,7 @@ export function installFileGuard(opts: FileGuardOptions): void {
       title: "File not attached",
       reasons: [
         "This file is confidential and must stay inside the company.",
-        "Use the company AI to work with it.",
+        "The company AI can read it safely. Open it there and your file comes with you.",
       ],
       details: reasons,
       buttons: [
@@ -86,7 +88,7 @@ export function installFileGuard(opts: FileGuardOptions): void {
         { id: "ask", label: "Open company AI", kind: "primary" },
       ],
     });
-    if (choice.id === "ask") opts.onOpenCompanyAi();
+    if (choice.id === "ask") opts.onOpenCompanyAi(attachments);
   }
 
   // File picker.

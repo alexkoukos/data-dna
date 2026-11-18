@@ -37,7 +37,14 @@ import { cn } from "@/lib/utils";
 import { Bee } from "../components/Bee";
 import { OutcomeChip } from "../components/OutcomeChip";
 import { WarnCard } from "../components/WarnCard";
-import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
+import {
+  ensureIdentity,
+  sendChat,
+  takeHandoff,
+  type ChatAttachment,
+  type ChatTurn,
+  type Identity,
+} from "../lib/chatApi";
 import { PROMPT_GROUPS } from "../lib/chatPrompts";
 import {
   loadChats,
@@ -192,6 +199,8 @@ export default function ChatPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [handoffNote, setHandoffNote] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
   const [rated, setRated] = useState<number | null>(null);
   const [category, setCategory] = useState("");
@@ -204,6 +213,24 @@ export default function ChatPage() {
   const counter = useRef(0);
 
   useEffect(() => saveChats(chats), [chats]);
+
+  // Hive stopped a message or a file in the browser and passed it here: it arrives in the box.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("handoff");
+    if (!id) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    void takeHandoff(id).then((h) => {
+      if (!h) {
+        setHandoffNote("That hand-off has expired. Paste or add it again.");
+        return;
+      }
+      setDraft(h.text || (h.attachments.length ? "Summarise this file." : ""));
+      setAttachments(h.attachments);
+      setHandoffNote(
+        "Moved here from the browser. This chat stays inside the company. Press Send when you are ready.",
+      );
+    });
+  }, []);
 
   const active = chats.find((c) => c.id === activeId) ?? null;
   const turns = active?.turns ?? [];
@@ -219,8 +246,12 @@ export default function ChatPage() {
 
   /** Sends `text` as a new turn, or retries the last question when `retry` is set. */
   const send = async (text: string, opts: { ack?: string; retry?: boolean } = {}) => {
-    const clean = text.trim();
+    const clean = text.trim() || (attachments.length ? "Summarise this file." : "");
     if (!clean || busy) return;
+    const files = opts.retry ? [] : attachments;
+    const shown = files.length
+      ? `${clean}\n\n[Attached: ${files.map((f) => f.filename).join(", ")}]`
+      : clean;
     let id = activeId;
     if (!id) {
       const c = newChat();
@@ -233,14 +264,19 @@ export default function ChatPage() {
     const before = id === activeId ? turnsOf(id) : [];
     const base: StoredTurn[] = opts.retry
       ? before.slice(0, before.findLastIndex((t) => t.from === "user") + 1)
-      : [...before, { id: makeId(), from: "user", text: clean }];
+      : [...before, { id: makeId(), from: "user", text: shown }];
     const first = before.length === 0;
     update(id, (c) => ({ turns: base, title: first && !opts.retry ? titleFrom(clean) : c.title }));
-    if (!opts.retry) setDraft("");
+    if (!opts.retry) {
+      setDraft("");
+      setAttachments([]);
+      setHandoffNote("");
+    }
     const history: ChatTurn[] = base.map((t) => ({ role: t.from, content: t.text }));
+    if (files.length) history[history.length - 1].content = clean;
     try {
       identity.current ??= await ensureIdentity();
-      const res = await sendChat(identity.current, history, opts.ack);
+      const res = await sendChat(identity.current, history, opts.ack, files);
       if (res.kind === "answer")
         append(id, {
           from: "assistant",
@@ -343,7 +379,14 @@ export default function ChatPage() {
                 onChange={setDraft}
                 onSend={() => void send(draft)}
                 busy={busy}
+                attachments={attachments}
+                onAttachmentsChange={setAttachments}
               />
+              {handoffNote ? (
+                <p role="status" className="mt-2 px-2 text-sm text-ink-700">
+                  {handoffNote}
+                </p>
+              ) : null}
               <div className="mt-4 min-h-24">
                 {group ? (
                   <div className="flex w-full flex-col space-y-1">
@@ -523,7 +566,14 @@ export default function ChatPage() {
                   onChange={setDraft}
                   onSend={() => void send(draft)}
                   busy={busy}
+                  attachments={attachments}
+                  onAttachmentsChange={setAttachments}
                 />
+                {handoffNote ? (
+                  <p role="status" className="mt-2 px-2 text-sm text-ink-700">
+                    {handoffNote}
+                  </p>
+                ) : null}
               </div>
             </div>
           </>

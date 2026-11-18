@@ -14,7 +14,15 @@ class Attachment(BaseModel):
     content_base64: str
 
 
+class AttachmentText(BaseModel):
+    filename: str
+    text: str
+
+
 class InspectRequest(BaseModel):
+    # True when the request comes from the company's own AI, which keeps data inside. A stamped
+    # file is then answered locally instead of blocked, and the text of each file is returned.
+    company_ai: bool = False
     user_id: str = "anonymous"
     team: str = "unknown"
     model: str = "default"
@@ -57,6 +65,7 @@ class InspectResponse(BaseModel):
     trace: list[TraceStep] = Field(default_factory=list)
     shadow_decision: str | None = None
     suggested_rewrite: str | None = None
+    attachment_texts: list[AttachmentText] = Field(default_factory=list)
 
 
 class UnmaskRequest(BaseModel):

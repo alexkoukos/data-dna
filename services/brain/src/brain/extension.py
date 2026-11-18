@@ -5,6 +5,8 @@ the gateway uses, plus who is asking and which AI site it is. Visit events carry
 time, never page or prompt text.
 """
 
+import base64
+import binascii
 import hashlib
 import logging
 import secrets
@@ -22,6 +24,7 @@ from sqlalchemy.engine import Engine
 from brain.api.schemas import Attachment, InspectRequest, Message
 from brain.config import settings
 from brain.db import tables as t
+from brain.documents.extract import ExtractError, extract_text
 from brain.policy import groups
 from brain.policy.store import audit_table
 from brain.records import record_decision, user_row_id
@@ -516,7 +519,8 @@ def demo_users() -> list[dict[str, str]]:
 
 
 class AskLocalRequest(BaseModel):
-    prompt: str = Field(max_length=20_000)
+    prompt: str = Field(default="", max_length=20_000)
+    attachments: list[Attachment] = Field(default_factory=list, max_length=5)
 
 
 class AskLocalResponse(BaseModel):
@@ -532,12 +536,20 @@ def ask_local(req: AskLocalRequest) -> AskLocalResponse:
     If the local model is not running (it is optional, `make local`), a clearly labelled stand-in
     answer is returned, so the demo path still works.
     """
+    prompt = req.prompt
+    for a in req.attachments:
+        try:
+            body = extract_text(a.filename, base64.b64decode(a.content_base64, validate=True))
+        except (binascii.Error, ValueError) as err:
+            msg = str(err) if isinstance(err, ExtractError) else "the file could not be decoded."
+            raise HTTPException(status_code=422, detail=f"{a.filename}: {msg}") from err
+        prompt += f"\n\n[File: {a.filename}]\n{body}"
     try:
         r = httpx.post(
             f"{settings.local_llm_url}/api/chat",
             json={
                 "model": "dna-local",
-                "messages": [{"role": "user", "content": req.prompt}],
+                "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
                 "options": {"num_predict": 300},
             },
@@ -591,3 +603,51 @@ def ingest_logs(req: LogsIn) -> dict[str, int]:
         for (day, tid, team), (n, users) in per.items():
             _bump_usage(conn, day, tid, team, requests=n, users=users)
     return {"rows": len(per)}
+
+
+# --- /v1/handoff ----------------------------------------------------------------------------
+# When Hive stops a message or a file, the person can open the company AI with it. The browser
+# cannot hand data to another page directly, so the text or file waits here for a few minutes,
+# on the company's own server, and is given out once.
+
+HANDOFF_TTL_S = 600
+HANDOFF_MAX = 50
+_handoffs: dict[str, tuple[float, "HandoffIn"]] = {}
+
+
+class HandoffIn(BaseModel):
+    text: str = Field(default="", max_length=200_000)
+    attachments: list[Attachment] = Field(default_factory=list, max_length=5)
+
+
+class HandoffOut(BaseModel):
+    id: str
+
+
+def _expire_handoffs() -> None:
+    now = time.monotonic()
+    for k in [k for k, (born, _) in _handoffs.items() if now - born > HANDOFF_TTL_S]:
+        del _handoffs[k]
+    while len(_handoffs) >= HANDOFF_MAX:
+        del _handoffs[min(_handoffs, key=lambda k: _handoffs[k][0])]
+
+
+@router.post("/v1/handoff", response_model=HandoffOut, status_code=201)
+def handoff_put(body: HandoffIn) -> HandoffOut:
+    """Keep a blocked text or file for the company AI. Ten minutes, one reading."""
+    _expire_handoffs()
+    ident = secrets.token_urlsafe(16)
+    _handoffs[ident] = (time.monotonic(), body)
+    return HandoffOut(id=ident)
+
+
+@router.get("/v1/handoff/{ident}", response_model=HandoffIn)
+def handoff_take(ident: str) -> HandoffIn:
+    _expire_handoffs()
+    found = _handoffs.pop(ident, None)
+    if found is None:
+        raise HTTPException(
+            status_code=404,
+            detail="This hand-off has expired or was already opened. Send it from the page again.",
+        )
+    return found[1]
