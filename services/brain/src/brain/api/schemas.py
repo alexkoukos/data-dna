@@ -385,8 +385,9 @@ class Attempt(BaseModel):
 class ExtensionInspect(BaseModel):
     """What the browser extension sends. Who the user is comes from the key, never from here."""
 
-    text: str = Field(max_length=200_000)
+    text: str = Field(default="", max_length=200_000)
     model: str = Field(default="ChatGPT (personal)", max_length=80)
+    attachments: list[Attachment] = Field(default_factory=list, max_length=5)
 
 
 class ExtensionVerdict(BaseModel):

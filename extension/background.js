@@ -12,7 +12,7 @@ async function call(path, init) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
       },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(20000),
     });
     const body = await res.json().catch(() => ({}));
     return res.ok
@@ -27,7 +27,11 @@ async function handle(msg) {
   if (msg.type === "inspect") {
     const out = await call("/v1/extension/inspect", {
       method: "POST",
-      body: JSON.stringify({ text: msg.text, model: "ChatGPT (personal)" }),
+      body: JSON.stringify({
+        text: msg.text,
+        attachments: msg.attachments || [],
+        model: msg.site === "claude.ai" ? "Claude (personal)" : "ChatGPT (personal)",
+      }),
     });
     // Count only what was acted on. Shadow mode changes nothing, so it counts nothing.
     if (out.ok && !out.body.shadow) await bump(out.body.decision);

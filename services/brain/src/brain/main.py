@@ -132,6 +132,7 @@ from brain.dna.marks import Mark, propose_marks
 from brain.documents.embeddings import E5Embedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
+from brain.documents.marking import find_marking
 from brain.documents.registry import DocumentIndex, register_document
 from brain.documents.session import update_coverage
 from brain.honeytokens import (
@@ -327,20 +328,35 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def _attachment_text(req: InspectRequest) -> str:
-    """Text of every attached file, appended to the message so one pipeline checks both."""
-    parts: list[str] = []
+def _attachment_parts(req: InspectRequest) -> list[tuple[str, str]]:
+    """(file name, text) of every attached file."""
+    parts: list[tuple[str, str]] = []
     for a in req.attachments:
         try:
             data = base64.b64decode(a.content_base64, validate=True)
-            parts.append(extract_text(a.filename, data))
+            parts.append((a.filename, extract_text(a.filename, data)))
         except (binascii.Error, ValueError) as err:
             raise HTTPException(
                 status_code=422,
                 detail=f"{a.filename}: "
                 + (str(err) if isinstance(err, ExtractError) else "the file could not be decoded."),
             ) from err
-    return "\n\n" + "\n\n".join(parts) if parts else ""
+    return parts
+
+
+def _attachment_text(parts: list[tuple[str, str]]) -> str:
+    """Text of every attached file, appended to the message so one pipeline checks both."""
+    return "\n\n" + "\n\n".join(t for _, t in parts) if parts else ""
+
+
+def _stamped_files(parts: list[tuple[str, str]]) -> list[str]:
+    """Reasons for every attached file that carries a classification stamp."""
+    out = []
+    for name, text in parts:
+        stamp = find_marking(text)
+        if stamp:
+            out.append(f"The file {name} is marked {stamp}; marked files stay inside the company")
+    return out
 
 
 def _attribute_copy(result: InspectResult, text: str) -> str | None:
@@ -419,7 +435,8 @@ def inspect(
     if last is None:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
     clock = time.perf_counter()
-    attached = _attachment_text(req)
+    parts = _attachment_parts(req)
+    attached = _attachment_text(parts)
     result = inspect_text(
         last.content + attached,
         groups.effective(policy_store.engine, policy_store.current(), req.user_id, req.team),
@@ -428,6 +445,12 @@ def inspect(
         view_finders=[find_yara, injection_finder],
         priority_finder=_honeytokens().find,
     )
+    stamped = _stamped_files(parts)
+    if stamped:
+        # A stamped file never goes out. Keep "local" when the policy already chose it.
+        if result.verdict.decision != Decision.LOCAL:
+            result.verdict.decision = Decision.BLOCK
+        result.verdict.reasons.extend(stamped)
     decoys = _decoy_alarm(result)
     t_checks = time.perf_counter()
     reasons_before = len(result.verdict.reasons)
@@ -586,6 +609,7 @@ def extension_inspect(
             tool=body.model,
             channel="browser",
             messages=[Message(role="user", content=body.text)],
+            attachments=body.attachments,
         ),
         background,
         response,

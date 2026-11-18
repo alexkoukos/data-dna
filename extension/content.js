@@ -1,8 +1,10 @@
-// Pyli on chatgpt.com: check paste and send in the composer before the text leaves the page.
+// Pyli on chatgpt.com and claude.ai: check paste and send in the composer, and every file attached
+// (picker, drag and drop, paste), before it leaves the page.
 // Fails open: if the gate cannot be reached nothing is blocked, and a small badge says so.
 (() => {
-  const COMPOSER = "#prompt-textarea";
-  const SEND = '[data-testid="send-button"], button[aria-label="Send prompt"]';
+  const COMPOSER = '#prompt-textarea, div.ProseMirror[contenteditable="true"]';
+  const SEND =
+    '[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label="Send message"]';
   const COMPANY_AI = "Company AI";
   let passing = false; // set while we re-send a message we already checked
   let busy = false;
@@ -100,12 +102,19 @@
   let host = null;
   function ensureHost() {
     const field = composer();
-    if (!field) return null;
-    const anchor = field.closest("form") || field.parentElement;
     if (!host) {
       host = document.createElement("pyli-host");
       host.attachShadow({ mode: "open" });
     }
+    if (!field) {
+      // Sites whose composer we do not know (claude.ai): float the card above the page.
+      host.style.cssText =
+        "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);width:min(560px,92vw);z-index:2147483647";
+      if (!host.isConnected) document.body.append(host);
+      return host.shadowRoot;
+    }
+    host.style.cssText = "";
+    const anchor = field.closest("form") || field.parentElement;
     if (
       host.parentElement !== anchor.parentElement ||
       host.previousElementSibling !== anchor
@@ -190,8 +199,8 @@
 
   // ---- the decision ---------------------------------------------------------------------
   /** Ask the gate. Returns the verdict, or null when it should fail open. */
-  async function check(text) {
-    const out = await ask({ type: "inspect", text });
+  async function check(text, attachments = []) {
+    const out = await ask({ type: "inspect", text, attachments, site: location.hostname });
     if (out.ok) {
       clear();
       const v = out.body;
@@ -279,6 +288,143 @@
         );
       }
       blockCard(v); // block and local: the text is not pasted
+    },
+    true,
+  );
+
+  // ---- files ----------------------------------------------------------------------------
+  const READABLE = /\.(pdf|docx|txt|md|csv|json|log|png|jpe?g)$/i;
+  const MAX_BYTES = 10 * 1024 * 1024;
+
+  async function toAttachment(file) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000)
+      bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return { filename: file.name, content_base64: btoa(bin) };
+  }
+
+  /** Check files before the page sees them. Calls release() to let them through, drop() when not. */
+  async function guardFiles(files, release, drop) {
+    const list = files.filter((f) => READABLE.test(f.name) && f.size <= MAX_BYTES);
+    if (!list.length) return release();
+    const v = await check("", await Promise.all(list.map(toAttachment)));
+    if (!v || v.decision === "allow") return release();
+    if (v.decision === "warn" || v.decision === "mask") {
+      return show(
+        "warn",
+        "Check before attaching",
+        ["This file may contain sensitive data."],
+        v.reasons,
+        [
+          button("Remove file", () => {
+            clear();
+            drop();
+          }, true),
+          button("Attach anyway", async () => {
+            await ask({ type: "ack", reason: "attached anyway from the browser" });
+            clear();
+            release();
+          }),
+        ],
+      );
+    }
+    drop();
+    show(
+      "block",
+      "File not attached",
+      [
+        "This file is confidential and must stay inside the company.",
+        `Use ${v.alternative || COMPANY_AI} instead.`,
+      ],
+      v.reasons,
+      [companyAiLink(v.alternative_url)],
+    );
+  }
+
+  function transfer(files) {
+    const dt = new DataTransfer();
+    for (const f of files) dt.items.add(f);
+    return dt;
+  }
+
+  // File picker. The files are held back until the gate has answered.
+  document.addEventListener(
+    "change",
+    (e) => {
+      const input = e.target;
+      if (passing || !(input instanceof HTMLInputElement) || input.type !== "file") return;
+      const files = [...(input.files || [])];
+      if (!files.length) return;
+      e.stopImmediatePropagation();
+      guardFiles(
+        files,
+        () => {
+          passing = true;
+          try {
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+          } finally {
+            passing = false;
+          }
+        },
+        () => {
+          input.value = "";
+        },
+      );
+    },
+    true,
+  );
+
+  // Drag and drop.
+  document.addEventListener(
+    "drop",
+    (e) => {
+      const files = [...(e.dataTransfer?.files || [])];
+      if (passing || !files.length) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const target = e.target;
+      guardFiles(
+        files,
+        () => {
+          passing = true;
+          try {
+            target.dispatchEvent(
+              new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer(files) }),
+            );
+          } finally {
+            passing = false;
+          }
+        },
+        () => {},
+      );
+    },
+    true,
+  );
+
+  // Paste of a file (a copied PDF). Text paste is handled above.
+  document.addEventListener(
+    "paste",
+    (e) => {
+      const files = [...(e.clipboardData?.files || [])];
+      if (passing || !files.length || e.clipboardData?.getData("text/plain")) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const target = e.target;
+      guardFiles(
+        files,
+        () => {
+          passing = true;
+          try {
+            target.dispatchEvent(
+              new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: transfer(files) }),
+            );
+          } finally {
+            passing = false;
+          }
+        },
+        () => {},
+      );
     },
     true,
   );

@@ -60,6 +60,68 @@ def _blocks_text(content: Any) -> tuple[str, bool]:
     return "\n".join(p for p in parts if p), other
 
 
+_SUFFIX = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "text/plain": ".txt",
+    "text/markdown": ".md",
+    "text/csv": ".csv",
+}
+
+
+def _data_url(value: str) -> tuple[str, str]:
+    """(media type, base64) of a data URL; a bare string is taken as base64 of a PDF."""
+    if value.startswith("data:") and "," in value:
+        head, _, body = value.partition(",")
+        return head[5:].split(";")[0] or "application/pdf", body
+    return "application/pdf", value
+
+
+def _file_block(block: dict[str, Any], index: int) -> dict[str, str] | None:
+    """A file a person attached (OpenAI `file`, Responses `input_file`, Anthropic `document`)
+    as {filename, content_base64}, or None when the block is not a file we can read."""
+    kind = block.get("type")
+    name, media, data = "", "application/pdf", ""
+    if kind == "file" and isinstance(block.get("file"), dict):
+        f = block["file"]
+        name, data = str(f.get("filename", "")), str(f.get("file_data", ""))
+        media, data = _data_url(data) if data else (media, "")
+    elif kind == "input_file":
+        name, data = str(block.get("filename", "")), str(block.get("file_data", ""))
+        media, data = _data_url(data) if data else (media, "")
+    elif kind == "document" and isinstance(block.get("source"), dict):
+        src = block["source"]
+        if src.get("type") == "base64":
+            media, data = str(src.get("media_type", media)), str(src.get("data", ""))
+            name = str(block.get("title", ""))
+    if not data:
+        return None
+    if not name:
+        name = f"attachment-{index + 1}{_SUFFIX.get(media, '.pdf')}"
+    return {"filename": name[:200], "content_base64": data}
+
+
+def attached_files(data: dict[str, Any], call_type: str) -> list[dict[str, str]]:
+    """Files in the last user message, so the brain can read and check them. Without this a
+    confidential PDF would pass as an opaque block, because only text is inspected."""
+    if call_type in EMBEDDING_CALLS:
+        return []
+    items = data.get("input") if call_type in RESPONSES_CALLS else data.get("messages")
+    if not isinstance(items, list):
+        return []
+    users = [m for m in items if isinstance(m, dict) and m.get("role", "user") == "user"]
+    content = users[-1].get("content") if users else None
+    if not isinstance(content, list):
+        return []
+    out = []
+    for block in content:
+        if isinstance(block, dict):
+            f = _file_block(block, len(out))
+            if f:
+                out.append(f)
+    return out
+
+
 def inspection_view(data: dict[str, Any], call_type: str) -> tuple[list[dict[str, str]], bool]:
     """The request as plain chat messages for the brain, and whether it has parts that cannot
     be masked in place."""
@@ -140,6 +202,9 @@ async def apply_decision(
         "model": str(data.get("model", "default")),
         "messages": messages,
     }
+    files = attached_files(data, call_type)
+    if files:
+        payload["attachments"] = files
     if _reroute_asked(headers):
         payload["reroute"] = True
     try:

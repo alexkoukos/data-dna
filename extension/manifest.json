@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Pyli for personal AI tools",
   "version": "0.1.0",
-  "description": "Checks what you paste or send into personal ChatGPT against your company's Pyli gate, before it leaves the page.",
+  "description": "Checks what you paste or send into personal ChatGPT or Claude, and the files you attach, against your company's Pyli gate, before it leaves the page.",
   "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/16.png",
@@ -17,13 +17,13 @@
   "options_ui": { "page": "options.html", "open_in_tab": true },
   "content_scripts": [
     {
-      "matches": ["https://chatgpt.com/*"],
+      "matches": ["https://chatgpt.com/*", "https://claude.ai/*"],
       "css": ["palette.css", "content.css"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["brand/*.svg", "fonts/*.woff2"], "matches": ["https://chatgpt.com/*"] }
+    { "resources": ["brand/*.svg", "fonts/*.woff2"], "matches": ["https://chatgpt.com/*", "https://claude.ai/*"] }
   ]
 }
