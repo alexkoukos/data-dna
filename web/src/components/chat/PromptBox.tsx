@@ -94,7 +94,7 @@ export function PromptBox({
           <PromptInputTextarea
             aria-label="Your question"
             placeholder={placeholder}
-            className="min-h-[44px] pt-3 pl-4 text-base leading-[1.3] outline-none focus-visible:shadow-none focus-visible:outline-none sm:text-base md:text-base"
+            className="prompt-textarea min-h-[44px] pt-3 pl-4 text-base leading-[1.3] outline-none focus-visible:shadow-none focus-visible:outline-none sm:text-base md:text-base"
           />
           <PromptInputActions className="mt-3 flex w-full items-center justify-between gap-2 px-3 pb-3">
             <div className="flex items-center gap-2">

@@ -307,3 +307,9 @@ details[open] > :not(summary) {
     transition: none !important;
   }
 }
+
+/* The prompt box shows its own focus border, so the textarea inside it drops the global ring */
+.prompt-textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
