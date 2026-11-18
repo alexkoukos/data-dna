@@ -207,6 +207,11 @@ def _code() -> CodeIndex:
     return _code_index
 
 
+def _expensive_finders() -> list[Finder]:
+    """The two models. They run last, and not at all when the cheap checks already block."""
+    return [injection_classifier.find, entity_detector.find]
+
+
 def _finders() -> list[Finder]:
     """Looser detectors that run after the checksum checks: people, emails, phones, clients."""
     global _client_store
@@ -726,6 +731,7 @@ def _inspect_group(
     view_finders: list[Finder],
     doc_match: Callable[..., list[DocMatch]],
     mask_injection: bool = True,
+    early_stop: bool = False,
 ) -> tuple[InspectResult, list[str] | None, list[str]]:
     """Inspect several texts in one call. Returns the result, masked texts and normalised texts.
 
@@ -743,6 +749,8 @@ def _inspect_group(
         view_finders=view_finders,
         placeholders=placeholders,
         mask_injection=mask_injection,
+        expensive=_expensive_finders(),
+        early_stop=early_stop,
     )
     masked = result.masked_text.split(_SEGMENT_JOIN)
     normalised = result.text.split(_SEGMENT_JOIN)
@@ -909,6 +917,8 @@ def inspect(
             finders=finders,
             view_finders=[find_yara, injection_finder],
             doc_match=documents.match,
+            # A reroute needs every finding to mask them all, so it never stops early.
+            early_stop=not req.reroute,
         )
         first = _Pass(r1, new_idx, m1, n1)
         passes.append(first)

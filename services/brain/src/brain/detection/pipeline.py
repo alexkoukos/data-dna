@@ -1,6 +1,6 @@
 """Run all checks on one prompt, cheapest first. Document checks plug in here later."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 
 from brain.detection.normalize import normalise
@@ -56,7 +56,16 @@ def inspect_text(
     view_finders: Sequence[Finder] = (),
     placeholders: Mapping[str, str] | None = None,
     mask_injection: bool = True,
+    expensive: Collection[Finder] = (),
+    early_stop: bool = False,
 ) -> InspectResult:
+    """Run every check on one text.
+
+    With `early_stop`, the cheap finders run first and the `expensive` ones (models) only run if
+    the cheap ones did not already decide to block; the document matcher is skipped on a block
+    too. Findings are always merged in the order of `finders`, so when nothing blocks the result
+    is exactly the same as without `early_stop`.
+    """
     norm = normalise(text)
     findings = find_patterns(norm.text)
     if priority_finder is not None:
@@ -64,8 +73,35 @@ def inspect_text(
         # ordinary secret finding, so the alarm names a leaked document, not just "a key".
         decoys = priority_finder(norm.text)
         findings = _add_without_overlap(decoys, findings)
-    for finder in finders:
-        findings = _add_without_overlap(findings, finder(norm.text))
+    stopped = False
+    if early_stop and expensive:
+        found: dict[int, list[Finding]] = {
+            n: f(norm.text) for n, f in enumerate(finders) if f not in expensive
+        }
+
+        def merged(base: list[Finding]) -> list[Finding]:
+            for n in sorted(found):
+                base = _add_without_overlap(base, found[n])
+            return base
+
+        quick = merged(findings)
+        stopped = (
+            decide(
+                [f.category for f in quick],
+                evasion_signals=norm.evasion_signals,
+                category_actions=policies.categories if policies else None,
+                sensitivity_actions=policies.sensitivity if policies else None,
+            ).decision
+            == Decision.BLOCK
+        )
+        if not stopped:
+            for n, f in enumerate(finders):
+                if n not in found:
+                    found[n] = f(norm.text)
+        findings = merged(findings)
+    else:
+        for finder in finders:
+            findings = _add_without_overlap(findings, finder(norm.text))
     hidden: list[Finding] = []
     for view in norm.extra_views:
         hidden.extend(find_patterns(view))
@@ -75,8 +111,8 @@ def inspect_text(
         for vf in view_finders:
             hidden.extend(vf(view))
     categories = [f.category for f in findings + hidden]
-    doc_matches = doc_matcher(norm.text) if doc_matcher else []
-    if doc_matcher and not doc_matches and "client_name" in categories:
+    doc_matches = doc_matcher(norm.text) if doc_matcher and not stopped else []
+    if doc_matcher and not stopped and not doc_matches and "client_name" in categories:
         # The name of the counterparty in a document's title, plus a near miss against that
         # document, is two signals, not one.
         names = [f.value for f in findings + hidden if f.category == "client_name"]
