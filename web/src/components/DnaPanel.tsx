@@ -9,9 +9,8 @@ import {
 } from "../lib/securityApi";
 import { ErrorPanel, Skeleton } from "./ui";
 import { useFetch } from "../lib/useFetch";
-
-const primary =
-  "min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Sparkles } from "lucide-react";
 
 /** Per-copy marks for one document: propose, approve, issue copies, open a copy. */
 export function DnaPanel({ documentId }: { documentId: number }) {
@@ -60,10 +59,11 @@ export function DnaPanel({ documentId }: { documentId: number }) {
                   </li>
                 ))}
               </ul>
-              <button
+              <TextureButton
                 type="button"
                 disabled={busy}
-                className={`${primary} mt-3`}
+                variant="primary"
+                className="mt-3"
                 onClick={() =>
                   run(async () => {
                     await approveMarks(documentId, proposal);
@@ -73,17 +73,19 @@ export function DnaPanel({ documentId }: { documentId: number }) {
                 }
               >
                 Approve these {proposal.length} marks
-              </button>
+              </TextureButton>
             </>
           ) : (
-            <button
+            <TextureButton
               type="button"
               disabled={busy}
-              className={`${primary} mt-2`}
+              variant="primary"
+              className="mt-2"
               onClick={() => run(async () => setProposal((await proposeMarks(documentId)).marks))}
             >
+              <Sparkles className="size-4" aria-hidden="true" />
               Suggest marks
-            </button>
+            </TextureButton>
           )}
         </>
       ) : (
@@ -101,10 +103,11 @@ export function DnaPanel({ documentId }: { documentId: number }) {
               className="mt-1 w-full rounded-lg border border-ink-300 px-3 py-2 text-sm text-ink-900"
             />
           </label>
-          <button
+          <TextureButton
             type="button"
             disabled={busy || names.length === 0}
-            className={`${primary} mt-2`}
+            variant="primary"
+            className="mt-2"
             onClick={() =>
               run(async () => {
                 setIssued(await issueCopies(documentId, names));
@@ -114,7 +117,7 @@ export function DnaPanel({ documentId }: { documentId: number }) {
             }
           >
             Issue copies
-          </button>
+          </TextureButton>
           {issued.length > 0 ? (
             <ul className="mt-3 space-y-1 text-sm text-ink-900">
               {issued.map((c) => (

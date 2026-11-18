@@ -10,6 +10,7 @@ import {
 import { formatNumber } from "../../lib/format";
 import { fetchInventory, type Tool } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
+import { TextureButton } from "@/components/ui/texture-button";
 
 type Filter = "all" | Tool["approval"];
 const FILTERS: { id: Filter; label: string }[] = [
@@ -128,28 +129,28 @@ export default function ToolsPage() {
       </p>
       <div role="group" aria-label="Filter by approval" className="mt-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
-          <button
+          <TextureButton
             key={f.id}
             type="button"
             aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
-            className={`min-h-11 rounded-md border px-3 text-sm font-medium ${filter === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+            variant={filter === f.id ? "primary" : "secondary"}
           >
             {f.label} ({count(f.id)})
-          </button>
+          </TextureButton>
         ))}
       </div>
       <div role="group" aria-label="Filter by source" className="mt-2 flex flex-wrap gap-2">
         {SOURCE_FILTERS.map((f) => (
-          <button
+          <TextureButton
             key={f.id}
             type="button"
             aria-pressed={source === f.id}
             onClick={() => setSource(f.id)}
-            className={`min-h-11 rounded-md border px-3 text-sm font-medium ${source === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+            variant={source === f.id ? "primary" : "secondary"}
           >
             {f.label}
-          </button>
+          </TextureButton>
         ))}
       </div>
       {shown.length === 0 ? (

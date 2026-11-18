@@ -2,6 +2,8 @@ import { useState } from "react";
 import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
 import { askFree, askPreset, fetchPresets, type Answer } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
+import { TextureButton } from "@/components/ui/texture-button";
+import { SendHorizontal } from "lucide-react";
 
 const HEADINGS: Record<string, string> = {
   team: "Team",
@@ -121,15 +123,16 @@ export default function AskPage() {
       <ul className="mt-4 grid gap-2 sm:grid-cols-2">
         {presets.data.map((p) => (
           <li key={p.id}>
-            <button
+            <TextureButton
               type="button"
               aria-pressed={active === p.id}
               disabled={busy}
               onClick={() => ask(p.id)}
-              className={`min-h-11 w-full rounded-md border px-4 py-3 text-left text-sm font-medium ${active === p.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-900 hover:bg-ink-100"}`}
+              variant={active === p.id ? "primary" : "secondary"}
+              className="w-full text-left"
             >
               {p.question}
-            </button>
+            </TextureButton>
           </li>
         ))}
       </ul>
@@ -154,13 +157,10 @@ export default function AskPage() {
             onChange={(e) => setTyped(e.target.value)}
             className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
           />
-          <button
-            type="submit"
-            disabled={busy || typed.trim().length < 3}
-            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-          >
+          <TextureButton type="submit" disabled={busy || typed.trim().length < 3} variant="primary">
+            <SendHorizontal className="size-4" aria-hidden="true" />
             Ask
-          </button>
+          </TextureButton>
         </div>
       </form>
       {busy ? (

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { explainReason } from "../lib/explain";
 import { AlertIcon } from "./icons";
-import { Thyro } from "./Thyro";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Bee } from "./Bee";
+import { Pencil, SendHorizontal, ShieldCheck, X } from "lucide-react";
 
 interface Props {
   reasons: string[];
@@ -31,7 +33,7 @@ export function WarnCard({
       className="rounded-lg border border-warn-fg/30 bg-warn-bg p-4 text-warn-fg"
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Thyro pose="warn" size={200} />
+        <Bee size={80} />
         <div className="min-w-0 flex-1">
           <h2 id="warn-title" className="flex items-center gap-2 text-base font-semibold">
             <AlertIcon />
@@ -66,43 +68,33 @@ export function WarnCard({
       />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {suggestion && onUseSuggestion ? (
-          <button
-            type="button"
-            onClick={onUseSuggestion}
-            disabled={busy}
-            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-          >
+          <TextureButton type="button" onClick={onUseSuggestion} disabled={busy} variant="primary">
+            <ShieldCheck className="size-4" aria-hidden="true" />
             Send the safer version
-          </button>
+          </TextureButton>
         ) : null}
-        <button
+        <TextureButton
           type="button"
           onClick={onEdit}
           disabled={busy}
-          className={
-            suggestion && onUseSuggestion
-              ? "min-h-11 rounded-md border border-warn-fg/40 bg-white px-4 text-sm font-semibold text-warn-fg hover:bg-ink-50 disabled:opacity-60"
-              : "min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-          }
+          variant={suggestion && onUseSuggestion ? "secondary" : "primary"}
         >
+          <Pencil className="size-4" aria-hidden="true" />
           Edit message
-        </button>
-        <button
+        </TextureButton>
+        <TextureButton
+          variant="secondary"
           type="button"
           onClick={() => onSendAnyway(reason.trim())}
           disabled={busy || reason.trim().length === 0}
-          className="min-h-11 rounded-md border border-warn-fg/40 bg-white px-4 text-sm font-semibold text-warn-fg hover:bg-ink-50 disabled:opacity-60"
         >
+          <SendHorizontal className="size-4" aria-hidden="true" />
           Send anyway
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={busy}
-          className="min-h-11 rounded-md px-3 text-sm font-medium underline"
-        >
+        </TextureButton>
+        <TextureButton type="button" onClick={onCancel} disabled={busy} variant="minimal">
+          <X className="size-4" aria-hidden="true" />
           Cancel
-        </button>
+        </TextureButton>
       </div>
     </section>
   );

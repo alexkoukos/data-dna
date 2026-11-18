@@ -1,6 +1,5 @@
 import { Link, useParams } from "react-router-dom";
 import { OutcomeChip } from "../../components/OutcomeChip";
-import { Thyro } from "../../components/Thyro";
 import { WhyPanel } from "../../components/WhyPanel";
 import { SealedIdentity } from "../../components/SealedIdentity";
 import { ErrorPanel, Skeleton } from "../../components/ui";
@@ -8,6 +7,7 @@ import { explainReason } from "../../lib/explain";
 import { formatDateTime } from "../../lib/format";
 import { fetchIncidentDetail } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
+import { Bee } from "../../components/Bee";
 
 const WHAT_WE_DID = {
   allow: "The message went through unchanged.",
@@ -39,7 +39,7 @@ function Detail({ id }: { id: string }) {
         aria-labelledby="what-h"
         className="flex flex-wrap gap-6 rounded-lg border border-ink-200 bg-white p-4"
       >
-        <Thyro pose={incident.decision} size={240} />
+        <Bee size={96} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <OutcomeChip outcome={incident.decision} />

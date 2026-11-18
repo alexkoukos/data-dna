@@ -1,4 +1,4 @@
-import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { Link, NavLink, Route, Routes } from "react-router-dom";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
 import ExtensionPage from "./pages/ExtensionPage";
@@ -15,7 +15,6 @@ import OverviewPage from "./pages/security/OverviewPage";
 import PoliciesPage from "./pages/security/PoliciesPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
-import { Companion } from "./components/Companion";
 
 const links = [
   { to: "/extension", label: "Get the extension" },
@@ -25,7 +24,6 @@ const links = [
 ];
 
 export default function App() {
-  const { pathname } = useLocation();
   return (
     <div className="min-h-screen">
       <nav
@@ -34,10 +32,10 @@ export default function App() {
       >
         <Link
           to="/"
-          aria-label="Pyli home"
+          aria-label="Hive home"
           className="mr-4 flex min-h-11 min-w-11 items-center self-center"
         >
-          <img src="/pyli-logo.svg" alt="Pyli" className="h-8" />
+          <img src="/brand/hive-wordmark.svg" alt="Hive" className="h-8" />
         </Link>
         {links.map((l) => (
           <NavLink
@@ -69,7 +67,6 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
-      {pathname === "/" ? null : <Companion />}
     </div>
   );
 }

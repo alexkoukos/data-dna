@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { registerDocument } from "../lib/securityApi";
+import { TextureButton } from "@/components/ui/texture-button";
+import { FilePlus } from "lucide-react";
 
 const field =
   "mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900";
@@ -77,13 +79,15 @@ export function AddDocument({ onAdded }: { onAdded: () => void }) {
             className={`${field} py-2`}
           />
         </label>
-        <button
+        <TextureButton
           type="submit"
           disabled={busy || !title.trim() || (!file && !text.trim())}
-          className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          variant="primary"
+          className="mt-3"
         >
+          <FilePlus className="size-4" aria-hidden="true" />
           {busy ? "Adding…" : "Add the document"}
-        </button>
+        </TextureButton>
         {message ? (
           <p
             role={message.ok ? "status" : "alert"}

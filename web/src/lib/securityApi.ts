@@ -69,6 +69,18 @@ export const fetchIncidents = (decision: Decision | "all", offset: number, limit
   return get<IncidentPage>(`/v1/incidents?${q.toString()}`);
 };
 
+/** Newest incidents first, up to `max`, read in pages of 100 (the most the server returns at once). */
+export async function fetchRecentIncidents(max = 300): Promise<Incident[]> {
+  const first = await fetchIncidents("all", 0, 100);
+  const pages = Math.ceil(Math.min(first.total, max) / 100);
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, pages - 1) }, (_, i) =>
+      fetchIncidents("all", (i + 1) * 100, 100),
+    ),
+  );
+  return [first, ...rest].flatMap((p) => p.items);
+}
+
 export interface Policy {
   scope: "category" | "sensitivity";
   key: string;

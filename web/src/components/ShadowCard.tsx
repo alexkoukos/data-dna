@@ -1,4 +1,5 @@
 import type { ShadowStatus } from "../lib/securityApi";
+import { TextureButton } from "@/components/ui/texture-button";
 
 const ORDER = ["block", "local", "warn", "mask"] as const;
 
@@ -32,16 +33,17 @@ export function ShadowCard({
         Try your policies without stopping anyone. Every message goes through and the dashboard
         records what would have happened.
       </p>
-      <button
+      <TextureButton
+        variant="secondary"
         type="button"
         role="switch"
         aria-checked={status.enabled}
         disabled={busy}
         onClick={() => onToggle(!status.enabled)}
-        className="mt-3 min-h-11 rounded-md border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
+        className="mt-3"
       >
         {status.enabled ? "Shadow mode is on. Turn it off" : "Shadow mode is off. Turn it on"}
-      </button>
+      </TextureButton>
       <p className="mt-2 text-sm text-ink-700">
         {status.total === 0
           ? "Nothing recorded in shadow mode yet."

@@ -67,7 +67,7 @@ test("AI tools lists unapproved tools first and can filter", async ({ page }) =>
 
 test("get the extension: download link, five samples and a pairing code", async ({ page }) => {
   await page.goto("/extension");
-  await expect(page.getByRole("link", { name: /Download pyli-extension.zip/ })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: /Download hive-extension.zip/ })).toHaveAttribute(
     "href",
     "/extension.zip",
   );

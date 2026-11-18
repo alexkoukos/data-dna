@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { CheckIcon } from "./icons";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Eye, EyeOff } from "lucide-react";
 
 interface Props {
   label: string;
@@ -24,8 +26,6 @@ export function CopyField({ label, value, secret = false }: Props) {
     }
   }
 
-  const btn =
-    "min-h-11 min-w-11 rounded-md border border-ink-300 bg-white px-3 text-sm font-semibold text-ink-900 hover:bg-ink-100";
   return (
     <div>
       <label htmlFor={`f-${label}`} className="block text-sm font-semibold text-ink-900">
@@ -39,20 +39,25 @@ export function CopyField({ label, value, secret = false }: Props) {
           className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-ink-50 px-3 font-mono text-sm text-ink-900"
         />
         {secret && (
-          <button
+          <TextureButton
+            variant="secondary"
             type="button"
             aria-label={`${shown ? "Hide" : "Show"} ${label.toLowerCase()}`}
             onClick={() => setShown((s) => !s)}
-            className={btn}
           >
+            {shown ? (
+              <EyeOff className="size-4" aria-hidden="true" />
+            ) : (
+              <Eye className="size-4" aria-hidden="true" />
+            )}
             {shown ? "Hide" : "Show"}
-          </button>
+          </TextureButton>
         )}
-        <button
+        <TextureButton
+          variant="secondary"
           type="button"
           aria-label={`Copy ${label.toLowerCase()}`}
           onClick={copy}
-          className={btn}
         >
           {copied ? (
             <span className="inline-flex items-center gap-1.5">
@@ -61,7 +66,7 @@ export function CopyField({ label, value, secret = false }: Props) {
           ) : (
             "Copy"
           )}
-        </button>
+        </TextureButton>
       </div>
       <p role="status" className="sr-only">
         {copied ? `${label} copied` : ""}

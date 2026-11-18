@@ -8,6 +8,8 @@ import {
   type TryExample,
   type TryResult,
 } from "../lib/breakItApi";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Eraser, ScanSearch } from "lucide-react";
 
 function Verdict({ result }: { result: TryResult }) {
   const caught = result.decision !== "allow";
@@ -127,26 +129,28 @@ export default function BreakItPage() {
           className="mt-1 w-full rounded-lg border border-ink-300 bg-white p-3 text-ink-900"
         />
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button
+          <TextureButton
             type="submit"
             disabled={busy || text.trim().length === 0}
             aria-busy={busy}
-            className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+            variant="primary"
           >
+            <ScanSearch className="size-4" aria-hidden="true" />
             {busy ? "Checking…" : "Check it"}
-          </button>
+          </TextureButton>
           {text ? (
-            <button
+            <TextureButton
               type="button"
               onClick={() => {
                 setText("");
                 setResult(null);
                 setError(null);
               }}
-              className="min-h-11 rounded-lg px-3 text-sm font-medium text-ink-600 hover:bg-ink-100"
+              variant="minimal"
             >
+              <Eraser className="size-4" aria-hidden="true" />
               Clear
-            </button>
+            </TextureButton>
           ) : null}
         </div>
       </form>
@@ -156,17 +160,17 @@ export default function BreakItPage() {
           <ul className="mt-2 flex flex-wrap gap-2">
             {examples.map((x) => (
               <li key={x.category}>
-                <button
+                <TextureButton
+                  variant="secondary"
                   type="button"
                   onClick={() => {
                     setText(x.text);
                     setResult(null);
                     setError(null);
                   }}
-                  className="min-h-11 rounded-full border border-ink-300 bg-white px-4 text-sm font-medium text-ink-900 hover:bg-ink-100"
                 >
                   {kindLabel(x.category)}
-                </button>
+                </TextureButton>
               </li>
             ))}
           </ul>

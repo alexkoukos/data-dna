@@ -1,0 +1,200 @@
+import { useState } from "react";
+import { useLocation } from "react-router-dom";
+import { TextureButton } from "@/components/ui/texture-button";
+import { fetchRecentIncidents, type Incident } from "../lib/securityApi";
+import { useFetch } from "../lib/useFetch";
+import { buildSeries, isSave, PERIODS, type Period } from "../lib/trends";
+import { TrendChart } from "./TrendChart";
+import { Skeleton } from "./ui";
+import { Eye, EyeOff, RotateCw } from "lucide-react";
+
+const KEY = "hive.trends";
+/** Pages where the trend is the point; elsewhere the cards start folded so forms stay in view. */
+const OPEN_BY_DEFAULT = [
+  "/security",
+  "/security/tools",
+  "/security/incidents",
+  "/security/impact",
+  "/security/history",
+];
+
+const SPAN: Record<Period, { short: string; long: string; unit: string }> = {
+  Weekly: { short: "7 days", long: "the last 7 days", unit: "day" },
+  Monthly: { short: "30 days", long: "the last 30 days", unit: "day" },
+  Yearly: { short: "12 months", long: "the last 12 months", unit: "month" },
+};
+
+function readPref(): "show" | "hide" | null {
+  try {
+    const v = localStorage.getItem(KEY);
+    return v === "show" || v === "hide" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function TrendCard({
+  title,
+  total,
+  period,
+  data,
+  labels,
+  accent,
+  unit,
+}: {
+  title: string;
+  total: number;
+  period: Period;
+  data: number[];
+  labels: string[];
+  accent: string;
+  unit: string;
+}) {
+  const peak = data.indexOf(Math.max(...data));
+  const busiest =
+    total > 0
+      ? `Busiest ${SPAN[period].unit}: ${labels[peak]}, ${data[peak]}`
+      : "Nothing in this period yet";
+  return (
+    <article className="min-w-0 rounded-lg border border-ink-200 bg-white p-5">
+      <h3 className="text-sm font-medium text-ink-600">{title}</h3>
+      <p className="mt-1 flex flex-wrap items-baseline gap-x-2">
+        <span className="text-4xl font-semibold tabular-nums text-ink-900">{total}</span>
+        <span className="text-sm text-ink-600">in {SPAN[period].long}</span>
+      </p>
+      <p className="mt-1 text-sm text-ink-600">{busiest}</p>
+      <div className="mt-4">
+        <TrendChart
+          data={data}
+          labels={labels}
+          accent={accent}
+          unit={unit}
+          summary={`${title} per ${SPAN[period].unit}, ${SPAN[period].long}. ${total} in total.`}
+        />
+      </div>
+    </article>
+  );
+}
+
+function Cards({ incidents, period }: { incidents: Incident[]; period: Period }) {
+  // "Now" is the newest incident, so invented demo data from an earlier day still draws a line.
+  const end = new Date(Math.max(...incidents.map((i) => new Date(i.ts).getTime())));
+  const all = buildSeries(incidents, period, end);
+  const saved = buildSeries(incidents, period, end, isSave);
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <TrendCard
+        title="Incidents"
+        total={all.total}
+        period={period}
+        data={all.data}
+        labels={all.labels}
+        accent="#f59e0b"
+        unit="incidents"
+      />
+      <TrendCard
+        title="Leaks stopped"
+        total={saved.total}
+        period={period}
+        data={saved.data}
+        labels={saved.labels}
+        accent="#30752a"
+        unit="stopped"
+      />
+    </div>
+  );
+}
+
+function Loaded({ period }: { period: Period }) {
+  const [state, reload] = useFetch(fetchRecentIncidents);
+  if (state.status === "loading")
+    return (
+      <div role="status" aria-label="Loading the trends" className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-64" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  if (state.status === "error")
+    return (
+      <div
+        role="status"
+        className="rounded-lg border border-ink-200 bg-white p-5 text-sm text-ink-700"
+      >
+        <p>I could not load the trends. Your other numbers are fine.</p>
+        <TextureButton variant="secondary" type="button" onClick={reload} className="mt-3">
+          <RotateCw className="size-4" aria-hidden="true" />
+          Reload the trends
+        </TextureButton>
+      </div>
+    );
+  if (state.data.length === 0)
+    return (
+      <p className="rounded-lg border border-ink-200 bg-white p-5 text-sm text-ink-700">
+        No incidents yet. The trends appear after the first check.
+      </p>
+    );
+  return <Cards incidents={state.data} period={period} />;
+}
+
+/** Two light trend cards (incidents, leaks stopped) on top of every security page. */
+export function SecurityTrends() {
+  const { pathname } = useLocation();
+  const [pref, setPref] = useState(readPref);
+  const [period, setPeriod] = useState<Period>("Weekly");
+  const open = pref ? pref === "show" : OPEN_BY_DEFAULT.includes(pathname.replace(/\/$/, ""));
+  const toggle = () => {
+    const next = open ? "hide" : "show";
+    setPref(next);
+    try {
+      localStorage.setItem(KEY, next);
+    } catch {
+      /* the choice still holds for this visit */
+    }
+  };
+  return (
+    <section aria-labelledby="trends-h" className="mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="trends-h" className="text-lg font-semibold text-ink-900">
+          Trends
+        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          {open ? (
+            <div role="group" aria-label="Period" className="flex gap-1">
+              {PERIODS.map((p) => (
+                <TextureButton
+                  key={p}
+                  type="button"
+                  size="sm"
+                  aria-pressed={p === period}
+                  variant={p === period ? "primary" : "secondary"}
+                  onClick={() => setPeriod(p)}
+                >
+                  {SPAN[p].short}
+                </TextureButton>
+              ))}
+            </div>
+          ) : null}
+          <TextureButton
+            type="button"
+            size="sm"
+            variant="minimal"
+            onClick={toggle}
+            aria-expanded={open}
+          >
+            {open ? (
+              <EyeOff className="size-4" aria-hidden="true" />
+            ) : (
+              <Eye className="size-4" aria-hidden="true" />
+            )}
+            {open ? "Hide trends" : "Show trends"}
+          </TextureButton>
+        </div>
+      </div>
+      {open ? (
+        <div className="mt-3">
+          <Loaded period={period} />
+        </div>
+      ) : null}
+    </section>
+  );
+}

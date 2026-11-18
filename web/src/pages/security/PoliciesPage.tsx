@@ -17,6 +17,8 @@ import {
   type ShadowStatus,
 } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Play, Save, X } from "lucide-react";
 
 function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) => void }) {
   const [draft, setDraft] = useState<Decision>(policy.action);
@@ -94,33 +96,26 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
       ) : null}
       {changed ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-          >
+          <TextureButton type="button" onClick={save} disabled={saving} variant="primary">
+            <Save className="size-4" aria-hidden="true" />
             {saving ? "Saving…" : `Save ${text.label.toLowerCase()}`}
-          </button>
-          <button
-            type="button"
-            onClick={tryIt}
-            disabled={previewing}
-            className="min-h-11 rounded-lg border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
-          >
+          </TextureButton>
+          <TextureButton variant="secondary" type="button" onClick={tryIt} disabled={previewing}>
+            <Play className="size-4" aria-hidden="true" />
             {previewing ? "Trying…" : "Try on the last 14 days"}
-          </button>
-          <button
+          </TextureButton>
+          <TextureButton
             type="button"
             onClick={() => {
               setDraft(policy.action);
               setError(null);
               setPreview(null);
             }}
-            className="min-h-11 rounded-md px-4 text-sm font-medium text-ink-700 hover:bg-ink-100"
+            variant="minimal"
           >
+            <X className="size-4" aria-hidden="true" />
             Cancel
-          </button>
+          </TextureButton>
         </div>
       ) : null}
       {changed && preview ? <PreviewResult preview={preview} /> : null}

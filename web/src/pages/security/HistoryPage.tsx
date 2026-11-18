@@ -9,6 +9,8 @@ import {
   type History,
 } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Search } from "lucide-react";
 
 function Result({ history, what }: { history: History; what: string }) {
   if (history.total === 0) {
@@ -84,12 +86,10 @@ export default function HistoryPage() {
               onChange={(e) => setDraft(e.target.value)}
               className="min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
             />
-            <button
-              type="submit"
-              className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-            >
+            <TextureButton type="submit" variant="primary">
+              <Search className="size-4" aria-hidden="true" />
               Show
-            </button>
+            </TextureButton>
           </div>
         </form>
         <div>

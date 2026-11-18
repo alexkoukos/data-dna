@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { SecurityTrends } from "../../components/SecurityTrends";
 
 const tabs = [
   { to: "/security", label: "Overview", end: true },
@@ -17,7 +18,7 @@ export default function SecurityLayout() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-6">
       <header>
-        <p className="eyebrow">Pyli</p>
+        <p className="eyebrow">Hive</p>
         <h1 className="text-2xl font-semibold text-ink-900">Security</h1>
         <nav
           aria-label="Security sections"
@@ -38,6 +39,7 @@ export default function SecurityLayout() {
         </nav>
       </header>
       <div className="mt-6">
+        <SecurityTrends />
         <Outlet />
       </div>
     </main>

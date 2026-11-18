@@ -27,7 +27,7 @@ describe("Get the extension", () => {
       "/samples/en/": "Some sample text",
     });
     renderPage();
-    const download = screen.getByRole("link", { name: /Download pyli-extension.zip/ });
+    const download = screen.getByRole("link", { name: /Download hive-extension.zip/ });
     expect(download).toHaveAttribute("href", "/extension.zip");
     expect(screen.getByText(/Load unpacked/)).toBeInTheDocument();
     const list = screen.getByRole("list", { name: "Sample texts" });

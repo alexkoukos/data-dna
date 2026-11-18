@@ -3,6 +3,8 @@ import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
 import { IncidentRow } from "../../components/IncidentRow";
 import { formatNumber } from "../../lib/format";
 import { fetchIncidents, type Decision, type Incident } from "../../lib/securityApi";
+import { TextureButton } from "@/components/ui/texture-button";
+import { ChevronDown } from "lucide-react";
 
 type Filter = Exclude<Decision, "allow"> | "all";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -89,14 +91,16 @@ function IncidentList({ filter }: { filter: Filter }) {
         ))}
       </ul>
       {view.items.length < view.total ? (
-        <button
+        <TextureButton
+          variant="secondary"
           type="button"
           disabled={loadingMore}
           onClick={() => showMore(view.items)}
-          className="mt-4 min-h-11 rounded-md border border-ink-300 bg-white px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
+          className="mt-4"
         >
+          <ChevronDown className="size-4" aria-hidden="true" />
           {loadingMore ? "Loading…" : "Show more"}
-        </button>
+        </TextureButton>
       ) : null}
     </>
   );
@@ -113,15 +117,15 @@ export default function IncidentsPage() {
       </p>
       <div role="group" aria-label="Filter by outcome" className="mt-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
-          <button
+          <TextureButton
             key={f.id}
             type="button"
             aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
-            className={`min-h-11 rounded-md border px-3 text-sm font-medium ${filter === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+            variant={filter === f.id ? "primary" : "secondary"}
           >
             {f.label}
-          </button>
+          </TextureButton>
         ))}
       </div>
       <div className="mt-4">

@@ -11,9 +11,8 @@ import {
   type PairingCode,
 } from "../lib/extensionApi";
 import { useFetch } from "../lib/useFetch";
-
-const btn =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-ink-300 bg-white px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Check, Copy, ExternalLink, KeyRound } from "lucide-react";
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
@@ -21,7 +20,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
       <h2 className="flex items-center gap-3 text-lg font-semibold text-ink-900">
         <span
           aria-hidden="true"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-ink-900"
         >
           {n}
         </span>
@@ -85,14 +84,10 @@ function Pairing() {
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={show}
-          disabled={!user}
-          className={`${btn} disabled:opacity-50`}
-        >
+        <TextureButton variant="secondary" type="button" onClick={show} disabled={!user}>
+          <KeyRound className="size-4" aria-hidden="true" />
           Show pairing code
-        </button>
+        </TextureButton>
       </div>
       {failed ? (
         <p role="alert" className="text-block-fg">
@@ -161,9 +156,14 @@ function SampleCard({ id, lang }: { id: string; lang: Lang }) {
           >
             {text}
           </pre>
-          <button type="button" onClick={copy} className={`${btn} mt-2`}>
+          <TextureButton variant="secondary" type="button" onClick={copy} className="mt-2">
+            {copied ? (
+              <Check className="size-4" aria-hidden="true" />
+            ) : (
+              <Copy className="size-4" aria-hidden="true" />
+            )}
             {copied ? "Copied" : `Copy ${meta.title.toLowerCase()}`}
-          </button>
+          </TextureButton>
         </>
       )}
     </li>
@@ -175,7 +175,7 @@ export default function ExtensionPage() {
   const [lang, setLang] = useState<Lang>("en");
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <p className="eyebrow">Pyli</p>
+      <p className="eyebrow">Hive</p>
       <h1 className="text-3xl font-semibold text-ink-900">Get the extension</h1>
       <p className="mt-2 max-w-prose text-ink-600">
         The extension sits in Chrome, right where people paste into ChatGPT, Claude or Gemini. It
@@ -186,10 +186,10 @@ export default function ExtensionPage() {
         <Step n={1} title="Download it">
           <a
             href="/extension.zip"
-            download="pyli-extension.zip"
-            className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-5 text-base font-semibold text-white hover:bg-brand-700"
+            download="hive-extension.zip"
+            className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-5 text-base font-semibold text-ink-900 hover:bg-brand-500"
           >
-            Download pyli-extension.zip
+            Download hive-extension.zip
           </a>
         </Step>
 
@@ -213,21 +213,24 @@ export default function ExtensionPage() {
         </Step>
 
         <Step n={4} title="Try it on the demo chat">
-          <a href={mockAiUrl()} target="_blank" rel="noreferrer" className={btn}>
-            Open the demo chat (opens a new tab)
-          </a>
+          <TextureButton variant="secondary" asChild>
+            <a href={mockAiUrl()} target="_blank" rel="noreferrer">
+              Open the demo chat (opens a new tab)
+              <ExternalLink className="size-4" aria-hidden="true" />
+            </a>
+          </TextureButton>
           <p>Paste each text below into the chat and watch what happens.</p>
           <div role="group" aria-label="Language of the samples" className="flex gap-2">
             {(["en", "el"] as const).map((l) => (
-              <button
+              <TextureButton
                 key={l}
                 type="button"
                 aria-pressed={lang === l}
                 onClick={() => setLang(l)}
-                className={`min-h-11 rounded-md border px-3 text-sm font-medium ${lang === l ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+                variant={lang === l ? "primary" : "secondary"}
               >
                 {l === "en" ? "English" : "Ελληνικά"}
-              </button>
+              </TextureButton>
             ))}
           </div>
         </Step>
