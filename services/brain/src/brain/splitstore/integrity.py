@@ -21,36 +21,54 @@ class IntegrityError(Exception):
     """A tag did not match: a share or value was changed, moved or lost."""
 
 
+MIN_KEY_CHARS = 32
+
+
+def _read_key(p: Path) -> str:
+    return p.read_text().strip() if p.is_file() else ""
+
+
+def _create_key(f: Path) -> None:
+    """Write a new key that only this process can read, never over an existing file."""
+    f.parent.mkdir(parents=True, exist_ok=True)
+    if f.is_file() and len(_read_key(f)) < MIN_KEY_CHARS:
+        f.unlink()  # an empty or cut-short file from a crashed start is not a key
+    try:
+        fd = os.open(f, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        return
+    with os.fdopen(fd, "w") as out:
+        out.write(secrets.token_hex(32))
+
+
 def load_key(path: str | None = None, fallback: str | None = None) -> bytes:
     """Read the HMAC key, creating it on first start.
 
     By default the key lives in `/var/dna/keys`, a volume only the app mounts (never a vault), and
     is generated there once with mode 600, so a plain `docker compose up` needs no setup. To use
-    your own key, point `HMAC_KEY_FILE` at a mounted file; if that file is missing or empty a key
-    is generated into `fallback` instead and a warning is logged.
+    your own key, set `HMAC_KEY_FILE` to a file inside a volume you mount into the app; if that
+    file is missing or too short a key is generated into `fallback` instead and a warning is
+    logged.
     """
     path = path or os.environ.get("HMAC_KEY_FILE", DEFAULT_KEY_FILE)
     fallback = fallback or os.environ.get("HMAC_FALLBACK_FILE", DEFAULT_FALLBACK_FILE)
     p = Path(path)
     try:
-        usable = p.is_file() and bool(p.read_text().strip())
-        if not usable:
+        if len(_read_key(p)) < MIN_KEY_CHARS:
             f = Path(fallback)
-            if not f.is_file():
-                f.parent.mkdir(parents=True, exist_ok=True)
-                f.write_text(secrets.token_hex(32))
-                f.chmod(0o600)
+            if len(_read_key(f)) < MIN_KEY_CHARS:
+                _create_key(f)
             if p == f:
                 log.info("generated the HMAC key for the split store on first start")
             else:
                 log.warning("no HMAC key found at %s; using a generated key in %s", p, f)
             p = f
-        key = p.read_text().strip().encode()
+        key = _read_key(p).encode()
     except OSError as e:
         raise ValueError(
             f"The HMAC key file cannot be read ({e.strerror}). Check its permissions, then restart."
         ) from e
-    if len(key) < 32:
+    if len(key) < MIN_KEY_CHARS:
         raise ValueError(
             "The HMAC key is too short. Use at least 32 characters, or delete the file."
         )

@@ -86,8 +86,11 @@ def analyst_engine(admin: Engine) -> Engine | None:
     if admin.dialect.name != "postgresql":
         return admin
     with _analyst_lock:
-        if _analyst is not None and _analyst[0] is admin:
-            return _analyst[1]
+        if _analyst is not None:
+            if _analyst[0] is admin:
+                return _analyst[1]
+            _analyst[1].dispose()
+            _analyst = None
         password = secrets.token_urlsafe(32)
         try:
             with admin.begin() as conn:
@@ -114,6 +117,15 @@ def analyst_engine(admin: Engine) -> Engine | None:
         )
         _analyst = (admin, engine)
         return engine
+
+
+def reset_analyst() -> None:
+    """Forget the analyst engine, for example after its password stopped working."""
+    global _analyst
+    with _analyst_lock:
+        if _analyst is not None:
+            _analyst[1].dispose()
+            _analyst = None
 
 
 _FORBIDDEN = re.compile(
@@ -242,6 +254,30 @@ def run_free(engine: Engine, question: str, writer: Any = None) -> dict[str, Any
         "columns": columns,
         "rows": rows,
     }
+
+
+def _password_stale(err: BaseException | None) -> bool:
+    return isinstance(err, sa.exc.OperationalError) and "authentication failed" in str(err)
+
+
+def ask_free(admin: Engine, question: str, writer: Any = None) -> dict[str, Any] | None:
+    """Run a free question on the analyst login. None means the role could not be prepared.
+
+    If the database no longer accepts the password (for example it was restarted or the role was
+    changed), the engine is rebuilt with a new one and the question is tried once more.
+    """
+    for attempt in (0, 1):
+        analyst = analyst_engine(admin)
+        if analyst is None:
+            return None
+        try:
+            return run_free(analyst, question, writer)
+        except AskError as err:
+            if attempt == 0 and _password_stale(err.__cause__):
+                reset_analyst()
+                continue
+            raise
+    return None
 
 
 def _plain(value: Any) -> Any:

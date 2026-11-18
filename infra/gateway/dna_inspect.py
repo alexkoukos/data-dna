@@ -385,6 +385,9 @@ _ROUTER_KEYS = (
     "silent_model",
     "_target_order",
     "_retry_skipped_deployment_ids",
+    "max_retries",
+    "mock_testing_fallbacks",
+    "model_group_alias",
 )
 _DECISIONS = {"allow", "mask", "warn", "local", "block"}
 # Fields LiteLLM adds to `metadata` next to what the person sent.

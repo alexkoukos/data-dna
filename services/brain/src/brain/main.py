@@ -113,7 +113,7 @@ from brain.api.schemas import (
     UnmaskRequest,
     UnmaskResponse,
 )
-from brain.ask.free import AskError, analyst_engine, run_free
+from brain.ask.free import AskError, ask_free
 from brain.ask.presets import BY_ID, PRESETS, match_preset, run_preset
 from brain.clients import ClientStore
 from brain.config import settings
@@ -304,6 +304,50 @@ app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
 app.include_router(vault_router)
 
 
+MAX_BODY_BYTES = 15 * 1024 * 1024
+MAX_INSPECT_CHARS = 100_000
+
+
+class BodyLimit:
+    """Refuse a body over MAX_BODY_BYTES. Counts the bytes actually received, so a chunked body
+    with no Content-Length cannot get past it; a declared length is refused before any read."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.inner(scope, receive, send)
+            return
+        declared = dict(scope["headers"]).get(b"content-length", b"")
+        if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+            await _too_large()(scope, receive, send)
+            return
+        received = 0
+
+        async def limited() -> Any:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > MAX_BODY_BYTES:
+                    raise HTTPException(status_code=413, detail=_TOO_LARGE)
+            return message
+
+        await self.inner(scope, limited, send)
+
+
+_TOO_LARGE = "This request is too large (over 15 MB). Send a smaller one."
+
+
+def _too_large() -> JSONResponse:
+    return JSONResponse(status_code=413, content={"detail": _TOO_LARGE})
+
+
+# Added first, so it sits innermost: its 413 reaches the route, not a middleware task group.
+app.add_middleware(BodyLimit)
+
+
 def extension_origin() -> str | None:
     """X27: the only browser origin allowed to call the brain, set by EXTENSION_ID in .env."""
     ident = settings.extension_id.strip()
@@ -332,22 +376,6 @@ async def extension_cors(request: Request, call_next: Callable[[Request], Any]) 
         resp.headers["Access-Control-Max-Age"] = "600"
         resp.headers["Vary"] = "Origin"
     return resp
-
-
-MAX_BODY_BYTES = 15 * 1024 * 1024
-MAX_INSPECT_CHARS = 100_000
-
-
-@app.middleware("http")
-async def body_limit(request: Request, call_next: Callable[[Request], Any]) -> Response:
-    """Refuse a huge body before it is read and parsed."""
-    declared = request.headers.get("content-length", "")
-    if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
-        return JSONResponse(
-            status_code=413,
-            content={"detail": "This request is too large (over 15 MB). Send a smaller one."},
-        )
-    return await call_next(request)  # type: ignore[no-any-return]
 
 
 def _own_origins() -> set[str]:
@@ -1114,8 +1142,9 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
     # person's own [IBAN_1].
     raw_found = _add_without_overlap(find_patterns(req.text), find_yara(req.text))
     clean_found = _add_without_overlap(find_patterns(text), find_yara(text))
-    seen = {(f.entity, f.value) for f in raw_found}
-    if all((f.entity, f.value) in seen for f in clean_found):
+    if Counter((f.entity, f.value) for f in clean_found) == Counter(
+        (f.entity, f.value) for f in raw_found
+    ):
         findings, source = raw_found, req.text
     else:
         findings, source = clean_found, text
@@ -1752,15 +1781,15 @@ def ask(req: AskRequest) -> AskOut:
                 raise HTTPException(
                     status_code=503, detail="The data could not be read. Try again soon."
                 ) from err
-        analyst = analyst_engine(engine)
-        if analyst is None:
-            raise HTTPException(
-                status_code=503,
-                detail="Free questions are not available right now. Use a preset question or "
-                "try again in a minute.",
-            )
         try:
-            return AskOut(**run_free(analyst, req.question))
+            answer = ask_free(engine, req.question)
+            if answer is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Free questions are not available right now. Use a preset question "
+                    "or try again in a minute.",
+                )
+            return AskOut(**answer)
         except AskError as err:
             raise HTTPException(status_code=422, detail=str(err)) from err
     preset = BY_ID.get(req.preset or "")

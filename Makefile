@@ -16,7 +16,7 @@ setup: ## First time: install all dependencies exactly as locked
 	cd web && npm ci
 
 up: ## Build and start everything (the judges' command)
-	@sh scripts/gen_hmac_key.sh
+	@sh scripts/prepare_dirs.sh
 	docker compose up --build -d --wait
 	@echo "Web: http://localhost:3000   Brain API: http://localhost:8001/docs"
 
@@ -69,11 +69,11 @@ validate: ## Check the team's data files (prompts, AI tools, org)
 check: validate lint typecheck test ## Everything CI checks. Run before every commit.
 
 split-test: ## Split storage tests inside the containers (vaults start automatically)
-	@sh scripts/gen_hmac_key.sh
+	@sh scripts/prepare_dirs.sh
 	docker compose --profile test run --rm --build splitstore-tests
 
 split-demo: ## Split storage demo: seed salaries, dump vault-a, aggregate, tamper
-	@sh scripts/gen_hmac_key.sh
+	@sh scripts/prepare_dirs.sh
 	docker compose run --rm brain python -m brain.splitstore.demo
 
 e2e: ## End-to-end + accessibility (needs `make up` first)

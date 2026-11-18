@@ -295,3 +295,74 @@ def test_analyst_engine_is_none_when_the_role_cannot_be_prepared(
 
     monkeypatch.setattr(free, "_analyst", None)
     assert free.analyst_engine(_Broken("on")) is None  # type: ignore[arg-type]
+
+
+def test_a_stale_analyst_password_rebuilds_the_engine_and_retries_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    built: list[int] = []
+    disposed: list[int] = []
+
+    class _E:
+        def __init__(self, n: int) -> None:
+            self.n = n
+
+        def dispose(self) -> None:
+            disposed.append(self.n)
+
+    def fake_engine(admin: Any) -> Any:
+        if free._analyst is None:
+            built.append(len(built) + 1)
+            free._analyst = (admin, _E(built[-1]))  # type: ignore[assignment]
+        return free._analyst[1]
+
+    calls: list[int] = []
+
+    def fake_run(engine: Any, question: str, writer: Any = None) -> dict[str, Any]:
+        calls.append(engine.n)
+        if engine.n == 1:
+            err = sa.exc.OperationalError("x", {}, Exception("password authentication failed"))
+            raise AskError("did not run") from err
+        return {"id": "free"}
+
+    monkeypatch.setattr(free, "_analyst", None)
+    monkeypatch.setattr(free, "analyst_engine", fake_engine)
+    monkeypatch.setattr(free, "run_free", fake_run)
+    assert free.ask_free(object(), "q") == {"id": "free"}  # type: ignore[arg-type]
+    assert calls == [1, 2] and disposed == [1]
+    monkeypatch.setattr(free, "_analyst", None)
+
+
+def test_other_failures_are_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def fake_run(engine: Any, question: str, writer: Any = None) -> dict[str, Any]:
+        calls.append(1)
+        raise AskError("did not run")
+
+    monkeypatch.setattr(free, "analyst_engine", lambda admin: object())
+    monkeypatch.setattr(free, "run_free", fake_run)
+    with pytest.raises(AskError):
+        free.ask_free(object(), "q")  # type: ignore[arg-type]
+    assert calls == [1]
+
+
+def test_a_new_admin_engine_disposes_the_old_analyst_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    disposed: list[bool] = []
+
+    class _Old:
+        def dispose(self) -> None:
+            disposed.append(True)
+
+    class _Adm(_PgEngine):
+        url = sa.engine.make_url("postgresql+psycopg://dna:x@db/dna")
+
+        def begin(self) -> _Conn:
+            raise sa.exc.OperationalError("x", {}, Exception("down"))
+
+    monkeypatch.setattr(free, "_analyst", (object(), _Old()))
+    assert free.analyst_engine(_Adm("on")) is None  # type: ignore[arg-type]
+    assert disposed == [True]
+    monkeypatch.setattr(free, "_analyst", None)

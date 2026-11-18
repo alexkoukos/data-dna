@@ -76,6 +76,23 @@ def test_load_key_generates_once_in_the_volume_path_and_reuses_it(tmp_path) -> N
     assert ig.load_key(str(path), str(path)) == k1
 
 
+def test_an_empty_or_short_key_file_is_replaced_not_fatal(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "hmac_key"
+    for broken in ("", "short"):
+        path.write_text(broken)
+        key = ig.load_key(str(path), str(path))
+        assert len(key) == 64 and path.read_text() == key.decode()
+        assert path.stat().st_mode & 0o777 == 0o600
+        path.unlink()
+
+
+def test_an_existing_key_is_never_overwritten_by_the_create_step(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "hmac_key"
+    path.write_text("b" * 64)
+    ig._create_key(path)
+    assert path.read_text() == "b" * 64
+
+
 @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file permissions")
 def test_unreadable_key_file_is_a_plain_error(tmp_path) -> None:  # type: ignore[no-untyped-def]
     path = tmp_path / "hmac_key"

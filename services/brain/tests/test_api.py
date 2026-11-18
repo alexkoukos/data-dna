@@ -65,3 +65,19 @@ def test_user_row_id_survives_a_concurrent_first_insert(monkeypatch) -> None:  #
         # another request inserted the same person after we looked: no error, same row
         assert user_row_id(c, "racer", "team") == first
         assert len(c.execute(sa.select(t.users)).all()) == 1
+
+
+def test_a_chunked_body_without_content_length_is_413(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import brain.main as main_mod
+
+    monkeypatch.setattr(main_mod, "MAX_BODY_BYTES", 1000)
+
+    def chunks():  # type: ignore[no-untyped-def]
+        for _ in range(10):
+            yield b" " * 500
+
+    r = client.post("/v1/inspect", content=chunks(), headers={"Content-Type": "application/json"})
+    assert r.status_code == 413 and "too large" in r.json()["detail"]
+    small = {"messages": [{"role": "user", "content": "hi"}]}
+    monkeypatch.setattr(main_mod, "MAX_BODY_BYTES", 15 * 1024 * 1024)
+    assert client.post("/v1/inspect", json=small).status_code == 200

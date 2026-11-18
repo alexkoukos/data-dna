@@ -84,3 +84,12 @@ def test_an_iban_hidden_by_zero_width_chars_is_still_masked(client: TestClient) 
 def test_output_tokens_never_look_like_session_tokens(client: TestClient) -> None:
     out = check(client, "key AKIAIOSFODNN7EXAMPLE")
     assert "_OUT_" in out["text"]
+
+
+def test_a_hidden_second_copy_of_the_same_iban_is_masked_too(client: TestClient) -> None:
+    iban = "GR1601101250000000012300695"
+    hidden = "GR16​0110​1250000000012300695"
+    out = check(client, f"First {iban} and again {hidden} end")
+    assert out["changed"]
+    assert out["text"].count("[IBAN_OUT_") == 2
+    assert "1250000000012300695" not in out["text"]

@@ -2045,6 +2045,9 @@ _ROUTER_CASES = [
     ("silent_model", ""),
     ("_target_order", []),
     ("_retry_skipped_deployment_ids", []),
+    ("max_retries", 0),
+    ("mock_testing_fallbacks", True),
+    ("model_group_alias", {"local": "demo-echo"}),
 ]
 
 
