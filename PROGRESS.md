@@ -15,6 +15,23 @@ Template:
 
 ---
 
+## 2026-11-18, Alexandros, D7 round-2 judge evaluated: passes the adoption bar (not wired into the brain)
+**Done:** ran the round-2 tuned judge (`scripts/dna-judge2.gguf`, Gemma 3 1B LoRA) on the 639-row unseen test set. Report: `eval/judge_eval_round2.md`.
+| | round 1 | round 2 | bar |
+|---|---|---|---|
+| false positives on the original 60 | 1 | **0** | 5 or fewer |
+| precision at 30% leaks | 92% | **96%** | |
+| recall | 91% | **91%** | 80% or more |
+| valid JSON with reason | 100% | **100%** | 95% or more |
+Overall 98% precision, 5 false positives of 335 negatives, 0 unparsed. About 2.5 to 6.5 s per answer on CPU (16 threads, run took 26 min), so borderline cases only, never the hot path.
+**Weak spots:** entity candidates recall 78% (doc chunks 96%): `client_name` 8/12, `email_prompt` 4/6, `salary_figure` 8/12, `split` 12/16, Greeklish rewrites 9/11, `phone_prompt` 0/3 (tiny sample). Phones are not a real gap: `PHONE_GR` in `detection/patterns.py` and `_GREEK_PHONE` in `detection/entities.py` already match all three missed rows (checked), so no new regex was added; the judge only sees phones that the rules flagged as borderline.
+**Decision:** no round 3 training before the freeze (Thu 19 20:00); gain too small and the Kaggle and GGUF steps are slow and fragile. The test set has been used before, so the figures are strong but not final; an unseen batch is still the honest number.
+**Repo size check:** `*.gguf` is gitignored (`.gitignore:16`), no GGUF is tracked, and `docker compose up --build` does not use the judge. A judge cannot fetch the model from the repo, so the judge is demo-only unless the model is hosted somewhere.
+**How it was run (no Docker on this WSL):** Ollama binary unpacked to `~/ollama-local` (outside the repo), `OLLAMA_HOST=127.0.0.1:11435`, `ollama create dna-judge2 -f` a copy of `scripts/judge.Modelfile` pointing at `dna-judge2.gguf`, then `python3 scripts/eval_judge.py dna-judge2 --url http://localhost:11435 --out eval/judge_eval_round2.md`.
+**State:** branch `task/D7-judge-finetune`, report and this entry uncommitted. Nothing in the brain calls the judge; D7 stays "evaluated, not adopted" until someone decides to wire it in behind an off-by-default flag.
+**Next step:** decide whether to wire the judge in (`judge_format.build_input` then the gateway local route, cache by hash, flag off by default) or leave D7 as evaluated.
+**Files touched:** eval/judge_eval_round2.md, PROGRESS.md
+
 ## 2026-11-17, Alexandros, D7 judge fine-tune data and test set (no detection code changed)
 **Done:** everything needed to fine-tune and fairly test a gemma3:1b borderline judge.
 - **Training data** (`python3 scripts/gen_finetune.py`, seed 42, standard library only): an invented second company, Taygetos Oils SA (`data/train_org/`, 8 documents incl. one public newsletter), gives 1513 examples (1286 train / 227 val): 30.0% YES inside each candidate type (so "it is an entity" is no shortcut), 70% hard negatives, 46% Greek, 85/15 stratified split, near-duplicates removed. Kinds: paraphrases (same and other language), summaries with numbers, partial copies, indirect questions, real names (incl. surnames without common endings), clients, salary figures; negatives: same-topic questions, made-up-numbers requests, public documents (sensitivity public means NO), look-alike words, public figures, numbers that are not pay. 25% of each split is also rewritten as Greeklish, capitals, no accents or typos (`scripts/judge_aug.py`, label unchanged, an original and its rewrite never sit in different splits).
