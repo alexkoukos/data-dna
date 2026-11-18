@@ -1,15 +1,39 @@
 import { useEffect, useState } from "react";
 import { OutcomeChip } from "../components/OutcomeChip";
 import { CheckIcon } from "../components/icons";
+import { BreakBoard } from "../components/BreakBoard";
+import { MissForm } from "../components/MissForm";
 import {
+  fetchBoard,
   fetchExamples,
   kindLabel,
   tryText,
+  type Board,
   type TryExample,
   type TryResult,
 } from "../lib/breakItApi";
 
-function Verdict({ result }: { result: TryResult }) {
+function savedNick(): string {
+  try {
+    return localStorage.getItem("pyli.nick") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function Verdict({
+  result,
+  text,
+  kind,
+  nickname,
+  onSent,
+}: {
+  result: TryResult;
+  text: string;
+  kind: string;
+  nickname: string;
+  onSent: () => void;
+}) {
   const caught = result.decision !== "allow";
   return (
     <section aria-label="Result" className="mt-8">
@@ -29,10 +53,18 @@ function Verdict({ result }: { result: TryResult }) {
         </ul>
       ) : (
         <p className="mt-3 max-w-prose text-ink-600">
-          It went through every level. If it should have been stopped, you found a gap: tell the
-          team what you typed.
+          It went through every level. If it should have been stopped, you found a gap.
         </p>
       )}
+      {!caught ? (
+        <MissForm
+          key={result.attempt_id}
+          text={text}
+          kind={kind}
+          nickname={nickname}
+          onSent={onSent}
+        />
+      ) : null}
       {result.decision === "mask" ? (
         <div className="mt-4">
           <h3 className="text-sm font-semibold text-ink-900">What the AI would receive</h3>
@@ -76,11 +108,26 @@ export default function BreakItPage() {
   const [examples, setExamples] = useState<TryExample[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [kind, setKind] = useState("other");
+  const [nickname, setNickname] = useState(savedNick);
+  const [board, setBoard] = useState<Board | null>(null);
+  // The text the shown result belongs to, so "It got through" sends what was actually checked.
+  const [checked, setChecked] = useState("");
+
+  const loadBoard = () =>
+    fetchBoard().then(
+      (b) => setBoard(b),
+      () => undefined,
+    );
 
   useEffect(() => {
     let cancelled = false;
     fetchExamples().then(
       (e) => !cancelled && setExamples(e),
+      () => undefined,
+    );
+    fetchBoard().then(
+      (b) => !cancelled && setBoard(b),
       () => undefined,
     );
     return () => {
@@ -92,7 +139,14 @@ export default function BreakItPage() {
     setBusy(true);
     setError(null);
     try {
-      setResult(await tryText(text));
+      try {
+        localStorage.setItem("pyli.nick", nickname.trim());
+      } catch {
+        // a private window: the nickname just is not remembered
+      }
+      setResult(await tryText(text, kind, nickname));
+      setChecked(text);
+      void loadBoard();
     } catch (e) {
       setResult(null);
       setError(e instanceof Error ? e.message : "We could not check that text.");
@@ -107,7 +161,8 @@ export default function BreakItPage() {
       <p className="mt-2 max-w-prose text-ink-600">
         Type anything you think the gateway will miss: a bank account with spaces, a name in Latin
         letters, a key hidden in code. You see what it decided and which level caught it. Nothing
-        you type here is saved, and the identifiers in the examples are invented.
+        you type here is saved unless you press "It got through" and send it as a test case. The
+        identifiers in the examples are invented.
       </p>
       <form
         className="mt-6"
@@ -126,6 +181,20 @@ export default function BreakItPage() {
           rows={5}
           className="mt-1 w-full rounded-lg border border-ink-300 bg-white p-3 text-ink-900"
         />
+        <label htmlFor="nick" className="mt-3 block text-sm font-semibold text-ink-900">
+          Nickname (optional)
+        </label>
+        <input
+          id="nick"
+          value={nickname}
+          maxLength={24}
+          onChange={(e) => setNickname(e.target.value)}
+          autoComplete="off"
+          className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-ink-900 sm:w-72"
+        />
+        <p className="mt-1 text-sm text-ink-600">
+          Shown on the top breakers list. Use a made-up name, not your own.
+        </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button
             type="submit"
@@ -140,6 +209,7 @@ export default function BreakItPage() {
               type="button"
               onClick={() => {
                 setText("");
+                setKind("other");
                 setResult(null);
                 setError(null);
               }}
@@ -160,6 +230,7 @@ export default function BreakItPage() {
                   type="button"
                   onClick={() => {
                     setText(x.text);
+                    setKind(x.category);
                     setResult(null);
                     setError(null);
                   }}
@@ -183,7 +254,16 @@ export default function BreakItPage() {
           </p>
         </div>
       ) : null}
-      {result ? <Verdict result={result} /> : null}
+      {result ? (
+        <Verdict
+          result={result}
+          text={checked}
+          kind={kind}
+          nickname={nickname}
+          onSent={() => void loadBoard()}
+        />
+      ) : null}
+      {board ? <BreakBoard board={board} /> : null}
     </main>
   );
 }

@@ -7,7 +7,7 @@ import csv
 import html
 import logging
 import time
-from collections import deque
+from collections import Counter
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -15,11 +15,22 @@ from pathlib import Path
 from typing import Any
 
 import sqlalchemy as sa
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import HTMLResponse
 
 from brain import (
     alerts,
+    breakit,
     coaching,
     compliance,
     insights,
@@ -33,11 +44,18 @@ from brain.api.schemas import (
     AskOut,
     AskRequest,
     Attempt,
+    BoardOut,
+    CandidateIn,
+    CandidateOut,
     CopiesRequest,
     CopyOut,
     DnaState,
     DocumentHit,
     DocumentOut,
+    ExtensionAck,
+    ExtensionInspect,
+    ExtensionMe,
+    ExtensionVerdict,
     FindingOut,
     GroupPolicy,
     GroupPolicyUpdate,
@@ -67,6 +85,8 @@ from brain.api.schemas import (
     RevealDecision,
     RevealOut,
     RevealRequest,
+    ReviewIn,
+    ReviewOut,
     SeenOut,
     ShadowIn,
     ShadowOut,
@@ -118,6 +138,7 @@ from brain.honeytokens import (
     plant_block,
     record_alarm,
 )
+from brain.identity import GatewayUnavailable, Identity, bearer_token, resolve_key
 from brain.injection.classifier import InjectionClassifier
 from brain.injection.heuristics import injection_finder
 from brain.keys import KeyError_, create_key, default_model
@@ -125,9 +146,10 @@ from brain.policy import groups
 from brain.policy.engine import Decision
 from brain.policy.preview import preview as policy_preview
 from brain.policy.store import PolicyError, PolicyStore
-from brain.records import record_decision, user_row_id
+from brain.records import record_ack, record_decision, user_row_id
 from brain.seed.load import run_seed
 from brain.sessions import sessions
+from brain.splitstore.routes import router as vault_router
 from brain.trace import build_trace
 
 log = logging.getLogger(__name__)
@@ -185,6 +207,19 @@ def _finders() -> list[Finder]:
     ]
 
 
+async def _recover_loop(store: Any, every_seconds: int = 60) -> None:
+    """Settle interrupted split writes now and then. Only entries older than 30 s are touched,
+    so a write in flight (here or in another app instance) is never disturbed."""
+    while True:
+        try:
+            n = await asyncio.to_thread(store.recover)
+            if n:
+                log.warning("Settled %d interrupted split write(s)", n)
+        except Exception:
+            log.exception("Settling interrupted split writes failed; will retry")
+        await asyncio.sleep(every_seconds)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     if policy_store.engine is not None:
@@ -198,6 +233,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             log.info("Seeded %d policies", added)
     except sa.exc.SQLAlchemyError:
         log.warning("Could not seed policies, using the seed file until the database is up")
+    recover_task: asyncio.Task[None] | None = None
+    if settings.vault_a_url and settings.vault_b_url:
+        try:  # settle split writes a crash left half-done, and check the key matches the vaults
+            from brain.splitstore import get_store
+
+            store = await asyncio.to_thread(get_store)
+            recover_task = asyncio.create_task(_recover_loop(store))
+        except Exception:  # the app still serves; vault routes report the problem themselves
+            log.exception("Split storage is not ready (vaults down or HMAC key mismatch)")
     try:
         await asyncio.to_thread(embedder.warm_up)
     except Exception:  # without the model only exact copies are caught, not rewrites
@@ -234,11 +278,44 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         except Exception:
             log.exception("Registering the documents failed")
     yield
+    if recover_task is not None:
+        recover_task.cancel()
 
 
-_attempts: deque[Attempt] = deque(maxlen=50)
+_attempts = breakit.AttemptLog()
 
 app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
+app.include_router(vault_router)
+
+
+def extension_origin() -> str | None:
+    """X27: the only browser origin allowed to call the brain, set by EXTENSION_ID in .env."""
+    ident = settings.extension_id.strip()
+    return f"chrome-extension://{ident}" if ident else None
+
+
+@app.middleware("http")
+async def extension_cors(request: Request, call_next: Callable[[Request], Any]) -> Response:
+    """CORS for the extension endpoints, and only for the extension origin (X27).
+
+    Everything else gets no CORS headers, so no other website can read the brain's answers.
+    """
+    if not request.url.path.startswith("/v1/extension/"):
+        return await call_next(request)  # type: ignore[no-any-return]
+    allowed = extension_origin()
+    origin = request.headers.get("origin")
+    ok = allowed is not None and origin == allowed
+    if request.method == "OPTIONS":
+        resp = Response(status_code=204 if ok else 403)
+    else:
+        resp = await call_next(request)
+    if ok and allowed is not None:
+        resp.headers["Access-Control-Allow-Origin"] = allowed
+        resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        resp.headers["Access-Control-Max-Age"] = "600"
+        resp.headers["Vary"] = "Origin"
+    return resp
 
 
 @app.get("/healthz")
@@ -389,6 +466,8 @@ def inspect(
         copy_code=leaked_copy,
         trace=steps,
         shadow=shadow,
+        tool=req.tool,
+        channel=req.channel,
     )
     for owner in decoys:
         background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
@@ -424,6 +503,81 @@ def inspect(
             )
             for m in result.doc_matches
         ],
+    )
+
+
+def _who(authorization: str | None) -> Identity:
+    """The user behind a personal gateway key. The client is never trusted to name itself."""
+    key = bearer_token(authorization)
+    if key is None:
+        raise HTTPException(status_code=401, detail="Add your personal key in the extension.")
+    try:
+        found = resolve_key(key)
+    except GatewayUnavailable as err:
+        raise HTTPException(status_code=503, detail=str(err)) from err
+    if found is None:
+        raise HTTPException(
+            status_code=401, detail="This key is not known to the gate. Copy it again from Connect."
+        )
+    return found
+
+
+@app.post("/v1/extension/inspect", response_model=ExtensionVerdict)
+def extension_inspect(
+    body: ExtensionInspect,
+    background: BackgroundTasks,
+    response: Response,
+    authorization: str | None = Header(default=None),
+) -> ExtensionVerdict:
+    """X27: check text typed or pasted into a personal AI tool in the browser."""
+    who = _who(authorization)
+    out = inspect(
+        InspectRequest(
+            user_id=who.user_id,
+            team=who.team,
+            model=body.model,
+            tool=body.model,
+            channel="browser",
+            messages=[Message(role="user", content=body.text)],
+        ),
+        background,
+        response,
+    )
+    masked = out.masked_messages[-1].content if out.masked_messages else None
+    types = sorted({f.entity for f in out.findings})
+    return ExtensionVerdict(
+        decision=out.decision,
+        reasons=out.reasons,
+        entity_types=types,
+        masked_text=masked,
+        shadow=out.shadow_decision is not None,
+        would_have=out.shadow_decision,
+        alternative_url=settings.company_ai_url,
+        user_id=who.user_id,
+    )
+
+
+@app.post("/v1/extension/ack")
+def extension_ack(
+    body: ExtensionAck,
+    background: BackgroundTasks,
+    authorization: str | None = Header(default=None),
+) -> dict[str, str]:
+    """X27: the person chose "Send anyway" on a warning. Recorded like the gateway's X-DNA-Ack."""
+    who = _who(authorization)
+    background.add_task(record_ack, policy_store.engine, who.user_id, body.reason)
+    return {"status": "recorded"}
+
+
+@app.get("/v1/extension/me", response_model=ExtensionMe)
+def extension_me(authorization: str | None = Header(default=None)) -> ExtensionMe:
+    """X27: lets the popup show who the key belongs to and whether shadow mode is on."""
+    who = _who(authorization)
+    return ExtensionMe(
+        user_id=who.user_id,
+        team=who.team,
+        shadow_mode=settings_store.get_bool(policy_store.engine, settings_store.SHADOW),
+        incidents_url=f"{settings.web_url}/security/history?user={who.user_id}",
     )
 
 
@@ -521,14 +675,13 @@ def try_to_break(req: TryRequest) -> TryOut:
     _decoy_alarm(result)
     layers = explain(result)
     first = next((x for x in layers if x.fired and x.id != "normalise"), None)
-    _attempts.append(
-        Attempt(
-            at=datetime.now(UTC),
-            decision=str(result.verdict.decision),
-            caught_by=first.label if first else None,
-            preview=result.masked_text[:120],
-            length=len(req.text),
-        )
+    attempt = _attempts.add(
+        decision=str(result.verdict.decision),
+        caught_by=first.label if first else None,
+        preview=result.masked_text[:120],
+        length=len(req.text),
+        kind=req.kind,
+        nickname=req.nickname,
     )
     return TryOut(
         decision=str(result.verdict.decision),
@@ -541,6 +694,7 @@ def try_to_break(req: TryRequest) -> TryOut:
         evasion_signals=result.evasion_signals,
         layers=[LayerOut(**x.__dict__) for x in layers],
         caught_by=first.label if first else None,
+        attempt_id=attempt.id,
     )
 
 
@@ -548,7 +702,84 @@ def try_to_break(req: TryRequest) -> TryOut:
 def try_attempts() -> list[Attempt]:
     """X3: the latest attempts to break it, newest first. Kept in memory only (last 50), and
     only the masked preview is shown, so a real secret typed here is never replayed."""
-    return list(reversed(_attempts))
+    return _attempts.recent(50)
+
+
+def _eval_file() -> Path:
+    if not settings.data_dir:
+        raise HTTPException(status_code=503, detail="The attack file is not available here.")
+    return Path(settings.data_dir) / "eval" / "attacks_scripts.csv"
+
+
+@app.get("/v1/breakit/board", response_model=BoardOut)
+def breakit_board() -> BoardOut:
+    """X28: today's attempts, how many were stopped, the misses (masked preview and kind only)
+    and the top breakers (nicknames only)."""
+    try:
+        sub, ok = _read(breakit.breaker_counts)
+    except HTTPException:
+        sub, ok = Counter(), Counter()  # counters still work without the database
+    return BoardOut.model_validate(breakit.board(_attempts.today(), sub, ok))
+
+
+@app.post("/v1/breakit/candidates", response_model=CandidateOut, status_code=201)
+def breakit_submit(req: CandidateIn) -> CandidateOut:
+    """X28: "It got through". Keeps the raw text because the person chose to submit it as a test
+    case; it waits in the review queue. The brain re-checks it, so only real misses are queued."""
+    result = inspect_text(
+        req.text,
+        policy_store.current(),
+        _finders(),
+        _documents().match,
+        view_finders=[find_yara, injection_finder],
+        priority_finder=_honeytokens().find,
+    )
+    try:
+        new_id = _write(
+            lambda c: breakit.submit(
+                c,
+                text=req.text,
+                preview=result.masked_text[:120],
+                kind=req.kind,
+                expected=req.expected_decision,
+                got=str(result.verdict.decision),
+                nickname=req.nickname,
+            )
+        )
+        row = next(r for r in _read(breakit.pending) if r["id"] == new_id)
+    except breakit.BreakitError as err:
+        raise HTTPException(status_code=err.status, detail=str(err)) from err
+    return CandidateOut.model_validate(row)
+
+
+@app.get("/v1/breakit/candidates", response_model=list[CandidateOut])
+def breakit_queue() -> list[CandidateOut]:
+    """X28: the review queue for the Security area."""
+    return [CandidateOut.model_validate(r) for r in _read(breakit.pending)]
+
+
+@app.post("/v1/breakit/candidates/{candidate_id}/approve", response_model=ReviewOut)
+def breakit_approve(candidate_id: int, req: ReviewIn) -> ReviewOut:
+    path = _eval_file()
+    try:
+        eval_id = _write(lambda c: breakit.approve(c, candidate_id, req.reviewer, path))
+    except breakit.BreakitError as err:
+        raise HTTPException(status_code=err.status, detail=str(err)) from err
+    except OSError as err:
+        raise HTTPException(
+            status_code=503, detail="The attack file could not be written. Nothing was approved."
+        ) from err
+    return ReviewOut(status="approved", eval_id=eval_id)
+
+
+@app.post("/v1/breakit/candidates/{candidate_id}/reject", response_model=ReviewOut)
+def breakit_reject(candidate_id: int, req: ReviewIn) -> ReviewOut:
+    """Rejecting deletes the row, raw text included, at once."""
+    try:
+        _write(lambda c: breakit.reject(c, candidate_id, req.reviewer))
+    except breakit.BreakitError as err:
+        raise HTTPException(status_code=err.status, detail=str(err)) from err
+    return ReviewOut(status="rejected")
 
 
 @app.get("/v1/try/examples", response_model=list[TryExample])

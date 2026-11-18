@@ -44,14 +44,55 @@ docker compose up --build
 ```
 Open http://localhost:3000 (app) and http://localhost:8001/docs (API).
 
+## Split storage (additive secret sharing)
+Sensitive fields (salaries, names) are never stored whole. Each value is split into two shares kept in two separate Postgres vaults, so a dump of one vault is random noise.
+
+- **Splitting.** Numbers are integer cents mod `P = 2^127 - 1`: `share_a` is random, `share_b = (value - share_a) mod P`, decoded centered so negatives work. Text and bytes are XOR-split with a random pad (UTF-8, so Greek works).
+- **Isolation.** `vault-a` and `vault-b` have their own credentials, volume and `internal` network. Only `brain` is on both; the vaults cannot see each other. `brain` starts only when both are healthy. Schema: `infra/vault/init.sql`.
+- **Integrity.** Three HMAC-SHA256 tags: `tag_a` (in vault-a), `tag_b` and `value_tag` (in vault-b). The key is the compose secret `secrets/hmac_key` and is never in a vault. `reveal` checks both share tags, rebuilds the value, checks `value_tag` (constant-time compares) and on any mismatch raises `IntegrityError` and writes an audit event. Tags bind `record_id` and `field`, so moving a share to another record fails.
+- **API** (`brain.splitstore`): `store(record_id, field, value)`, `reveal(record_id, field, actor)` (roles `admin`, `dpo`, `payroll`; every call, allowed or not, goes to `audit_log`, never with values) and `aggregate_sum(field, record_ids=None, verify_tags=True)` (each vault sums its own shares, only the two sums are combined). By default the aggregate also checks every share against its own tag (`tag_a` / `tag_b`), so a changed, swapped or missing share is caught there too; no value is rebuilt. `verify_tags=False` sums inside the vaults instead (faster, no tag check). `value_tag` needs the whole value, so only `reveal` checks it.
+- **Atomic writes.** `store` uses two-phase commit (`PREPARE TRANSACTION`, enabled on both vaults), so either both shares land or neither. If the app dies between prepare and commit, a failed write and a background check (every 60 s) settle the leftovers: prepared in both -> commit both; only in vault-b -> commit; only in vault-a -> roll back. Only entries older than 30 s are touched, so it is safe with several app instances. Until settled (up to about 90 s), a write to the same record waits.
+- **Wrong key is not "tampering".** vault-b keeps a canary (`HMAC(key, "canary")`, which says nothing about the key). On first use the app compares it with the current key and raises `KeyMismatchError` with a clear message, instead of every reveal failing as if attacked.
+- **HTTP** (off by default; for a trusted backend, since the app has no login yet): set `VAULT_API_TOKEN` (`openssl rand -hex 32`) in `.env`, then call with `Authorization: Bearer <token>`:
+  `POST /v1/vault/store` `{record_id, field, value}` (value is an integer in cents or a string), `POST /v1/vault/reveal` `{record_id, field, actor, role}`, `POST /v1/vault/aggregate` `{field, record_ids?, verify_tags?}`. Answers: 401 bad token, 503 off or vaults down or key mismatch, 403 role not allowed, 404 no such value, 409 integrity error, 422 bad input. The role is taken from the request, so only a backend you trust should hold the token; the store still enforces the role list and audits every call.
+- **Least privilege.** Each vault has an admin account (`VAULT_*_ADMIN_USER`, used only at first start to load the schema and create the app role) and the app role (`VAULT_*_USER`): not a superuser, cannot create anything, only SELECT/INSERT/UPDATE/DELETE on its two tables. The app role settles its own prepared transactions, so no superuser is needed at run time.
+- **Limits.** The sum must fit in about +/-1.7e38. The role and schema are created on a fresh volume only: after pulling this change run `docker compose down -v` (or `make reset`) once, which deletes demo data in the vaults.
+
+Key: run `./scripts/gen_hmac_key.sh` (or `make up`, which does it first) to create `secrets/hmac_key`. If you skip it, compose mounts an empty directory there and a plain `docker compose up` still works: the app generates a key once into an app-only volume and logs a warning. That key lives in a Docker volume, so create the real file before storing data you care about; switching keys later is reported as `KeyMismatchError`. If Docker already made the empty directory, the script replaces it (or tells you to `sudo rmdir secrets/hmac_key`, which needs root because Docker owns it).
+
+```bash
+docker compose up --build -d --wait                          # whole stack, both vaults included
+docker compose --profile test run --rm --build splitstore-tests   # tests, inside the containers
+docker compose run --rm brain python -m brain.splitstore.demo     # seed, dump vault-a, aggregate, tamper
+```
+
 ## Architecture
 _Diagram and services table (R1). Source: docs/PRD.md section 7._
+
+## Browser extension
+
+Personal ChatGPT in the browser bypasses the gate, so the extension (`extension/`, Chrome or Edge, Manifest V3, plain JavaScript, no build step) checks paste and send on `chatgpt.com` against the same `POST /v1/inspect` the gate uses, before the text leaves the page.
+
+**Load it (3 clicks)**
+1. Open `chrome://extensions`, turn on *Developer mode*, press *Load unpacked* and choose the `extension/` folder.
+2. Copy the extension ID shown on its card (or on the Settings page), put it in `.env` as `EXTENSION_ID=...` and run `make up` again. The brain allows browser calls only from `chrome-extension://<that ID>`.
+3. Open the extension's Settings, paste your personal key from the **Connect** page and press Save. The gate address defaults to `http://localhost:8001`.
+
+**What it does.** Allow: nothing. Mask: the composer text is replaced with the masked text and a note names the entity types and the "Why?" reasons. Warn: a card with the reasons and *Send anyway*, which is recorded on the incident like the gate's `X-DNA-Ack`. Block and local: the send is stopped and the card offers *Use Company AI*. Every non-allow decision is an incident with the tool "ChatGPT (personal)" and channel `browser`, so the Shadow AI view shows it was intercepted. In shadow mode (X11) nothing is changed or stopped; it is only recorded. The user is the owner of the key, resolved by the brain through the gateway; the extension never sends a user or team. The extension stores only the key, the gate address and a daily counter for its popup, and makes no network calls except to the gate address.
+
+**Limits.** One site (`chatgpt.com`); other sites and the ChatGPT desktop or phone apps are not covered, and a person can disable or remove the extension (the Squid and Zeek logs still see that). Only text is checked: pasted images and file uploads are not. If the gate cannot be reached the extension **fails open**: nothing is blocked, a small "Pyli offline" badge shows, and nothing is recorded. ChatGPT changes its page often, so the composer and send-button selectors in `extension/content.js` may need an update. The test (`web/e2e/extension.spec.ts`) runs against a saved composer page, `extension/test/fixture.html`, not the live site.
 
 ## Evaluation
 _Results from `make eval` (E1)._
 
 ## Privacy and governance
-_GDPR and EU AI Act (T5)._
+A watcher must keep little: masked previews and entity names instead of prompts, fingerprints instead of document text, pseudonyms with a two-person reveal and audit log, 30-day retention, local answers for confidential content, and split storage for the most sensitive fields. Plain-language page on GDPR, NIS2 and the EU AI Act (not legal advice): [docs/business/privacy-and-regulation.md](docs/business/privacy-and-regulation.md). Article table: [compliance-mapping.md](docs/business/compliance-mapping.md).
+
+## Business case
+Market and cost figures with sources: [market.md](docs/business/market.md). Competitors: [competitors.md](docs/business/competitors.md). SWOT: [swot.md](docs/business/swot.md). Customer, price and sales path (all hypotheses): [customer-and-pricing.md](docs/business/customer-and-pricing.md). Why people will use it: [engagement.md](docs/business/engagement.md). Honest limits: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
+
+
+**Break it (X28).** Practice on `/break-it` is never stored and never creates an incident; only counters, a masked preview, the attack kind and an optional nickname (no login, nothing that identifies a person) are kept, in memory. The one exception is the "It got through" button: the person chooses to submit the exact text as a test case, and the button says so. That raw text lives only in a review-queue row until a security user decides. Approve moves it into `data/eval/attacks_scripts.csv` and blanks the row; reject deletes the row at once.
 
 ## Known limits
 _To be written._
@@ -67,9 +108,10 @@ _To be written._
 **Greeklish and look-alike characters (X5).** Before any check the text is cleaned of tricks that keep its length: digits from other scripts (Arabic-Indic, Devanagari, Thai) become 0 to 9, Greek or Cyrillic letters inside a word that mixes scripts or holds a number are folded to the matching Latin ones (a mostly Greek word goes the other way), a capital O or a lower-case l in a long number is read as 0 or 1, and hex, percent-encoded and HTML-entity text is decoded. Names such as "giorgos papadopoulos" are found by Greek surname endings and a list of common surnames, with no model call. `make eval` reports the attacks of these three kinds as one target: 96.2% caught against a target of 80%. A Greek surname with no common ending (for example "Papadaki" in capitals) is still missed.
 
 **Request an AI tool (X29).** Brief question 4 becomes a workflow. In Company Chat, "Request approval" (also offered after a blocked message) asks for a tool with a reason for the person's team. In Security, AI tools, the **Requests** tab lists waiting requests; security picks a risk rating (low, medium, high), the data categories the tool may receive and an optional approved alternative, then approves or rejects, with their name for the audit log. Approving sets `ai_tools.approval` to approved and stores the risk, alternative and allowed categories, so the inventory and "risk per tool" in the ROI view change at once; a tool that was never seen is added. `tool.request`, `tool.approve`, `tool.reject` and `tool.outcome_seen` go to `audit_log`. The requester sees the decision once, as a note above the chat, on their next message. A person can have at most 5 requests waiting. Tests: `services/brain/tests/test_x29_tool_requests.py`, `web/src/pages/ToolRequests.test.tsx`. Allowed categories are recorded and shown on the tool; the detection policy itself is not changed by an approval.
+**Break it leaderboard and growing attack set (X28).** `/break-it` also shows today's attempts, how many were stopped, how many got through and the catch rate, plus a top-breakers list by nickname. When an attempt passes but should not have, "It got through" lets the person pick the expected decision (mask, warn or block) and the kind, and sends it to the **Break it review** tab in Security (`/security/review`). Approving appends a row with `source=breakit` and the date to `data/eval/attacks_scripts.csv` (the brain container has that one folder writable); `make eval` then reports those rows on their own line, "Found live, still missed: N", apart from the older attacks. Break it practice still creates no incidents. Tests: `services/brain/tests/test_x28_breakit.py`, `web/src/pages/BreakItBoard.test.tsx`, and `web/e2e/break-it-review.spec.ts` (needs `make up`).
 
 ## Roadmap
-_From docs/business (T5)._
+Next: (1) browser extension, (2) Slack and Teams, (3) SIEM export, (4) more languages, (5) a small-company edition with login and roles. Details and what is already built: [docs/business/roadmap.md](docs/business/roadmap.md).
 
 ## Team
 Alexandros, Stelios, Vasilis, Konstantinos.

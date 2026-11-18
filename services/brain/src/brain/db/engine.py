@@ -52,6 +52,15 @@ def ensure_schema(engine: Engine) -> None:
         )
         conn.execute(
             sa.text(
+                "CREATE TABLE IF NOT EXISTS breakit_candidates (id SERIAL PRIMARY KEY, "
+                "created_at TIMESTAMPTZ NOT NULL, nickname TEXT, kind TEXT NOT NULL, "
+                "expected_decision TEXT NOT NULL, got_decision TEXT NOT NULL, text TEXT, "
+                "preview TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', "
+                "reviewed_by TEXT, reviewed_at TIMESTAMPTZ, eval_id TEXT)"
+            )
+        )
+        conn.execute(
+            sa.text(
                 "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, "
                 "updated_by TEXT, updated_at TIMESTAMPTZ DEFAULT now())"
             )

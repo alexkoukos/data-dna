@@ -173,6 +173,26 @@ doc_copies = sa.Table(
     ),
 )
 
+# X28: a miss someone chose to submit as a test case. The only place raw text is kept, and only
+# while it waits for review: approving blanks it (it moves to the eval file), rejecting deletes
+# the whole row.
+breakit_candidates = sa.Table(
+    "breakit_candidates",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("nickname", sa.Text),
+    sa.Column("kind", sa.Text, nullable=False),
+    sa.Column("expected_decision", sa.Text, nullable=False),
+    sa.Column("got_decision", sa.Text, nullable=False),
+    sa.Column("text", sa.Text),
+    sa.Column("preview", sa.Text, nullable=False),
+    sa.Column("status", sa.Text, nullable=False, server_default="pending"),
+    sa.Column("reviewed_by", sa.Text),
+    sa.Column("reviewed_at", sa.DateTime(timezone=True)),
+    sa.Column("eval_id", sa.Text),
+)
+
 # X29: an employee asks for an AI tool; security approves or rejects. No prompt text is involved.
 tool_requests = sa.Table(
     "tool_requests",
