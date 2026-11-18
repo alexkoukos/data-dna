@@ -16,6 +16,11 @@ export default defineConfig({
         target: process.env.BRAIN_URL ?? "http://127.0.0.1:8001",
         rewrite: (p) => p.replace(/^\/api/, ""),
       },
+      // The optional AI gateway (`make gateway`), which the Company AI chat talks to.
+      "/gateway": {
+        target: process.env.GATEWAY_URL ?? "http://127.0.0.1:4000",
+        rewrite: (p) => p.replace(/^\/gateway/, ""),
+      },
     },
   },
   test: {
