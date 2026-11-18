@@ -20,7 +20,7 @@ export type ChatResult =
 
 const STORAGE_KEY = "dna.identity";
 
-function readStored(): Identity | null {
+export function savedIdentity(): Identity | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as Identity) : null;
@@ -39,7 +39,7 @@ function store(identity: Identity): void {
 
 /** Reuse the saved personal key, or ask the brain for a new one. */
 export async function ensureIdentity(): Promise<Identity> {
-  const saved = readStored();
+  const saved = savedIdentity();
   if (saved) return saved;
   const userId = `demo-${crypto.randomUUID().slice(0, 8)}`;
   const res = await fetch("/api/v1/keys", {

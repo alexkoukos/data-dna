@@ -1737,7 +1737,14 @@ def decide_tool_request(request_id: int, req: ToolDecisionIn) -> ToolRequestOut:
 
 
 @app.post("/v1/users/{user_id}/tool-request-outcomes", response_model=list[ToolRequestOut])
-def tool_request_outcomes(user_id: str) -> list[ToolRequestOut]:
+def tool_request_outcomes(
+    user_id: str, authorization: str | None = Header(default=None)
+) -> list[ToolRequestOut]:
     """X29: decisions the person has not seen yet. Shown once, on their next message."""
+    if _who(authorization).user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="These outcomes belong to another person. Open the chat with your own key.",
+        )
     rows = _write(lambda c: toolrequests.collect_outcomes(c, user_id))
     return [ToolRequestOut.model_validate(r) for r in rows]
