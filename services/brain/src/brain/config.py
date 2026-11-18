@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     seed_on_start: bool = True
     data_dir: str = ""
     log_dir: str = "/var/dna/logs"
+    extension_id: str = ""  # X27: the one browser extension allowed to call the brain (CORS)
+    company_ai_url: str = "http://localhost:3000/chat"
+    web_url: str = "http://localhost:3000"
     # Split storage (brain.splitstore). Empty URLs mean the feature is off (unit tests).
     vault_a_url: str = ""
     vault_b_url: str = ""

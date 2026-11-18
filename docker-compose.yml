@@ -79,6 +79,7 @@ services:
       GATEWAY_URL: http://gateway:4000
       DEMO_MODE: ${DEMO_MODE:-true}
       DATA_DIR: /data
+      EXTENSION_ID: ${EXTENSION_ID:-}
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
       # Few threads per model: many small requests beat one wide one (see the load test).
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
@@ -86,6 +87,8 @@ services:
     volumes:
       - models:/models
       - ./data:/data:ro
+      # X28: approved break-it rows are appended here, so this one folder is writable
+      - ./data/eval:/data/eval
       - logs:/var/dna/logs
       - keys:/var/dna/keys # app-only: fallback HMAC key when secrets/hmac_key is absent
     ports:
