@@ -27,7 +27,10 @@ export function Scaled({
     if (!el) return;
     const measure = () => {
       const scale = Math.min(max, el.clientWidth / width) || 0.5;
-      setFit({ scale, left: Math.max(0, (el.clientWidth - width * scale) / (align === "right" ? 1 : 2)) });
+      setFit({
+        scale,
+        left: Math.max(0, (el.clientWidth - width * scale) / (align === "right" ? 1 : 2)),
+      });
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
