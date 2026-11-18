@@ -111,7 +111,7 @@ from brain.api.schemas import (
     UnmaskRequest,
     UnmaskResponse,
 )
-from brain.ask.free import AskError, run_free
+from brain.ask.free import AskError, analyst_engine, run_free
 from brain.ask.presets import BY_ID, PRESETS, match_preset, run_preset
 from brain.clients import ClientStore
 from brain.config import settings
@@ -1660,8 +1660,15 @@ def ask(req: AskRequest) -> AskOut:
                 raise HTTPException(
                     status_code=503, detail="The data could not be read. Try again soon."
                 ) from err
+        analyst = analyst_engine(engine)
+        if analyst is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Free questions are not available right now. Use a preset question or "
+                "try again in a minute.",
+            )
         try:
-            return AskOut(**run_free(engine, req.question))
+            return AskOut(**run_free(analyst, req.question))
         except AskError as err:
             raise HTTPException(status_code=422, detail=str(err)) from err
     preset = BY_ID.get(req.preset or "")
