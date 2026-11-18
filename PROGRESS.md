@@ -15,6 +15,15 @@ Template:
 
 ---
 
+## 2026-11-18, Alexandros, Hive public site (landing, deep dive, trust, developers)
+**Done:** public site on `/` (landing with the looping laptop, from `task/landing-page`), `/how-it-works` (deep dive), `/trust` (security and privacy) and `/developers`, all in Poppins and Playfair with one shared header and footer (`web/src/landing/SiteShell.tsx`). The old start page moved to `/app`. Security tabs cut to Overview, AI tools, Incidents, Policies and Ask (the other pages still load by URL). No pricing page.
+**State:** branch `task/hive-ui-redo`. Only the landing files were copied from `task/landing-page`, not a full merge: that branch is from the gateway era and conflicts with the pivot (App.tsx, package.json, main.py, README). Types, lint, 82 unit tests and 12 landing e2e specs (axe clean, phone and desktop) pass against `vite preview`.
+**Next step:** replace the static Overview picture with a real screenshot, swap the drawn laptop for the real MacBook image if it arrives, and run the full `make e2e` once the stack is up.
+**Problems / decisions needed:** the loop's scenes still show the gateway-era "Company AI" wording; check against the extension card text. Copy on the three new pages is mine.
+**Files touched:** web/src/landing/*, web/src/App.tsx, web/src/App.test.tsx, web/src/pages/security/SecurityLayout.tsx, web/e2e/{landing,smoke}.spec.ts, web/public/brand/*, PROGRESS.md
+
+---
+
 ## 2026-11-18, Alexandros, Hive UI redo and Pyli removed
 **Done:** (1) Pyli is gone: logo, Thyro mascot and companion, teal palette, brand docs, `pyli_` token prefix (now `hive_`), names in code and docs, PR titles on GitHub. The web app uses the Hive tokens (amber brand scale, ink text on amber), the Hive wordmark and a buzzing bee. (2) Fonts: Poppins for UI, Playfair Display 600 for headings, both bundled (`@fontsource`); the overlay loads them as raw bytes via `FontFace` so a site's CSP cannot block them. (3) Buttons: one simple style everywhere (`web/src/components/ui/texture-button.tsx`, `extension/src/texture.ts`), lucide icons beside every label. (4) Extension: popup has a gauge, a "This week" flat chart (per-day saves kept 30 days in `chrome.storage.local.history`, counts only) and lighter event cards; the on-page card has a tinted background, slow ribbons, the verdict as text on the right, a buzzing bee and a patrol bee. (5) Web: two light trend cards (incidents, leaks stopped) on every `/security` page, folded by default on form pages.
 **State:** branch `task/hive-ui-redo` off `task/extension-hive`. `make check` green (web 76 tests, extension 36 tests, brain tests). Extension e2e: 9 pass, 12 skip (need the full stack).

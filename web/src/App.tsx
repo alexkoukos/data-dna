@@ -1,4 +1,5 @@
-import { Link, NavLink, Route, Routes } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
 import ExtensionPage from "./pages/ExtensionPage";
@@ -16,6 +17,18 @@ import PoliciesPage from "./pages/security/PoliciesPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 
+const Landing = lazy(() => import("./landing/Landing"));
+const DeepDive = lazy(() => import("./landing/DeepDive"));
+const Trust = lazy(() => import("./landing/Trust"));
+const Developers = lazy(() => import("./landing/Developers"));
+
+const SITE_PAGES: Record<string, React.LazyExoticComponent<() => React.JSX.Element>> = {
+  "/": Landing,
+  "/how-it-works": DeepDive,
+  "/trust": Trust,
+  "/developers": Developers,
+};
+
 const links = [
   { to: "/extension", label: "Get the extension" },
   { to: "/break-it", label: "Try to break it" },
@@ -24,6 +37,16 @@ const links = [
 ];
 
 export default function App() {
+  const { pathname } = useLocation();
+  // The public site has its own header and footer, and no app chrome.
+  const Page = SITE_PAGES[pathname];
+  if (Page) {
+    return (
+      <Suspense fallback={null}>
+        <Page />
+      </Suspense>
+    );
+  }
   return (
     <div className="min-h-screen">
       <nav
@@ -31,7 +54,7 @@ export default function App() {
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
       >
         <Link
-          to="/"
+          to="/app"
           aria-label="Hive home"
           className="mr-4 flex min-h-11 min-w-11 items-center self-center"
         >
@@ -50,7 +73,7 @@ export default function App() {
         ))}
       </nav>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/app" element={<HomePage />} />
         <Route path="/extension" element={<ExtensionPage />} />
         <Route path="/connect" element={<ConnectPage />} />
         <Route path="/break-it" element={<BreakItPage />} />

@@ -5,11 +5,7 @@ const tabs = [
   { to: "/security", label: "Overview", end: true },
   { to: "/security/tools", label: "AI tools", end: false },
   { to: "/security/incidents", label: "Incidents", end: false },
-  { to: "/security/documents", label: "Documents", end: false },
   { to: "/security/policies", label: "Policies", end: false },
-  { to: "/security/groups", label: "Teams and roles", end: false },
-  { to: "/security/history", label: "History", end: false },
-  { to: "/security/impact", label: "Impact", end: false },
   { to: "/security/ask", label: "Ask", end: false },
 ];
 
