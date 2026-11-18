@@ -14,8 +14,10 @@ Environment: BRAIN_URL (default http://localhost:8001), DNA_SOURCE (label shown 
 
 from __future__ import annotations
 
+import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -63,35 +65,57 @@ def _check(text: str, inspect: Inspect) -> str:
     return UNAVAILABLE
 
 
-# Keys whose string values reach the model: results, resources, prompts, sampling messages.
-_TEXT_KEYS = {"text", "description", "title", "prompt", "content", "instructions"}
+# Single-word protocol labels at these keys are not content and are not sent to the brain.
+_LABEL_KEYS = {"jsonrpc", "type", "method", "role", "mimeType"}
+_TEXT_MIME = re.compile(r"^(text/|application/(json|xml|yaml|x-yaml|.*\+(json|xml)))", re.I)
 
 
-def _check_structured(value: Any, inspect: Inspect) -> Any:
-    dumped = json.dumps(value, ensure_ascii=False)
-    checked = _check(dumped, inspect)
-    if checked == dumped:
+def _is_label(key: str, value: str) -> bool:
+    return key in _LABEL_KEYS and len(value) <= 64 and not any(c.isspace() for c in value)
+
+
+def _is_media(node: dict[str, Any]) -> bool:
+    mime = str(node.get("mimeType") or "").lower()
+    return node.get("type") in ("image", "audio") or mime.startswith(("image/", "audio/"))
+
+
+def _check_blob(value: str, mime: str, inspect: Inspect) -> str:
+    """A resource blob is base64. Text-like (or untyped) blobs are decoded and checked; others
+    (images, PDFs, archives) are passed on as they are."""
+    if mime and not _TEXT_MIME.match(mime):
         return value
     try:
-        return json.loads(checked)
-    except ValueError:
-        return checked  # a notice, not JSON: the client sees why it was withheld
+        text = base64.b64decode(value, validate=True).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return UNAVAILABLE  # claims to be text but cannot be read: withheld
+    checked = _check(text, inspect)
+    if checked == text:
+        return value
+    return base64.b64encode(checked.encode("utf-8")).decode("ascii")
 
 
 def _walk(node: Any, inspect: Inspect) -> None:
+    """Check every string the model could read, wherever it sits."""
     if isinstance(node, dict):
+        media = _is_media(node)
         for key, value in list(node.items()):
-            if key == "structuredContent" and value is not None:
-                node[key] = _check_structured(value, inspect)
-            elif key == "tools" and isinstance(value, list):
+            if key == "tools" and isinstance(value, list):
                 node[key] = _safe_tools(value, inspect)
-            elif key in _TEXT_KEYS and isinstance(value, str):
-                node[key] = _check(value, inspect)
+            elif key == "blob" and isinstance(value, str):
+                node[key] = _check_blob(value, str(node.get("mimeType") or ""), inspect)
+            elif key == "data" and isinstance(value, str) and media:
+                continue  # base64 picture or sound
+            elif isinstance(value, str):
+                if not _is_label(key, value):
+                    node[key] = _check(value, inspect)
             else:
                 _walk(value, inspect)
     elif isinstance(node, list):
-        for item in node:
-            _walk(item, inspect)
+        for n, item in enumerate(node):
+            if isinstance(item, str):
+                node[n] = _check(item, inspect)
+            else:
+                _walk(item, inspect)
 
 
 def _safe_tools(tools: list[Any], inspect: Inspect) -> list[Any]:
@@ -99,12 +123,8 @@ def _safe_tools(tools: list[Any], inspect: Inspect) -> list[Any]:
     for tool in tools:
         if not isinstance(tool, dict):
             continue
-        text = (
-            f"{tool.get('name', '')}. {tool.get('description', '')} "
-            f"{json.dumps(tool.get('inputSchema', {}), ensure_ascii=False)}"
-        )
         try:
-            bad = inspect(text).get("decision") != "allow"
+            bad = inspect(json.dumps(tool, ensure_ascii=False)).get("decision") != "allow"
         except Exception:
             bad = True  # fail closed: a tool we cannot check is not offered
         if not bad:
@@ -114,13 +134,13 @@ def _safe_tools(tools: list[Any], inspect: Inspect) -> list[Any]:
 
 def filter_message(msg: Any, inspect: Inspect) -> Any:
     """The same JSON-RPC message (or batch) with everything the model will read checked: tool
-    results (text, structured content, resources), tool descriptions and schemas, prompts, and the
+    results (text, structured content, resources), tool definitions, prompts, error text, and the
     parameters of requests the server sends to the client (sampling)."""
     if isinstance(msg, list):
         return [filter_message(m, inspect) for m in msg]
     if not isinstance(msg, dict):
         return msg
-    for part in ("result", "params"):
+    for part in ("result", "params", "error"):
         if isinstance(msg.get(part), (dict, list)):
             _walk({part: msg[part]}, inspect)
     return msg
@@ -141,10 +161,11 @@ def _pump_from_server(server: subprocess.Popen[str], inspect: Inspect) -> None:
         try:
             msg = json.loads(line)
         except json.JSONDecodeError:
-            out: str | None = line.rstrip("\n")  # not JSON-RPC (a log line): pass on as it is
+            # Not JSON-RPC. It could still reach the client, so it is dropped, not passed on.
+            continue
         else:
             try:
-                out = json.dumps(filter_message(msg, inspect), ensure_ascii=False)
+                out: str | None = json.dumps(filter_message(msg, inspect), ensure_ascii=False)
             except Exception:  # the thread must survive one bad message
                 out = _error_for(msg)
         if out is not None:

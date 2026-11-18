@@ -26,7 +26,7 @@ class InspectRequest(BaseModel):
     # Positions in `messages` the gateway knows this person already accepted (sent with the
     # acknowledgement header). Only earlier text is lowered; new content is always checked.
     accepted_indexes: list[int] = Field(default_factory=list, max_length=1000)
-    messages: list[Message] = Field(max_length=1000)
+    messages: list[Message] = Field(max_length=10_000)
     attachments: list[Attachment] = Field(default_factory=list, max_length=10)
 
 

@@ -1,3 +1,5 @@
+import time
+
 import pytest
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
@@ -7,6 +9,7 @@ import brain.main as main
 from brain import settings_store
 from brain.db import tables as t
 from brain.policy import groups
+from brain.policy.engine import Decision
 from brain.policy.store import PolicyStore
 from brain.policy.store import metadata as policy_metadata
 
@@ -123,3 +126,42 @@ def test_a_db_blip_keeps_the_last_team_overrides(client: TestClient) -> None:
         c.execute(sa.text("DROP TABLE users"))
     assert [o.group for o in groups.load(engine)] == ["HR"]
     assert groups.role_of(engine, "u-hr") == "hr_manager"
+
+
+def test_an_expired_role_cache_with_the_db_down_applies_the_strictest_policy(
+    client: TestClient,
+) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    base = main.policy_store.current()
+    with engine.begin() as c:
+        groups.put(c, base, groups.Override("role", "hr_manager", "category", "iban", "allow"), "a")
+        groups.put(c, base, groups.Override("role", "auditor", "category", "iban", "block"), "a")
+        groups.put(c, base, groups.Override("team", "Sales", "category", "card", "block"), "a")
+    assert groups.role_of(engine, "u-hr") == "hr_manager"
+    ok = groups.effective(engine, base, "u-hr", "HR")
+    assert ok.categories["iban"] == Decision.ALLOW and not ok.degraded
+    groups._cache.clear()
+    groups._roles["u-hr"] = (time.monotonic() - 10_000, "hr_manager")  # too old to trust
+    with engine.begin() as c:
+        c.execute(sa.text("DROP TABLE users"))
+    degraded = groups.effective(engine, base, "u-hr", "HR")
+    assert degraded.degraded and degraded.categories["iban"] == Decision.BLOCK
+    assert degraded.categories["card"] == base.categories["card"]  # another team's rule unused
+    other = groups.effective(engine, base, "u-hr", "Sales")
+    assert other.categories["card"] == Decision.BLOCK
+
+
+def test_changing_group_policies_clears_the_cached_roles(client: TestClient) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    assert groups.role_of(engine, "u-hr") == "hr_manager"
+    assert "u-hr" in groups._roles
+    with engine.begin() as c:
+        groups.put(
+            c,
+            main.policy_store.current(),
+            groups.Override("team", "HR", "category", "iban", "warn"),
+            "admin",
+        )
+    assert "u-hr" not in groups._roles

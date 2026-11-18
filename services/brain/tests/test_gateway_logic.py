@@ -2098,11 +2098,10 @@ def test_streamed_n_above_one_is_refused(n: Any) -> None:
     assert _decide(ok, "completion", {"decision": "allow", "reasons": []})["n"] == 1
 
 
-@pytest.mark.parametrize("status", [413, 422])
-def test_brain_413_becomes_a_plain_413(status: int) -> None:
+def _brain_says(status: int, body: dict[str, Any]) -> Any:
     async def go() -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(status, json={"detail": "x"})
+            return httpx.Response(status, json=body)
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             await dna.apply_decision(
@@ -2116,7 +2115,18 @@ def test_brain_413_becomes_a_plain_413(status: int) -> None:
 
     with pytest.raises(dna.GatewayError) as err:
         asyncio.run(go())
-    assert err.value.status_code == 413 and err.value.body["next"] == "Shorten it or split it."
+    return err.value
+
+
+def test_brain_413_becomes_a_plain_413() -> None:
+    err = _brain_says(413, {"detail": "too long"})
+    assert err.status_code == 413 and err.body["next"] == "Shorten it or split it."
+
+
+def test_other_brain_422_fails_closed_with_the_real_reason() -> None:
+    err = _brain_says(422, {"detail": [{"msg": "Field required"}]})
+    assert err.status_code == 503 and "Field required" in err.body["message"]
+    assert err.body["type"] == "unavailable" and "Fix the request" in err.body["next"]
 
 
 # --- P9: tool calls, reasoning, refusal and Anthropic tool input / thinking -----------------
@@ -2344,3 +2354,67 @@ def test_only_warned_slots_are_remembered() -> None:
     finally:
         dna.ACCEPTED.add = orig  # type: ignore[method-assign]
     assert seen == [["second message"]]
+
+
+def test_anthropic_tool_use_block_that_opens_with_input_is_filtered() -> None:
+    transform, _ = _leak_cleaner()
+    frames = _p9_sse(
+        (
+            "content_block_start",
+            {
+                "type": "content_block_start",
+                "index": 1,
+                "content_block": {
+                    "type": "tool_use",
+                    "id": "t",
+                    "name": "x",
+                    "input": {"k": "AKIAIOSFODNN7EXAMPLE"},
+                },
+            },
+        ),
+    )
+    out = asyncio.run(dna._rewrite_anthropic_sse(frames, transform))
+    text = b"".join(out).decode()
+    assert "AKIA" not in text and "[AWS_OUT_1]" in text
+
+
+def test_streamed_chat_thinking_blocks_are_filtered_without_unmasking() -> None:
+    transform, _ = _leak_cleaner()
+
+    async def only_filter(text: str) -> str:
+        return text.replace("AKIAIOSFODNN7EXAMPLE", "[AWS_OUT_1]")
+
+    def think(text: str) -> _Obj:
+        block = {"type": "thinking", "thinking": text}
+        return _Obj(choices=[_Obj(delta=_Obj(content=None, thinking_blocks=[block]))])
+
+    async def source() -> Any:
+        for c in (think("key AKIAIOSF"), think("ODNN7EXAMPLE [IBAN_1]"), _chunk(None, "stop")):
+            yield c
+
+    async def go() -> list[Any]:
+        return [c async for c in dna.rewrite_stream(source(), transform, only_filter)]
+
+    out = asyncio.run(go())
+    assert out[0].choices[0].delta.thinking_blocks[0]["thinking"] == "key [AWS_OUT_1] [IBAN_1]"
+    assert out[1].choices[0].delta.thinking_blocks[0]["thinking"] == ""
+
+
+def test_non_streamed_chat_thinking_blocks_and_tool_input_keys_are_filtered() -> None:
+    g = _guardrail()
+    seen: list[str | None] = []
+
+    async def fake(text: str, user_api_key_dict: Any, meta: dict[str, Any]) -> str:
+        seen.append(meta.get("dna_session_id"))
+        return text.replace("AKIAIOSFODNN7EXAMPLE", "[AWS_OUT_1]")
+
+    g._finalize = fake
+    block = {"type": "thinking", "thinking": "AKIAIOSFODNN7EXAMPLE"}
+    message = _Obj(content="ok", thinking_blocks=[block])
+    response = _Obj(choices=[_Obj(message=message)], _hidden_params={})
+    meta = {"dna_session_id": "s1"}
+    asyncio.run(g.async_post_call_success_hook({"metadata": meta}, object(), response))
+    assert block["thinking"] == "[AWS_OUT_1]" and None in seen
+    anthropic = {"content": [{"type": "tool_use", "input": {"AKIAIOSFODNN7EXAMPLE": 1}}]}
+    out = asyncio.run(g.async_post_call_success_hook({"metadata": {}}, object(), anthropic))
+    assert out["content"][0]["input"] == {"[AWS_OUT_1]": 1}

@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from brain.db import tables as t
-from brain.policy.engine import Decision
+from brain.policy.engine import PRECEDENCE, Decision
 from brain.policy.store import SCOPES, PolicyError, PolicySet, audit_table
 
 log = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ class Override:
 
 def _clear() -> None:
     _cache.clear()
+    _roles.clear()
 
 
 def load(engine: Engine | None) -> list[Override]:
@@ -65,12 +66,13 @@ def load(engine: Engine | None) -> list[Override]:
     return items
 
 
-_roles: dict[str, str] = {}
+_roles: dict[str, tuple[float, str]] = {}
 _MAX_ROLES = 10_000
+ROLE_FALLBACK_SECONDS = 300.0
 
 
-def role_of(engine: Engine | None, user_id: str) -> str:
-    """A person's role. If the database cannot be read, the last role seen is used."""
+def _lookup_role(engine: Engine | None, user_id: str) -> str | None:
+    """A person's role, or None when the database cannot be read and the last answer is too old."""
     if engine is None:
         return "employee"
     try:
@@ -79,12 +81,20 @@ def role_of(engine: Engine | None, user_id: str) -> str:
                 sa.select(t.users.c.role).where(t.users.c.pseudonym == user_id)
             ).scalar()
     except sa.exc.SQLAlchemyError:
-        return _roles.get(user_id, "employee")
+        hit = _roles.get(user_id)
+        if hit is not None and time.monotonic() - hit[0] < ROLE_FALLBACK_SECONDS:
+            return hit[1]
+        _roles.pop(user_id, None)
+        return None
     found = str(role or "employee")
     if len(_roles) >= _MAX_ROLES:
         _roles.clear()
-    _roles[user_id] = found
+    _roles[user_id] = (time.monotonic(), found)
     return found
+
+
+def role_of(engine: Engine | None, user_id: str) -> str:
+    return _lookup_role(engine, user_id) or "employee"
 
 
 def apply(base: PolicySet, overrides: list[Override], team: str, role: str) -> PolicySet:
@@ -97,11 +107,27 @@ def apply(base: PolicySet, overrides: list[Override], team: str, role: str) -> P
     return PolicySet(cats, sens)
 
 
+def strictest(base: PolicySet, overrides: list[Override], team: str) -> PolicySet:
+    """The most severe action any of the person's possible roles, or their team, would give."""
+    cats, sens = dict(base.categories), dict(base.sensitivity)
+    for o in overrides:
+        if o.kind == "team" and o.group.lower() != team.lower():
+            continue
+        target = cats if o.scope == "category" else sens
+        action = Decision(o.action)
+        if o.key not in target or PRECEDENCE[action] > PRECEDENCE[target[o.key]]:
+            target[o.key] = action
+    return PolicySet(cats, sens, degraded=True)
+
+
 def effective(engine: Engine | None, base: PolicySet, user_id: str, team: str) -> PolicySet:
     overrides = load(engine)
     if not overrides:
         return base
-    return apply(base, overrides, team, role_of(engine, user_id))
+    role = _lookup_role(engine, user_id)
+    if role is None:
+        return strictest(base, overrides, team)
+    return apply(base, overrides, team, role)
 
 
 def _validate(seed: PolicySet, o: Override) -> None:

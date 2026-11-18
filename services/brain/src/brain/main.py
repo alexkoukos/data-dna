@@ -384,36 +384,69 @@ def _own_origins() -> set[str]:
     return {o for o in (mine, "http://localhost:3000", "http://127.0.0.1:3000") if o}
 
 
-_IDENTITY_PATH = re.compile(r"^/v1/incidents/[^/]+/identity$")
+# Names this app is reached by: the browser on this machine, the web container's proxy and the
+# gateway (docker service names), and the hosts of the configured dashboard and Company AI links.
+_FIXED_HOSTS = {"localhost", "127.0.0.1", "::1", "brain", "web", "gateway", "testserver"}
+
+
+def _known_hosts() -> set[str]:
+    hosts = set(_FIXED_HOSTS)
+    for url in (settings.web_url, settings.company_ai_url):
+        if urlsplit(url).hostname:
+            hosts.add(str(urlsplit(url).hostname).lower())
+    return hosts
+
+
+def _request_host(request: Request) -> str:
+    raw = request.headers.get("host", "")
+    if raw.startswith("["):
+        return raw[1 : raw.find("]")].lower() if "]" in raw else raw.lower()
+    return raw.rsplit(":", 1)[0].lower() if raw.count(":") == 1 else raw.lower()
+
+
+# GET routes that write to the audit log: guarded like a change.
+_IDENTITY_PATH = re.compile(r"^/v1/(incidents/[^/]+/identity|documents/[^/]+/copies/[^/]+)$")
+
+
+def _refuse(detail: str) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": detail})
 
 
 @app.middleware("http")
 async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> Response:
-    """Refuse changes sent from another website (the brain has no login, so the browser is the
-    only thing standing between a hostile page and these routes).
+    """Refuse requests a hostile web page could make (the brain has no login, so the browser is
+    the only thing standing between such a page and these routes).
 
-    Browsers label cross-site requests with Sec-Fetch-Site or Origin. The gateway, scripts and
-    tests send neither and pass. The extension routes have their own CORS rules.
+    - Host must be a name this app is reached by, which stops DNS rebinding (a page on another
+      domain that points its name at this machine).
+    - Changes (and the incident identity read) must not come from another site: Sec-Fetch-Site,
+      or the Origin when that is missing, must be our own. An Origin that is not ours is refused
+      even when the browser says same-origin.
+    The gateway, scripts and tests send neither header and pass. Extension routes are keyed by
+    the person's key and have their own CORS rules.
     """
     path = request.url.path
+    if path == "/healthz" or path.startswith("/v1/extension/"):
+        return await call_next(request)  # type: ignore[no-any-return]
+    if _request_host(request) not in _known_hosts():
+        return _refuse(
+            "This address is not one the Pyli gate answers on, so the request was refused. "
+            "Open the dashboard from its normal address."
+        )
     unsafe = request.method not in ("GET", "HEAD", "OPTIONS") or bool(_IDENTITY_PATH.match(path))
-    if not unsafe or path.startswith("/v1/extension/") or path == "/healthz":
+    if not unsafe:
         return await call_next(request)  # type: ignore[no-any-return]
     site = request.headers.get("sec-fetch-site")
     origin = request.headers.get("origin")
-    if site is not None:
-        ok = site in ("same-origin", "none")
-    elif origin is not None:
-        ok = origin in _own_origins()
-    else:
-        ok = True
-    if not ok:
-        return JSONResponse(
-            status_code=403,
-            content={
-                "detail": "This change was sent from another website, so it was refused. "
-                "Make it from the Pyli dashboard."
-            },
+    ours = (
+        origin is None
+        or origin in _own_origins()
+        or origin == f"{request.url.scheme}://{request.headers.get('host', '')}"
+    )
+    if (site is not None and site not in ("same-origin", "none")) or not ours:
+        return _refuse(
+            "This change was sent from another website, so it was refused. "
+            "Make it from the Pyli dashboard."
         )
     return await call_next(request)  # type: ignore[no-any-return]
 
@@ -432,13 +465,34 @@ def healthz() -> dict[str, str]:
     return {"status": "ok", "database": "ok"}
 
 
-def _attachment_text(req: InspectRequest) -> str:
-    """Text of every attached file, appended to the message so one pipeline checks both."""
+def _too_long() -> HTTPException:
+    return HTTPException(
+        status_code=413,
+        detail="This request is too long to check (over 100,000 characters of new text). "
+        "Shorten it or split it into smaller messages.",
+    )
+
+
+def _attachment_text(req: InspectRequest, budget: int = MAX_INSPECT_CHARS) -> str:
+    """Text of every attached file, appended to the message so one pipeline checks both.
+
+    `budget` is what is left of the new-content limit. A file whose size already shows it cannot
+    fit is refused before it is decoded, and no more files are opened once the budget is used.
+    """
     parts: list[str] = []
     for a in req.attachments:
+        if budget <= 0:
+            raise _too_long()
+        if len(a.content_base64) * 3 // 4 > MAX_BYTES + 3:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{a.filename}: this file is larger than 10 MB. Split it or send the "
+                "relevant part.",
+            )
         try:
             data = base64.b64decode(a.content_base64, validate=True)
             parts.append(extract_text(a.filename, data))
+            budget -= len(parts[-1])
         except (binascii.Error, ValueError) as err:
             raise HTTPException(
                 status_code=422,
@@ -593,6 +647,18 @@ class _HistoryGroup:
     indexes: list[int]
     prefix: str
     accepted: bool = False
+    cheap: bool = False  # beyond the character budget: only the cheap checks run
+
+
+def _beyond_budget(msgs: list[Message], *groups: list[int]) -> set[int]:
+    """Earlier messages past the character budget, counting from the newest backwards."""
+    over: set[int] = set()
+    used = 0
+    for i in sorted({i for g in groups for i in g}, reverse=True):
+        used += len(msgs[i].content)
+        if used > MAX_INSPECT_CHARS:
+            over.add(i)
+    return over
 
 
 def _history_groups(
@@ -616,19 +682,22 @@ def _history_groups(
     tools = [i for i in history_idx if msgs[i].role == _TOOL_DEFINITION_ROLE]
     instructions = [i for i in history_idx if msgs[i].role in _INSTRUCTION_ROLES]
     rest = [i for i in history_idx if i not in set(tools) | set(instructions)]
+    over = _beyond_budget(msgs, history_idx, trusted_idx)
     out: list[_HistoryGroup] = []
-    for kind, indexes, prefix in (
+    for kind, all_indexes, prefix in (
         ("history", rest, _PREFIX_HISTORY),
         ("tool", tools, _PREFIX_TOOL),
         ("instructions", instructions, _PREFIX_HISTORY),
         ("trusted", trusted_idx, _PREFIX_TRUSTED),
     ):
-        fresh = [i for i in indexes if i not in accepted]
-        done = [i for i in indexes if i in accepted]
-        if fresh:
-            out.append(_HistoryGroup(kind, fresh, prefix))
-        if done:
-            out.append(_HistoryGroup(kind, done, _PREFIX_ACCEPTED, accepted=True))
+        for cheap in (False, True):
+            indexes = [i for i in all_indexes if (i in over) == cheap]
+            fresh = [i for i in indexes if i not in accepted]
+            done = [i for i in indexes if i in accepted]
+            if fresh:
+                out.append(_HistoryGroup(kind, fresh, prefix, cheap=cheap))
+            if done:
+                out.append(_HistoryGroup(kind, done, _PREFIX_ACCEPTED, accepted=True, cheap=cheap))
     return out
 
 
@@ -813,13 +882,14 @@ def inspect(
 ) -> InspectResponse:
     msgs = req.messages
     new_idx, history_idx, trusted_idx = _group_messages(msgs)
-    attached = _attachment_text(req)
-    if sum(len(m.content) for m in msgs) + len(attached) > MAX_INSPECT_CHARS:
-        raise HTTPException(
-            status_code=413,
-            detail="This request is too long to check (over 100,000 characters). "
-            "Shorten it or split it into smaller messages.",
-        )
+    # The limit is on new text. Earlier turns, system prompts and tool definitions are not
+    # refused however long they grow; the part beyond the same budget gets the cheap checks only.
+    new_chars = sum(len(msgs[i].content) for i in new_idx)
+    if new_chars > MAX_INSPECT_CHARS:
+        raise _too_long()
+    attached = _attachment_text(req, MAX_INSPECT_CHARS - new_chars)
+    if new_chars + len(attached) > MAX_INSPECT_CHARS:
+        raise _too_long()
     if not new_idx and not history_idx and not trusted_idx and not attached:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
     clock = time.perf_counter()
@@ -866,14 +936,25 @@ def inspect(
             view_finders = [find_yara, injection_finder]
             mask_injection = group.kind != "tool"
         # Earlier turns get the same checks as new content, but not the slow injection model.
+        # Text beyond the budget (very long histories) gets patterns, YARA, decoys and client
+        # names only: no entity model, no embeddings, no document matching.
+        if group.cheap:
+            # `finders[-1]` is the client-name finder (see _finders).
+            group_finders = [f for f in group_finders if f in (find_yara, finders[-1])]
+            doc_match: Callable[..., list[DocMatch]] = lambda *_a, **_k: []  # noqa: E731
+        else:
+            group_finders = (
+                group_finders if group.kind == "trusted" else _for_history(group_finders)
+            )
+            doc_match = partial(_history_matches, documents)
         rg, mg, ng = _inspect_group(
             [msgs[i].content for i in group.indexes],
             "",
             policies,
             placeholders,
-            finders=group_finders if group.kind == "trusted" else _for_history(group_finders),
+            finders=group_finders,
             view_finders=view_finders,
-            doc_match=partial(_history_matches, documents),
+            doc_match=doc_match,
             mask_injection=mask_injection,
         )
         if group.kind == "tool":
@@ -916,6 +997,10 @@ def inspect(
         if masked is None:
             would_have_decision = Decision.WARN
             extra_reasons.append("Part of the conversation could not be masked safely")
+    if policies.degraded:
+        extra_reasons.append(
+            "The role database could not be read, so the strictest matching policy was used"
+        )
     combined_reasons += extra_reasons
     would_have = str(would_have_decision)
     shadow = would_have_decision != Decision.ALLOW and settings_store.get_bool(

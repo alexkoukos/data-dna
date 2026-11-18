@@ -94,6 +94,16 @@ class DnaGuardrail(CustomGuardrail):
             value = getattr(message, name, None)
             if isinstance(value, str) and value:
                 setattr(message, name, await self._finalize(value, user_api_key_dict, meta))
+        for block in getattr(message, "thinking_blocks", None) or []:
+            text = block.get("thinking") if isinstance(block, dict) else getattr(block, "thinking", None)
+            if isinstance(text, str) and text:
+                cleaned = await self._finalize(
+                    text, user_api_key_dict, {**meta, "dna_session_id": None}
+                )
+                if isinstance(block, dict):
+                    block["thinking"] = cleaned
+                else:
+                    block.thinking = cleaned
         calls = list(getattr(message, "tool_calls", None) or [])
         legacy = getattr(message, "function_call", None)
         if legacy is not None:
@@ -145,7 +155,12 @@ class DnaGuardrail(CustomGuardrail):
         if isinstance(node, str):
             return await self._finalize(node, user_api_key_dict, meta) if node else node
         if isinstance(node, dict):
-            return {k: await self._walk(v, user_api_key_dict, meta) for k, v in node.items()}
+            return {
+                (await self._walk(k, user_api_key_dict, meta)): await self._walk(
+                    v, user_api_key_dict, meta
+                )
+                for k, v in node.items()
+            }
         if isinstance(node, list):
             return [await self._walk(v, user_api_key_dict, meta) for v in node]
         return node

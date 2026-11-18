@@ -80,3 +80,28 @@ def test_identity_get_cross_site_refused(monkeypatch) -> None:  # type: ignore[n
     assert r.status_code == 403 and "another website" in r.json()["detail"]
     other = client.get("/v1/incidents/1/identity?request_id=1&viewer=x")
     assert "another website" not in other.text
+
+
+def test_an_unknown_host_is_refused_for_every_route(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    client, _ = _client(monkeypatch)
+    r = client.get("/v1/ask/presets", headers={"Host": "attacker.example:8001"})
+    assert r.status_code == 403 and "not one the Pyli gate answers on" in r.json()["detail"]
+    for ok in ("localhost:8001", "127.0.0.1:8001", "brain:8001", "gateway:4000"):
+        assert client.get("/v1/ask/presets", headers={"Host": ok}).status_code == 200
+    assert client.get("/healthz", headers={"Host": "attacker.example"}).status_code == 200
+
+
+def test_a_foreign_origin_is_refused_even_when_the_browser_says_same_origin(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    client, engine = _client(monkeypatch)
+    r = client.post(
+        "/v1/documents",
+        data=DOC,
+        headers={"Sec-Fetch-Site": "same-origin", "Origin": "https://evil.example"},
+    )
+    assert r.status_code == 403 and _docs(engine) == 0
+
+
+def test_the_copy_link_is_guarded_like_a_change(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    client, _ = _client(monkeypatch)
+    r = client.get("/v1/documents/1/copies/ABC", headers={"Sec-Fetch-Site": "cross-site"})
+    assert r.status_code == 403 and "another website" in r.json()["detail"]

@@ -791,6 +791,16 @@ class _AcceptedMemory:
 ACCEPTED = _AcceptedMemory()
 
 
+def _brain_detail(resp: httpx.Response) -> str:
+    try:
+        detail = resp.json().get("detail")
+    except (ValueError, AttributeError):
+        return "invalid request."
+    if isinstance(detail, list):
+        detail = "; ".join(str(d.get("msg", "")) for d in detail if isinstance(d, dict))
+    return str(detail or "invalid request.")[:300]
+
+
 async def apply_decision(
     data: dict[str, Any],
     *,
@@ -849,13 +859,23 @@ async def apply_decision(
         payload["reroute"] = True
     try:
         resp = await client.post(f"{brain_url}/v1/inspect", json=payload, timeout=10.0)
-        if resp.status_code in (413, 422):
+        if resp.status_code == 413:
             raise GatewayError(
                 413,
                 {
                     "type": "block",
                     "message": "This request is too large to check, so it was not sent.",
                     "next": "Shorten it or split it.",
+                },
+            )
+        if resp.status_code == 422:
+            raise GatewayError(
+                503,
+                {
+                    "type": "unavailable",
+                    "message": "The safety check could not read this request, so it was not "
+                    f"sent: {_brain_detail(resp)}",
+                    "next": "Fix the request and send it again.",
                 },
             )
         resp.raise_for_status()
@@ -1359,6 +1379,15 @@ async def _rewrite_anthropic_sse(
         index = _block_index(body)
         if body.get("type") == "content_block_start":
             block = body.get("content_block")
+            if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("input"):
+                # A tool call can open with input already filled in.
+                try:
+                    block["input"] = json.loads(
+                        await transform(json.dumps(block["input"], ensure_ascii=False))
+                    )
+                except ValueError as exc:
+                    raise _unreadable_stream() from exc
+                f.changed = True
             field = _START_FIELDS.get(str(block.get("type"))) if isinstance(block, dict) else None
             if field and isinstance(block, dict) and (index, field) in parts and block.get(field):
                 block[field] = cleaned[(index, field)] if (index, field) not in placed else ""
@@ -1379,7 +1408,9 @@ async def _rewrite_anthropic_sse(
 
 
 async def _clean_side_channels(
-    chunks: list[Any], transform: Callable[[str], Awaitable[str]]
+    chunks: list[Any],
+    transform: Callable[[str], Awaitable[str]],
+    filter_only: Callable[[str], Awaitable[str]] | None = None,
 ) -> None:
     """Streamed tool-call arguments, reasoning and refusal text: each is joined, checked once and
     put in the first chunk that carried it; the later chunks keep their place without text."""
@@ -1392,6 +1423,9 @@ async def _clean_side_channels(
         for name in ("reasoning_content", "refusal"):
             if isinstance(getattr(delta, name, None), str) and getattr(delta, name):
                 slots.setdefault((name, 0), []).append((delta, name))
+        for n, block in enumerate(getattr(delta, "thinking_blocks", None) or []):
+            if isinstance(_get(block, "thinking"), str) and _get(block, "thinking"):
+                slots.setdefault(("thinking", n), []).append((block, "thinking"))
         for n, call in enumerate(getattr(delta, "tool_calls", None) or []):
             fn = getattr(call, "function", None)
             args = getattr(fn, "arguments", None)
@@ -1400,10 +1434,12 @@ async def _clean_side_channels(
                 slots.setdefault(("tool", index if isinstance(index, int) else n), []).append(
                     (fn, "arguments")
                 )
-    for holders in slots.values():
-        cleaned = await transform("".join(getattr(h, a) for h, a in holders))
+    for (kind, _), holders in slots.items():
+        # Thinking is filtered but never unmasked, as for Anthropic blocks.
+        run = filter_only if kind == "thinking" and filter_only else transform
+        cleaned = await run("".join(str(_get(h, a)) for h, a in holders))
         for n, (holder, attr) in enumerate(holders):
-            setattr(holder, attr, cleaned if n == 0 else "")
+            _set(holder, attr, cleaned if n == 0 else "")
 
 
 async def rewrite_stream(
@@ -1433,7 +1469,7 @@ async def rewrite_stream(
         for event in await _rewrite_responses_events(buffered, transform):
             yield event
         return
-    await _clean_side_channels(buffered, transform)
+    await _clean_side_channels(buffered, transform, filter_only)
     cleaned = await transform("".join(parts)) if parts else ""
     placed = False
     for chunk in buffered:

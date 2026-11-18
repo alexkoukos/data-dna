@@ -103,3 +103,56 @@ def test_healthz_reports_the_database(monkeypatch) -> None:  # type: ignore[no-u
     monkeypatch.setattr(main_mod.policy_store, "_engine", _Down())
     r = client.get("/healthz")
     assert r.status_code == 200 and r.json()["database"] == "unreachable"
+
+
+def test_a_long_history_is_not_refused_and_a_secret_deep_in_it_is_still_found() -> None:
+    filler = "The quarterly numbers were discussed at length. " * 2200
+    msgs = [{"role": "user", "content": "Here are the old notes."}]
+    for _ in range(3):
+        msgs += [
+            {"role": "assistant", "content": filler},
+            {"role": "user", "content": "ok, continue please"},
+        ]
+    msgs[1]["content"] = "key AKIAIOSFODNN7EXAMPLE " + filler  # the oldest turn, past the budget
+    msgs.append({"role": "user", "content": "Thanks, now write a short poem about spring."})
+    assert sum(len(m["content"]) for m in msgs) > 300_000
+    r = client.post("/v1/inspect", json={"messages": msgs})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["decision"] in ("mask", "warn", "block")
+    assert any(f["entity"] == "AWS_ACCESS_KEY" or "key" in f["category"] for f in body["findings"])
+
+
+def test_new_content_over_the_cap_is_413_but_the_same_text_as_history_is_not() -> None:
+    big = "a " * 50_500
+    assert (
+        client.post(
+            "/v1/inspect", json={"messages": [{"role": "user", "content": big}]}
+        ).status_code
+        == 413
+    )
+    ok = client.post(
+        "/v1/inspect",
+        json={
+            "messages": [
+                {"role": "user", "content": big},
+                {"role": "assistant", "content": "fine"},
+                {"role": "user", "content": "short question"},
+            ]
+        },
+    )
+    assert ok.status_code == 200
+
+
+def _full_width(text: str) -> str:
+    return "".join(chr(ord(c) + 0xFEE0) if c.isascii() and c.isalnum() else c for c in text)
+
+
+def test_a_full_width_iban_is_caught_on_the_way_in_and_on_the_way_out(valid_iban: str) -> None:
+    wide = _full_width(valid_iban)
+    assert wide != valid_iban
+    r = client.post("/v1/inspect", json={"messages": [{"role": "user", "content": f"pay {wide}"}]})
+    assert r.json()["decision"] == "mask"
+    assert "1250" not in r.json()["masked_messages"][0]["content"]
+    out = client.post("/v1/inspect-output", json={"text": f"pay {wide}"}).json()
+    assert out["changed"] and "[IBAN_OUT_1]" in out["text"] and wide not in out["text"]

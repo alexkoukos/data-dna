@@ -56,7 +56,8 @@ def update_coverage(
 ) -> list[Rebuild]:
     now = now or datetime.now(UTC)
     out: list[Rebuild] = []
-    for m in matches:
+    # Always lock documents in the same order, so two requests cannot wait on each other.
+    for m in sorted(matches, key=lambda x: x.document_id):
         where = (
             t.session_coverage.c.user_id == user_id,
             t.session_coverage.c.document_id == m.document_id,

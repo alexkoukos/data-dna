@@ -141,3 +141,15 @@ def test_sequential_union_and_prompt_count_still_hold(conn: sa.Connection) -> No
     r = update_coverage(conn, 1, [match([1])], NOW + timedelta(minutes=1))[0]
     assert r.prompts == 2 and r.coverage == 0.2
     assert len(conn.execute(sa.select(t.session_coverage)).all()) == 1
+
+
+def test_documents_are_locked_in_a_fixed_order() -> None:
+    fake = _FakePg()
+    two = [
+        DocMatch(9, "B", "confidential", 0.9, "paraphrase", [0], 10),
+        DocMatch(2, "A", "confidential", 0.9, "paraphrase", [0], 10),
+    ]
+    update_coverage(fake, 1, two, NOW)  # type: ignore[arg-type]
+    locked = [s for s in fake.sql if "FOR UPDATE" in s]
+    assert len(locked) == 2
+    assert [r.document_id for r in update_coverage(fake, 1, two, NOW)] == [2, 9]

@@ -761,3 +761,25 @@ def test_assistants_route_is_refused_for_a_personal_key() -> None:
         timeout=60,
     )
     assert ok.status_code == 200
+
+
+def test_a_long_history_through_the_gateway_is_answered_and_a_deep_secret_is_masked(
+    client: OpenAI,
+) -> None:
+    filler = "The quarterly numbers were discussed at length. " * 2200
+    messages: list[dict[str, str]] = [
+        {"role": "user", "content": "key AKIAIOSFODNN7EXAMPLE " + filler}
+    ]
+    for _ in range(3):
+        messages += [
+            {"role": "assistant", "content": filler},
+            {"role": "user", "content": "ok, continue please"},
+        ]
+    r = httpx.post(
+        f"{GATEWAY}/v1/chat/completions",
+        headers={"Authorization": f"Bearer {client.api_key}"},
+        json={"model": "demo-mock", "messages": messages},
+        timeout=120,
+    )
+    assert r.status_code == 200
+    assert r.headers.get("x-dna-decision") == "mask"

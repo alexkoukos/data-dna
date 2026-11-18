@@ -55,6 +55,8 @@ class PolicyError(ValueError):
 class PolicySet:
     categories: dict[str, Decision]
     sensitivity: dict[str, Decision]
+    # True when the person's role could not be read and the strictest matching policy was used.
+    degraded: bool = False
 
 
 @dataclass
