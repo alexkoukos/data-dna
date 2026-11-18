@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const ROUTES = [
   "/",
+  "/app",
   "/chat",
   "/connect",
   "/break-it",

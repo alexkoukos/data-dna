@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
@@ -18,6 +19,8 @@ import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 import { Companion } from "./components/Companion";
 
+const Landing = lazy(() => import("./landing/Landing"));
+
 const links = [
   { to: "/chat", label: "Company Chat" },
   { to: "/break-it", label: "Try to break it" },
@@ -27,6 +30,14 @@ const links = [
 
 export default function App() {
   const { pathname } = useLocation();
+  // The landing page has its own header and no app chrome.
+  if (pathname === "/") {
+    return (
+      <Suspense fallback={null}>
+        <Landing />
+      </Suspense>
+    );
+  }
   return (
     <div className="min-h-screen">
       <nav
@@ -34,7 +45,7 @@ export default function App() {
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
       >
         <Link
-          to="/"
+          to="/app"
           aria-label="Pyli home"
           className="mr-4 flex min-h-11 min-w-11 items-center self-center"
         >
@@ -53,7 +64,7 @@ export default function App() {
         ))}
       </nav>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/app" element={<HomePage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/connect" element={<ConnectPage />} />
         <Route path="/break-it" element={<BreakItPage />} />
@@ -71,7 +82,7 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
-      {pathname === "/" ? null : <Companion />}
+      <Companion />
     </div>
   );
 }
