@@ -1,6 +1,7 @@
 import { adapterFor } from "../src/adapters";
 import type { Adapter } from "../src/adapters/types";
 import { runCheck } from "../src/check";
+import { installFileGuard } from "../src/files";
 import { scan } from "../src/detect/engine";
 import { DEFAULT_POLICY, type Policy } from "../src/detect/policy";
 import { label, titleFor } from "../src/explain";
@@ -236,6 +237,23 @@ export default defineContentScript({
           if (c.id === "ask") void send({ type: "openPanel", prompt: "" });
         });
     }
+
+    // Files: held back until the company server has read them. A file stamped confidential
+    // (RESTRICTED, ΕΜΠΙΣΤΕΥΤΙΚΟ, internal use only) is removed and never reaches the AI tool.
+    installFileGuard({
+      overlay,
+      check: (attachments) =>
+        send<Partial<CheckResult>>({
+          type: "l2",
+          text: "",
+          tool: adapter.tool,
+          url: location.href,
+          attachments,
+        }),
+      onEvent: (action, category) =>
+        void send({ type: "event", tool: adapter.tool, host: location.hostname, action, category }),
+      onOpenCompanyAi: () => void send({ type: "openPanel", prompt: "" }),
+    });
 
     document.addEventListener(
       "keydown",

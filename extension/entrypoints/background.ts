@@ -57,7 +57,7 @@ export default defineBackground(() => {
     (async () => {
       switch (msg.type) {
         case "l2":
-          reply(await checkRemote(msg.text, msg.tool, msg.url));
+          reply(await checkRemote(msg.text, msg.tool, msg.url, msg.attachments));
           return;
         case "policy": {
           // `force` is the popup's "Refresh now": wait for the server's answer instead of the cache.

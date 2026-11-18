@@ -19,7 +19,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Engine
 
-from brain.api.schemas import InspectRequest, Message
+from brain.api.schemas import Attachment, InspectRequest, Message
 from brain.config import settings
 from brain.db import tables as t
 from brain.policy import groups
@@ -132,7 +132,8 @@ def _host(url: str) -> str:
 
 
 class CheckRequest(BaseModel):
-    text: str = Field(max_length=200_000)
+    text: str = Field(default="", max_length=200_000)
+    attachments: list[Attachment] = Field(default_factory=list, max_length=5)
     tool: str = "unknown"
     url: str = ""
 
@@ -193,6 +194,7 @@ def check(
             user_id=who.user,
             team=who.team,
             messages=[Message(role="user", content=req.text)],
+            attachments=req.attachments,
             tool=tool,
             channel="extension",
         ),
