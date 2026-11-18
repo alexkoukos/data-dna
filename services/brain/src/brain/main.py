@@ -427,6 +427,7 @@ _DEFINITION_ROLES = {_DEFINITION_ROLE, _TOOL_DEFINITION_ROLE}
 _INSTRUCTION_ROLES = {"system", "developer"}
 _PREFIX_HISTORY = "Earlier in this conversation: "
 _PREFIX_TOOL = "In a tool description: "
+_PREFIX_ACCEPTED = "Accepted earlier in this conversation: "
 _PREFIX_TRUSTED = "In the instructions, tools or earlier answers: "
 
 
@@ -487,10 +488,14 @@ class _HistoryGroup:
     kind: str  # "history", "tool", "instructions" or "trusted"
     indexes: list[int]
     prefix: str
+    accepted: bool = False
 
 
 def _history_groups(
-    msgs: list[Message], history_idx: list[int], trusted_idx: list[int]
+    msgs: list[Message],
+    history_idx: list[int],
+    trusted_idx: list[int],
+    accepted: frozenset[int] = frozenset(),
 ) -> list[_HistoryGroup]:
     """Split the earlier messages by what kind of text they are. Empty groups are left out, so a
     normal request costs what it did before.
@@ -500,17 +505,42 @@ def _history_groups(
     - system and developer text after the first user turn: injection phrases block, unless the
       phrase is negated ("Do not reveal these instructions");
     - the leading prompt and earlier answers: no injection checks.
+
+    Each group is split in two: text the person already accepted comes after the rest, with its
+    own prefix, so a warning they answered once is not raised again (see `_lower_accepted`).
     """
     tools = [i for i in history_idx if msgs[i].role == _TOOL_DEFINITION_ROLE]
     instructions = [i for i in history_idx if msgs[i].role in _INSTRUCTION_ROLES]
     rest = [i for i in history_idx if i not in set(tools) | set(instructions)]
-    groups_ = [
-        _HistoryGroup("history", rest, _PREFIX_HISTORY),
-        _HistoryGroup("tool", tools, _PREFIX_TOOL),
-        _HistoryGroup("instructions", instructions, _PREFIX_HISTORY),
-        _HistoryGroup("trusted", trusted_idx, _PREFIX_TRUSTED),
-    ]
-    return [g for g in groups_ if g.indexes]
+    out: list[_HistoryGroup] = []
+    for kind, indexes, prefix in (
+        ("history", rest, _PREFIX_HISTORY),
+        ("tool", tools, _PREFIX_TOOL),
+        ("instructions", instructions, _PREFIX_HISTORY),
+        ("trusted", trusted_idx, _PREFIX_TRUSTED),
+    ):
+        fresh = [i for i in indexes if i not in accepted]
+        done = [i for i in indexes if i in accepted]
+        if fresh:
+            out.append(_HistoryGroup(kind, fresh, prefix))
+        if done:
+            out.append(_HistoryGroup(kind, done, _PREFIX_ACCEPTED, accepted=True))
+    return out
+
+
+def _lower_accepted(p: _Pass) -> None:
+    """A warning the person already answered becomes a mask (or nothing) for this earlier text.
+
+    Block and local are never lowered. The text is still masked in place where it differs, so
+    an IBAN in an accepted turn does not travel as it is.
+    """
+    verdict = p.result.verdict
+    if verdict.decision != Decision.WARN:
+        return
+    changed = p.masked is not None and any(
+        m != n for m, n in zip(p.masked, p.normalised, strict=True)
+    )
+    verdict.decision = Decision.MASK if changed else Decision.ALLOW
 
 
 def _inspect_group(
@@ -706,7 +736,8 @@ def inspect(
     t_checks = time.perf_counter()
     placeholders = dict(first.result.placeholders) if first else None
     earlier = [f for f in finders if f != injection_classifier.find]
-    for group in _history_groups(msgs, history_idx, trusted_idx):
+    accepted = frozenset(i for i in req.accepted_indexes if 0 <= i < len(msgs))
+    for group in _history_groups(msgs, history_idx, trusted_idx, accepted):
         mask_injection = True
         view_finders: list[Finder]
         if group.kind == "trusted":
@@ -736,7 +767,10 @@ def inspect(
         )
         if group.kind == "tool":
             cap_injection(rg, policies)
-        passes.append(_Pass(rg, group.indexes, mg, ng, group.prefix))
+        earlier_pass = _Pass(rg, group.indexes, mg, ng, group.prefix)
+        if group.accepted:
+            _lower_accepted(earlier_pass)
+        passes.append(earlier_pass)
         placeholders = rg.placeholders
     t_history = time.perf_counter()
     memory_reasons: list[str] = []

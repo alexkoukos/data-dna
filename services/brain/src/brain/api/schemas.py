@@ -21,6 +21,9 @@ class InspectRequest(BaseModel):
     tool: str = "Company AI"
     channel: str = "gateway"
     reroute: bool = False  # X31: the person chose "send it to Company AI instead"
+    # Positions in `messages` the gateway knows this person already accepted (sent with the
+    # acknowledgement header). Only earlier text is lowered; new content is always checked.
+    accepted_indexes: list[int] = Field(default_factory=list)
     messages: list[Message]
     attachments: list[Attachment] = Field(default_factory=list)
 

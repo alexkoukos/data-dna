@@ -493,3 +493,65 @@ def test_an_injection_phrase_in_a_tool_description_is_never_rerouted(client: Tes
     ]
     out = send(client, msgs, reroute=True)
     assert out["rerouted"] is False and out["decision"] == "warn"
+
+
+# --- S5: earlier text the gateway says the person already accepted ------------------------------
+
+RISKY_TURN = "My client Acme Corp has IBAN " + IBAN + " and AMKA 01011990123"
+
+
+def test_an_accepted_warning_in_history_becomes_a_mask(client: TestClient) -> None:
+    msgs = turns(RISKY_TURN, "Noted.", HARMLESS)
+    assert send(client, msgs)["decision"] == "mask"
+    # An admin policy that warns on IBAN makes the earlier turn a warning.
+    client.put(
+        "/v1/policies",
+        json={"scope": "category", "key": "iban", "action": "warn", "updated_by": "t"},
+    )
+    assert send(client, msgs)["decision"] == "warn"
+    out = send(client, msgs, accepted_indexes=[0])
+    assert out["decision"] == "mask"
+    assert IBAN not in out["masked_messages"][0]["content"]
+    assert out["reasons"][0].startswith("Accepted earlier in this conversation")
+
+
+def test_the_accepted_flag_on_the_new_message_is_ignored(client: TestClient) -> None:
+    client.put(
+        "/v1/policies",
+        json={"scope": "category", "key": "iban", "action": "warn", "updated_by": "t"},
+    )
+    msgs = turns("hello", "Hi.", f"Pay {IBAN}")
+    assert send(client, msgs, accepted_indexes=[2])["decision"] == "warn"
+
+
+def test_accepting_never_lowers_a_block(client: TestClient) -> None:
+    msgs = turns(INJECTION, "No.", HARMLESS)
+    assert send(client, msgs, accepted_indexes=[0])["decision"] == "block"
+
+
+def test_an_accepted_tool_description_warning_is_lowered_but_a_changed_one_is_not(
+    client: TestClient,
+) -> None:
+    msgs = [
+        {"role": "tool_definition", "content": INJECTION},
+        {"role": "user", "content": HARMLESS},
+    ]
+    assert send(client, msgs)["decision"] == "warn"
+    out = send(client, msgs, accepted_indexes=[0])
+    assert out["decision"] == "allow"
+    assert out["reasons"][0].startswith("Accepted earlier in this conversation")
+
+
+def test_an_accepted_trusted_pass_still_masks_a_secret(client: TestClient) -> None:
+    msgs = [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": f"Use key {KEY}"},
+        {"role": "user", "content": HARMLESS},
+    ]
+    out = send(client, msgs, accepted_indexes=[1])
+    assert out["decision"] == "mask" and KEY not in out["masked_messages"][1]["content"]
+
+
+def test_out_of_range_accepted_positions_are_ignored(client: TestClient) -> None:
+    out = send(client, turns("Hello", "Hi.", HARMLESS), accepted_indexes=[-1, 7, 99])
+    assert out["decision"] == "allow"

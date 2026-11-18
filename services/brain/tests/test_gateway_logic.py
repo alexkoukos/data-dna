@@ -1411,3 +1411,197 @@ def test_tool_descriptions_get_their_own_role_and_other_request_text_stays_a_def
 def test_a_client_cannot_claim_the_tool_definition_role(claimed: str) -> None:
     data = {"messages": [{"role": claimed, "content": "hello"}]}
     assert [s.role for s in dna.inspection_view(data, "completion")] == ["user"]
+
+
+# --- S5: text the person already accepted is remembered by the gateway -------------------------
+
+
+@pytest.fixture(autouse=True)
+def _fresh_acceptance_memory(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(dna, "ACCEPTED", dna._AcceptedMemory())
+
+
+def _turn(
+    messages: list[dict[str, Any]],
+    verdict: dict[str, Any],
+    *,
+    user: str = "u1",
+    ack: bool = False,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """One call to the gateway. Returns what the brain was sent and the request that goes on."""
+    sent: list[dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json=verdict)
+
+    async def go() -> dict[str, Any] | None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            try:
+                return await dna.apply_decision(
+                    {"model": "m", "messages": copy.deepcopy(messages)},
+                    user_id=user,
+                    team="t",
+                    headers={"X-DNA-Ack": "audit"} if ack else None,
+                    brain_url="http://brain",
+                    client=client,
+                )
+            except dna.GatewayError:
+                return None
+
+    out = asyncio.run(go())
+    return sent[0], out
+
+
+RISKY = [{"role": "user", "content": "AMKA 01011990123 card 4111 1111 1111 1111"}]
+WARN = {"decision": "warn", "reasons": ["Contains card"]}
+ALLOW = {"decision": "allow", "reasons": []}
+LATER = [
+    *RISKY,
+    {"role": "assistant", "content": "Noted."},
+    {"role": "user", "content": "Thanks, a short poem"},
+]
+
+
+def test_an_acknowledged_warning_is_remembered_and_marks_every_slot_next_time() -> None:
+    first, out = _turn(RISKY, WARN, ack=True)
+    assert out is not None and "accepted_indexes" not in first
+    second, _ = _turn(LATER, ALLOW)
+    assert second["accepted_indexes"] == [0]
+
+
+def test_nothing_is_remembered_without_the_ack_header() -> None:
+    _, out = _turn(RISKY, WARN)
+    assert out is None
+    second, _ = _turn(LATER, ALLOW)
+    assert "accepted_indexes" not in second
+
+
+@pytest.mark.parametrize("verdict", [ALLOW, {"decision": "block", "reasons": ["x"]}])
+def test_only_a_warning_that_goes_through_is_remembered(verdict: dict[str, Any]) -> None:
+    _turn(RISKY, verdict, ack=True)
+    second, _ = _turn(LATER, ALLOW)
+    assert "accepted_indexes" not in second
+
+
+def test_a_mask_is_not_remembered() -> None:
+    _turn(
+        RISKY,
+        {
+            "decision": "mask",
+            "reasons": [],
+            "masked_messages": [{"role": "user", "content": "[S]"}],
+        },
+        ack=True,
+    )
+    second, _ = _turn(LATER, ALLOW)
+    assert "accepted_indexes" not in second
+
+
+def test_memory_is_per_user_and_the_master_key_is_never_remembered() -> None:
+    _turn(RISKY, WARN, ack=True, user="alice")
+    other, _ = _turn(LATER, ALLOW, user="bob")
+    assert "accepted_indexes" not in other
+    _turn(RISKY, WARN, ack=True, user="anonymous")
+    again, _ = _turn(LATER, ALLOW, user="anonymous")
+    assert "accepted_indexes" not in again
+    _turn(RISKY, WARN, ack=True, user="")
+    blank, _ = _turn(LATER, ALLOW, user="")
+    assert "accepted_indexes" not in blank
+
+
+def test_a_changed_text_or_role_is_not_remembered() -> None:
+    _turn(RISKY, WARN, ack=True)
+    edited = [{"role": "user", "content": RISKY[0]["content"] + "!"}]
+    assert "accepted_indexes" not in _turn(edited, ALLOW)[0]
+    as_system = [{"role": "system", "content": RISKY[0]["content"]}]
+    assert "accepted_indexes" not in _turn(as_system, ALLOW)[0]
+
+
+def test_remembered_text_expires_after_the_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = [1000.0]
+    monkeypatch.setattr(dna.time, "monotonic", lambda: now[0])
+    _turn(RISKY, WARN, ack=True)
+    now[0] += dna.ACCEPTED_TTL_SECONDS - 1
+    assert _turn(LATER, ALLOW)[0]["accepted_indexes"] == [0]
+    now[0] += 2
+    assert "accepted_indexes" not in _turn(LATER, ALLOW)[0]
+
+
+def test_the_memory_drops_its_oldest_entries_when_full() -> None:
+    memory = dna._AcceptedMemory(size=2)
+    slots = [dna.Slot("user", t, None) for t in ("a", "b", "c")]
+    memory.add("u", slots)
+    assert [memory.has("u", s) for s in slots] == [False, True, True]
+
+
+def test_only_a_hash_is_kept() -> None:
+    _turn(RISKY, WARN, ack=True)
+    assert all(len(k) == 64 and k.isalnum() for k in dna.ACCEPTED._items)
+    assert "4111" not in json.dumps(list(dna.ACCEPTED._items))
+
+
+def test_an_accepted_slot_that_cannot_be_rewritten_is_sent_as_it_is() -> None:
+    def request() -> dict[str, Any]:
+        return {
+            "model": "m",
+            "user": "key AKIAIOSFODNN7EXAMPLE",
+            "messages": [{"role": "user", "content": "hi"}],
+        }
+
+    async def go(verdict: dict[str, Any], ack: bool) -> tuple[dict[str, Any], Any]:
+        seen: list[dict[str, Any]] = []
+
+        def handler(req: httpx.Request) -> httpx.Response:
+            seen.append(json.loads(req.content))
+            return httpx.Response(200, json=verdict(seen[0]) if callable(verdict) else verdict)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            try:
+                out = await dna.apply_decision(
+                    request(),
+                    user_id="u1",
+                    team="t",
+                    headers={"X-DNA-Ack": "a"} if ack else None,
+                    brain_url="http://brain",
+                    client=client,
+                )
+            except dna.GatewayError as err:
+                return seen[0], err
+            return seen[0], out
+
+    def mask_first(sent: dict[str, Any]) -> dict[str, Any]:
+        msgs = [dict(m) for m in sent["messages"]]
+        msgs[0]["content"] = "key [S_1]"
+        return {"decision": "mask", "reasons": [], "masked_messages": msgs}
+
+    sent, err = asyncio.run(go(mask_first, False))
+    assert isinstance(err, dna.GatewayError) and err.status_code == 409
+    assert sent["messages"][0]["role"] == "definition"
+    sent, out = asyncio.run(go(WARN, True))
+    assert isinstance(out, dict)
+    sent, out = asyncio.run(go(mask_first, False))
+    assert 0 in sent["accepted_indexes"]
+    assert isinstance(out, dict) and out["metadata"]["dna_decision"] == "allow"
+
+
+def test_an_accepted_slot_that_can_be_rewritten_is_still_masked() -> None:
+    _turn(RISKY, WARN, ack=True)
+    masked = [
+        {"role": "user", "content": "AMKA [AMKA_1] card [CARD_1]"},
+        {"role": "assistant", "content": "Noted."},
+        {"role": "user", "content": "Thanks, a short poem"},
+    ]
+    _, out = _turn(LATER, {"decision": "mask", "reasons": [], "masked_messages": masked})
+    assert out is not None and out["messages"][0]["content"].startswith("AMKA [AMKA_1]")
+
+
+def test_a_rerouted_request_is_not_remembered() -> None:
+    verdict = {
+        "decision": "local",
+        "rerouted": True,
+        "reasons": [],
+        "masked_messages": [{"role": "user", "content": "[S]"}],
+    }
+    _turn(RISKY, verdict, ack=True)
+    assert "accepted_indexes" not in _turn(LATER, ALLOW)[0]

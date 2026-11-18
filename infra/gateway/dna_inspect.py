@@ -7,7 +7,11 @@ Pure logic, no LiteLLM imports, so it can be unit tested without the gateway ima
 from __future__ import annotations
 
 import base64
+import hashlib
 import re
+import threading
+import time
+from collections import OrderedDict
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -666,6 +670,64 @@ def _ack_given(headers: dict[str, str] | None) -> bool:
     return bool(lowered.get(ACK_HEADER, "").strip())
 
 
+ACCEPTED_TTL_SECONDS = 4 * 3600
+ACCEPTED_MAX_ENTRIES = 20_000
+
+
+class _AcceptedMemory:
+    """Texts a person already sent on purpose (with X-DNA-Ack), so a client that resends the whole
+    history is not warned about the same text again on every call.
+
+    The gateway holds it, keyed by the user the virtual key belongs to: a client cannot name
+    someone else's memory. Only a hash is kept, never the text. The master key (`anonymous`) is
+    shared by many people and is never remembered. Everything is lost on restart, and a second
+    gateway process has its own memory; both only mean an extra warning.
+    """
+
+    def __init__(self, ttl: float = ACCEPTED_TTL_SECONDS, size: int = ACCEPTED_MAX_ENTRIES) -> None:
+        self._items: OrderedDict[str, float] = OrderedDict()
+        self._ttl = ttl
+        self._size = size
+        self._lock = threading.Lock()
+
+    @staticmethod
+    def _key(user_id: str, slot: Slot) -> str:
+        raw = f"{user_id}\0{slot.role}\0{slot.text}"
+        return hashlib.sha256(raw.encode("utf-8", "surrogatepass")).hexdigest()
+
+    @staticmethod
+    def _eligible(user_id: str) -> bool:
+        return bool(user_id) and user_id != "anonymous"
+
+    def has(self, user_id: str, slot: Slot) -> bool:
+        if not self._eligible(user_id):
+            return False
+        key = self._key(user_id, slot)
+        with self._lock:
+            added = self._items.get(key)
+            if added is None:
+                return False
+            if time.monotonic() - added >= self._ttl:
+                del self._items[key]
+                return False
+            return True
+
+    def add(self, user_id: str, slots: list[Slot]) -> None:
+        if not self._eligible(user_id):
+            return
+        now = time.monotonic()
+        with self._lock:
+            for slot in slots:
+                key = self._key(user_id, slot)
+                self._items[key] = now
+                self._items.move_to_end(key)
+            while len(self._items) > self._size:
+                self._items.popitem(last=False)
+
+
+ACCEPTED = _AcceptedMemory()
+
+
 async def apply_decision(
     data: dict[str, Any],
     *,
@@ -704,6 +766,10 @@ async def apply_decision(
         "model": str(data.get("model", "default")),
         "messages": [{"role": s.role, "content": s.text} for s in slots],
     }
+    accepted = [i for i, s in enumerate(slots) if ACCEPTED.has(user_id, s)]
+    accepted_ids = {id(slots[i]) for i in accepted}
+    if accepted:
+        payload["accepted_indexes"] = accepted
     if _reroute_asked(headers):
         payload["reroute"] = True
     try:
@@ -751,7 +817,21 @@ async def apply_decision(
         decision = "rerouted"
     elif decision == "mask":
         changes = _changes(slots, verdict.get("masked_messages"))
-        if changes is None:
+        if changes:
+            # Text the person already accepted that cannot be rewritten (a file, a signed block)
+            # is sent as it is instead of asking again.
+            kept = [
+                (s, new)
+                for s, new in changes
+                if not (id(s) in accepted_ids and (s.write is None or s.risky))
+            ]
+            nothing_left = not kept
+            changes = kept
+        else:
+            nothing_left = False
+        if nothing_left:
+            decision = "allow"
+        elif changes is None:
             decision = "warn"
             reasons = [*reasons, "Sensitive data could not be masked safely"]
         elif not changes or any(s.write is None or s.risky for s, _ in changes):
@@ -804,6 +884,9 @@ async def apply_decision(
             },
         )
 
+    if decision == "warn":
+        # Only a warning the person answered with the ack header is remembered.
+        ACCEPTED.add(user_id, slots)
     metadata = data.setdefault("metadata", {})
     metadata["dna_decision"] = decision
     metadata["dna_reasons"] = reasons

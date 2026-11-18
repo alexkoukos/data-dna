@@ -442,3 +442,51 @@ def test_a_claude_code_like_request_with_a_long_system_prompt_and_tools_is_allow
         timeout=60,
     )
     assert r.status_code == 200, r.text
+
+
+# --- S5: a warning the person acknowledged is not repeated for the same history ------------------
+
+
+def _new_client() -> OpenAI:
+    admin = {"Authorization": f"Bearer {MASTER}"}
+    resp = httpx.post(
+        f"{GATEWAY}/key/generate",
+        headers=admin,
+        json={
+            "user_id": f"u-itest-{uuid.uuid4().hex[:8]}",
+            "team_id": "itest",
+            "models": ["demo-mock"],
+        },
+    )
+    resp.raise_for_status()
+    return OpenAI(base_url=f"{GATEWAY}/v1", api_key=resp.json()["key"], max_retries=0)
+
+
+def _chat(who: OpenAI, messages: list[dict[str, str]], ack: bool = False) -> httpx.Response:
+    headers = {"Authorization": f"Bearer {who.api_key}"}
+    if ack:
+        headers["X-DNA-Ack"] = "audit"
+    return httpx.post(
+        f"{GATEWAY}/v1/chat/completions",
+        headers=headers,
+        json={"model": "demo-mock", "messages": messages},
+        timeout=60,
+    )
+
+
+def test_an_acked_warning_is_not_repeated_for_the_same_history() -> None:
+    me = _new_client()
+    risky = "AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695"
+    first = [{"role": "user", "content": risky}]
+    assert _chat(me, first).status_code == 409
+    assert _chat(me, first, ack=True).status_code == 200
+    second = [*first, {"role": "assistant", "content": "Noted."}]
+    second.append({"role": "user", "content": "Thanks, a short poem"})
+    again = _chat(me, second)
+    assert again.status_code == 200
+    assert again.headers.get("x-dna-decision") in ("mask", "allow")
+    third = [*second, {"role": "assistant", "content": "Here."}]
+    third.append({"role": "user", "content": "And one about autumn"})
+    assert _chat(me, third).status_code == 200
+    other = _new_client()
+    assert _chat(other, second).status_code == 409
