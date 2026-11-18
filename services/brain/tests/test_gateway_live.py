@@ -290,17 +290,23 @@ def test_responses_masked_round_trip_restores_the_value(client: OpenAI) -> None:
     assert IBAN_VALUE in text and "[IBAN_1]" not in text
 
 
-def test_an_injection_phrase_in_a_tool_description_or_a_list_output_is_blocked(
+def test_an_injection_phrase_in_a_tool_description_warns_and_in_a_list_output_blocks(
     client: OpenAI,
 ) -> None:
     tool = {
         "type": "function",
         "function": {"name": "lookup", "description": INJECTION, "parameters": {"type": "object"}},
     }
-    with pytest.raises(PermissionDeniedError):
-        client.chat.completions.create(
-            model="demo-mock", messages=[{"role": "user", "content": "hi"}], tools=[tool]
-        )
+    body = _chat_body(tools=[tool])
+    warned = _post_chat(client, body)
+    assert warned.status_code == 409 and "tool description" in warned.text
+    acked = httpx.post(
+        f"{GATEWAY}/v1/chat/completions",
+        headers={"Authorization": f"Bearer {client.api_key}", "X-DNA-Ack": "known tool"},
+        json=body,
+        timeout=60,
+    )
+    assert acked.status_code == 200
     r = httpx.post(
         f"{GATEWAY}/v1/responses",
         headers={"Authorization": f"Bearer {client.api_key}"},
@@ -344,8 +350,16 @@ def test_a_dashed_phrase_in_a_user_field_is_blocked(client: OpenAI) -> None:
 
 
 def test_a_client_cannot_change_connection_settings(client: OpenAI) -> None:
-    r = _post_chat(client, _chat_body(organization="evil-org"))
-    assert r.status_code == 403 and "Remove organization" in r.text
+    r = _post_chat(client, _chat_body(api_key="sk-evil"))
+    assert r.status_code == 403 and "Remove api_key" in r.text
+    # LiteLLM itself already refuses a client api_base (401) before our check runs.
+    assert _post_chat(client, _chat_body(api_base="http://evil.example")).status_code in (401, 403)
+
+
+def test_organization_in_the_body_or_a_header_is_dropped_not_refused(client: OpenAI) -> None:
+    assert _post_chat(client, _chat_body(organization="org-x")).status_code == 200
+    org = OpenAI(base_url=f"{GATEWAY}/v1", api_key=client.api_key, organization="org-x")
+    assert "safety check" in _ask(org, "hello there")
 
 
 def test_a_client_cannot_hide_text_in_a_forged_requester_metadata(client: OpenAI) -> None:

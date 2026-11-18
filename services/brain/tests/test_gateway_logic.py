@@ -284,8 +284,8 @@ def test_anthropic_view_lists_system_tools_blocks_and_tool_results_in_order() ->
     slots = dna.inspection_view(data, "anthropic_messages")
     assert _named(data, "anthropic_messages") == [
         ("system", "be nice"),
-        ("definition", "does x"),
-        ("definition", "the a"),
+        ("tool_definition", "does x"),
+        ("tool_definition", "the a"),
         ("user", "first"),
         ("user", "look at this"),
         ("tool", "KEY=abc"),
@@ -393,7 +393,13 @@ def test_responses_instructions_and_function_call_output_are_written_back() -> N
     out, sent = _mask_request(
         data, "responses", i0="use [IBAN_1]", i4="KEY=[S_1]", i3='{"a": "[IBAN_1]"}'
     )
-    assert [m["role"] for m in sent][-5:] == ["system", "definition", "user", "assistant", "tool"]
+    assert [m["role"] for m in sent][-5:] == [
+        "system",
+        "tool_definition",
+        "user",
+        "assistant",
+        "tool",
+    ]
     assert out["instructions"] == "use [IBAN_1]"
     assert out["input"][1]["arguments"] == '{"a": "[IBAN_1]"}'
     assert out["input"][2]["output"] == "KEY=[S_1]"
@@ -462,8 +468,8 @@ def test_chat_view_lists_definitions_first_then_every_message() -> None:
         ],
     }
     assert _named(data, "completion") == [
-        ("definition", "top"),
-        ("definition", "deep"),
+        ("tool_definition", "top"),
+        ("tool_definition", "deep"),
         ("system", "rules"),
         ("user", "hi"),
         ("assistant", '{"a":"x"}'),
@@ -1013,7 +1019,7 @@ def test_a_binary_data_url_in_an_image_part_still_makes_the_message_risky() -> N
 
 @pytest.mark.parametrize(
     "key",
-    ["headers", "extra_headers", "organization", "api_key", "api_base", "base_url", "api_version"],
+    ["headers", "extra_headers", "api_key", "api_base", "base_url", "api_version"],
 )
 def test_connection_settings_are_refused_before_the_brain_is_asked(key: str) -> None:
     seen: list[dict[str, Any]] = []
@@ -1022,6 +1028,21 @@ def test_connection_settings_are_refused_before_the_brain_is_asked(key: str) -> 
         _decide(data, "completion", {"decision": "allow"}, seen)
     assert err.value.status_code == 403 and seen == []
     assert f"Remove {key} and try again" in err.value.body["message"]
+
+
+def test_organization_is_stripped_and_the_request_continues() -> None:
+    seen: list[dict[str, Any]] = []
+    data = {"model": "m", "organization": "org-x", "messages": [{"role": "user", "content": "hi"}]}
+    out = _decide(data, "completion", {"decision": "allow", "reasons": []}, seen)
+    assert "organization" not in out
+    assert out["metadata"]["dna_decision"] == "allow"
+    assert seen and "org-x" not in json.dumps(seen)
+
+
+def test_config_does_not_forward_client_headers() -> None:
+    config = (Path(__file__).resolve().parents[3] / "infra" / "gateway" / "config.yaml").read_text()
+    assert "forward_openai_org_id" not in config
+    assert "forward_client_headers_to_llm_api" not in config
 
 
 @pytest.mark.parametrize("key", ["cache", "user_api_key_x", "litellm_extra"])
@@ -1310,7 +1331,7 @@ def test_known_client_roles_are_kept_and_tool_definitions_stay_definitions() -> 
     }
     roles = {s.text: s.role for s in dna.inspection_view(data, "completion")}
     assert roles["a"] == "developer" and roles["b"] == "tool" and roles["c"] == "assistant"
-    assert roles["what it does"] == "definition"
+    assert roles["what it does"] == "tool_definition"
 
 
 def _reroute(data: dict[str, Any], call_type: str, rewrite: Any) -> dict[str, Any]:
@@ -1373,3 +1394,20 @@ def test_a_rerouted_non_chat_request_is_refused() -> None:
     with pytest.raises(dna.GatewayError) as err:
         _reroute(data, "anthropic_messages", lambda t: t.replace("GR16", "[IBAN_1]"))
     assert err.value.status_code == 403
+
+
+def test_tool_descriptions_get_their_own_role_and_other_request_text_stays_a_definition() -> None:
+    data = {
+        "user": "someone",
+        "messages": [{"role": "user", "content": "hi"}],
+        "tools": [{"function": {"name": "f", "description": "what it does"}}],
+    }
+    roles = {s.text: s.role for s in dna.inspection_view(data, "completion")}
+    assert roles["what it does"] == "tool_definition"
+    assert roles["someone"] == "definition"
+
+
+@pytest.mark.parametrize("claimed", ["tool_definition", "Tool_Definition"])
+def test_a_client_cannot_claim_the_tool_definition_role(claimed: str) -> None:
+    data = {"messages": [{"role": claimed, "content": "hello"}]}
+    assert [s.role for s in dna.inspection_view(data, "completion")] == ["user"]

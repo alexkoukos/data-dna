@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from brain.detection.normalize import normalise
 from brain.detection.patterns import Finding, find_patterns, mask
 from brain.documents.registry import DocMatch
-from brain.policy.engine import Decision, Verdict, decide
+from brain.policy.engine import PRECEDENCE, Decision, Verdict, decide
 from brain.policy.store import PolicySet
 
 
@@ -55,6 +55,7 @@ def inspect_text(
     priority_finder: Finder | None = None,
     view_finders: Sequence[Finder] = (),
     placeholders: Mapping[str, str] | None = None,
+    mask_injection: bool = True,
 ) -> InspectResult:
     norm = normalise(text)
     findings = find_patterns(norm.text)
@@ -90,7 +91,8 @@ def inspect_text(
     # Evasion that hides an identifier cannot be masked in place: escalate to warn.
     if hidden and verdict.decision == Decision.MASK:
         verdict.decision = Decision.WARN
-    masked, placeholders = mask(norm.text, findings, placeholders)
+    to_mask = findings if mask_injection else [f for f in findings if f.category != "injection"]
+    masked, placeholders = mask(norm.text, to_mask, placeholders)
     return InspectResult(
         verdict,
         findings + hidden,
@@ -100,3 +102,35 @@ def inspect_text(
         doc_matches,
         norm.text,
     )
+
+
+TOOL_DESCRIPTION_NOTE = (
+    "A tool description contains instruction-like wording. Check the tool before you send."
+)
+
+
+def cap_injection(result: InspectResult, policies: PolicySet | None) -> None:
+    """Lower a block that only the injection check caused to a warning, in place.
+
+    Used for tool descriptions: they are long, written by the tool's author and often say things
+    like "ignore the previous result", so wording alone must not stop the whole request. A real
+    secret, decoy credential or protected document in the same text still decides on its own.
+    """
+    verdict = result.verdict
+    if verdict.decision != Decision.BLOCK or not any(
+        f.category == "injection" for f in result.findings
+    ):
+        return
+    others = decide(
+        [f.category for f in result.findings if f.category != "injection"],
+        document_sensitivities=[_effective_sensitivity(m) for m in result.doc_matches],
+        evasion_signals=result.evasion_signals,
+        category_actions=policies.categories if policies else None,
+        sensitivity_actions=policies.sensitivity if policies else None,
+    )
+    if others.decision == Decision.BLOCK:
+        return
+    if PRECEDENCE[others.decision] < PRECEDENCE[Decision.WARN]:
+        others.decision = Decision.WARN
+    verdict.decision = others.decision
+    verdict.reasons = [*others.reasons, TOOL_DESCRIPTION_NOTE]

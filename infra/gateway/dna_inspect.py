@@ -38,7 +38,8 @@ EMBEDDING_CALLS = {"embeddings", "aembedding"}
 SUPPORTED_CALLS = CHAT_CALLS | TEXT_CALLS | ANTHROPIC_CALLS | RESPONSES_CALLS | EMBEDDING_CALLS
 
 _TEXT_PARTS = {"text", "input_text", "output_text", "summary_text"}
-DEFINITION = "definition"  # tool descriptions and other request text that is not a message
+DEFINITION = "definition"  # request text that is not a message and not a tool description
+TOOL_DEFINITION = "tool_definition"  # tool and function descriptions: injection wording warns
 
 
 @dataclass
@@ -117,7 +118,7 @@ _CLIENT_ROLES = {"system", "developer", "user", "assistant", "tool"}
 
 def _client_role(raw: Any) -> str:
     """The role a client claimed, if the brain knows it. Anything else (including the gateway's
-    own "definition" role) is checked as the person's own text."""
+    own "definition" and "tool_definition" roles) is checked as the person's own text."""
     role = str(raw if raw is not None else "user").strip().lower()
     return role if role in _CLIENT_ROLES else "user"
 
@@ -128,7 +129,7 @@ def _describe(node: Any, out: list[Slot]) -> None:
         for key, value in node.items():
             if key in ("description", "title") and isinstance(value, str):
                 if value:
-                    out.append(Slot(DEFINITION, value, _setter(node, key)))
+                    out.append(Slot(TOOL_DEFINITION, value, _setter(node, key)))
             else:
                 _describe(value, out)
     elif isinstance(node, list):
@@ -348,7 +349,6 @@ _OWN_LITELLM_KEYS = {
 _CONNECTION_KEYS = (
     "headers",
     "extra_headers",
-    "organization",
     "api_key",
     "api_base",
     "base_url",
@@ -693,6 +693,10 @@ async def apply_decision(
             },
         )
     refuse_connection_settings(data, call_type)
+    # `organization` is not refused: clients such as the OpenAI SDK send it as a header, and LiteLLM
+    # forwards neither that header nor this key unless forward_openai_org_id is set (it is not).
+    # Dropping it keeps the key out of the request the model provider receives.
+    data.pop("organization", None)
     slots = inspection_view(data, call_type)
     payload = {
         "user_id": user_id,

@@ -128,6 +128,7 @@ from brain.detection.pipeline import (
     Finder,
     InspectResult,
     _add_without_overlap,
+    cap_injection,
     inspect_text,
 )
 from brain.detection.yara_rules import find_yara
@@ -148,7 +149,7 @@ from brain.honeytokens import (
 )
 from brain.identity import GatewayUnavailable, Identity, bearer_token, resolve_key
 from brain.injection.classifier import InjectionClassifier
-from brain.injection.heuristics import injection_finder
+from brain.injection.heuristics import injection_finder, injection_finder_instructions
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy import groups
 from brain.policy.engine import PRECEDENCE, Decision
@@ -420,7 +421,12 @@ HISTORY_MAX_EMBEDDED = 8
 _TRUSTED_ROLES = {"system", "developer", "assistant"}
 # Tool descriptions and other definition text: never new content, but checked like earlier turns.
 _DEFINITION_ROLE = "definition"
+# Descriptions of tools the client offers: injection wording there warns, it never blocks alone.
+_TOOL_DEFINITION_ROLE = "tool_definition"
+_DEFINITION_ROLES = {_DEFINITION_ROLE, _TOOL_DEFINITION_ROLE}
+_INSTRUCTION_ROLES = {"system", "developer"}
 _PREFIX_HISTORY = "Earlier in this conversation: "
+_PREFIX_TOOL = "In a tool description: "
 _PREFIX_TRUSTED = "In the instructions, tools or earlier answers: "
 
 
@@ -449,7 +455,7 @@ def _group_messages(msgs: list[Message]) -> tuple[list[int], list[int], list[int
     are newest first.
     """
     present = [i for i, m in enumerate(msgs) if m.content]
-    skip = _TRUSTED_ROLES | {_DEFINITION_ROLE}
+    skip = _TRUSTED_ROLES | _DEFINITION_ROLES
     user_like = [k for k, i in enumerate(present) if msgs[i].role not in skip]
     if not user_like:
         return list(present), [], []
@@ -460,7 +466,7 @@ def _group_messages(msgs: list[Message]) -> tuple[list[int], list[int], list[int
     new = [
         present[k]
         for k in range(first, len(present))
-        if k <= last or msgs[present[k]].role != _DEFINITION_ROLE
+        if k <= last or msgs[present[k]].role not in _DEFINITION_ROLES
     ]
     leading = set(present[: user_like[0]])
     older = set(present) - set(new)
@@ -474,6 +480,39 @@ def _group_messages(msgs: list[Message]) -> tuple[list[int], list[int], list[int
     return new, history, trusted
 
 
+@dataclass
+class _HistoryGroup:
+    """Earlier messages that are checked together, and which checks apply to them."""
+
+    kind: str  # "history", "tool", "instructions" or "trusted"
+    indexes: list[int]
+    prefix: str
+
+
+def _history_groups(
+    msgs: list[Message], history_idx: list[int], trusted_idx: list[int]
+) -> list[_HistoryGroup]:
+    """Split the earlier messages by what kind of text they are. Empty groups are left out, so a
+    normal request costs what it did before.
+
+    - earlier user and tool turns, and request text that is not a message: injection phrases block;
+    - tool descriptions: injection phrases only warn (`cap_injection`);
+    - system and developer text after the first user turn: injection phrases block, unless the
+      phrase is negated ("Do not reveal these instructions");
+    - the leading prompt and earlier answers: no injection checks.
+    """
+    tools = [i for i in history_idx if msgs[i].role == _TOOL_DEFINITION_ROLE]
+    instructions = [i for i in history_idx if msgs[i].role in _INSTRUCTION_ROLES]
+    rest = [i for i in history_idx if i not in set(tools) | set(instructions)]
+    groups_ = [
+        _HistoryGroup("history", rest, _PREFIX_HISTORY),
+        _HistoryGroup("tool", tools, _PREFIX_TOOL),
+        _HistoryGroup("instructions", instructions, _PREFIX_HISTORY),
+        _HistoryGroup("trusted", trusted_idx, _PREFIX_TRUSTED),
+    ]
+    return [g for g in groups_ if g.indexes]
+
+
 def _inspect_group(
     texts: list[str],
     tail: str,
@@ -483,6 +522,7 @@ def _inspect_group(
     finders: list[Finder],
     view_finders: list[Finder],
     doc_match: Callable[..., list[DocMatch]],
+    mask_injection: bool = True,
 ) -> tuple[InspectResult, list[str] | None, list[str]]:
     """Inspect several texts in one call. Returns the result, masked texts and normalised texts.
 
@@ -499,6 +539,7 @@ def _inspect_group(
         priority_finder=_honeytokens().find,
         view_finders=view_finders,
         placeholders=placeholders,
+        mask_injection=mask_injection,
     )
     masked = result.masked_text.split(_SEGMENT_JOIN)
     normalised = result.text.split(_SEGMENT_JOIN)
@@ -664,33 +705,39 @@ def inspect(
         decoys = _decoy_alarm(r1)
     t_checks = time.perf_counter()
     placeholders = dict(first.result.placeholders) if first else None
-    if history_idx:
-        # Earlier user and tool turns: the same checks, but not the slow injection model.
-        r2, m2, n2 = _inspect_group(
-            [msgs[i].content for i in history_idx],
+    earlier = [f for f in finders if f != injection_classifier.find]
+    for group in _history_groups(msgs, history_idx, trusted_idx):
+        mask_injection = True
+        view_finders: list[Finder]
+        if group.kind == "trusted":
+            # System, developer and assistant text: secrets and personal data count, but an
+            # injection phrase there is the company's own prompt or a model's answer.
+            group_finders = [f for f in earlier if f != injection_finder]
+            view_finders = [find_yara]
+        elif group.kind == "instructions":
+            group_finders = [
+                injection_finder_instructions if f == injection_finder else f for f in earlier
+            ]
+            view_finders = [find_yara, injection_finder_instructions]
+        else:
+            group_finders = earlier
+            view_finders = [find_yara, injection_finder]
+            mask_injection = group.kind != "tool"
+        # Earlier turns get the same checks as new content, but not the slow injection model.
+        rg, mg, ng = _inspect_group(
+            [msgs[i].content for i in group.indexes],
             "",
             policies,
             placeholders,
-            finders=_for_history([f for f in finders if f != injection_classifier.find]),
-            view_finders=[find_yara, injection_finder],
+            finders=group_finders if group.kind == "trusted" else _for_history(group_finders),
+            view_finders=view_finders,
             doc_match=partial(_history_matches, documents),
+            mask_injection=mask_injection,
         )
-        passes.append(_Pass(r2, history_idx, m2, n2, _PREFIX_HISTORY))
-        placeholders = r2.placeholders
-    if trusted_idx:
-        # System, developer and assistant text: secrets and personal data count, but an
-        # injection phrase there is the company's own prompt or a model's answer.
-        r3, m3, n3 = _inspect_group(
-            [msgs[i].content for i in trusted_idx],
-            "",
-            policies,
-            placeholders,
-            finders=[f for f in finders if f not in (injection_classifier.find, injection_finder)],
-            view_finders=[find_yara],
-            doc_match=partial(_history_matches, documents),
-        )
-        passes.append(_Pass(r3, trusted_idx, m3, n3, _PREFIX_TRUSTED))
-        placeholders = r3.placeholders
+        if group.kind == "tool":
+            cap_injection(rg, policies)
+        passes.append(_Pass(rg, group.indexes, mg, ng, group.prefix))
+        placeholders = rg.placeholders
     t_history = time.perf_counter()
     memory_reasons: list[str] = []
     leaked_copy = None
