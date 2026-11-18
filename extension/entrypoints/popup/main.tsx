@@ -9,7 +9,7 @@ import { ActionIcon } from "../../src/ActionIcon";
 import { MessageSquareText, RefreshCw, Settings } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
 import { TrendChart } from "../../src/TrendChart";
-import { weekSeries } from "../../src/history";
+import { daysSeries } from "../../src/history";
 import { getSettings, type DayStats, type RecentEvent } from "../../src/storage";
 
 const WORD: Record<string, string> = {
@@ -90,28 +90,43 @@ function Gauge({ stats }: { stats: DayStats }) {
   );
 }
 
-/** Saves per day for the last week: one number, one flat chart. */
-function WeekCard({ history }: { history: Record<string, number> }) {
-  const week = weekSeries(history, new Date());
-  const peak = week.data.indexOf(Math.max(...week.data));
+type Span = 7 | 30;
+
+/** One trend card: a number, what it counts, the busiest day and a flat chart. */
+function TrendCard({
+  title,
+  counts,
+  days,
+  accent,
+  unit,
+  empty,
+}: {
+  title: string;
+  counts: Record<string, number>;
+  days: Span;
+  accent: string;
+  unit: string;
+  empty: string;
+}) {
+  const s = daysSeries(counts, new Date(), days);
+  const peak = s.data.indexOf(Math.max(...s.data));
   return (
     <div className="weekcard">
+      <h3 className="trend-title">{title}</h3>
       <p className="week-top">
-        <b>{week.total}</b>
-        <span>{week.total === 1 ? "save" : "saves"} in the last 7 days</span>
+        <b>{s.total}</b>
+        <span>in the last {days} days</span>
       </p>
       <p className="muted week-sub">
-        {week.total === 0
-          ? "This fills in as I check what you paste."
-          : `Busiest day: ${week.labels[peak]}, ${week.data[peak]}`}
+        {s.total === 0 ? empty : `Busiest day: ${s.labels[peak]}, ${s.data[peak]}`}
       </p>
       <TrendChart
-        data={week.data}
-        labels={week.labels}
-        accent="#f59e0b"
-        unit="saves"
-        height={140}
-        summary={`Saves per day, last 7 days. ${week.total} in total.`}
+        data={s.data}
+        labels={s.labels}
+        accent={accent}
+        unit={unit}
+        height={130}
+        summary={`${title} per day, last ${days} days. ${s.total} in total.`}
       />
     </div>
   );
@@ -125,6 +140,8 @@ function Popup() {
   const [version, setVersion] = useState<number | null>(null);
   const [who, setWho] = useState("");
   const [history, setHistory] = useState<Record<string, number>>({});
+  const [checks, setChecks] = useState<Record<string, number>>({});
+  const [span, setSpan] = useState<Span>(7);
 
   useEffect(() => {
     void (async () => {
@@ -133,7 +150,9 @@ function Popup() {
         recent: r,
         policy,
         history: h,
-      } = await chrome.storage.local.get(["stats", "recent", "policy", "history"]);
+        checks: c,
+      } = await chrome.storage.local.get(["stats", "recent", "policy", "history", "checks"]);
+      setChecks((c as Record<string, number>) ?? {});
       setHistory((h as Record<string, number>) ?? {});
       const today = new Date().toISOString().slice(0, 10);
       if (s && (s as DayStats).day === today) setStats(s as DayStats);
@@ -164,8 +183,41 @@ function Popup() {
         </div>
         <Gauge stats={stats} />
         <section aria-labelledby="week-h">
-          <h2 id="week-h">This week</h2>
-          <WeekCard history={history} />
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <h2 id="week-h">Trends</h2>
+            <div role="group" aria-label="Period" className="row" style={{ gap: 6 }}>
+              {([7, 30] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={span === d ? "primary" : ""}
+                  aria-pressed={span === d}
+                  onClick={() => setSpan(d)}
+                  style={{ minHeight: 36, padding: "0 14px", fontSize: 13 }}
+                >
+                  {d} days
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "grid", gap: 12 }}>
+            <TrendCard
+              title="Checked"
+              counts={checks}
+              days={span}
+              accent="#f59e0b"
+              unit="checked"
+              empty="This fills in as I check what you paste."
+            />
+            <TrendCard
+              title="Leaks stopped"
+              counts={history}
+              days={span}
+              accent="#30752a"
+              unit="stopped"
+              empty="Masked, blocked or kept inside shows up here."
+            />
+          </div>
         </section>
         <h2>Last events</h2>
         {recent.length === 0 ? (

@@ -60,7 +60,12 @@ export interface RecentEvent {
 const today = () => new Date().toISOString().slice(0, 10);
 
 export async function bumpStats(action: string, tool: string, reason: string) {
-  const { stats, recent, history } = await chrome.storage.local.get(["stats", "recent", "history"]);
+  const { stats, recent, history, checks } = await chrome.storage.local.get([
+    "stats",
+    "recent",
+    "history",
+    "checks",
+  ]);
   const s: DayStats =
     (stats as DayStats | undefined)?.day === today()
       ? (stats as DayStats)
@@ -84,5 +89,20 @@ export async function bumpStats(action: string, tool: string, reason: string) {
     days[today()] = (days[today()] ?? 0) + 1;
   const keep = Object.keys(days).sort().slice(-30);
   const trimmed = Object.fromEntries(keep.map((d) => [d, days[d]]));
-  await chrome.storage.local.set({ stats: s, recent: list, history: trimmed });
+  const seen: Record<string, number> = {
+    ...((checks as Record<string, number> | undefined) ?? {}),
+  };
+  seen[today()] = (seen[today()] ?? 0) + 1;
+  const keepChecks = Object.fromEntries(
+    Object.keys(seen)
+      .sort()
+      .slice(-30)
+      .map((d) => [d, seen[d] ?? 0]),
+  );
+  await chrome.storage.local.set({
+    stats: s,
+    recent: list,
+    history: trimmed,
+    checks: keepChecks,
+  });
 }

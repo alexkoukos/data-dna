@@ -487,3 +487,11 @@ ul.events li.ev .tag {
 .ev-body {
   gap: 4px;
 }
+
+.trend-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--muted);
+}

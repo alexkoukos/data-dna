@@ -14,3 +14,17 @@ describe("weekSeries", () => {
     expect(weekSeries(undefined, new Date()).total).toBe(0);
   });
 });
+
+import { daysSeries } from "../src/history";
+
+describe("daysSeries", () => {
+  it("covers 30 days and labels them by date", () => {
+    const end = new Date(Date.UTC(2026, 10, 18, 9));
+    const s = daysSeries({ "2026-11-18": 3, "2026-10-20": 2 }, end, 30);
+    expect(s.data).toHaveLength(30);
+    expect(s.data.at(-1)).toBe(3);
+    expect(s.data[0]).toBe(2);
+    expect(s.total).toBe(5);
+    expect(s.labels.at(-1)).toBe("18 Nov");
+  });
+});
