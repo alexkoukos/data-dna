@@ -1441,7 +1441,7 @@
 .page-head h1 {
   font-size: clamp(34px, 5vw, 48px);
   line-height: 1.12;
-  max-width: 18ch;
+  max-width: 24ch;
 }
 .page-head .lead {
   margin-top: 16px;
@@ -1589,4 +1589,74 @@
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 24px;
+}
+
+/* Leaner text pages */
+.flow {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  counter-reset: none;
+}
+.flow-step {
+  position: relative;
+  padding: 18px;
+  background: var(--tint);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.flow-n {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: var(--amber);
+  font-weight: 700;
+  font-size: 14px;
+}
+.flow-step h3 {
+  font-size: 17px;
+}
+.flow-step p {
+  margin-top: 4px;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 21px;
+}
+.flow-where {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-subtle);
+}
+.pair {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.pair-4 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.pair-card {
+  padding: 20px;
+  background: var(--tint);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.pair-card h3 {
+  font-size: 17px;
+}
+.pair-card p {
+  margin-top: 6px;
+  color: var(--ink-muted);
+}
+.section .prose {
+  margin-top: 20px;
 }

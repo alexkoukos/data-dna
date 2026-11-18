@@ -123,9 +123,9 @@ for (const vp of [
 }
 
 for (const [path, h1] of [
-  ["/how-it-works", "What happens in the second after you paste."],
+  ["/how-it-works", "The second after you paste."],
   ["/trust", "The gate is guarded too."],
-  ["/developers", "Run it, read it, test it."],
+  ["/developers", "Run it. Read it. Test it."],
 ] as const) {
   test(`${path} shows its headline, is reachable from the header and has no axe violations`, async ({
     page,
