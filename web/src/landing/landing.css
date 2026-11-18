@@ -1822,3 +1822,89 @@
   font-family: inherit;
   font-weight: 700;
 }
+
+/* Navbar: the logo in its own pill, the links in a pill group, the demo link as a cream pill. */
+.top {
+  background: rgba(18, 17, 13, 0.96);
+  border-bottom: 0;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.top .top-in {
+  max-width: 1360px;
+  padding: 14px 32px;
+}
+.top .top-logo {
+  min-height: 0;
+  padding: 10px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: background-color 0.15s ease;
+}
+.top .top-logo:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.top .top-wordmark {
+  width: 82px;
+}
+.top .top-links {
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.top .top-links a:not([data-slot="button"]):not(.btn) {
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 9999px;
+  color: #b8b2a7;
+  font-weight: 500;
+  font-size: 14px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+.top .top-links a:not([data-slot="button"]):not(.btn):hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+.top .top-links a.is-here {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+.top .top-links .btn {
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 9999px;
+  background: #fffbeb;
+  color: #262626;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: none;
+  transition: background-color 0.15s ease;
+}
+.top .top-links .btn:hover {
+  background: #fde68a;
+  color: #262626;
+}
+@media (max-width: 760px) {
+  .top .top-in {
+    padding: 10px 16px;
+  }
+  .top .top-logo {
+    padding: 8px 16px;
+  }
+  .top .top-links {
+    padding: 4px;
+  }
+  /* The earlier small-screen rule hides every plain link; the demo pill stays. */
+  .top .top-links a.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
