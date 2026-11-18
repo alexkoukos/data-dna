@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Split storage (brain.splitstore). Empty URLs mean the feature is off (unit tests).
     vault_a_url: str = ""
     vault_b_url: str = ""
-    hmac_key_file: str = "/run/secrets/hmac_key"
+    hmac_key_file: str = "/var/dna/keys/hmac_key"
     # Bearer token for /v1/vault/*. Empty = those routes answer 503 (off until you set one).
     vault_api_token: str = ""
     # X30: where new incidents are pushed. Everything is off until a value is set.

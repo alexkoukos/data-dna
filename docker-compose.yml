@@ -71,7 +71,7 @@ services:
     environment:
       VAULT_A_URL: postgresql://${VAULT_A_USER:-vault_a}:${VAULT_A_PASSWORD:-change-me-a}@vault-a:5432/vault
       VAULT_B_URL: postgresql://${VAULT_B_USER:-vault_b}:${VAULT_B_PASSWORD:-change-me-b}@vault-b:5432/vault
-      HMAC_KEY_FILE: /run/secrets/hmac_key
+      HMAC_KEY_FILE: ${HMAC_KEY_FILE:-/var/dna/keys/hmac_key}
       VAULT_API_TOKEN: ${VAULT_API_TOKEN:-}
       DATABASE_URL: postgresql+psycopg://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/${DB_NAME:-dna}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -97,13 +97,12 @@ services:
       # X28: approved break-it rows are appended here, so this one folder is writable
       - ./data/eval:/data/eval
       - logs:/var/dna/logs
-      - keys:/var/dna/keys # app-only: fallback HMAC key when secrets/hmac_key is absent
+      - keys:/var/dna/keys # app-only volume holding the HMAC key
     # Published on localhost only: the brain admin API has no login and the gateway uses the
     # master key. Other machines on the network cannot reach them.
     ports:
       - "127.0.0.1:8001:8001"
     networks: [default, vault-a-net, vault-b-net]
-    secrets: [hmac_key]
     depends_on:
       db:
         condition: service_healthy
@@ -212,13 +211,6 @@ networks:
     internal: true
   vault-b-net:
     internal: true
-
-# The HMAC key for the split store. Only brain gets it; the vaults never see it.
-# Create it with scripts/gen_hmac_key.sh (`make up` does that first). Without it the app generates
-# a key into the app-only `keys` volume, so a plain `docker compose up` still works.
-secrets:
-  hmac_key:
-    file: ./secrets/hmac_key
 
 volumes:
   vault-a-data:

@@ -34,8 +34,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cp .env.example .env
-      - run: sh scripts/gen_hmac_key.sh
       - run: docker compose up --build -d --wait
       - run: curl -fsS http://localhost:8001/healthz && curl -fsS http://localhost:3000/ >/dev/null
       - uses: actions/setup-node@v4

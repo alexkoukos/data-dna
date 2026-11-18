@@ -68,6 +68,23 @@ def test_load_key_prefers_secret_and_falls_back_when_missing(tmp_path) -> None: 
     assert len(k1) == 64 and k1 == ig.load_key(str(secret), str(tmp_path / "fb"))  # stable
 
 
+def test_load_key_generates_once_in_the_volume_path_and_reuses_it(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "keys" / "hmac_key"
+    k1 = ig.load_key(str(path), str(path))
+    assert len(k1) == 64
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert ig.load_key(str(path), str(path)) == k1
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file permissions")
+def test_unreadable_key_file_is_a_plain_error(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "hmac_key"
+    path.write_text("a" * 64)
+    path.chmod(0)
+    with pytest.raises(ValueError, match="cannot be read"):
+        ig.load_key(str(path), str(path))
+
+
 # ---- against the vaults ---------------------------------------------------------------------
 URL_A, URL_B = os.environ.get("VAULT_A_URL", ""), os.environ.get("VAULT_B_URL", "")
 
