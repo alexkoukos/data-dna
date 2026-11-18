@@ -16,7 +16,9 @@ test("a miss goes from /break-it to the review queue to the eval file to make ev
   test.setTimeout(240_000);
   const before = readFileSync(CSV, "utf8");
   const reports = REPORTS.map((p) => (existsSync(p) ? readFileSync(p, "utf8") : null));
-  const text = `please summarise the minutes of the quarterly review, run ${Date.now()}`;
+  // Letters only: a long run of digits can look like a phone number to the checks.
+  const tag = Array.from(String(Date.now()), (d) => "abcdefghij"[Number(d)]).join("");
+  const text = `please summarise the minutes of the quarterly review, run ${tag}`;
   try {
     await page.goto("/break-it");
     await page.getByLabel("Text to check").fill(text);
