@@ -3,6 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from brain.policy.engine import Decision
+
 
 class Message(BaseModel):
     role: str
@@ -53,7 +55,7 @@ class TraceStep(BaseModel):
 class InspectResponse(BaseModel):
     # Positions the brain treated as already accepted earlier text (never new content).
     accepted_applied: list[int] = Field(default_factory=list)
-    decision: str
+    decision: Decision
     reasons: list[str]
     findings: list[FindingOut] = Field(default_factory=list)
     masked_messages: list[Message] | None = None

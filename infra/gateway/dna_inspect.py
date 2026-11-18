@@ -360,6 +360,33 @@ _CONNECTION_KEYS = (
     "api_version",
     "cache",
 )
+# Per-request router settings. A client that sets fallbacks or a router override could steer the
+# call to another model after the gate chose "local", so these are refused when merely present.
+# disable_fallbacks and client_side_timeout are LiteLLM's own key settings and are not listed.
+_ROUTER_KEYS = (
+    "fallbacks",
+    "context_window_fallbacks",
+    "content_policy_fallbacks",
+    "router_settings_override",
+    "model_group_retry_policy",
+    "routing_strategy",
+    "routing_strategy_args",
+    "num_retries",
+    "timeout",
+    "request_timeout",
+    "stream_timeout",
+    "model_list",
+    "specific_deployment",
+    "allowed_model_region",
+    "fallback_depth",
+    "attempted_targets",
+    "include_fallback_errors",
+    "passthrough_on_no_deployment",
+    "silent_model",
+    "_target_order",
+    "_retry_skipped_deployment_ids",
+)
+_DECISIONS = {"allow", "mask", "warn", "local", "block"}
 # Fields LiteLLM adds to `metadata` next to what the person sent.
 _LITELLM_METADATA = {"headers", "used_client_oauth_token"}
 _SPOOFED_METADATA_PREFIXES = ("user_api_key", "dna_", "litellm_")
@@ -385,6 +412,13 @@ def _connection_error(key: str) -> GatewayError:
     )
 
 
+def _several_answers(n: Any) -> bool:
+    try:
+        return int(n or 1) > 1
+    except (TypeError, ValueError):
+        return True
+
+
 def refuse_connection_settings(data: dict[str, Any], call_type: str) -> None:
     """Refuse a request that sets connection settings or forges the gateway's own fields.
 
@@ -396,6 +430,10 @@ def refuse_connection_settings(data: dict[str, Any], call_type: str) -> None:
             raise _connection_error(key)
     if data.get("provider_specific_header") and call_type not in ANTHROPIC_CALLS:
         raise _connection_error("provider_specific_header")
+    extra_body = data.get("extra_body")
+    for key in _ROUTER_KEYS:
+        if key in data or (isinstance(extra_body, dict) and key in extra_body):
+            raise _connection_error(key)
     for key in data:
         if isinstance(key, str) and (
             key.startswith("user_api_key")
@@ -778,6 +816,17 @@ async def apply_decision(
             },
         )
     refuse_connection_settings(data, call_type)
+    if data.get("stream") and _several_answers(data.get("n")):
+        raise GatewayError(
+            403,
+            {
+                "type": "block",
+                "message": "Several streamed answers at once are not supported. Send n=1 or "
+                "turn streaming off.",
+                "reasons": ["The request asks for several streamed answers"],
+                "approved_alternative": "Send n=1, or turn streaming off.",
+            },
+        )
     # `organization` is not refused: clients such as the OpenAI SDK send it as a header, and LiteLLM
     # forwards neither that header nor this key unless forward_openai_org_id is set (it is not).
     # Dropping it keeps the key out of the request the model provider receives.
@@ -810,7 +859,17 @@ async def apply_decision(
             },
         ) from exc
 
-    decision = verdict.get("decision", "allow")
+    decision = verdict.get("decision") if isinstance(verdict, dict) else None
+    if decision not in _DECISIONS:
+        raise GatewayError(
+            503,
+            {
+                "type": "unavailable",
+                "message": "The safety check is not available, so your message was not sent.",
+                "next": "Try again in a minute. If it keeps happening, tell your IT contact.",
+                "detail": "unexpected answer from the safety check",
+            },
+        )
     reasons = verdict.get("reasons", [])
 
     rerouted = bool(verdict.get("rerouted"))
@@ -836,6 +895,8 @@ async def apply_decision(
             if slot.write is not None:
                 slot.write(new_text)
         data["model"] = LOCAL_MODEL
+        for k in _ROUTER_KEYS:
+            data.pop(k, None)
         data.setdefault("metadata", {})["dna_session_id"] = verdict.get("session_id")
         decision = "rerouted"
     elif decision == "mask":
@@ -889,6 +950,8 @@ async def apply_decision(
         )
     elif decision == "local":
         data["model"] = LOCAL_MODEL
+        for k in _ROUTER_KEYS:
+            data.pop(k, None)
     elif decision == "warn" and not _ack_given(headers):
         raise GatewayError(
             409,

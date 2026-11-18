@@ -2021,3 +2021,73 @@ def test_chat_shaped_text_in_a_byte_stream_is_withheld_but_empty_frames_pass() -
         _stream([chat], _cleaner([]))
     quiet = 'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\ndata: [DONE]\n\n'
     assert "".join(_stream([quiet], _cleaner([]))) == quiet
+
+
+_ROUTER_CASES = [
+    ("fallbacks", ["demo-echo"]),
+    ("context_window_fallbacks", [{"local": ["demo-echo"]}]),
+    ("content_policy_fallbacks", [{"local": ["demo-echo"]}]),
+    ("router_settings_override", {}),
+    ("model_group_retry_policy", {"x": 1}),
+    ("routing_strategy", "simple-shuffle"),
+    ("routing_strategy_args", {"a": 1}),
+    ("num_retries", 0),
+    ("timeout", 0),
+    ("request_timeout", 0),
+    ("stream_timeout", 0),
+    ("model_list", []),
+    ("specific_deployment", True),
+    ("allowed_model_region", "eu"),
+    ("fallback_depth", 0),
+    ("attempted_targets", []),
+    ("include_fallback_errors", False),
+    ("passthrough_on_no_deployment", False),
+    ("silent_model", ""),
+    ("_target_order", []),
+    ("_retry_skipped_deployment_ids", []),
+]
+
+
+@pytest.mark.parametrize(("key", "value"), _ROUTER_CASES)
+def test_client_fallbacks_and_router_overrides_are_refused(key: str, value: Any) -> None:
+    seen: list[dict[str, Any]] = []
+    for data in (
+        {"model": "local", key: value, "messages": []},
+        {"model": "local", "extra_body": {key: value}, "messages": []},
+    ):
+        with pytest.raises(dna.GatewayError) as err:
+            _decide(data, "completion", {"decision": "allow"}, seen)
+        assert (
+            err.value.status_code == 403
+            and f"Remove {key} and try again" in (err.value.body["message"])
+        )
+    assert seen == []
+
+
+def test_disable_fallbacks_from_key_metadata_is_not_refused() -> None:
+    data = {
+        "model": "m",
+        "disable_fallbacks": True,
+        "client_side_timeout": 5,
+        "messages": [{"role": "user", "content": "hi"}],
+    }
+    out = _decide(data, "completion", {"decision": "allow", "reasons": []})
+    assert out["metadata"]["dna_decision"] == "allow"
+
+
+@pytest.mark.parametrize("verdict", [{}, {"decision": "deny"}, {"decision": None}])
+def test_missing_or_unknown_decision_is_503(verdict: dict[str, Any]) -> None:
+    with pytest.raises(dna.GatewayError) as err:
+        _run(verdict)
+    assert err.value.status_code == 503 and err.value.body["type"] == "unavailable"
+
+
+@pytest.mark.parametrize("n", [2, "3"])
+def test_streamed_n_above_one_is_refused(n: Any) -> None:
+    seen: list[dict[str, Any]] = []
+    data = {"model": "m", "stream": True, "n": n, "messages": [{"role": "user", "content": "hi"}]}
+    with pytest.raises(dna.GatewayError) as err:
+        _decide(data, "completion", {"decision": "allow"}, seen)
+    assert err.value.status_code == 403 and seen == []
+    ok = {"model": "m", "stream": True, "n": 1, "messages": [{"role": "user", "content": "hi"}]}
+    assert _decide(ok, "completion", {"decision": "allow", "reasons": []})["n"] == 1

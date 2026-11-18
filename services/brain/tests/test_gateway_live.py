@@ -356,6 +356,18 @@ def test_a_client_cannot_change_connection_settings(client: OpenAI) -> None:
     assert _post_chat(client, _chat_body(api_base="http://evil.example")).status_code in (401, 403)
 
 
+def test_local_request_with_fallbacks_is_refused(client: OpenAI) -> None:
+    r = _post_chat(client, _chat_body(model="local", fallbacks=["demo-echo"]))
+    assert r.status_code == 403 and "Remove fallbacks" in r.text
+    h = httpx.post(
+        f"{GATEWAY}/v1/chat/completions",
+        headers={"Authorization": f"Bearer {client.api_key}", "x-litellm-timeout": "0.001"},
+        json=_chat_body(model="local"),
+        timeout=60,
+    )
+    assert h.status_code == 403
+
+
 def test_organization_in_the_body_or_a_header_is_dropped_not_refused(client: OpenAI) -> None:
     assert _post_chat(client, _chat_body(organization="org-x")).status_code == 200
     org = OpenAI(base_url=f"{GATEWAY}/v1", api_key=client.api_key, organization="org-x")
