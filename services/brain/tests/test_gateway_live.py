@@ -490,3 +490,80 @@ def test_an_acked_warning_is_not_repeated_for_the_same_history() -> None:
     assert _chat(me, third).status_code == 200
     other = _new_client()
     assert _chat(other, second).status_code == 409
+
+
+# --- S5: streamed Responses events from the real LiteLLM classes, cleaned in the container -------
+
+_STREAM_SCRIPT = r"""
+import asyncio, json, sys, types
+mod = types.ModuleType("dna_inspect")
+sys.modules["dna_inspect"] = mod
+exec(compile(SOURCE, "dna_inspect.py", "exec"), mod.__dict__)
+from litellm.responses.main import mock_responses_api_response
+from litellm.responses.streaming_iterator import build_synthetic_response_events
+
+events = build_synthetic_response_events(
+    transformed=mock_responses_api_response(
+        mock_response="Checked [IBAN_1] fine, key AKIAIOSFODNN7EXAMPLE"
+    ),
+    logging_obj=None,
+    chunk_size=5,
+)
+calls = []
+
+async def transform(text):
+    calls.append(text)
+    return text.replace("[IBAN_1]", "GR16").replace("AKIAIOSFODNN7EXAMPLE", "[SECRET]")
+
+async def source():
+    for e in events:
+        yield e
+
+async def main():
+    return [e async for e in mod.rewrite_stream(source(), transform)]
+
+out = asyncio.run(main())
+dump = [json.loads(e.model_dump_json()) for e in out]
+deltas = "".join(d["delta"] for d in dump if d["type"] == "response.output_text.delta")
+final = [d for d in dump if d["type"] == "response.completed"][0]
+text = final["response"]["output"][0]["content"][0]["text"]
+print(json.dumps({"deltas": deltas, "final": text, "calls": calls, "raw": json.dumps(dump)}))
+"""
+
+
+def _docker_gateway() -> bool:
+    import shutil
+    import subprocess
+
+    if shutil.which("docker") is None:
+        return False
+    probe = subprocess.run(
+        ["docker", "compose", "exec", "-T", "gateway", "true"], capture_output=True, timeout=60
+    )
+    return probe.returncode == 0
+
+
+def test_streamed_responses_events_from_litellm_are_cleaned() -> None:
+    import json
+    import subprocess
+    from pathlib import Path
+
+    if not _docker_gateway():
+        pytest.skip("docker compose gateway not available")
+    root = Path(__file__).resolve().parents[3]
+    source = (root / "infra" / "gateway" / "dna_inspect.py").read_text()
+    script = f"SOURCE = {source!r}\n" + _STREAM_SCRIPT
+    run = subprocess.run(
+        ["docker", "compose", "exec", "-T", "gateway", "python", "-"],
+        input=script,
+        capture_output=True,
+        text=True,
+        cwd=root,
+        timeout=120,
+    )
+    assert run.returncode == 0, run.stderr
+    result = json.loads(run.stdout.strip().splitlines()[-1])
+    assert result["deltas"] == "Checked GR16 fine, key [SECRET]"
+    assert result["final"] == "Checked GR16 fine, key [SECRET]"
+    assert result["calls"] == ["Checked [IBAN_1] fine, key AKIAIOSFODNN7EXAMPLE"]
+    assert "AKIA" not in result["raw"] and "[IBAN_1]" not in result["raw"]

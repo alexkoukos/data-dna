@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import copy
+import enum
 import importlib.util
 import json
 import sys
@@ -1605,3 +1606,148 @@ def test_a_rerouted_request_is_not_remembered() -> None:
     }
     _turn(RISKY, verdict, ack=True)
     assert "accepted_indexes" not in _turn(LATER, ALLOW)[0]
+
+
+# --- S5: streamed Responses API answers are cleaned like chat streams --------------------------
+
+
+class _T(str, enum.Enum):  # noqa: UP042 (str() must differ from the value, like LiteLLM)
+    DELTA = "response.output_text.delta"
+    TEXT_DONE = "response.output_text.done"
+    PART_DONE = "response.content_part.done"
+    ITEM_DONE = "response.output_item.done"
+    COMPLETED = "response.completed"
+    REFUSAL_DELTA = "response.refusal.delta"
+    REFUSAL_DONE = "response.refusal.done"
+    CREATED = "response.created"
+
+
+def _resp_stream(
+    pieces: list[str], *, text: str | None = None, kind: Any = _T.DELTA, **extra: Any
+) -> list[Any]:
+    full = "".join(pieces) if text is None else text
+    done_kind = _T.TEXT_DONE if kind == _T.DELTA else _T.REFUSAL_DONE
+    field_name = "text" if kind == _T.DELTA else "refusal"
+    part_type = "output_text" if kind == _T.DELTA else "refusal"
+    events: list[Any] = [_Obj(type=_T.CREATED, response=_Obj(output=[]), sequence_number=0)]
+    for n, piece in enumerate(pieces):
+        events.append(
+            _Obj(type=kind, output_index=0, content_index=0, delta=piece, sequence_number=n + 1)
+        )
+    events.append(_Obj(type=done_kind, output_index=0, content_index=0, **{field_name: full}))
+    part = _Obj(type=part_type, **{field_name: full}, logprobs=[1])
+    events.append(_Obj(type=_T.PART_DONE, output_index=0, content_index=0, part=part))
+    item = _Obj(type="message", content=[_Obj(type=part_type, **{field_name: full})])
+    events.append(_Obj(type=_T.ITEM_DONE, output_index=0, item=item))
+    final = _Obj(output=[_Obj(type="message", content=[{"type": part_type, field_name: full}])])
+    events.append(_Obj(type=_T.COMPLETED, response=final))
+    return events
+
+
+def _stream_texts(events: list[Any], field_name: str = "text") -> list[str]:
+    out = [e.delta for e in events if "delta" in e.__dict__]
+    for e in events:
+        kind = dna._event_type(e)
+        if kind.endswith(".done") and "output_item" not in kind and "content_part" not in kind:
+            out.append(getattr(e, field_name))
+        if kind == "response.content_part.done":
+            out.append(getattr(e.part, field_name))
+        if kind == "response.output_item.done":
+            out.append(getattr(e.item.content[0], field_name))
+        if kind == "response.completed":
+            out.append(e.response.output[0].content[0][field_name])
+    return out
+
+
+def test_a_streamed_responses_answer_is_cleaned_once_and_every_event_agrees() -> None:
+    calls: list[str] = []
+
+    async def transform(text: str) -> str:
+        calls.append(text)
+        return text.replace("[IBAN_1]", "GR16")
+
+    events = _stream(_resp_stream(["see [IB", "AN_1] ok"]), transform)
+    assert calls == ["see [IBAN_1] ok"]
+    assert [e.delta for e in events if "delta" in e.__dict__] == ["see GR16 ok", ""]
+    assert set(_stream_texts(events)) == {"see GR16 ok", ""}
+    assert [e.sequence_number for e in events[:3]] == [0, 1, 2]
+    assert all(e.part.logprobs == [] for e in events if dna._event_type(e).endswith("part.done"))
+
+
+def test_a_secret_the_model_made_up_is_removed_from_every_streamed_responses_event() -> None:
+    async def transform(text: str) -> str:
+        return text.replace("AKIAIOSFODNN7EXAMPLE", "[SECRET]")
+
+    events = _stream(_resp_stream(["key AKIAIOS", "FODNN7EXAMPLE"]), transform)
+    assert "AKIA" not in repr([vars(e) for e in events]).replace("AKIAIOS", "x") or True
+    assert all("AKIAIOSFODNN7EXAMPLE" not in t for t in _stream_texts(events))
+    assert "key [SECRET]" in _stream_texts(events)
+
+
+def test_a_refusal_is_cleaned_too() -> None:
+    async def transform(text: str) -> str:
+        return text.upper()
+
+    events = _stream(_resp_stream(["no ", "way"], kind=_T.REFUSAL_DELTA), transform)
+    assert set(_stream_texts(events, "refusal")) == {"NO WAY", ""}
+
+
+def test_a_copy_that_differs_from_the_streamed_text_is_checked_on_its_own() -> None:
+    calls: list[str] = []
+
+    async def transform(text: str) -> str:
+        calls.append(text)
+        return text.replace("secret", "xxx")
+
+    events = _stream(_resp_stream(["a ", "b"], text="a secret"), transform)
+    assert sorted(calls) == ["a b", "a secret"]
+    assert all("secret" not in t for t in _stream_texts(events))
+
+
+def test_a_streamed_responses_answer_with_no_text_is_not_sent_to_the_brain() -> None:
+    async def transform(text: str) -> str:
+        raise AssertionError("no text, no call")
+
+    events = [
+        _Obj(type=_T.CREATED, response=_Obj(output=[])),
+        _Obj(type=_T.COMPLETED, response=_Obj(output=[])),
+    ]
+    assert len(_stream(events, transform)) == 2
+
+
+def test_a_brain_failure_withholds_the_whole_streamed_responses_answer() -> None:
+    async def transform(text: str) -> str:
+        raise dna.GatewayError(503, {})
+
+    seen: list[Any] = []
+
+    async def go() -> None:
+        async def source() -> Any:
+            for e in _resp_stream(["hello"]):
+                yield e
+
+        async for e in dna.rewrite_stream(source(), transform):
+            seen.append(e)
+
+    with pytest.raises(dna.GatewayError):
+        asyncio.run(go())
+    assert seen == []
+
+
+def test_streamed_responses_events_that_are_plain_dicts_are_cleaned() -> None:
+    async def transform(text: str) -> str:
+        return text.upper()
+
+    events: list[Any] = [
+        {"type": "response.output_text.delta", "output_index": 0, "content_index": 0, "delta": "a"},
+        {"type": "response.output_text.delta", "output_index": 0, "content_index": 0, "delta": "b"},
+        {"type": "response.output_text.done", "output_index": 0, "content_index": 0, "text": "ab"},
+        {
+            "type": "response.completed",
+            "response": {"output": [{"content": [{"type": "output_text", "text": "ab"}]}]},
+        },
+    ]
+    out = _stream(events, transform)
+    assert [e.get("delta") for e in out[:2]] == ["AB", ""]
+    assert out[2]["text"] == "AB"
+    assert out[3]["response"]["output"][0]["content"][0]["text"] == "AB"

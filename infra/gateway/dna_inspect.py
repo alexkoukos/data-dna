@@ -971,6 +971,139 @@ def _text_holder(chunk: Any) -> tuple[Any, str] | None:
     return None
 
 
+_FIELD = {"output_text": "text", "refusal": "refusal"}
+_DELTA_KIND = {"response.output_text.delta": "output_text", "response.refusal.delta": "refusal"}
+_DONE_KIND = {"response.output_text.done": "output_text", "response.refusal.done": "refusal"}
+_FINAL_EVENTS = {
+    "response.created",
+    "response.in_progress",
+    "response.completed",
+    "response.incomplete",
+    "response.failed",
+}
+_Key = tuple[str, int, int]
+
+
+def _event_type(event: Any) -> str:
+    kind = _get(event, "type")
+    return str(getattr(kind, "value", kind)) if kind is not None else ""
+
+
+def _is_response_event(chunk: Any) -> bool:
+    return _event_type(chunk).startswith("response.")
+
+
+def _index(event: Any, name: str) -> int:
+    value = _get(event, name)
+    return value if isinstance(value, int) else 0
+
+
+def _text_parts(content: Any) -> list[tuple[int, Any, str]]:
+    """(content index, part, text field) for every output_text and refusal part in a list."""
+    out: list[tuple[int, Any, str]] = []
+    for ci, part in enumerate(content if isinstance(content, list) else []):
+        kind = _get(part, "type")
+        kind = getattr(kind, "value", kind)
+        if kind in _FIELD:
+            out.append((ci, part, _FIELD[kind]))
+    return out
+
+
+def _event_text_slots(event: Any) -> list[tuple[_Key, Any, str]]:
+    """Every place a non-delta event keeps answer text: (key, holder, field)."""
+    kind = _event_type(event)
+    slots: list[tuple[_Key, Any, str]] = []
+    if kind in _DONE_KIND:
+        field_ = _FIELD[_DONE_KIND[kind]]
+        slots.append(
+            ((_DONE_KIND[kind], _index(event, "output_index"), _index(event, "content_index")),
+             event, field_)
+        )
+    elif kind in ("response.content_part.added", "response.content_part.done"):
+        for _, part, field_ in _text_parts([_get(event, "part")]):
+            key = (
+                "output_text" if field_ == "text" else "refusal",
+                _index(event, "output_index"),
+                _index(event, "content_index"),
+            )
+            slots.append((key, part, field_))
+    elif kind in ("response.output_item.added", "response.output_item.done"):
+        oi = _index(event, "output_index")
+        for ci, part, field_ in _text_parts(_get(_get(event, "item"), "content")):
+            slots.append((("output_text" if field_ == "text" else "refusal", oi, ci), part, field_))
+    elif kind in _FINAL_EVENTS:
+        output = _get(_get(event, "response"), "output")
+        for oi, item in enumerate(output if isinstance(output, list) else []):
+            for ci, part, field_ in _text_parts(_get(item, "content")):
+                slots.append(
+                    (("output_text" if field_ == "text" else "refusal", oi, ci), part, field_)
+                )
+    return slots
+
+
+def _clear_logprobs(holder: Any) -> None:
+    if _get(holder, "logprobs"):
+        _set(holder, "logprobs", [])
+
+
+async def _rewrite_responses_events(
+    events: list[Any], transform: Callable[[str], Awaitable[str]]
+) -> list[Any]:
+    """Clean the text of a streamed Responses API answer.
+
+    Like chat, the whole answer is collected first. For each text block (kind, output index,
+    content index) the deltas are joined and checked once; the first delta then carries all of
+    the cleaned text and later deltas are empty, so the client still gets every event in order.
+    The done, part, item and final-response events carry the same text, so they get the cleaned
+    version too. A copy that does not match what was streamed is checked on its own. Reasoning,
+    function-call arguments and annotations are not text answers and pass through.
+    """
+    deltas: dict[_Key, list[str]] = {}
+    for event in events:
+        kind = _DELTA_KIND.get(_event_type(event))
+        delta = _get(event, "delta")
+        if kind and isinstance(delta, str):
+            key = (kind, _index(event, "output_index"), _index(event, "content_index"))
+            deltas.setdefault(key, []).append(delta)
+    cleaned: dict[str, str] = {}
+
+    async def clean(raw: str) -> str:
+        if raw not in cleaned:
+            cleaned[raw] = await transform(raw)
+        return cleaned[raw]
+
+    # Checked before the first event leaves, so a brain failure withholds the whole answer.
+    for parts in deltas.values():
+        if any(parts):
+            await clean("".join(parts))
+    for event in events:
+        for _, holder, field_ in _event_text_slots(event):
+            value = _get(holder, field_)
+            if isinstance(value, str) and value:
+                await clean(value)
+    first_seen: set[_Key] = set()
+    done: set[tuple[int, str]] = set()  # one response object can sit in several events
+    for event in events:
+        kind = _DELTA_KIND.get(_event_type(event))
+        delta = _get(event, "delta")
+        if kind and isinstance(delta, str):
+            key = (kind, _index(event, "output_index"), _index(event, "content_index"))
+            if key not in first_seen:
+                first_seen.add(key)
+                joined = "".join(deltas[key])
+                _set(event, "delta", cleaned[joined] if joined else "")
+            else:
+                _set(event, "delta", "")
+            _clear_logprobs(event)
+        for _, holder, field_ in _event_text_slots(event):
+            value = _get(holder, field_)
+            if (id(holder), field_) not in done and isinstance(value, str) and value:
+                done.add((id(holder), field_))
+                _set(holder, field_, cleaned[value])
+            _clear_logprobs(holder)
+    return events
+
+
 async def rewrite_stream(
     chunks: AsyncIterator[Any], transform: Callable[[str], Awaitable[str]]
 ) -> AsyncIterator[Any]:
@@ -988,6 +1121,10 @@ async def rewrite_stream(
         holder = _text_holder(chunk)
         if holder is not None:
             parts.append(getattr(holder[0], holder[1]))
+    if any(_is_response_event(c) for c in buffered):
+        for event in await _rewrite_responses_events(buffered, transform):
+            yield event
+        return
     cleaned = await transform("".join(parts)) if parts else ""
     placed = False
     for chunk in buffered:
