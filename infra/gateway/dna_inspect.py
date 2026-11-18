@@ -846,6 +846,15 @@ async def apply_decision(
         payload["reroute"] = True
     try:
         resp = await client.post(f"{brain_url}/v1/inspect", json=payload, timeout=10.0)
+        if resp.status_code in (413, 422):
+            raise GatewayError(
+                413,
+                {
+                    "type": "block",
+                    "message": "This request is too large to check, so it was not sent.",
+                    "next": "Shorten it or split it.",
+                },
+            )
         resp.raise_for_status()
         verdict = resp.json()
     except (httpx.HTTPError, ValueError) as exc:

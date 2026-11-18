@@ -8,12 +8,12 @@ from brain.policy.engine import Decision
 
 class Message(BaseModel):
     role: str
-    content: str
+    content: str = Field(max_length=200_000)
 
 
 class Attachment(BaseModel):
     filename: str = Field(min_length=1, max_length=200)
-    content_base64: str
+    content_base64: str = Field(max_length=14_000_000)
 
 
 class InspectRequest(BaseModel):
@@ -25,9 +25,9 @@ class InspectRequest(BaseModel):
     reroute: bool = False  # X31: the person chose "send it to Company AI instead"
     # Positions in `messages` the gateway knows this person already accepted (sent with the
     # acknowledgement header). Only earlier text is lowered; new content is always checked.
-    accepted_indexes: list[int] = Field(default_factory=list)
-    messages: list[Message]
-    attachments: list[Attachment] = Field(default_factory=list)
+    accepted_indexes: list[int] = Field(default_factory=list, max_length=1000)
+    messages: list[Message] = Field(max_length=1000)
+    attachments: list[Attachment] = Field(default_factory=list, max_length=10)
 
 
 class FindingOut(BaseModel):
@@ -71,7 +71,7 @@ class InspectResponse(BaseModel):
 class UnmaskRequest(BaseModel):
     session_id: str
     user_id: str
-    text: str
+    text: str = Field(max_length=200_000)
 
 
 class UnmaskResponse(BaseModel):
@@ -82,7 +82,7 @@ class UnmaskResponse(BaseModel):
 class InspectOutputRequest(BaseModel):
     user_id: str = "anonymous"
     team: str = "unknown"
-    text: str
+    text: str = Field(max_length=200_000)
 
 
 class InspectOutputResponse(BaseModel):
@@ -289,7 +289,7 @@ class DnaState(BaseModel):
 
 
 class ToolResultRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=200_000)
     source: str = Field(default="MCP tool", max_length=100)
     user_id: str = "anonymous"
     team: str = "unknown"

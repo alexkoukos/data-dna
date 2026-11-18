@@ -334,6 +334,22 @@ async def extension_cors(request: Request, call_next: Callable[[Request], Any]) 
     return resp
 
 
+MAX_BODY_BYTES = 15 * 1024 * 1024
+MAX_INSPECT_CHARS = 100_000
+
+
+@app.middleware("http")
+async def body_limit(request: Request, call_next: Callable[[Request], Any]) -> Response:
+    """Refuse a huge body before it is read and parsed."""
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+        return JSONResponse(
+            status_code=413,
+            content={"detail": "This request is too large (over 15 MB). Send a smaller one."},
+        )
+    return await call_next(request)  # type: ignore[no-any-return]
+
+
 def _own_origins() -> set[str]:
     parsed = urlsplit(settings.web_url)
     mine = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
@@ -390,7 +406,11 @@ def _attachment_text(req: InspectRequest) -> str:
             raise HTTPException(
                 status_code=422,
                 detail=f"{a.filename}: "
-                + (str(err) if isinstance(err, ExtractError) else "the file could not be decoded."),
+                + (
+                    str(err)
+                    if isinstance(err, ExtractError)
+                    else "the file could not be decoded. Attach the file again."
+                ),
             ) from err
     return "\n\n" + "\n\n".join(parts) if parts else ""
 
@@ -757,6 +777,12 @@ def inspect(
     msgs = req.messages
     new_idx, history_idx, trusted_idx = _group_messages(msgs)
     attached = _attachment_text(req)
+    if sum(len(m.content) for m in msgs) + len(attached) > MAX_INSPECT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail="This request is too long to check (over 100,000 characters). "
+            "Shorten it or split it into smaller messages.",
+        )
     if not new_idx and not history_idx and not trusted_idx and not attached:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
     clock = time.perf_counter()

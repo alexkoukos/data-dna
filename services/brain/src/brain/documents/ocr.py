@@ -6,10 +6,12 @@ never silently let through unread.
 """
 
 import io
+import warnings
 from collections.abc import Callable
 from typing import Any
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".webp")
+MAX_PIXELS = 40_000_000
 _engine: Callable[..., Any] | None = None
 
 
@@ -44,12 +46,28 @@ def image_text(data: bytes) -> str:
     import numpy as np
     from PIL import Image
 
-    engine = _load()
+    too_big = ValueError(
+        "This image has too many pixels to read. Shrink it or crop the part you need."
+    )
     try:
-        img = np.array(Image.open(io.BytesIO(data)).convert("RGB"))
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            opened = Image.open(io.BytesIO(data))
+            if opened.width * opened.height > MAX_PIXELS:
+                raise too_big
+            img = np.array(opened.convert("RGB"))
+    except (Image.DecompressionBombWarning, Image.DecompressionBombError) as err:
+        raise too_big from err
+    except ValueError as err:
+        if err is too_big:
+            raise
+        raise ValueError(
+            "This image could not be read. Check that the file is not damaged."
+        ) from err
     except Exception as err:  # Pillow raises several unrelated types on bad files
         raise ValueError(
             "This image could not be read. Check that the file is not damaged."
         ) from err
+    engine = _load()
     result, _ = engine(img)
     return "\n".join(str(row[1]) for row in (result or []))

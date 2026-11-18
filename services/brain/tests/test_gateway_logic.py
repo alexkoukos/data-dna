@@ -2091,3 +2091,24 @@ def test_streamed_n_above_one_is_refused(n: Any) -> None:
     assert err.value.status_code == 403 and seen == []
     ok = {"model": "m", "stream": True, "n": 1, "messages": [{"role": "user", "content": "hi"}]}
     assert _decide(ok, "completion", {"decision": "allow", "reasons": []})["n"] == 1
+
+
+@pytest.mark.parametrize("status", [413, 422])
+def test_brain_413_becomes_a_plain_413(status: int) -> None:
+    async def go() -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status, json={"detail": "x"})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await dna.apply_decision(
+                {"model": "m", "messages": [{"role": "user", "content": "hi"}]},
+                user_id="u",
+                team="t",
+                headers=None,
+                brain_url="http://brain",
+                client=client,
+            )
+
+    with pytest.raises(dna.GatewayError) as err:
+        asyncio.run(go())
+    assert err.value.status_code == 413 and err.value.body["next"] == "Shorten it or split it."
