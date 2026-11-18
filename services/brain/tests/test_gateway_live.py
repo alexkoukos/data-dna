@@ -567,3 +567,13 @@ def test_streamed_responses_events_from_litellm_are_cleaned() -> None:
     assert result["final"] == "Checked GR16 fine, key [SECRET]"
     assert result["calls"] == ["Checked [IBAN_1] fine, key AKIAIOSFODNN7EXAMPLE"]
     assert "AKIA" not in result["raw"] and "[IBAN_1]" not in result["raw"]
+
+
+def test_the_master_key_is_never_remembered() -> None:
+    admin = OpenAI(base_url=f"{GATEWAY}/v1", api_key=MASTER, max_retries=0)
+    risky = "AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695"
+    first = [{"role": "user", "content": risky}]
+    assert _chat(admin, first, ack=True).status_code == 200
+    second = [*first, {"role": "assistant", "content": "Noted."}]
+    second.append({"role": "user", "content": "Thanks, a short poem"})
+    assert _chat(admin, second).status_code == 409

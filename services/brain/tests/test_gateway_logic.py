@@ -1427,6 +1427,8 @@ def _turn(
     verdict: dict[str, Any],
     *,
     user: str = "u1",
+    token: str = "a" * 64,
+    role: str = "internal_user",
     ack: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """One call to the gateway. Returns what the brain was sent and the request that goes on."""
@@ -1446,6 +1448,7 @@ def _turn(
                     headers={"X-DNA-Ack": "audit"} if ack else None,
                     brain_url="http://brain",
                     client=client,
+                    accept_scope=dna.acceptance_scope(user, token, role),
                 )
             except dna.GatewayError:
                 return None
@@ -1499,16 +1502,50 @@ def test_a_mask_is_not_remembered() -> None:
     assert "accepted_indexes" not in second
 
 
-def test_memory_is_per_user_and_the_master_key_is_never_remembered() -> None:
+def test_memory_is_per_user() -> None:
     _turn(RISKY, WARN, ack=True, user="alice")
     other, _ = _turn(LATER, ALLOW, user="bob")
     assert "accepted_indexes" not in other
-    _turn(RISKY, WARN, ack=True, user="anonymous")
-    again, _ = _turn(LATER, ALLOW, user="anonymous")
+
+
+def test_two_keys_of_the_same_user_do_not_share_what_was_accepted() -> None:
+    _turn(RISKY, WARN, ack=True, token="a" * 64)
+    same, _ = _turn(LATER, ALLOW, token="a" * 64)
+    assert same["accepted_indexes"] == [0]
+    other, _ = _turn(LATER, ALLOW, token="b" * 64)
+    assert "accepted_indexes" not in other
+
+
+@pytest.mark.parametrize(
+    ("user", "token", "role"),
+    [
+        ("default_user_id", "litellm_proxy_master_key", "proxy_admin"),
+        ("default_user_id", "c" * 64, "internal_user"),
+        ("anonymous", "c" * 64, "internal_user"),
+        ("", "c" * 64, "internal_user"),
+        (None, "c" * 64, "internal_user"),
+        ("alice", "c" * 64, "proxy_admin"),
+        ("alice", "c" * 64, "proxy_admin_viewer"),
+        ("alice", None, "internal_user"),
+        ("alice", "sk-not-hashed", "internal_user"),
+    ],
+)
+def test_shared_admin_and_unkeyed_identities_are_never_remembered(
+    user: Any, token: Any, role: str
+) -> None:
+    assert dna.acceptance_scope(user, token, role) is None
+    _turn(RISKY, WARN, ack=True, user=user, token=token, role=role)
+    again, _ = _turn(LATER, ALLOW, user=user, token=token, role=role)
     assert "accepted_indexes" not in again
-    _turn(RISKY, WARN, ack=True, user="")
-    blank, _ = _turn(LATER, ALLOW, user="")
-    assert "accepted_indexes" not in blank
+    assert not dna.ACCEPTED._items
+
+
+def test_the_role_may_be_an_enum_like_litellms() -> None:
+    class Role(enum.Enum):
+        ADMIN = "proxy_admin"
+
+    assert dna.acceptance_scope("alice", "d" * 64, Role.ADMIN) is None
+    assert dna.acceptance_scope("alice", "d" * 64, None)
 
 
 def test_a_changed_text_or_role_is_not_remembered() -> None:
@@ -1566,6 +1603,7 @@ def test_an_accepted_slot_that_cannot_be_rewritten_is_sent_as_it_is() -> None:
                     headers={"X-DNA-Ack": "a"} if ack else None,
                     brain_url="http://brain",
                     client=client,
+                    accept_scope=dna.acceptance_scope("u1", "b" * 64),
                 )
             except dna.GatewayError as err:
                 return seen[0], err

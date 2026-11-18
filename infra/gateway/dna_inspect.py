@@ -674,14 +674,39 @@ ACCEPTED_TTL_SECONDS = 4 * 3600
 ACCEPTED_MAX_ENTRIES = 20_000
 
 
+_SHARED_IDENTITIES = {"", "anonymous", "default_user_id"}
+_HASHED_TOKEN = re.compile(r"[0-9a-f]{64}")
+
+
+def acceptance_scope(user_id: str | None, token: str | None, role: Any = None) -> str | None:
+    """Who a remembered acknowledgement belongs to, or None when nothing may be remembered.
+
+    LiteLLM gives the master key the user `default_user_id`, the role proxy_admin and a fixed alias
+    instead of a hashed token; a key made without a user has no user at all. Those identities are
+    shared by many people, so acknowledging once would hide warnings from everyone else. A real
+    personal key has its own user and a hashed token (64 hex characters), and the scope uses both,
+    so two keys of the same user do not share what they acknowledged.
+    """
+    role_name = str(getattr(role, "value", role) or "")
+    if (
+        not user_id
+        or user_id in _SHARED_IDENTITIES
+        or role_name.startswith("proxy_admin")
+        or not isinstance(token, str)
+        or not _HASHED_TOKEN.fullmatch(token)
+    ):
+        return None
+    return f"{user_id}\0{token}"
+
+
 class _AcceptedMemory:
     """Texts a person already sent on purpose (with X-DNA-Ack), so a client that resends the whole
     history is not warned about the same text again on every call.
 
-    The gateway holds it, keyed by the user the virtual key belongs to: a client cannot name
-    someone else's memory. Only a hash is kept, never the text. The master key (`anonymous`) is
-    shared by many people and is never remembered. Everything is lost on restart, and a second
-    gateway process has its own memory; both only mean an extra warning.
+    The gateway holds it, keyed by the scope of the virtual key (see `acceptance_scope`): a client
+    cannot name someone else's memory. Only a hash is kept, never the text. Shared identities have
+    no scope and are never remembered. Everything is lost on restart, and a second gateway process
+    has its own memory; both only mean an extra warning.
     """
 
     def __init__(self, ttl: float = ACCEPTED_TTL_SECONDS, size: int = ACCEPTED_MAX_ENTRIES) -> None:
@@ -691,18 +716,14 @@ class _AcceptedMemory:
         self._lock = threading.Lock()
 
     @staticmethod
-    def _key(user_id: str, slot: Slot) -> str:
-        raw = f"{user_id}\0{slot.role}\0{slot.text}"
+    def _key(scope: str, slot: Slot) -> str:
+        raw = f"{scope}\0{slot.role}\0{slot.text}"
         return hashlib.sha256(raw.encode("utf-8", "surrogatepass")).hexdigest()
 
-    @staticmethod
-    def _eligible(user_id: str) -> bool:
-        return bool(user_id) and user_id != "anonymous"
-
-    def has(self, user_id: str, slot: Slot) -> bool:
-        if not self._eligible(user_id):
+    def has(self, scope: str | None, slot: Slot) -> bool:
+        if not scope:
             return False
-        key = self._key(user_id, slot)
+        key = self._key(scope, slot)
         with self._lock:
             added = self._items.get(key)
             if added is None:
@@ -712,13 +733,13 @@ class _AcceptedMemory:
                 return False
             return True
 
-    def add(self, user_id: str, slots: list[Slot]) -> None:
-        if not self._eligible(user_id):
+    def add(self, scope: str | None, slots: list[Slot]) -> None:
+        if not scope:
             return
         now = time.monotonic()
         with self._lock:
             for slot in slots:
-                key = self._key(user_id, slot)
+                key = self._key(scope, slot)
                 self._items[key] = now
                 self._items.move_to_end(key)
             while len(self._items) > self._size:
@@ -737,6 +758,7 @@ async def apply_decision(
     brain_url: str,
     client: httpx.AsyncClient,
     call_type: str = "completion",
+    accept_scope: str | None = None,
 ) -> dict[str, Any]:
     """Ask the brain about this request and return the (possibly changed) request.
 
@@ -766,7 +788,7 @@ async def apply_decision(
         "model": str(data.get("model", "default")),
         "messages": [{"role": s.role, "content": s.text} for s in slots],
     }
-    accepted = [i for i, s in enumerate(slots) if ACCEPTED.has(user_id, s)]
+    accepted = [i for i, s in enumerate(slots) if ACCEPTED.has(accept_scope, s)]
     accepted_ids = {id(slots[i]) for i in accepted}
     if accepted:
         payload["accepted_indexes"] = accepted
@@ -886,7 +908,7 @@ async def apply_decision(
 
     if decision == "warn":
         # Only a warning the person answered with the ack header is remembered.
-        ACCEPTED.add(user_id, slots)
+        ACCEPTED.add(accept_scope, slots)
     metadata = data.setdefault("metadata", {})
     metadata["dna_decision"] = decision
     metadata["dna_reasons"] = reasons

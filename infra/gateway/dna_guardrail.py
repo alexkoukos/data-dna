@@ -12,6 +12,7 @@ from collections.abc import AsyncGenerator
 
 from dna_inspect import (
     GatewayError,
+    acceptance_scope,
     apply_decision,
     finalize_answer,
     rewrite_output,
@@ -39,6 +40,11 @@ class DnaGuardrail(CustomGuardrail):
                 brain_url=BRAIN_URL,
                 client=self._client,
                 call_type=call_type,
+                accept_scope=acceptance_scope(
+                    getattr(user_api_key_dict, "user_id", None),
+                    getattr(user_api_key_dict, "api_key", None),
+                    getattr(user_api_key_dict, "user_role", None),
+                ),
             )
         except GatewayError as err:
             raise HTTPException(status_code=err.status_code, detail=err.body) from err
