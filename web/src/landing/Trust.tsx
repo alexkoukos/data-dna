@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { TextureButton } from "@/components/ui/texture-button";
 import { PageHead, SiteShell } from "./SiteShell";
 
 const PROMISES: [string, string][] = [
@@ -54,9 +55,9 @@ export default function Trust() {
               ))}
             </ul>
             <div className="cta-row">
-              <Link to="/developers" className="btn btn-secondary">
-                See how it is built
-              </Link>
+              <TextureButton asChild variant="secondary" size="lg">
+                <Link to="/developers">See how it is built</Link>
+              </TextureButton>
             </div>
           </div>
         </section>

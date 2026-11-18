@@ -227,9 +227,9 @@ export default function Landing() {
           <div className="top-links">
             <a href="#catches">What it catches</a>
             <a href="#security">For security teams</a>
-            <TextureButton asChild variant="primary" size="lg">
-              <Link to="/app">Live demo</Link>
-            </TextureButton>
+            <Link to="/app" className="btn btn-primary btn-sm">
+              Live demo
+            </Link>
           </div>
         </nav>
       </header>
@@ -292,9 +292,7 @@ export default function Landing() {
                   alt="The Hive Overview: trend charts for incidents and leaks stopped, and counts of prompts checked, share handled without an AI model, incidents and unapproved tools. Demo data."
                 />
               </div>
-              <figcaption>
-                The real Overview, running on invented demo data.
-              </figcaption>
+              <figcaption>The real Overview, running on invented demo data.</figcaption>
             </figure>
           </div>
         </section>

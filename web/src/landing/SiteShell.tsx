@@ -42,7 +42,7 @@ export function SiteShell({ children, home = false }: { children: ReactNode; hom
       <header className="top">
         <nav aria-label="Main" className="top-in">
           <Link to="/" className="top-logo" aria-label="Hive home">
-            <Wordmark className="top-wordmark" />
+            <Wordmark reverse className="top-wordmark" />
           </Link>
           {home ? (
             <div className="top-links">

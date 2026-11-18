@@ -15,6 +15,11 @@ Template:
 
 ---
 
+## 2026-11-18, Alexandros, landing hero restored to the Ribbon Field (wave) version
+**Done:** the landing top is the Ribbon Field wave hero with the app window (`RibbonField.tsx`, `AppWindow.tsx`, dark header, reveal on scroll), taken from the uncommitted work in `~/data-dna-hive` (branch `hive-hero`); that worktree was not changed. Buttons use TextureButton (liquid glass dropped, per the standing rule). The Overview shot, the footer links and the three new pages stay.
+**State:** branch `task/hive-ui-redo`. Types, lint, 82 unit tests and 11 landing e2e specs pass. The pause button and scene dots of the laptop version are gone with it.
+**Next step:** commit the `hive-hero` work there too, or delete that worktree, so it cannot be lost.
+
 ## 2026-11-18, Alexandros, Hive public site (landing, deep dive, trust, developers)
 **Done:** public site on `/` (landing with the looping laptop, from `task/landing-page`), `/how-it-works` (deep dive), `/trust` (security and privacy) and `/developers`, all in Poppins and Playfair with one shared header and footer (`web/src/landing/SiteShell.tsx`). The old start page moved to `/app`. Security tabs cut to Overview, AI tools, Incidents, Policies and Ask (the other pages still load by URL). No pricing page.
 **State:** branch `task/hive-ui-redo`. Only the landing files were copied from `task/landing-page`, not a full merge: that branch is from the gateway era and conflicts with the pivot (App.tsx, package.json, main.py, README). Types, lint, 82 unit tests and 12 landing e2e specs (axe clean, phone and desktop) pass against `vite preview`.

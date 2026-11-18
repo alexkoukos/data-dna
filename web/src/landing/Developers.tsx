@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { TextureButton } from "@/components/ui/texture-button";
 import { PageHead, SiteShell } from "./SiteShell";
 
 const GITHUB = "https://github.com/alexkoukos/data-dna";
@@ -36,8 +37,8 @@ export default function Developers() {
 cd data-dna
 docker compose up --build`}</pre>
             <p className="prose">
-              Dashboard on <code>localhost:3000</code>, API docs on <code>localhost:8001/docs</code>.
-              Extension: <code>make extension</code>, then load the folder unpacked.
+              Dashboard on <code>localhost:3000</code>, API docs on <code>localhost:8001/docs</code>
+              . Extension: <code>make extension</code>, then load the folder unpacked.
             </p>
           </div>
         </section>
@@ -79,12 +80,12 @@ make eval      # accuracy vs baseline
 make redteam   # attack prompts
 make e2e       # browser tests`}</pre>
             <div className="cta-row">
-              <a href={GITHUB} className="btn btn-primary">
-                Open the repo
-              </a>
-              <Link to="/trust" className="btn btn-secondary">
-                Security and privacy
-              </Link>
+              <TextureButton asChild variant="primary" size="lg">
+                <a href={GITHUB}>Open the repo</a>
+              </TextureButton>
+              <TextureButton asChild variant="secondary" size="lg">
+                <Link to="/trust">Security and privacy</Link>
+              </TextureButton>
             </div>
           </div>
         </section>

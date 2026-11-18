@@ -1,10 +1,15 @@
 import { Link } from "react-router-dom";
+import { TextureButton } from "@/components/ui/texture-button";
 import { PageHead, SiteShell } from "./SiteShell";
 
 const FLOW: [string, string, string][] = [
   ["Paste", "Text or a file goes into an AI tool.", "On the page"],
   ["Browser check", "IDs, cards, IBANs, keys. Instant, works offline.", "In the browser"],
-  ["Deep check", "Reworded documents, names, code, tricks, memory across prompts.", "On your server"],
+  [
+    "Deep check",
+    "Reworded documents, names, code, tricks, memory across prompts.",
+    "On your server",
+  ],
   ["Policy", "Your rules per team decide what happens.", "On your server"],
   ["Outcome", "One of five, always with a reason.", "Back on the page"],
 ];
@@ -74,7 +79,9 @@ export default function DeepDive() {
               </div>
               <div className="pair-card">
                 <h3>Who leaked it</h3>
-                <p>Marked copies name the source. The person stays hidden until two people approve.</p>
+                <p>
+                  Marked copies name the source. The person stays hidden until two people approve.
+                </p>
               </div>
             </div>
           </div>
@@ -103,12 +110,12 @@ export default function DeepDive() {
             </div>
             <p className="prose">Invented data, tuned on that set. Read it as a ceiling.</p>
             <div className="cta-row">
-              <Link to="/break-it" className="btn btn-primary">
-                Try to break it
-              </Link>
-              <Link to="/developers" className="btn btn-secondary">
-                For developers
-              </Link>
+              <TextureButton asChild variant="primary" size="lg">
+                <Link to="/break-it">Try to break it</Link>
+              </TextureButton>
+              <TextureButton asChild variant="secondary" size="lg">
+                <Link to="/developers">For developers</Link>
+              </TextureButton>
             </div>
           </div>
         </section>
