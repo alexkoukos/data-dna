@@ -51,6 +51,8 @@ class TraceStep(BaseModel):
 
 
 class InspectResponse(BaseModel):
+    # Positions the brain treated as already accepted earlier text (never new content).
+    accepted_applied: list[int] = Field(default_factory=list)
     decision: str
     reasons: list[str]
     findings: list[FindingOut] = Field(default_factory=list)

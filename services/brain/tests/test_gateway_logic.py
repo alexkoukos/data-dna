@@ -1612,7 +1612,13 @@ def test_an_accepted_slot_that_cannot_be_rewritten_is_sent_as_it_is() -> None:
     def mask_first(sent: dict[str, Any]) -> dict[str, Any]:
         msgs = [dict(m) for m in sent["messages"]]
         msgs[0]["content"] = "key [S_1]"
-        return {"decision": "mask", "reasons": [], "masked_messages": msgs}
+        applied = sent.get("accepted_indexes", [])
+        return {
+            "decision": "mask",
+            "reasons": [],
+            "masked_messages": msgs,
+            "accepted_applied": applied,
+        }
 
     sent, err = asyncio.run(go(mask_first, False))
     assert isinstance(err, dna.GatewayError) and err.status_code == 409
@@ -1932,3 +1938,61 @@ def test_an_unreadable_text_frame_is_withheld() -> None:
     bad = "event: content_block_delta\ndata: {not json\n\n"
     with pytest.raises(dna.GatewayError):
         _stream([START + bad], _cleaner([]))
+
+
+def test_acceptance_does_not_cover_the_same_unwritable_text_sent_as_new_content() -> None:
+    iban = "GR1601101250000000012300695"
+    scope = dna.acceptance_scope("u1", "a" * 64, "internal_user")
+    mode = {"v": "warn"}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        sent = json.loads(req.content)
+        if mode["v"] == "warn":
+            return httpx.Response(200, json={"decision": "warn", "reasons": ["x"]})
+        masked = [
+            {"role": m["role"], "content": m["content"].replace(iban, "[IBAN_1]")}
+            for m in sent["messages"]
+        ]
+        # The brain checked the message as new content, so it reports nothing as accepted.
+        return httpx.Response(
+            200,
+            json={
+                "decision": "mask",
+                "reasons": [],
+                "masked_messages": masked,
+                "accepted_applied": [],
+            },
+        )
+
+    def body() -> dict[str, Any]:
+        return {
+            "model": "m",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": f"pay {iban}"},
+                        {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}},
+                    ],
+                }
+            ],
+        }
+
+    async def go(headers: dict[str, str] | None) -> Any:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            try:
+                return await dna.apply_decision(
+                    body(),
+                    user_id="u1",
+                    team="t",
+                    headers=headers,
+                    brain_url="http://brain",
+                    client=client,
+                    accept_scope=scope,
+                )
+            except dna.GatewayError as err:
+                return err.status_code
+
+    assert asyncio.run(go({"X-DNA-Ack": "audit"}))["metadata"]["dna_decision"] == "warn"
+    mode["v"] = "mask"
+    assert asyncio.run(go(None)) == 409

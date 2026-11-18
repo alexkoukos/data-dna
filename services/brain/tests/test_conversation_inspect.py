@@ -555,3 +555,12 @@ def test_an_accepted_trusted_pass_still_masks_a_secret(client: TestClient) -> No
 def test_out_of_range_accepted_positions_are_ignored(client: TestClient) -> None:
     out = send(client, turns("Hello", "Hi.", HARMLESS), accepted_indexes=[-1, 7, 99])
     assert out["decision"] == "allow"
+
+
+def test_the_brain_reports_which_positions_it_treated_as_accepted_history(
+    client: TestClient,
+) -> None:
+    msgs = turns(f"Pay {IBAN}", "Noted.", HARMLESS)
+    assert send(client, msgs, accepted_indexes=[0])["accepted_applied"] == [0]
+    assert send(client, msgs, accepted_indexes=[2])["accepted_applied"] == []
+    assert send(client, msgs)["accepted_applied"] == []

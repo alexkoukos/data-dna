@@ -736,6 +736,7 @@ def inspect(
     t_checks = time.perf_counter()
     placeholders = dict(first.result.placeholders) if first else None
     earlier = [f for f in finders if f != injection_classifier.find]
+    applied: list[int] = []
     accepted = frozenset(i for i in req.accepted_indexes if 0 <= i < len(msgs))
     for group in _history_groups(msgs, history_idx, trusted_idx, accepted):
         mask_injection = True
@@ -769,6 +770,7 @@ def inspect(
             cap_injection(rg, policies)
         earlier_pass = _Pass(rg, group.indexes, mg, ng, group.prefix)
         if group.accepted:
+            applied.extend(group.indexes)
             _lower_accepted(earlier_pass)
         passes.append(earlier_pass)
         placeholders = rg.placeholders
@@ -892,6 +894,7 @@ def inspect(
         suggestion = first.masked[-1]
         background.add_task(_count_coaching, coaching.SHOWN)
     return InspectResponse(
+        accepted_applied=sorted(applied),
         session_id=session_id,
         suggested_rewrite=suggestion,
         decision=decision,

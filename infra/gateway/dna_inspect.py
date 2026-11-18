@@ -843,6 +843,10 @@ async def apply_decision(
         if changes:
             # Text the person already accepted that cannot be rewritten (a file, a signed block)
             # is sent as it is instead of asking again.
+            # Only text the brain treated as earlier, accepted history counts: the same text sent
+            # as the new message is checked in full.
+            applied = {i for i in verdict.get("accepted_applied") or [] if isinstance(i, int)}
+            accepted_ids = {id(slots[i]) for i in applied if 0 <= i < len(slots)} & accepted_ids
             kept = [
                 (s, new)
                 for s, new in changes
