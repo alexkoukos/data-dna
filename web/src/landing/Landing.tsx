@@ -10,7 +10,6 @@ import "./landing.css";
 import { HeroLoop } from "./HeroLoop";
 import { PHASE } from "./loop";
 import { Scaled } from "./Scaled";
-import { OverviewMock } from "./OverviewMock";
 import { Screen } from "./Screen";
 
 
@@ -274,10 +273,16 @@ export default function Landing() {
                     <i />
                     <i />
                   </div>
-                  <OverviewMock />
+                  <img
+                  src="/landing/overview.webp"
+                  width="1560"
+                  height="1155"
+                  loading="lazy"
+                  alt="The Hive Overview: trend charts for incidents and leaks stopped, and counts of prompts checked, share handled without an AI model, incidents and unapproved tools. Demo data."
+                />
                 </div>
                 <figcaption>
-                  Which teams sent client data to unapproved AI tools this week?
+                  The real Overview, running on invented demo data.
                 </figcaption>
               </figure>
             </div>

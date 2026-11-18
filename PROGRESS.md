@@ -18,8 +18,8 @@ Template:
 ## 2026-11-18, Alexandros, Hive public site (landing, deep dive, trust, developers)
 **Done:** public site on `/` (landing with the looping laptop, from `task/landing-page`), `/how-it-works` (deep dive), `/trust` (security and privacy) and `/developers`, all in Poppins and Playfair with one shared header and footer (`web/src/landing/SiteShell.tsx`). The old start page moved to `/app`. Security tabs cut to Overview, AI tools, Incidents, Policies and Ask (the other pages still load by URL). No pricing page.
 **State:** branch `task/hive-ui-redo`. Only the landing files were copied from `task/landing-page`, not a full merge: that branch is from the gateway era and conflicts with the pivot (App.tsx, package.json, main.py, README). Types, lint, 82 unit tests and 12 landing e2e specs (axe clean, phone and desktop) pass against `vite preview`.
-**Next step:** replace the static Overview picture with a real screenshot, swap the drawn laptop for the real MacBook image if it arrives, and run the full `make e2e` once the stack is up.
-**Problems / decisions needed:** the loop's scenes still show the gateway-era "Company AI" wording; check against the extension card text. Copy on the three new pages is mine.
+**Next step:** swap the drawn laptop for the real MacBook image if it arrives, and run the full `make e2e` once the stack is up.
+**Problems / decisions needed:** the Overview on the landing page is now a real screenshot (`web/public/landing/overview.webp`, demo data); retake it when the Overview changes. Copy on the three new pages is mine.
 **Files touched:** web/src/landing/*, web/src/App.tsx, web/src/App.test.tsx, web/src/pages/security/SecurityLayout.tsx, web/e2e/{landing,smoke}.spec.ts, web/public/brand/*, PROGRESS.md
 
 ---
