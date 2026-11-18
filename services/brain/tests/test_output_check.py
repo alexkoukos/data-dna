@@ -107,3 +107,11 @@ def test_a_raw_only_finding_and_a_hidden_duplicate_are_both_masked(client: TestC
 def test_plain_answer_text_is_unchanged_when_nothing_is_found(client: TestClient) -> None:
     text = "Ｈｅｌｌｏ ​ Привет, wörld"
     assert check(client, text)["text"] == text
+
+
+def test_an_answer_that_still_holds_a_finding_after_masking_is_withheld(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main, "mask", lambda text, findings, *a, **k: (text, {}))
+    out = check(client, "key AKIAIOSFODNN7EXAMPLE")
+    assert out["withheld"] is True and "AKIA" not in out["text"]

@@ -1161,6 +1161,23 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
             findings = [*findings, *more]
     if not findings:
         return InspectOutputResponse(text=req.text)
+    # Fail closed: if anything is still detectable in what is about to be shown, withhold it.
+    for view in (masked, normalise(masked).text):
+        if any(
+            "_OUT_" not in f.value
+            for f in _add_without_overlap(find_patterns(view), find_yara(view))
+        ):
+            return InspectOutputResponse(
+                text=WITHHELD_NOTICE,
+                changed=True,
+                withheld=True,
+                findings=[
+                    FindingOut(
+                        entity=f.entity, category=f.category, masked_preview=f.masked_preview
+                    )
+                    for f in findings
+                ],
+            )
     return InspectOutputResponse(
         text=masked,
         changed=True,
