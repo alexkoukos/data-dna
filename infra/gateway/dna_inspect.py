@@ -16,6 +16,7 @@ from urllib.parse import unquote_to_bytes
 import httpx
 
 ACK_HEADER = "x-dna-ack"
+REROUTE_HEADER = "x-dna-reroute"  # X31: "send it to Company AI instead"
 LOCAL_MODEL = "local"
 
 
@@ -655,6 +656,11 @@ def _changes(slots: list[Slot], masked: Any) -> list[tuple[Slot, str]] | None:
     return out
 
 
+def _reroute_asked(headers: dict[str, str] | None) -> bool:
+    lowered = {k.lower(): v for k, v in (headers or {}).items()}
+    return lowered.get(REROUTE_HEADER, "").strip() == "1"
+
+
 def _ack_given(headers: dict[str, str] | None) -> bool:
     lowered = {k.lower(): v for k, v in (headers or {}).items()}
     return bool(lowered.get(ACK_HEADER, "").strip())
@@ -694,6 +700,8 @@ async def apply_decision(
         "model": str(data.get("model", "default")),
         "messages": [{"role": s.role, "content": s.text} for s in slots],
     }
+    if _reroute_asked(headers):
+        payload["reroute"] = True
     try:
         resp = await client.post(f"{brain_url}/v1/inspect", json=payload, timeout=10.0)
         resp.raise_for_status()
@@ -712,7 +720,32 @@ async def apply_decision(
     decision = verdict.get("decision", "allow")
     reasons = verdict.get("reasons", [])
 
-    if decision == "mask":
+    rerouted = bool(verdict.get("rerouted"))
+    if rerouted:
+        # X31: the person chose Company AI. Masked text, the local model, never the original
+        # destination, so a blocked tool is not called.
+        changes = _changes(slots, verdict.get("masked_messages"))
+        if (
+            call_type not in CHAT_CALLS
+            or changes is None
+            or any(s.write is None or s.risky for s, _ in changes)
+        ):
+            raise GatewayError(
+                403,
+                {
+                    "type": "block",
+                    "message": "This kind of request cannot be rerouted. It was not sent.",
+                    "reasons": reasons,
+                    "approved_alternative": "Use the company chat, which keeps data inside.",
+                },
+            )
+        for slot, new_text in changes:
+            if slot.write is not None:
+                slot.write(new_text)
+        data["model"] = LOCAL_MODEL
+        data.setdefault("metadata", {})["dna_session_id"] = verdict.get("session_id")
+        decision = "rerouted"
+    elif decision == "mask":
         changes = _changes(slots, verdict.get("masked_messages"))
         if changes is None:
             decision = "warn"

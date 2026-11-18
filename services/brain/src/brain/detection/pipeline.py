@@ -51,7 +51,7 @@ def inspect_text(
     text: str,
     policies: PolicySet | None = None,
     finders: Sequence[Finder] = (),
-    doc_matcher: Callable[[str], list[DocMatch]] | None = None,
+    doc_matcher: Callable[..., list[DocMatch]] | None = None,
     priority_finder: Finder | None = None,
     view_finders: Sequence[Finder] = (),
     placeholders: Mapping[str, str] | None = None,
@@ -75,6 +75,11 @@ def inspect_text(
             hidden.extend(vf(view))
     categories = [f.category for f in findings + hidden]
     doc_matches = doc_matcher(norm.text) if doc_matcher else []
+    if doc_matcher and not doc_matches and "client_name" in categories:
+        # The name of the counterparty in a document's title, plus a near miss against that
+        # document, is two signals, not one.
+        names = [f.value for f in findings + hidden if f.category == "client_name"]
+        doc_matches = doc_matcher(norm.text, relaxed_for=names)
     verdict = decide(
         categories,
         document_sensitivities=[_effective_sensitivity(m) for m in doc_matches],

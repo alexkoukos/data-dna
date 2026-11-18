@@ -8,7 +8,7 @@ export interface Metrics {
   as_of: string | null;
 }
 
-export type Decision = "allow" | "mask" | "warn" | "local" | "block";
+export type Decision = "allow" | "mask" | "warn" | "local" | "block" | "rerouted";
 
 export interface TraceStep {
   layer: string;
@@ -51,6 +51,7 @@ export interface Tool {
   requests: number;
   trend: number[];
   first_seen: string | null;
+  allowed_categories?: string[];
 }
 
 async function get<T>(path: string): Promise<T> {

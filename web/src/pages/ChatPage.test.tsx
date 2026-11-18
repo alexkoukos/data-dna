@@ -165,7 +165,8 @@ describe("ChatPage", () => {
     await userEvent.type(screen.getByLabelText("Message"), "And one more thing");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByText("Sure.")).toBeInTheDocument();
-    const [, init] = fetchMock.mock.calls.at(-1)!;
+    const chats = fetchMock.mock.calls.filter(([, init]) => typeof init?.body === "string");
+    const [, init] = chats.at(-1)!;
     expect(JSON.parse(init.body).messages).toHaveLength(1);
   });
 });

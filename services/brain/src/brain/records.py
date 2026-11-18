@@ -11,6 +11,7 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
+from brain import siem
 from brain.db import tables as t
 
 log = logging.getLogger(__name__)
@@ -72,22 +73,24 @@ def record_decision(
     copy_code: str | None = None,
     trace: list[dict[str, Any]] | None = None,
     shadow: bool = False,
+    channel: str = "gateway",
 ) -> None:
     if engine is None:
         return
     now = datetime.now(UTC)
+    new_id: int | None = None
     try:
         with engine.begin() as conn:
             uid = user_row_id(conn, user, team)
             _bump_counter(conn, now.date(), team, decision == "allow")
             if decision != "allow":
-                conn.execute(
+                res = conn.execute(
                     sa.insert(t.incidents).values(
                         ts=now,
                         user_id=uid,
                         team=team,
                         tool=tool,
-                        channel="gateway",
+                        channel=channel,
                         decision=decision,
                         categories=sorted(set(categories)),
                         reasons=reasons,
@@ -100,5 +103,97 @@ def record_decision(
                         expires_at=now + timedelta(days=RETENTION_DAYS),
                     )
                 )
+                key = res.inserted_primary_key
+                new_id = int(key[0]) if key else None
     except sa.exc.SQLAlchemyError:
         log.warning("Could not record a decision, continuing")
+        return
+    if decision != "allow":
+        # X30: after the row is saved, tell the SOC. The event is built from names fields only.
+        siem.push(
+            siem.event(
+                incident_id=new_id,
+                ts=now,
+                user_key_id=user,
+                team=team,
+                tool=tool,
+                decision=decision,
+                categories=categories,
+                document_id=document_id,
+                trace=trace,
+                shadow=shadow,
+            )
+        )
+
+
+def record_ack(engine: Engine | None, user: str, reason: str) -> None:
+    """X27: add "sent anyway" to the person's latest browser warning, within the last 10 minutes."""
+    if engine is None:
+        return
+    since = datetime.now(UTC) - timedelta(minutes=10)
+    note = "Sent anyway by the user" + (f": {reason.strip()}" if reason.strip() else "")
+    try:
+        with engine.begin() as conn:
+            uid = conn.execute(
+                sa.select(t.users.c.id).where(t.users.c.pseudonym == user)
+            ).scalar_one_or_none()
+            if uid is None:
+                return
+            row = conn.execute(
+                sa.select(t.incidents.c.id, t.incidents.c.reasons)
+                .where(
+                    t.incidents.c.user_id == uid,
+                    t.incidents.c.channel == "browser",
+                    t.incidents.c.decision == "warn",
+                    t.incidents.c.ts >= since,
+                )
+                .order_by(t.incidents.c.ts.desc())
+                .limit(1)
+            ).first()
+            if row is None:
+                return
+            conn.execute(
+                sa.update(t.incidents)
+                .where(t.incidents.c.id == row.id)
+                .values(reasons=[*(row.reasons or []), note])
+            )
+    except sa.exc.SQLAlchemyError:
+        log.warning("Could not record an acknowledgement, continuing")
+
+
+def record_reroute(engine: Engine | None, user: str) -> None:
+    """X31: the person sent a stopped message to Company AI. Change the incident they just
+    caused to "rerouted" instead of adding a second one."""
+    if engine is None:
+        return
+    since = datetime.now(UTC) - timedelta(minutes=10)
+    try:
+        with engine.begin() as conn:
+            uid = conn.execute(
+                sa.select(t.users.c.id).where(t.users.c.pseudonym == user)
+            ).scalar_one_or_none()
+            if uid is None:
+                return
+            row = conn.execute(
+                sa.select(t.incidents.c.id, t.incidents.c.reasons)
+                .where(
+                    t.incidents.c.user_id == uid,
+                    t.incidents.c.decision.in_(("block", "warn", "local")),
+                    t.incidents.c.shadow.is_not(True),
+                    t.incidents.c.ts >= since,
+                )
+                .order_by(t.incidents.c.ts.desc())
+                .limit(1)
+            ).first()
+            if row is None:
+                return
+            conn.execute(
+                sa.update(t.incidents)
+                .where(t.incidents.c.id == row.id)
+                .values(
+                    decision="rerouted",
+                    reasons=[*(row.reasons or []), "Rerouted to Company AI by the user"],
+                )
+            )
+    except sa.exc.SQLAlchemyError:
+        log.warning("Could not record a reroute, continuing")

@@ -1311,3 +1311,65 @@ def test_known_client_roles_are_kept_and_tool_definitions_stay_definitions() -> 
     roles = {s.text: s.role for s in dna.inspection_view(data, "completion")}
     assert roles["a"] == "developer" and roles["b"] == "tool" and roles["c"] == "assistant"
     assert roles["what it does"] == "definition"
+
+
+def _reroute(data: dict[str, Any], call_type: str, rewrite: Any) -> dict[str, Any]:
+    slots = dna.inspection_view(data, call_type)
+    masked = [{"role": s.role, "content": rewrite(s.text)} for s in slots]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "decision": "local",
+                "rerouted": True,
+                "reasons": ["Rerouted"],
+                "masked_messages": masked,
+                "session_id": "sess-1",
+            },
+        )
+
+    async def go() -> dict[str, Any]:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            out: dict[str, Any] = await dna.apply_decision(
+                data,
+                user_id="u1",
+                team="t1",
+                headers={"X-DNA-Reroute": "1"},
+                brain_url="http://brain",
+                client=client,
+                call_type=call_type,
+            )
+            return out
+
+    return asyncio.run(go())
+
+
+def test_a_rerouted_chat_request_is_masked_in_place_on_the_local_model() -> None:
+    data = {
+        "model": "gpt-4o-mini",
+        "tools": [
+            {
+                "type": "function",
+                "function": {"name": "f", "description": "key GR16", "parameters": {}},
+            }
+        ],
+        "messages": [
+            {"role": "system", "content": "sys GR16"},
+            {"role": "user", "content": "pay GR16"},
+        ],
+    }
+    out = _reroute(data, "completion", lambda t: t.replace("GR16", "[IBAN_1]"))
+    assert [m["role"] for m in out["messages"]] == ["system", "user"]
+    assert [m["content"] for m in out["messages"]] == ["sys [IBAN_1]", "pay [IBAN_1]"]
+    assert out["tools"][0]["function"]["description"] == "key [IBAN_1]"
+    assert out["model"] == dna.LOCAL_MODEL
+    assert out["metadata"]["dna_session_id"] == "sess-1"
+    assert out["metadata"]["dna_decision"] == "rerouted"
+
+
+def test_a_rerouted_non_chat_request_is_refused() -> None:
+    data = {"model": "m", "system": "s", "messages": [{"role": "user", "content": "GR16"}]}
+    with pytest.raises(dna.GatewayError) as err:
+        _reroute(data, "anthropic_messages", lambda t: t.replace("GR16", "[IBAN_1]"))
+    assert err.value.status_code == 403

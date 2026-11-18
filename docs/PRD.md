@@ -46,7 +46,7 @@ Pyli, the gate (working title Data DNA), is the AI gate that every AI tool in th
 
 | Question (slide 21) | Our answer |
 | --- | --- |
-| 1. Where do you look? | An AI gateway in front of all LLM calls (chat, API, agents, MCP), plus proxy and DNS logs for traffic that bypasses it. Browser extension is roadmap. |
+| 1. Where do you look? | An AI gateway in front of all LLM calls (chat, API, agents, MCP), plus proxy and DNS logs for traffic that bypasses it. A browser extension (Chrome or Edge, `chatgpt.com`, X27) checks personal ChatGPT in the browser with the same `/v1/inspect`. |
 | 2. What counts as sensitive? | PII (names, emails, phones), credentials (API keys, passwords, tokens), source code, client names, Greek IDs (AFM, AMKA) and IBAN validated by checksum, and text from registered confidential documents, even paraphrased. |
 | 3. Rules, ML or LLM? | All three, cheapest first: regex and Presidio (~1 ms), MinHash and embeddings (~10 ms), LLM judge only for borderline scores, cached. We report cost and latency per prompt. |
 | 4. What happens on a hit? | Five outcomes: allow, warn and educate (with a reason box), mask and forward (unmask in the answer), answer with the local model, block. Every outcome suggests the approved path. |
@@ -59,7 +59,7 @@ Pyli, the gate (working title Data DNA), is the AI gate that every AI tool in th
 | --- | --- | --- |
 | LLM providers | OpenAI (keys provided); Llama, Mistral, Qwen via Ollama | OpenAI for clean and masked prompts; Qwen via Ollama for confidential content |
 | Detection and DLP | Presidio, spaCy NER, regex and YARA rules, LLM classifiers with Pydantic | All of them: regex with checksums, Presidio + spaCy (en, el), YARA rules for secrets and source code, LLM judge with Pydantic output |
-| Interception and gateways | LiteLLM proxy, mitmproxy, browser extensions, Squid or Zeek logs | LiteLLM gateway + Squid and Zeek logs (synthetic); extension on the roadmap |
+| Interception and gateways | LiteLLM proxy, mitmproxy, browser extensions, Squid or Zeek logs | LiteLLM gateway + Squid and Zeek logs (synthetic); browser extension for personal ChatGPT (X27) |
 | Data and frontend | PostgreSQL, OpenSearch; Streamlit, React or Grafana; chat assistant for SOC analysts | PostgreSQL + pgvector, React, analyst question box |
 | Guardrails and injection | NeMo Guardrails, Guardrails AI, Llama Guard, Prompt Guard, input and output filtering | Injection classifier (Prompt Guard family when a token is available), input AND output filtering |
 | Evaluation and red teaming | Labelled sets, precision and recall, promptfoo or garak, LLM-as-judge | All of them, in `make eval` |
@@ -105,7 +105,7 @@ Pyli, the gate (working title Data DNA), is the AI gate that every AI tool in th
 4. Free-text analyst questions (keep presets)
 5. PDF export of marked copies
 
-**Non-goals:** real browser extension, TLS interception, real company data, SSO, multi-tenant SaaS.
+**Non-goals:** a browser extension for every site or browser (X27 covers `chatgpt.com` in Chrome and Edge only), TLS interception, real company data, SSO, multi-tenant SaaS.
 
 ## 7. Architecture
 

@@ -49,6 +49,10 @@ _FIRST = _words(
 _SUFFIX_RE = "|".join(_SUFFIXES)
 _SURNAME = re.compile(rf"\b(?:[a-z]{{2,}}(?:{_SUFFIX_RE})|{'|'.join(_COMMON)})\b", re.IGNORECASE)
 _FIRST_RE = re.compile(rf"\b(?:{'|'.join(_FIRST)})\b", re.IGNORECASE)
+# A feminine or genitive surname after a known first name: "Eleni Papadaki". On its own "-aki" is
+# too common in other languages (Nagasaki), so it only counts right after a Greek first name, and
+# not after s or z (Japanese -saki, -zaki).
+_AFTER_FIRST = re.compile(rf"\b(?:{'|'.join(_FIRST)})\s+([a-z]{{2,}}(?<![sz])aki)\b", re.IGNORECASE)
 _LATIN = re.compile(r"[A-Za-z]")
 _GREEK = re.compile(r"[Ͱ-Ͽἀ-῿]")
 
@@ -58,6 +62,8 @@ def find_greeklish_names(text: str) -> list[Finding]:
     if not _LATIN.search(text):
         return []
     found: list[Finding] = []
+    for m in _AFTER_FIRST.finditer(text):
+        found.append(Finding("PERSON", "person_email_phone", m.start(), m.end(), m.group(0)))
     for m in _SURNAME.finditer(text):
         if _GREEK.search(text[max(m.start() - 1, 0) : m.end() + 1]):
             continue  # part of a word that is partly Greek: not a greeklish name

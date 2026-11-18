@@ -45,6 +45,7 @@ jobs:
         run: docker compose logs
 
   arm64:
+    timeout-minutes: 15
     needs: [brain, web]
     runs-on: ubuntu-latest
     steps:

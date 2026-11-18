@@ -136,7 +136,7 @@ def test_loader_reads_headers_and_prefers_real_files_over_samples(
 
 
 def test_the_shipped_sample_documents_have_valid_headers() -> None:
-    files = sorted(SAMPLES.glob("*.md"))
+    files = sorted(f for f in SAMPLES.glob("*.md") if ".en." not in f.name)
     assert len(files) == 3
     for f in files:
         meta, body = parse(f.read_text(encoding="utf-8")) or ({}, "")
@@ -242,3 +242,70 @@ def test_a_zero_embedding_cap_never_calls_the_embedder(engine: sa.Engine) -> Non
     assert Counting.calls == before
     index.match(paraphrase)
     assert Counting.calls > before
+
+
+GREEK_MEMO = " ".join(f"λέξη{i}" for i in range(60))
+
+
+def test_a_translation_catches_a_copy_in_its_language_and_counts_as_the_original(
+    engine: sa.Engine,
+) -> None:
+    emb = HashingEmbedder()
+    doc_id, n = register_document(engine, emb, "Pay", "restricted", GREEK_MEMO, translations=[MEMO])
+    index = DocumentIndex(engine, emb, ttl_seconds=0)
+    hits = index.match(MEMO)
+    assert [h.document_id for h in hits] == [doc_id]
+    # Chunks of the translation are reported as places in the original document.
+    assert hits[0].total_chunks == n
+    assert hits[0].matched_chunks and max(hits[0].matched_chunks) < n
+    assert index.match("Ordinary words about lunch plans for the whole team on Friday noon") == []
+    with engine.connect() as conn:  # a translation is matched, never stored as readable text
+        stored = conn.execute(
+            sa.text("SELECT COUNT(text_demo) FROM doc_chunks WHERE idx >= 10000")
+        ).scalar_one()
+    assert stored == 0
+
+
+def test_the_loader_reads_name_lang_md_as_a_translation_of_name_md(
+    tmp_path: Path, engine: sa.Engine
+) -> None:
+    (tmp_path / "pay.md").write_text(
+        f"---\ntitle: Pay\nsensitivity: restricted\n---\n{GREEK_MEMO}\n", encoding="utf-8"
+    )
+    (tmp_path / "pay.en.md").write_text(MEMO, encoding="utf-8")
+    assert load_documents(engine, HashingEmbedder(), tmp_path, keep_text=False) == 1
+    with engine.connect() as conn:
+        assert conn.execute(sa.text("SELECT COUNT(*) FROM documents")).scalar_one() == 1
+        assert (
+            conn.execute(sa.text("SELECT COUNT(*) FROM doc_chunks WHERE idx >= 10000")).scalar_one()
+            > 0
+        )
+
+
+def test_a_name_from_a_documents_title_lowers_the_cutoff_for_that_document_only(
+    engine: sa.Engine,
+) -> None:
+    emb = HashingEmbedder()
+    register_document(engine, emb, "Services agreement: Delphi Insurance", "confidential", MEMO)
+    register_document(engine, emb, "Board memo", "confidential", GREEK_MEMO)
+    index = DocumentIndex(engine, emb, ttl_seconds=0)
+    # With the hashing embedder a rewrite never reaches the cutoff, so lowering it to nothing
+    # shows which documents the name applies to.
+    import brain.documents.registry as registry
+
+    old = registry.PARAPHRASE_COSINE
+    registry.PARAPHRASE_COSINE = 1.5  # nothing can match normally
+    try:
+        text = "management wants offices in Sofia and Belgrade next spring with a large budget"
+        assert index.match(text) == []
+        registry.RELAXED_DELTA, saved = 1.5, registry.RELAXED_DELTA
+        try:
+            hits = index.match(text, relaxed_for=["Delphi"])
+            titles = {h.title for h in hits}
+            assert "Services agreement: Delphi Insurance" in titles
+            assert "Board memo" not in titles
+            assert index.match(text, relaxed_for=["Del"]) == []  # too short to count as a name
+        finally:
+            registry.RELAXED_DELTA = saved
+    finally:
+        registry.PARAPHRASE_COSINE = old
