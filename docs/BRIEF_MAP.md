@@ -24,7 +24,7 @@ One row per thing the brief asks for. Every number was produced by the command n
 
 ## The brief's own example question
 
-The brief says analysts should be able to ask "Which teams sent client data to unapproved AI tools this week?". It is the first preset on `/security/ask` with fixed, reviewed SQL and no model call. Typing the same sentence in the free-text box uses the preset. On the seeded data it returns Engineering (47 requests to unapproved tools, 14 client-data incidents), Operations (48, 6), HR (7, 3) and Legal (4, 1). Tested in `test_ask_free.py`. Demo steps 4 and 4b.
+The brief says analysts should be able to ask "Which teams sent client data to unapproved AI tools this week?". It is the first preset on `/security/ask` with fixed, reviewed SQL and no model call. Typing the same sentence in the free-text box uses the preset. On the seeded data it returns Engineering (44 requests to unapproved tools, 13 client-data incidents), then HR (9, 3) and Operations (107, 3), which tie, and Legal (3, 1). Tested in `test_ask_free.py`. Demo steps 4 and 4b.
 
 One honest detail: client data is caught at the gateway, which only sees approved tools, while use of unapproved tools is seen in usage logs that hold no content. The answer therefore joins the two by team: it names the teams that did both, not the exact prompts.
 

@@ -130,7 +130,10 @@ def test_the_brief_question_is_the_first_preset_and_returns_the_expected_teams(
     out = client.post("/v1/ask", json={"preset": presets[0]["id"]}).json()
     assert out["id"] == "client_data_unapproved" and out["columns"][0] == "team"
     # Seed 42 (the demo data): these teams, most client-data incidents first.
-    assert [r[0] for r in out["rows"]] == ["Engineering", "Operations", "HR", "Legal"]
+    teams = [r[0] for r in out["rows"]]
+    # Operations and HR tie on client-data incidents, so their order is not fixed.
+    assert teams[0] == "Engineering" and teams[-1] == "Legal"
+    assert set(teams) == {"Engineering", "Operations", "HR", "Legal"}
     # Every team listed really has client data caught and unapproved-tool requests.
     engine = main.policy_store.engine
     assert engine is not None
