@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 /* Hive brand tokens (Hive brand kit v1). Pick only from these scales (see CLAUDE.md, frontend rules). */
 @theme static {
   /* Brand: Hive amber. Amber is a fill (ink text on it); brand-700 is the amber that must be read. */
@@ -55,6 +57,13 @@
   --color-input: var(--color-ink-300);
   --color-ring: var(--color-brand-600);
   --color-muted-foreground: var(--color-ink-600);
+  --color-foreground: var(--color-ink-900);
+  --color-muted: var(--color-ink-100);
+  --color-popover: #ffffff;
+  --color-popover-foreground: var(--color-ink-900);
+  --color-card: #ffffff;
+  --color-card-foreground: var(--color-ink-900);
+  --color-border: var(--color-ink-200);
 
   /* Type */
   --font-sans: "Poppins", system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif;

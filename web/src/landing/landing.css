@@ -1206,7 +1206,6 @@
   }
 }
 
-
 /* ---------- Dark hero: the top bar and hero sit on charcoal so the laptop stands out ---------- */
 .top {
   background: #1f1f1f;
@@ -1268,7 +1267,6 @@
   }
 }
 
-
 /* ---------- Hero background: the Ribbon Field gradient, tinted dark so the white text reads ---------- */
 .hero {
   background: #161616;
@@ -1284,8 +1282,19 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(10, 10, 10, 0.5) 0%, rgba(10, 10, 10, 0) 22%, rgba(10, 10, 10, 0) 78%, rgba(10, 10, 10, 0.5) 100%),
-    linear-gradient(90deg, rgba(10, 10, 10, 0.6) 0%, rgba(10, 10, 10, 0.35) 45%, rgba(10, 10, 10, 0) 70%),
+    linear-gradient(
+      180deg,
+      rgba(10, 10, 10, 0.5) 0%,
+      rgba(10, 10, 10, 0) 22%,
+      rgba(10, 10, 10, 0) 78%,
+      rgba(10, 10, 10, 0.5) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(10, 10, 10, 0.6) 0%,
+      rgba(10, 10, 10, 0.35) 45%,
+      rgba(10, 10, 10, 0) 70%
+    ),
     rgba(14, 14, 14, 0.66);
   pointer-events: none;
 }
@@ -1370,7 +1379,6 @@
   }
 }
 
-
 /* ---------- Bigger text on the left, everything lined up with the nav ---------- */
 .hero {
   padding: 56px 24px 64px;
@@ -1427,7 +1435,6 @@
   }
 }
 
-
 /* ---------- The top bar (Hive logo and links) stays at the top while scrolling ---------- */
 .top {
   position: sticky;
@@ -1442,7 +1449,6 @@
   scroll-margin-top: 80px;
 }
 
-
 /* ---------- Liquid glass buttons: the Hive amber one gets a slow sweep of light ---------- */
 .hive .lg-hive::after {
   content: "";
@@ -1452,7 +1458,12 @@
   left: -45%;
   width: 36%;
   z-index: 3;
-  background: linear-gradient(100deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.32),
+    rgba(255, 255, 255, 0)
+  );
   transform: skewX(-18deg);
   pointer-events: none;
   animation: lg-sweep 5.5s ease-in-out infinite;
@@ -1483,7 +1494,6 @@
   width: 100%;
 }
 
-
 /* ---------- Ribbon Field gradient behind the demo window ---------- */
 .ribbon {
   position: relative;
@@ -1506,7 +1516,6 @@
   mix-blend-mode: overlay;
   pointer-events: none;
 }
-
 
 /* ---------- Readable text on the left, bigger window on the right ---------- */
 .hero-copy h1 {
@@ -1630,11 +1639,26 @@
   border-radius: 999px;
   font-size: 13px;
 }
-.outcome.allow b { background: var(--allow-bg); color: var(--allow-fg, #245420); }
-.outcome.warn b { background: var(--warn-bg); color: var(--warn-fg); }
-.outcome.mask b { background: var(--mask-bg); color: var(--mask-fg); }
-.outcome.local b { background: var(--local-bg); color: var(--local-fg); }
-.outcome.block b { background: var(--block-bg); color: var(--block-fg); }
+.outcome.allow b {
+  background: var(--allow-bg);
+  color: var(--allow-fg, #245420);
+}
+.outcome.warn b {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.outcome.mask b {
+  background: var(--mask-bg);
+  color: var(--mask-fg);
+}
+.outcome.local b {
+  background: var(--local-bg);
+  color: var(--local-fg);
+}
+.outcome.block b {
+  background: var(--block-bg);
+  color: var(--block-fg);
+}
 .outcome p {
   color: var(--ink-muted);
   font-size: 14px;
@@ -1669,7 +1693,11 @@
   background: var(--ink);
   color: #f9fafb;
   border-radius: var(--r-md);
-  font: 400 13.5px/1.6 "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  font:
+    400 13.5px/1.6 "JetBrains Mono Variable",
+    "JetBrains Mono",
+    ui-monospace,
+    monospace;
 }
 .tbl {
   width: 100%;
@@ -1694,7 +1722,11 @@
 .tbl code,
 .prose code,
 .layer code {
-  font: 500 13px "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  font:
+    500 13px "JetBrains Mono Variable",
+    "JetBrains Mono",
+    ui-monospace,
+    monospace;
   background: var(--muted);
   padding: 1px 6px;
   border-radius: 4px;

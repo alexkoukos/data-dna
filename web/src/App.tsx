@@ -9,6 +9,7 @@ import GroupsPage from "./pages/security/GroupsPage";
 import HistoryPage from "./pages/security/HistoryPage";
 import ImpactPage from "./pages/security/ImpactPage";
 
+import ChatPage from "./pages/ChatPage";
 import ConnectPage from "./pages/ConnectPage";
 import IncidentDetailPage from "./pages/security/IncidentDetailPage";
 import IncidentsPage from "./pages/security/IncidentsPage";
@@ -32,6 +33,7 @@ const SITE_PAGES: Record<string, React.LazyExoticComponent<() => React.JSX.Eleme
 const links = [
   { to: "/extension", label: "Get the extension" },
   { to: "/break-it", label: "Try to break it" },
+  { to: "/chat", label: "Company AI" },
   { to: "/security", label: "Security" },
   { to: "/connect", label: "Connect a tool" },
 ];
@@ -76,6 +78,7 @@ export default function App() {
         <Route path="/app" element={<HomePage />} />
         <Route path="/extension" element={<ExtensionPage />} />
         <Route path="/connect" element={<ConnectPage />} />
+        <Route path="/chat" element={<ChatPage />} />
         <Route path="/break-it" element={<BreakItPage />} />
         <Route path="/security" element={<SecurityLayout />}>
           <Route index element={<OverviewPage />} />
