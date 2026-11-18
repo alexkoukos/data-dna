@@ -1789,3 +1789,146 @@ def test_streamed_responses_events_that_are_plain_dicts_are_cleaned() -> None:
     assert [e.get("delta") for e in out[:2]] == ["AB", ""]
     assert out[2]["text"] == "AB"
     assert out[3]["response"]["output"][0]["content"][0]["text"] == "AB"
+
+
+# --- S5: streamed Anthropic /v1/messages answers (raw server-sent events) ----------------------
+
+
+def _sse(name: str, body: dict[str, Any]) -> str:
+    return f"event: {name}\ndata: {json.dumps(body)}\n\n"
+
+
+def _text_delta(index: int, text: str) -> str:
+    delta = {"type": "text_delta", "text": text}
+    return _sse(
+        "content_block_delta", {"type": "content_block_delta", "index": index, "delta": delta}
+    )
+
+
+START = _sse("message_start", {"type": "message_start", "message": {"id": "m", "content": []}})
+PING = _sse("ping", {"type": "ping"})
+STOP = _sse("message_stop", {"type": "message_stop"})
+TEXT_START = _sse(
+    "content_block_start",
+    {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+)
+BLOCK_STOP = _sse("content_block_stop", {"type": "content_block_stop", "index": 0})
+
+
+def _anthropic_stream(*pieces: str) -> str:
+    return (
+        START + PING + TEXT_START + "".join(_text_delta(0, p) for p in pieces) + BLOCK_STOP + STOP
+    )
+
+
+def _sse_text(frames: list[Any]) -> list[dict[str, Any]]:
+    joined = "".join(f.decode() if isinstance(f, bytes) else f for f in frames)
+    out = []
+    for raw in joined.split("\n\n"):
+        for line in raw.split("\n"):
+            if line.startswith("data: "):
+                out.append(json.loads(line[6:]))
+    return out
+
+
+def _cleaner(calls: list[str]) -> Any:
+    async def transform(text: str) -> str:
+        calls.append(text)
+        return text.replace("[IBAN_1]", "GR16").replace("AKIAIOSFODNN7EXAMPLE", "[SECRET]")
+
+    return transform
+
+
+def test_a_streamed_anthropic_answer_is_cleaned_once_and_keeps_its_frames() -> None:
+    calls: list[str] = []
+    stream = _anthropic_stream("see [IB", "AN_1] and AKIAIOSFODNN", "7EXAMPLE ok")
+    out = _stream([stream.encode()], _cleaner(calls))
+    assert calls == ["see [IBAN_1] and AKIAIOSFODNN7EXAMPLE ok"]
+    bodies = _sse_text(out)
+    deltas = [b["delta"]["text"] for b in bodies if b["type"] == "content_block_delta"]
+    assert deltas == ["see GR16 and [SECRET] ok", "", ""]
+    assert [b["type"] for b in bodies] == [
+        "message_start", "ping", "content_block_start",
+        "content_block_delta", "content_block_delta", "content_block_delta",
+        "content_block_stop", "message_stop",
+    ]  # fmt: skip
+
+
+def test_frames_split_across_byte_chunks_are_put_back_together() -> None:
+    calls: list[str] = []
+    data = _anthropic_stream("pay [IBAN", "_1] now").encode()
+    chunks = [data[i : i + 7] for i in range(0, len(data), 7)]
+    out = _stream(chunks, _cleaner(calls))
+    assert calls == ["pay [IBAN_1] now"]
+    deltas = [b["delta"]["text"] for b in _sse_text(out) if b["type"] == "content_block_delta"]
+    assert deltas == ["pay GR16 now", ""]
+
+
+def test_other_frames_pass_through_exactly_as_received() -> None:
+    thinking = _sse(
+        "content_block_delta",
+        {"type": "content_block_delta", "index": 1,
+         "delta": {"type": "thinking_delta", "thinking": "AKIAIOSFODNN7EXAMPLE"}},
+    )  # fmt: skip
+    tool = _sse(
+        "content_block_delta",
+        {"type": "content_block_delta", "index": 2,
+         "delta": {"type": "input_json_delta", "partial_json": '{"a": 1}'}},
+    )  # fmt: skip
+    stream = START + PING + thinking + tool + STOP
+    calls: list[str] = []
+    out = _stream([stream], _cleaner(calls))
+    assert calls == []
+    assert "".join(out) == stream
+
+
+def test_text_in_the_opening_frame_is_cleaned_too() -> None:
+    start = _sse(
+        "content_block_start",
+        {"type": "content_block_start", "index": 0,
+         "content_block": {"type": "text", "text": "key [IBAN_1]"}},
+    )  # fmt: skip
+    out = _stream([START + start + STOP], _cleaner([]))
+    assert _sse_text(out)[1]["content_block"]["text"] == "key GR16"
+
+
+def test_two_text_blocks_are_cleaned_separately() -> None:
+    second = _sse(
+        "content_block_start",
+        {"type": "content_block_start", "index": 1, "content_block": {"type": "text", "text": ""}},
+    )
+    stream = START + TEXT_START + _text_delta(0, "a [IBAN_1]") + second + _text_delta(1, "b")
+    calls: list[str] = []
+    out = _stream([stream], _cleaner(calls))
+    assert sorted(calls) == ["a [IBAN_1]", "b"]
+    deltas = [b["delta"]["text"] for b in _sse_text(out) if b["type"] == "content_block_delta"]
+    assert deltas == ["a GR16", "b"]
+
+
+def test_string_chunks_stay_strings_and_empty_text_is_not_checked() -> None:
+    out = _stream([_anthropic_stream("")], _cleaner([]))
+    assert all(isinstance(x, str) for x in out)
+
+
+def test_a_brain_failure_withholds_a_streamed_anthropic_answer() -> None:
+    async def transform(text: str) -> str:
+        raise dna.GatewayError(503, {})
+
+    seen: list[Any] = []
+
+    async def go() -> None:
+        async def source() -> Any:
+            yield _anthropic_stream("hello").encode()
+
+        async for x in dna.rewrite_stream(source(), transform):
+            seen.append(x)
+
+    with pytest.raises(dna.GatewayError):
+        asyncio.run(go())
+    assert seen == []
+
+
+def test_an_unreadable_text_frame_is_withheld() -> None:
+    bad = "event: content_block_delta\ndata: {not json\n\n"
+    with pytest.raises(dna.GatewayError):
+        _stream([START + bad], _cleaner([]))

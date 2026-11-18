@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import re
 import threading
 import time
@@ -1126,6 +1127,120 @@ async def _rewrite_responses_events(
     return events
 
 
+def _unreadable_stream() -> GatewayError:
+    return GatewayError(
+        503,
+        {
+            "type": "unavailable",
+            "message": "The answer could not be checked, so it was not shown.",
+            "next": "Try again in a minute. If it keeps happening, tell your IT contact.",
+            "detail": "UnreadableStream",
+        },
+    )
+
+
+@dataclass
+class _Frame:
+    """One server-sent event: its raw text, and its JSON body when it has one."""
+
+    raw: str
+    name: str = ""
+    body: dict[str, Any] | None = None
+    changed: bool = False
+
+    def text(self) -> str:
+        if not self.changed or self.body is None:
+            return self.raw
+        head = f"event: {self.name}\n" if self.name else ""
+        return f"{head}data: {json.dumps(self.body, ensure_ascii=False)}"
+
+
+def _parse_frame(raw: str) -> _Frame:
+    name = ""
+    data: list[str] = []
+    for line in raw.split("\n"):
+        if line.startswith("event:"):
+            name = line[6:].strip()
+        elif line.startswith("data:"):
+            data.append(line[5:].removeprefix(" "))
+    frame = _Frame(raw, name)
+    if data:
+        try:
+            body = json.loads("\n".join(data))
+        except ValueError:
+            body = None
+        if isinstance(body, dict):
+            frame.body = body
+            frame.name = name or str(body.get("type", ""))
+        elif name == "content_block_delta":
+            raise _unreadable_stream()
+    return frame
+
+
+def _block_index(body: dict[str, Any]) -> int:
+    index = body.get("index")
+    return index if isinstance(index, int) else 0
+
+
+async def _rewrite_anthropic_sse(
+    chunks: list[Any], transform: Callable[[str], Awaitable[str]]
+) -> list[Any]:
+    """Clean the text blocks of a streamed Anthropic `/v1/messages` answer.
+
+    LiteLLM hands the stream over as raw server-sent-event bytes. The frames are put together
+    first, since a frame or a placeholder can be split across chunks. For each text block the
+    `text_delta` pieces are joined and checked once; the first delta then holds the cleaned text
+    and later ones are empty, so every frame keeps its place (if the opening frame already holds
+    text, that frame gets it). Frames of other kinds (thinking,
+    tool input, pings, message start and stop) pass through exactly as received.
+    """
+    as_text = isinstance(chunks[0], str)
+    try:
+        joined = "".join(c if isinstance(c, str) else c.decode("utf-8") for c in chunks)
+    except UnicodeDecodeError as exc:
+        raise _unreadable_stream() from exc
+    lines = joined.replace("\r\n", "\n").replace("\r", "\n")  # every line ending a client accepts
+    raws = [r for r in re.split(r"\n\n", lines) if r.strip()]
+    frames = [_parse_frame(r) for r in raws]
+    parts: dict[int, list[str]] = {}
+    for f in frames:
+        body = f.body
+        if body is None:
+            continue
+        if body.get("type") == "content_block_start":
+            block = body.get("content_block")
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.setdefault(_block_index(body), []).append(str(block.get("text") or ""))
+        elif body.get("type") == "content_block_delta":
+            delta = body.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "text_delta":
+                parts.setdefault(_block_index(body), []).append(str(delta.get("text") or ""))
+    cleaned = {i: await transform("".join(p)) for i, p in parts.items() if any(p)}
+    placed: set[int] = set()
+    for f in frames:
+        body = f.body
+        if body is None:
+            continue
+        index = _block_index(body)
+        if body.get("type") == "content_block_start" and index in parts:
+            block = body["content_block"]
+            if isinstance(block, dict) and block.get("type") == "text" and block.get("text"):
+                block["text"] = cleaned[index] if index not in placed else ""
+                placed.add(index)
+                f.changed = True
+        elif body.get("type") == "content_block_delta" and index in parts:
+            delta = body.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "text_delta":
+                if index in cleaned and index not in placed:
+                    placed.add(index)
+                    delta["text"] = cleaned[index]
+                else:
+                    delta["text"] = ""
+                f.changed = True
+    out = [f.text() + "\n\n" for f in frames]
+    return out if as_text else [x.encode("utf-8") for x in out]
+
+
 async def rewrite_stream(
     chunks: AsyncIterator[Any], transform: Callable[[str], Awaitable[str]]
 ) -> AsyncIterator[Any]:
@@ -1143,6 +1258,10 @@ async def rewrite_stream(
         holder = _text_holder(chunk)
         if holder is not None:
             parts.append(getattr(holder[0], holder[1]))
+    if buffered and all(isinstance(c, (bytes, str)) for c in buffered):
+        for frame in await _rewrite_anthropic_sse(buffered, transform):
+            yield frame
+        return
     if any(_is_response_event(c) for c in buffered):
         for event in await _rewrite_responses_events(buffered, transform):
             yield event

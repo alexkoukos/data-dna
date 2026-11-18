@@ -577,3 +577,110 @@ def test_the_master_key_is_never_remembered() -> None:
     second = [*first, {"role": "assistant", "content": "Noted."}]
     second.append({"role": "user", "content": "Thanks, a short poem"})
     assert _chat(admin, second).status_code == 409
+
+
+def _stream_messages(client: OpenAI, text: str, model: str) -> httpx.Response:
+    return httpx.post(
+        f"{GATEWAY}/v1/messages",
+        headers={"x-api-key": client.api_key, "anthropic-version": "2023-06-01"},
+        json={
+            "model": model,
+            "max_tokens": 64,
+            "stream": True,
+            "messages": [{"role": "user", "content": text}],
+        },
+        timeout=60,
+    )
+
+
+def _streamed_text(raw: str) -> str:
+    import json
+
+    out = []
+    for line in raw.splitlines():
+        if line.startswith("data: "):
+            body = json.loads(line[6:])
+            delta = body.get("delta") or {}
+            if body.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
+                out.append(delta["text"])
+    return "".join(out)
+
+
+def test_a_streamed_anthropic_request_never_shows_a_leaked_key(client: OpenAI) -> None:
+    leaky = _stream_messages(client, "hello there", "demo-leaky")
+    assert leaky.status_code == 200
+    assert "AKIAIOSFODNN7EXAMPLE" not in leaky.text
+    echo = _stream_messages(client, "Check IBAN GR1601101250000000012300695", "demo-echo")
+    assert echo.status_code == 200
+    assert "GR1601101250000000012300695" in echo.text and "[IBAN_1]" not in echo.text
+
+
+_SSE_SCRIPT = r"""
+import asyncio, json, sys, types
+mod = types.ModuleType("dna_inspect")
+sys.modules["dna_inspect"] = mod
+exec(compile(SOURCE, "dna_inspect.py", "exec"), mod.__dict__)
+from litellm.llms.anthropic.messages.native.fake_stream_iterator import (
+    FakeAnthropicMessagesStreamIterator,
+)
+
+response = {
+    "id": "msg_1", "type": "message", "role": "assistant", "model": "m",
+    "content": [{"type": "text", "text": "Checked [IBAN_1] fine, key AKIAIOSFODNN7EXAMPLE " * 4}],
+    "stop_reason": "end_turn", "stop_sequence": None,
+    "usage": {"input_tokens": 1, "output_tokens": 1},
+}
+chunks = FakeAnthropicMessagesStreamIterator(response).chunks
+raw_in = b"".join(chunks)
+calls = []
+
+async def transform(text):
+    calls.append(text)
+    return text.replace("[IBAN_1]", "GR16").replace("AKIAIOSFODNN7EXAMPLE", "[SECRET]")
+
+async def source():
+    for c in chunks:
+        yield c
+
+async def main():
+    return [c async for c in mod.rewrite_stream(source(), transform)]
+
+out = asyncio.run(main())
+raw_out = b"".join(out).decode()
+texts = []
+for line in raw_out.splitlines():
+    if line.startswith("data: "):
+        body = json.loads(line[6:])
+        if body.get("type") == "content_block_delta":
+            texts.append(body["delta"].get("text", ""))
+frames_in = raw_in.count(b"\n\n")
+print(json.dumps({"texts": texts, "calls": calls, "raw": raw_out, "frames_in": frames_in}))
+"""
+
+
+def test_streamed_anthropic_sse_from_litellm_is_cleaned() -> None:
+    import json
+    import subprocess
+    from pathlib import Path
+
+    if not _docker_gateway():
+        pytest.skip("docker compose gateway not available")
+    root = Path(__file__).resolve().parents[3]
+    source = (root / "infra" / "gateway" / "dna_inspect.py").read_text()
+    run = subprocess.run(
+        ["docker", "compose", "exec", "-T", "gateway", "python", "-"],
+        input=f"SOURCE = {source!r}\n" + _SSE_SCRIPT,
+        capture_output=True,
+        text=True,
+        cwd=root,
+        timeout=120,
+    )
+    assert run.returncode == 0, run.stderr
+    result = json.loads(run.stdout.strip().splitlines()[-1])
+    assert len(result["calls"]) == 1 and "[IBAN_1]" in result["calls"][0]
+    assert "".join(result["texts"]) == result["calls"][0].replace("[IBAN_1]", "GR16").replace(
+        "AKIAIOSFODNN7EXAMPLE", "[SECRET]"
+    )
+    assert result["texts"][0] and not any(result["texts"][1:])
+    assert "AKIA" not in result["raw"] and "[IBAN_1]" not in result["raw"]
+    assert result["raw"].count("\n\n") == result["frames_in"]
