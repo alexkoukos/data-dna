@@ -1,30 +1,61 @@
-import type { ReactNode } from "react";
-import { HOLE, ORIGIN_X, VIEW_H, VIEW_W } from "./geometry";
-import { LaptopArt } from "./LaptopArt";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Scaled } from "./Scaled";
 
-// The hero screen sits behind a vector laptop (LaptopArt) whose display is a real hole.
-export const LAPTOP_W = VIEW_W;
-export const LAPTOP_H = VIEW_H;
-// The browser window is 720 x 450; a 26 px menu bar above it makes 720 x 476, the hole's ratio.
+// A photo of a real laptop (public/brand/laptop.webp, 1575 x 1330) with the display cut out.
+// The screen is drawn behind it and pinned to the four corners of the display with a
+// perspective transform, so it sits at the same angle as the lid in the photo.
+export const LAPTOP_W = 1575;
+export const LAPTOP_H = 1330;
+// The browser window is 720 x 450; a 26 px menu bar above it makes 720 x 476.
 const CONTENT = { w: 720, h: 476 };
-const FIT = HOLE.w / CONTENT.w;
+// Display corners in the photo: top-left, top-right, bottom-right, bottom-left.
+// matrix3d maps the CONTENT rectangle onto them (solved once, see the note in the PR).
+const SCREEN_MATRIX =
+  "matrix3d(1.7349502,-0.028563903,0,-2.3821973e-05,0.37655183,1.8600877,0,0.0003978063,0,0,1,0,174,53,0,1)";
+
+// Scroll effect (the ContainerScroll look): the lid starts tipped back and settles flat
+// over the first SCROLL_RANGE pixels of scroll. Set straight on the element, no re-render.
+const SCROLL_RANGE = 420;
+
+function useTiltOnScroll(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const flat = "perspective(1800px) rotateX(0deg) scale(1)";
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      el.style.transform = flat;
+      return;
+    }
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const p = Math.min(1, Math.max(0, window.scrollY / SCROLL_RANGE));
+      const e = 1 - (1 - p) * (1 - p); // ease out
+      el.style.transform = `perspective(1800px) rotateX(${(18 * (1 - e)).toFixed(2)}deg) scale(${(1.06 - 0.06 * e).toFixed(4)})`;
+    };
+    const on = () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+    apply();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", on);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [ref]);
+}
 
 export function Laptop({ children }: { children: ReactNode }) {
+  const tiltRef = useRef<HTMLDivElement>(null);
+  useTiltOnScroll(tiltRef);
   return (
-    <Scaled width={LAPTOP_W} height={LAPTOP_H} max={1.05} className="laptop-wrap">
-      <div className="laptop">
+    <Scaled width={LAPTOP_W} height={LAPTOP_H} max={1} align="right" className="laptop-wrap">
+      <div className="laptop" ref={tiltRef}>
         <div className="laptop-glow" aria-hidden="true" />
-        <div className="laptop-contact" aria-hidden="true" />
-        <LaptopArt className="laptop-reflection" />
         <div
-          className="laptop-hole"
-          style={{ left: HOLE.x - ORIGIN_X, top: HOLE.y, width: HOLE.w, height: HOLE.h }}
+          className="laptop-content"
+          style={{ width: CONTENT.w, height: CONTENT.h, transform: SCREEN_MATRIX }}
         >
-          <div
-            className="laptop-content"
-            style={{ width: CONTENT.w, height: CONTENT.h, transform: `scale(${FIT})` }}
-          >
             <div className="menubar" aria-hidden="true">
               <span className="menubar-app">Browser</span>
               <span>File</span>
@@ -66,10 +97,15 @@ export function Laptop({ children }: { children: ReactNode }) {
             </div>
             <div className="laptop-screen">{children}</div>
             <div className="glass" aria-hidden="true" />
-          </div>
         </div>
-        <div className="laptop-spill" aria-hidden="true" />
-        <LaptopArt className="laptop-frame" />
+        <img
+          className="laptop-photo"
+          src="/brand/laptop.webp"
+          width={LAPTOP_W}
+          height={LAPTOP_H}
+          alt=""
+          decoding="async"
+        />
       </div>
     </Scaled>
   );

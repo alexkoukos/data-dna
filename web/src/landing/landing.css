@@ -236,34 +236,49 @@
   pointer-events: none;
 }
 .hero-in {
-  max-width: 1120px;
+  max-width: 1360px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 32px;
 }
 .hero-copy {
-  max-width: 820px;
-  text-align: center;
+  max-width: 560px;
+  text-align: left;
 }
 .hero-copy h1 {
   text-wrap: balance;
   margin-bottom: 16px;
 }
 .hero-copy .lead {
-  margin: 0 auto 24px;
-  max-width: 600px;
+  margin: 0 0 24px;
+  max-width: 520px;
 }
 .cta {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
 }
 .hero-loop {
   width: 100%;
   max-width: 980px;
+  margin-left: auto;
+}
+/* Copy on the left, the laptop on the right edge and bigger than the copy column */
+@media (min-width: 1000px) {
+  .hero-in {
+    display: grid;
+    grid-template-columns: minmax(380px, 0.8fr) minmax(0, 1.4fr);
+    align-items: center;
+    gap: 24px;
+    padding-inline: 24px;
+  }
+  .hero-loop {
+    max-width: 820px;
+    margin-right: -24px;
+  }
 }
 
 /* Sections */
@@ -510,78 +525,49 @@
   transform: scale(1.3);
 }
 
-/* Laptop (design size 812 x 480): the screen sits behind a photo with a transparent display */
+/* Laptop (design size 1575 x 1330): a photo with a transparent display, the screen behind it */
 .laptop-wrap {
-  margin-bottom: 44px;
+  margin-bottom: 0;
 }
 .laptop {
   position: relative;
-  width: 771px;
-  height: 480px;
-  /* a slight tilt, hinged at the bottom edge, so the lid leans back a touch */
-  transform: perspective(1700px) rotateX(2.5deg);
-  transform-origin: 50% 96%;
+  width: 1575px;
+  height: 1330px;
+  transform-origin: 50% 85%;
+  will-change: transform;
 }
-/* Warm light thrown by the display onto the desk behind it */
+/* Warm light thrown by the display onto the air around the lid */
 .laptop-glow {
   position: absolute;
-  left: 60px;
-  right: 60px;
+  left: 140px;
+  right: 120px;
   top: 40px;
-  bottom: 20px;
+  height: 900px;
   background: radial-gradient(
     ellipse at 50% 45%,
-    rgba(245, 158, 11, 0.22),
+    rgba(245, 158, 11, 0.2),
     rgba(245, 158, 11, 0) 68%
   );
-  filter: blur(26px);
+  filter: blur(60px);
 }
-/* Where the base touches the surface: a tight dark line and a wide soft shadow */
-.laptop-contact {
+.laptop-photo {
   position: absolute;
-  left: 22px;
-  right: 22px;
-  top: 452px;
-  height: 22px;
-  background:
-    radial-gradient(ellipse at 50% 30%, rgba(38, 38, 38, 0.38), rgba(38, 38, 38, 0) 62%),
-    radial-gradient(ellipse at 50% 20%, rgba(38, 38, 38, 0.18), rgba(38, 38, 38, 0) 78%);
-  filter: blur(4px);
-}
-.laptop-reflection {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  width: 771px;
-  height: 480px;
+  inset: 0;
+  width: 1575px;
+  height: 1330px;
   max-width: none;
-  margin-top: -22px;
-  transform: scaleY(-1);
-  opacity: 0.16;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 20%);
-  mask-image: linear-gradient(to bottom, #000, transparent 20%);
-}
-/* Screen light catching the aluminium lip */
-.laptop-spill {
-  position: absolute;
-  left: 40px;
-  right: 40px;
-  top: 440px;
-  height: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
-  mix-blend-mode: soft-light;
-  pointer-events: none;
-}
-.laptop-hole {
-  position: absolute;
-  overflow: hidden;
-  background: #fff;
-  border-radius: 2px 2px 4px 4px;
+  user-select: none;
+  /* a soft shadow so the cut edge sits on the page instead of floating */
+  filter: drop-shadow(0 30px 40px rgba(38, 38, 38, 0.18));
 }
 .laptop-content {
-  position: relative;
-  transform-origin: top left;
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: #fff;
 }
 .laptop-screen {
   position: absolute;
@@ -630,14 +616,6 @@
     ),
     linear-gradient(0deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0) 14%);
   box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.1);
-}
-.laptop-frame {
-  position: absolute;
-  inset: 0;
-  width: 771px;
-  height: 480px;
-  max-width: none;
-  pointer-events: none;
 }
 
 /* ---------- Screen (design size 720 x 450) ---------- */
