@@ -25,7 +25,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **D4** P0 File upload text extraction (PDF, DOCX) into the pipeline (PRD 9.1). Owner: Stelios.
 - [x] **D5** P1 Session memory: rebuild across prompts (PRD 9.4). Owner: Stelios.
 - [x] **D6** P1 Prompt-injection classifier (PRD 9.5). Owner: Stelios.
-- [~] (evaluated, not adopted: see PROGRESS) **D7** P2 LLM judge for borderline scores, cached (PRD 9.6). Owner: Stelios.
+- [~] (evaluated, not adopted; fine-tune data and eval script ready on branch task/D7-judge-finetune, see PROGRESS) **D7** P2 LLM judge for borderline scores, cached (PRD 9.6). Owner: Stelios.
 - [x] **P1** P0 Policies from DB + `policies.yaml` seed, editable (PRD 10). Owner: Alexandros.
 
 ## Shadow AI, DNA, analyst
