@@ -1996,3 +1996,28 @@ def test_acceptance_does_not_cover_the_same_unwritable_text_sent_as_new_content(
     assert asyncio.run(go({"X-DNA-Ack": "audit"}))["metadata"]["dna_decision"] == "warn"
     mode["v"] = "mask"
     assert asyncio.run(go(None)) == 409
+
+
+def test_a_multibyte_character_split_between_chunks_is_not_an_error() -> None:
+    data = _anthropic_stream("καλημέρα [IBAN_1]").replace("\\u03bb", "λ")
+    data = data.replace("\\u03ba", "κ").replace("\\u03b1", "α").encode()
+    assert "λ".encode() in data
+    cut = data.index("λ".encode()) + 1
+    calls: list[str] = []
+    out = _stream([data[:cut], data[cut:]], _cleaner(calls))
+    assert calls == ["καλημέρα [IBAN_1]"]
+    assert "καλημέρα GR16" in "".join(x.decode() for x in out)
+
+
+def test_a_malformed_data_frame_is_withheld_whatever_its_event_name() -> None:
+    bad = 'data: {"type":"content_block_delta","index":0,"delta":{"text":"SECRET"\n\n'
+    with pytest.raises(dna.GatewayError):
+        _stream([bad], _cleaner([]))
+
+
+def test_chat_shaped_text_in_a_byte_stream_is_withheld_but_empty_frames_pass() -> None:
+    chat = 'data: {"choices":[{"delta":{"content":"SECRET"}}]}\n\n'
+    with pytest.raises(dna.GatewayError):
+        _stream([chat], _cleaner([]))
+    quiet = 'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\ndata: [DONE]\n\n'
+    assert "".join(_stream([quiet], _cleaner([]))) == quiet

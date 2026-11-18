@@ -1173,12 +1173,37 @@ def _parse_frame(raw: str) -> _Frame:
             body = json.loads("\n".join(data))
         except ValueError:
             body = None
+        if body is not None and not isinstance(body, dict):
+            raise _unreadable_stream()
         if isinstance(body, dict):
             frame.body = body
             frame.name = name or str(body.get("type", ""))
-        elif name == "content_block_delta":
+        elif "\n".join(data).strip() != "[DONE]":
             raise _unreadable_stream()
     return frame
+
+
+_ANTHROPIC_EVENTS = {
+    "message_start",
+    "ping",
+    "content_block_start",
+    "content_block_delta",
+    "content_block_stop",
+    "message_delta",
+    "message_stop",
+    "error",
+}
+_TEXT_KEYS = {"text", "content", "delta", "message", "partial_json", "thinking", "arguments"}
+
+
+def _has_text(node: Any) -> bool:
+    if isinstance(node, dict):
+        return any(
+            (k in _TEXT_KEYS and isinstance(v, str) and v) or _has_text(v) for k, v in node.items()
+        )
+    if isinstance(node, list):
+        return any(_has_text(v) for v in node)
+    return False
 
 
 def _block_index(body: dict[str, Any]) -> int:
@@ -1200,12 +1225,19 @@ async def _rewrite_anthropic_sse(
     """
     as_text = isinstance(chunks[0], str)
     try:
-        joined = "".join(c if isinstance(c, str) else c.decode("utf-8") for c in chunks)
+        # Join the bytes first: a multibyte character can be split between two chunks.
+        joined = b"".join(c.encode("utf-8") if isinstance(c, str) else c for c in chunks).decode(
+            "utf-8"
+        )
     except UnicodeDecodeError as exc:
         raise _unreadable_stream() from exc
     lines = joined.replace("\r\n", "\n").replace("\r", "\n")  # every line ending a client accepts
     raws = [r for r in re.split(r"\n\n", lines) if r.strip()]
     frames = [_parse_frame(r) for r in raws]
+    for f in frames:
+        if f.body is not None and f.body.get("type") not in _ANTHROPIC_EVENTS and _has_text(f.body):
+            # Text in a shape we cannot clean (for example chat-style chunks): withhold it.
+            raise _unreadable_stream()
     parts: dict[int, list[str]] = {}
     for f in frames:
         body = f.body
