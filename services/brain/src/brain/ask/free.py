@@ -122,10 +122,12 @@ _FORBIDDEN = re.compile(
     re.IGNORECASE,
 )
 # Substring matches on purpose: a name can be built inside a string literal ('pg' || '_read_file').
+# Unicode escapes (U&'..', UESCAPE) and quoted identifiers could spell a blocked name; the views
+# need no quoting.
 _UNSAFE_NAMES = re.compile(
     r"pg_|set_config|current_setting|information_schema|sqlite_|\blo_\w*|dblink|\|\||_to_xml|"
     r"query_to_|xpath|xmlparse|\bconcat\s*\(|\bformat\s*\(|ts_stat|ts_rewrite|\bchr\s*\(|"
-    r"convert_from|\bdecode\s*\(|\$|\\|--|/\*",
+    r"convert_from|\bdecode\s*\(|\$|\\|--|/\*|u&|uescape|\"",
     re.IGNORECASE,
 )
 _SOURCES = re.compile(r"\b(?:from|join)\s+([A-Za-z_][\w.]*)", re.IGNORECASE)
