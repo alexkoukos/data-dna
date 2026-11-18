@@ -671,7 +671,7 @@ def _ack_given(headers: dict[str, str] | None) -> bool:
     return bool(lowered.get(ACK_HEADER, "").strip())
 
 
-ACCEPTED_TTL_SECONDS = 4 * 3600
+ACCEPTED_TTL_SECONDS = 3600
 ACCEPTED_MAX_ENTRIES = 20_000
 
 
