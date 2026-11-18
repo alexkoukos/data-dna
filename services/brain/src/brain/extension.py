@@ -192,18 +192,32 @@ def check(
 
     who = identify(authorization, x_demo_user)
     tool = tool_for_host(_host(req.url), req.tool) if req.url else req.tool
-    out = inspect(
-        InspectRequest(
-            user_id=who.user,
-            team=who.team,
-            messages=[Message(role="user", content=req.text)],
-            attachments=req.attachments,
-            tool=tool,
-            channel="extension",
-        ),
-        background,
-        response,
-    )
+    try:
+        out = inspect(
+            InspectRequest(
+                user_id=who.user,
+                team=who.team,
+                messages=[Message(role="user", content=req.text)],
+                attachments=req.attachments,
+                tool=tool,
+                channel="extension",
+            ),
+            background,
+            response,
+        )
+    except HTTPException as err:
+        if err.status_code == 422 and req.attachments:
+            # A file we cannot read (scan, password, damaged) must not pass as "nothing found".
+            return CheckResponse(
+                action="warn",
+                reasons=[
+                    str(err.detail),
+                    "Hive could not read this file, so it could not check what is inside.",
+                ],
+                alternative="Company AI",
+                policy_version=_policy_version(),
+            )
+        raise
     masked = out.masked_messages[-1].content if out.masked_messages else None
     placeholders = sessions.get(out.session_id, who.user) if out.session_id else None
     document = None

@@ -219,3 +219,19 @@ def test_gateway_turns_file_blocks_into_text_for_the_company_ai() -> None:
     blocks = data["messages"][0]["content"]
     assert [b["type"] for b in blocks] == ["text", "text"]
     assert "Q4 numbers" in blocks[1]["text"]
+
+
+def test_check_asks_when_a_file_cannot_be_read(client: TestClient) -> None:
+    r = client.post(
+        "/v1/check",
+        json={
+            "tool": "Claude",
+            "attachments": [
+                {"filename": "x.pdf", "content_base64": base64.b64encode(b"%PDF-1.4 junk").decode()}
+            ],
+        },
+        headers={"x-demo-user": "demo"},
+    )
+    assert r.status_code == 200
+    assert r.json()["action"] == "warn"
+    assert any("could not read" in x for x in r.json()["reasons"])

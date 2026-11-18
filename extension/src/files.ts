@@ -51,7 +51,32 @@ export function installFileGuard(opts: FileGuardOptions): void {
     if (!list.length) return release();
     const attachments = await Promise.all(list.map(toAttachment));
     const out = await opts.check(attachments);
-    if (!out || !out.action || out.action === "allow") return release();
+    if (!out || !out.action) {
+      // We could not read the file. A confidential file must not slip through unseen, so ask.
+      const choice = await opts.overlay.card({
+        action: "warn",
+        title: "Hive could not check this file",
+        reasons: [
+          "The company server could not be reached, so this file was not checked.",
+          "Make sure the server is running. Remove the file, or attach it anyway on your own risk.",
+        ],
+        askReason: true,
+        buttons: [
+          { id: "remove", label: "Remove file", kind: "primary" },
+          { id: "attach", label: "Attach anyway", kind: "danger" },
+        ],
+      });
+      if (choice.id === "attach") release();
+      else drop();
+      return;
+    }
+    if (out.action === "allow") {
+      opts.overlay.note(
+        `Checked by Hive: ${list.length === 1 ? (list[0]?.name ?? "1 file") : `${list.length} files`}, nothing sensitive found.`,
+        3000,
+      );
+      return release();
+    }
     opts.onEvent(out.action, out.findings?.[0]?.category ?? "document");
     const reasons = out.reasons?.length
       ? out.reasons
@@ -155,7 +180,8 @@ export function installFileGuard(opts: FileGuardOptions): void {
     "paste",
     (e) => {
       const files = [...(e.clipboardData?.files ?? [])];
-      if (passing || !files.length || e.clipboardData?.getData("text/plain")) return;
+      // A file copied in Finder also carries its name as text, so do not skip on text.
+      if (passing || !readable(files).length) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       const target = e.target;
