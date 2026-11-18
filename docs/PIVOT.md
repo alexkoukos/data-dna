@@ -35,7 +35,7 @@ The product name stays **Hive** (the pivot brief had a `{{NAME}}` placeholder; t
 
 ## Delete (only after your OK)
 
-- `web/src/pages/ChatPage.tsx` and its test, `components/{Composer,MessageBubble,StarterPrompts,ChatSkeleton}.tsx`, `lib/chatApi.ts`: the Company Chat. `WarnCard`, `WhyPanel`, `OutcomeChip`, `NextStep` and the `Thyro` mascot are reused by the dashboard (incident detail) and as the model for the extension overlay, so they stay.
+- `web/src/pages/ChatPage.tsx` and its test, `components/{Composer,MessageBubble,StarterPrompts,ChatSkeleton}.tsx`, `lib/chatApi.ts`: the Company Chat. `WarnCard`, `WhyPanel`, `OutcomeChip`, `NextStep` are reused by the dashboard (incident detail) and as the model for the extension overlay, so they stay.
 - The onboarding and home flow that sends people into the chat (`HomePage.tsx`, `NextStep.tsx` links into chat). Rewrite Home as a short "Get the extension" start page instead of deleting it outright.
 - The chat steps in `web/e2e/` and the compose smoke test. Replaced by Playwright with the extension loaded.
 
