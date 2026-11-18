@@ -459,8 +459,8 @@ Go/no-go on Sat 14: measure time to first token and tokens per second on a mid-r
 | Sun 15 | Document checks, warn and block, normalisation, file upload; `gen_org.py` builds the synthetic organisation; logs ingested, inventory shows hidden tools |
 | Mon 16 | Dashboard: incidents, policy editor; local-model routing |
 | Tue 17 | Session memory + puzzle view; DNA copies + attribution; onboarding page; employee simulator |
-| Wed 18 | `make eval` with targets; analyst presets; injection checks; MCP if time. Feature freeze 18:00 |
-| Thu 19 | Platform matrix test; Playwright + axe green; README final; video recorded. Code freeze 20:00 |
+| Wed 18 | `make eval` with targets; analyst presets; injection checks; MCP if time |
+| Thu 19 | Platform matrix test; Playwright + axe green; README final; video recorded |
 | Fri 20 | Submit by midday |
 
 Go/no-go fallback (Sat 14): if paraphrase recall is weak, try `intfloat/multilingual-e5-base`, smaller chunks; if still weak, DNA becomes P2 and the story leads with gateway + local routing + cross-prompt tracking.
