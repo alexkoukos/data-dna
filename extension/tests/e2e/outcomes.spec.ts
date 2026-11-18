@@ -57,7 +57,7 @@ for (const lang of ["en", "el"]) {
       expect(sent).toContain("[AFM_1]");
       expect(sent).not.toContain("123456783");
       expect(sent).not.toContain("0110");
-      await expect(page.locator(".msg.assistant .pyli-restored").first()).toBeVisible();
+      await expect(page.locator(".msg.assistant .hive-restored").first()).toBeVisible();
       await expect(page.locator(".msg.assistant")).toContainText("123456783");
       await expect(page.locator(".note")).toContainText("masked");
     });

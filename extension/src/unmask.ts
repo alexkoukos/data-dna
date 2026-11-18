@@ -39,7 +39,7 @@ export class Unmasker {
       return;
     }
     if (!(node instanceof HTMLElement)) return;
-    if (node.closest('pyli-overlay, textarea, [contenteditable="true"], .pyli-restored')) return;
+    if (node.closest('hive-overlay, textarea, [contenteditable="true"], .hive-restored')) return;
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
     const texts: Text[] = [];
     while (walker.nextNode()) texts.push(walker.currentNode as Text);
@@ -50,7 +50,7 @@ export class Unmasker {
     const parent = text.parentElement;
     if (
       !parent ||
-      parent.closest('.pyli-restored, textarea, [contenteditable="true"], pyli-overlay')
+      parent.closest('.hive-restored, textarea, [contenteditable="true"], hive-overlay')
     )
       return;
     const value = text.data;
@@ -65,7 +65,7 @@ export class Unmasker {
       const idx = m.index ?? 0;
       frag.append(value.slice(last, idx));
       const span = document.createElement("span");
-      span.className = "pyli-restored";
+      span.className = "hive-restored";
       span.textContent = real;
       span.title = "Restored on this page only. The AI never saw this value.";
       span.style.cssText = "text-decoration: underline dotted; text-underline-offset: 3px;";

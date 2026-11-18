@@ -3,7 +3,7 @@
   "properties": {
     "brainUrl": {
       "title": "Company server address",
-      "description": "Where Pyli sends text to be checked, for example https://pyli.example.com",
+      "description": "Where Hive sends text to be checked, for example https://hive.example.com",
       "type": "string"
     },
     "token": {

@@ -41,6 +41,21 @@
     --muted: #d4d4d4;
     --subtle-fg: #a3a3a3;
     --amber-text: #fbbf24;
+    --mask-bg: #2e2340;
+    --mask-fg: #dcc8f5;
+    --mask-solid: #a67fd6;
+    --block-bg: #45201f;
+    --block-fg: #ffb4ad;
+    --block-solid: #e0605f;
+    --warn-bg: #3d2f10;
+    --warn-fg: #f3d28a;
+    --warn-solid: #d9a03a;
+    --local-bg: #12304a;
+    --local-fg: #a9d3f7;
+    --local-solid: #4f9be0;
+    --allow-bg: #1c3a1a;
+    --allow-fg: #a6dca0;
+    --allow-solid: #5bb353;
   }
 }
 * {
@@ -49,7 +64,7 @@
 body {
   margin: 0;
   font:
-    400 15px/23px "Plus Jakarta Sans",
+    400 15px/23px "Poppins",
     system-ui,
     -apple-system,
     "Segoe UI",
@@ -58,16 +73,18 @@ body {
   color: var(--fg);
 }
 h1 {
-  font-size: 18px;
-  line-height: 24px;
-  font-weight: 800;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
   margin: 0;
 }
 h2 {
-  font-size: 15px;
-  line-height: 20px;
-  font-weight: 700;
-  margin: 20px 0 8px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  margin: 28px 0 12px;
   color: var(--fg);
 }
 p {
@@ -77,7 +94,7 @@ p {
   color: var(--muted);
 }
 .wrap {
-  padding: 16px 16px 20px;
+  padding: 24px 24px 28px;
 }
 .row {
   display: flex;
@@ -86,7 +103,7 @@ p {
 }
 .wordmark {
   display: block;
-  width: 96px;
+  width: 120px;
   height: auto;
 }
 .saves {
@@ -98,7 +115,7 @@ p {
 .saves b {
   font-size: 40px;
   line-height: 44px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .saves span {
   font-size: 17px;
@@ -120,7 +137,22 @@ p {
   display: block;
   font-size: 20px;
   line-height: 26px;
-  font-weight: 800;
+  font-weight: 700;
+}
+.stat {
+  border-top: 3px solid var(--line);
+}
+.stat.mask {
+  border-top-color: var(--mask-solid);
+}
+.stat.warn {
+  border-top-color: var(--warn-solid);
+}
+.stat.block {
+  border-top-color: var(--block-solid);
+}
+.stat.checked {
+  border-top-color: var(--amber);
 }
 .stat span {
   font-size: 12px;
@@ -132,7 +164,7 @@ ul.events {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
+  gap: 12px;
 }
 ul.events li {
   background: var(--bg);
@@ -154,73 +186,25 @@ ul.events li {
   border-radius: 9999px;
   padding: 2px 9px 2px 7px;
 }
-.tag::before {
-  font-size: 9px;
-  line-height: 1;
-}
 .tag.mask {
   background: var(--mask-bg);
   color: var(--mask-fg);
-}
-.tag.mask::before {
-  content: "◐";
 }
 .tag.warn {
   background: var(--warn-bg);
   color: var(--warn-fg);
 }
-.tag.warn::before {
-  content: "▲";
-}
 .tag.local {
   background: var(--local-bg);
   color: var(--local-fg);
-}
-.tag.local::before {
-  content: "⌂";
 }
 .tag.block {
   background: var(--block-bg);
   color: var(--block-fg);
 }
-.tag.block::before {
-  content: "■";
-}
 .tag.allow {
   background: var(--allow-bg);
   color: var(--allow-fg);
-}
-.tag.allow::before {
-  content: "✓";
-}
-button,
-.btn {
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  color: var(--fg);
-  font:
-    700 14px/1 "Plus Jakarta Sans",
-    system-ui,
-    sans-serif;
-  cursor: pointer;
-}
-button:hover {
-  background: var(--muted-bg);
-}
-button.primary {
-  background: var(--amber);
-  border-color: var(--amber);
-  color: var(--on-amber);
-}
-button.primary:hover {
-  background: var(--amber-bee);
-}
-button:disabled {
-  opacity: 0.55;
-  cursor: default;
 }
 input,
 select,
@@ -247,7 +231,6 @@ label {
 :focus-visible {
   outline: 2px solid var(--fg);
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px var(--amber);
 }
 .badge {
   display: inline-flex;
@@ -261,10 +244,6 @@ label {
   background: var(--local-bg);
   color: var(--local-fg);
 }
-.badge::before {
-  content: "⌂";
-  font-size: 10px;
-}
 .bubble {
   background: var(--bg);
   border: 1px solid var(--line);
@@ -277,10 +256,234 @@ label {
   background: var(--amber);
   border-color: var(--amber);
   color: var(--on-amber);
+  font-weight: 500;
   margin-left: 24px;
 }
 .status {
   font-size: 13px;
   line-height: 20px;
   margin-top: 6px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Gauge: one ring for everything checked today */
+.gauge {
+  position: relative;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 24px;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  margin-top: 20px;
+  border-radius: 20px;
+}
+.gauge svg {
+  width: 160px;
+  height: 160px;
+  transform: rotate(-90deg);
+}
+.gauge circle {
+  fill: none;
+  stroke-width: 12;
+}
+.ring-bg {
+  stroke: var(--muted-bg);
+}
+.ring {
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.4s ease;
+}
+.ring.masked,
+.dot.masked {
+  stroke: var(--mask-solid);
+  background: var(--mask-solid);
+}
+.ring.warned,
+.dot.warned {
+  stroke: var(--warn-solid);
+  background: var(--warn-solid);
+}
+.ring.blocked,
+.dot.blocked {
+  stroke: var(--block-solid);
+  background: var(--block-solid);
+}
+.ring.local,
+.dot.local {
+  stroke: var(--local-solid);
+  background: var(--local-solid);
+}
+.gauge-center {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 160px;
+  height: 160px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+.gauge-center b {
+  font-size: 40px;
+  line-height: 42px;
+  font-weight: 700;
+}
+.gauge-center span {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend b {
+  margin-left: auto;
+  font-weight: 700;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+}
+.legend .saves-line {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+}
+.lead {
+  margin: 10px 0 0;
+}
+
+/* Event cards: who, what, when, what I did */
+ul.events li.ev {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border-left: 4px solid var(--line);
+}
+.avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+.ev-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.ev-head {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 15px;
+}
+.ev-head .muted {
+  font-size: 12px;
+}
+.ev-reason {
+  margin: 0;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--muted);
+}
+
+/* Popup actions stay in reach: Chrome caps a popup at 600 px, so the list scrolls and these do not */
+.footer {
+  position: sticky;
+  bottom: 0;
+  gap: 12px;
+  margin: 20px -24px -28px;
+  padding: 16px 24px 20px;
+  background: var(--tint);
+  border-top: 1px solid var(--line);
+}
+
+/* This week: a white card, one number, one flat chart */
+.weekcard {
+  --tc-grid: var(--line);
+  --tc-muted: var(--subtle-fg);
+  --tc-bg: var(--bg);
+  --tc-fg: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 20px 20px 14px;
+}
+.week-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+.week-top b {
+  font-size: 34px;
+  line-height: 38px;
+  font-weight: 700;
+}
+.week-top span {
+  font-size: 14px;
+  color: var(--muted);
+}
+.week-sub {
+  margin: 2px 0 12px;
+  font-size: 13px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* Event cards: a light card, the verdict chip on the right */
+ul.events li.ev {
+  border-left: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  align-items: center;
+  box-shadow: 0 1px 2px rgba(38, 38, 38, 0.04);
+}
+ul.events li.ev .tag {
+  flex: none;
+  align-self: flex-start;
+  margin-left: auto;
+}
+.ev-body {
+  gap: 4px;
 }

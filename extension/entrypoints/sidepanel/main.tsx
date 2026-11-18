@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import "@fontsource/plus-jakarta-sans/400.css";
-import "@fontsource/plus-jakarta-sans/700.css";
-import "@fontsource/plus-jakarta-sans/800.css";
+import "@fontsource/poppins/400.css";
+import "@fontsource/poppins/700.css";
+import "@fontsource/poppins/600.css";
+import "@fontsource/playfair-display/600.css";
 import "../../src/ui.css";
+import { House, SendHorizontal } from "lucide-react";
+import { TextureStyles } from "../../src/TextureStyles";
 
 interface Turn {
   role: "me" | "ai";
@@ -59,50 +62,60 @@ function Panel() {
   }, [turns, busy]);
 
   return (
-    <div className="wrap" style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <img className="wordmark" src="/brand/hive-wordmark.svg" alt="Hive" width={96} />
-      <div
-        className="row"
-        style={{ justifyContent: "space-between", marginTop: 12, flexWrap: "wrap" }}
-      >
-        <h1>Company AI</h1>
-        <span className="badge">Stays inside the company</span>
-      </div>
-      <div style={{ flex: 1, overflow: "auto", marginTop: 12 }} aria-live="polite">
-        {turns.length === 0 && (
-          <p className="muted">
-            Ask here instead of an outside AI tool. Your text is answered by the company&apos;s own
-            model and never leaves the company.
-          </p>
-        )}
-        {turns.map((t, i) => (
-          <div key={i} className={`bubble ${t.role === "me" ? "me" : ""}`}>
-            {t.text}
-            {t.role === "ai" && (
-              <div className="status muted">
-                {t.ready ? "Answered locally" : "Stand-in answer (local model not running)"}
-              </div>
-            )}
-          </div>
-        ))}
-        {busy && <p className="muted">Thinking, on the company server…</p>}
-        <div ref={end} />
-      </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void ask(draft);
-        }}
-      >
-        <label htmlFor="q">Your question</label>
-        <textarea id="q" value={draft} onChange={(e) => setDraft(e.target.value)} />
-        <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
-          <button className="primary" type="submit" disabled={busy || !draft.trim()}>
-            Ask company AI
-          </button>
+    <>
+      <TextureStyles />
+      <div className="wrap" style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcSet="/brand/hive-wordmark-dark.svg" />
+          <img className="wordmark" src="/brand/hive-wordmark.svg" alt="Hive" width={120} />
+        </picture>
+        <div
+          className="row"
+          style={{ justifyContent: "space-between", marginTop: 12, flexWrap: "wrap" }}
+        >
+          <h1>Company AI</h1>
+          <span className="badge">
+            <House size={12} aria-hidden="true" />
+            Stays inside the company
+          </span>
         </div>
-      </form>
-    </div>
+        <div style={{ flex: 1, overflow: "auto", marginTop: 12 }} aria-live="polite">
+          {turns.length === 0 && (
+            <p className="muted">
+              Ask here instead of an outside AI tool. Your text is answered by the company&apos;s
+              own model and never leaves the company.
+            </p>
+          )}
+          {turns.map((t, i) => (
+            <div key={i} className={`bubble ${t.role === "me" ? "me" : ""}`}>
+              {t.text}
+              {t.role === "ai" && (
+                <div className="status muted">
+                  {t.ready ? "Answered locally" : "Stand-in answer (local model not running)"}
+                </div>
+              )}
+            </div>
+          ))}
+          {busy && <p className="muted">Thinking, on the company server…</p>}
+          <div ref={end} />
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void ask(draft);
+          }}
+        >
+          <label htmlFor="q">Your question</label>
+          <textarea id="q" value={draft} onChange={(e) => setDraft(e.target.value)} />
+          <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
+            <button className="primary" type="submit" disabled={busy || !draft.trim()}>
+              <SendHorizontal size={16} aria-hidden="true" />
+              Ask company AI
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }
 
