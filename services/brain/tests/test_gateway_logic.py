@@ -1230,6 +1230,60 @@ def test_an_openai_file_part_with_a_textual_data_url_is_decoded() -> None:
     assert f"key {_AWS_KEY}" in _texts(data, "completion")
 
 
+@pytest.mark.parametrize(
+    "tamper",
+    [
+        lambda b: b[:8] + "!" + b[8:],  # a character outside the alphabet
+        lambda b: base64.b64encode(b"hi").decode() + b,  # data after padding
+    ],
+)
+def test_a_text_document_that_is_not_exact_base64_is_refused(tamper: Any) -> None:
+    data = _doc_request("text/plain", f"key {_AWS_KEY} and more text".encode())
+    source = data["messages"][0]["content"][1]["source"]
+    source["data"] = tamper(source["data"])
+    with pytest.raises(dna.GatewayError) as err:
+        dna.inspection_view(data, "anthropic_messages")
+    assert err.value.status_code == 403
+
+
+def test_base64_with_line_breaks_is_still_read() -> None:
+    data = _doc_request("text/plain", f"key {_AWS_KEY}".encode())
+    source = data["messages"][0]["content"][1]["source"]
+    raw = source["data"]
+    source["data"] = raw[:8] + "\n" + raw[8:]
+    assert any(_AWS_KEY in s.text for s in dna.inspection_view(data, "anthropic_messages"))
+
+
+def _file_part(file_data: str) -> dict[str, Any]:
+    return {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "file", "file": {"file_data": file_data, "filename": "a.txt"}}
+                ],
+            }
+        ]
+    }
+
+
+def test_a_text_file_part_that_is_not_exact_base64_is_refused() -> None:
+    payload = base64.b64encode(f"key {_AWS_KEY}".encode()).decode()
+    data = _file_part(f"data:text/plain;base64,{payload[:8]}!{payload[8:]}")
+    with pytest.raises(dna.GatewayError) as err:
+        dna.inspection_view(data, "completion")
+    assert err.value.status_code == 403
+
+
+def test_a_text_file_part_too_large_to_check_in_full_is_refused() -> None:
+    payload = base64.b64encode(b"a" * 200_000).decode()
+    data = _file_part(f"data:text/plain;base64,{payload}")
+    with pytest.raises(dna.GatewayError) as err:
+        dna.inspection_view(data, "completion")
+    assert err.value.status_code == 403
+    assert "too large" in err.value.body["message"]
+
+
 @pytest.mark.parametrize("claimed", ["definition", "Definition", "func", "", None, "SYSTEM "])
 def test_a_client_cannot_claim_the_gateways_definition_role(claimed: Any) -> None:
     expected = "system" if claimed == "SYSTEM " else "user"

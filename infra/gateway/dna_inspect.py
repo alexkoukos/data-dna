@@ -84,6 +84,33 @@ def _no_token_ids() -> GatewayError:
     )
 
 
+def _unreadable_document() -> GatewayError:
+    return GatewayError(
+        403,
+        {
+            "type": "block",
+            "message": "A text document in this request is not valid base64, so it cannot be "
+            "checked.",
+            "reasons": ["A text document could not be decoded exactly"],
+            "approved_alternative": "Send the document as plain text, or re-encode it as "
+            "standard base64.",
+        },
+    )
+
+
+def _too_large_document() -> GatewayError:
+    return GatewayError(
+        403,
+        {
+            "type": "block",
+            "message": "A text file in this request is too large for the company gateway to "
+            "check in full.",
+            "reasons": ["A text file over about 150 KB cannot be checked"],
+            "approved_alternative": "Shorten the file or split it into smaller parts.",
+        },
+    )
+
+
 _CLIENT_ROLES = {"system", "developer", "user", "assistant", "tool"}
 
 
@@ -440,16 +467,32 @@ def _textual_media(media: str) -> bool:
     )
 
 
+def _strict_b64decode(data: str) -> bytes | None:
+    """Decode standard base64 exactly, or None.
+
+    Only whitespace is ignored. Characters outside the alphabet or data after padding make it
+    fail, so the gateway never checks a different text from the one a stricter or looser
+    decoder at the provider would read.
+    """
+    compact = re.sub(r"\s+", "", data)
+    try:
+        return base64.b64decode(compact + "=" * (-len(compact) % 4), validate=True)
+    except ValueError:
+        return None
+
+
 def _base64_document_text(source: dict[str, Any]) -> str | None:
-    """The text inside a base64 document whose media type is text, JSON or XML, else None."""
+    """The text inside a base64 document whose media type is text, JSON or XML, else None.
+
+    Raises a 403 when the media type is textual but the data is not exact base64.
+    """
     data = source.get("data")
     media = source.get("media_type")
     if not isinstance(data, str) or not isinstance(media, str) or not _textual_media(media):
         return None
-    try:
-        raw = base64.b64decode(data + "=" * (-len(data) % 4))
-    except ValueError:
-        return None
+    raw = _strict_b64decode(data)
+    if raw is None:
+        raise _unreadable_document()
     return raw.decode("utf-8", errors="replace")
 
 
@@ -468,11 +511,21 @@ def _data_url_texts(value: str, media_position: bool) -> list[str] | None:
     textual = media == "" or _textual_media(media)
     if media_position and not textual:
         return []
-    payload = m.group(3)[:_MAX_DATA_URL_CHARS]
+    full = m.group(3)
+    is_base64 = ";base64" in m.group(2).lower()
+    if media_position and textual and is_base64 and len(full) > _MAX_DATA_URL_CHARS:
+        # A text file the provider reads in full must not be checked only in part.
+        raise _too_large_document()
+    payload = full[:_MAX_DATA_URL_CHARS]
     out = [value]
     try:
-        if ";base64" in m.group(2).lower():
-            raw = base64.b64decode(payload + "=" * (-len(payload) % 4))
+        if is_base64:
+            decoded_bytes = _strict_b64decode(payload)
+            if decoded_bytes is None:
+                if media_position and textual:
+                    raise _unreadable_document()
+                return out
+            raw = decoded_bytes
             if len(raw) >= _MIN_BINARY_CHARS and not _mostly_text(raw):
                 return out
         else:
