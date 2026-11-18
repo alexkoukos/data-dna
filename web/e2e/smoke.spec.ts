@@ -16,6 +16,7 @@ const ROUTES = [
   "/security/incidents",
   "/security/documents",
   "/security/policies",
+  "/security/digest",
   "/security/ask",
 ];
 const VIEWPORTS = [
