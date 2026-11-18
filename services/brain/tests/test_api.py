@@ -44,3 +44,24 @@ def test_too_many_attachments_is_422() -> None:
 def test_a_huge_declared_body_is_413_before_parsing() -> None:
     r = client.post("/v1/inspect", content=b"{}", headers={"Content-Length": str(16 * 1024 * 1024)})
     assert r.status_code in (413, 400)
+
+
+def test_user_row_id_survives_a_concurrent_first_insert(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import sqlalchemy as sa
+    from sqlalchemy.pool import StaticPool
+
+    from brain.db import tables as t
+    from brain.records import user_row_id
+
+    e = sa.create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    t.metadata.create_all(e)
+    with e.begin() as c:
+        first = user_row_id(c, "racer", "team")
+    with e.begin() as c:
+        c.execute(sa.delete(t.users))
+        c.execute(sa.insert(t.users).values(id=first, pseudonym="racer", team="other"))
+        # another request inserted the same person after we looked: no error, same row
+        assert user_row_id(c, "racer", "team") == first
+        assert len(c.execute(sa.select(t.users)).all()) == 1

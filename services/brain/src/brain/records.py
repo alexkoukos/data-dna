@@ -9,6 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.engine import Engine
 
 from brain import siem
@@ -19,20 +20,22 @@ RETENTION_DAYS = 30
 
 
 def user_row_id(conn: sa.Connection, pseudonym: str, team: str) -> int:
-    found = conn.execute(
-        sa.select(t.users.c.id).where(t.users.c.pseudonym == pseudonym)
-    ).scalar_one_or_none()
-    if found is not None:
-        return int(found)
-    res = conn.execute(
-        sa.insert(t.users).values(
-            pseudonym=pseudonym, team=team, role="employee", created_at=datetime.now(UTC)
-        )
+    """The row for this person, created on first sight. Two first requests at once both get it."""
+    values = {
+        "pseudonym": pseudonym,
+        "team": team,
+        "role": "employee",
+        "created_at": datetime.now(UTC),
+    }
+    stmt: sa.Executable
+    if conn.dialect.name == "postgresql":
+        stmt = postgresql.insert(t.users).values(**values).on_conflict_do_nothing()
+    else:
+        stmt = sqlite.insert(t.users).values(**values).on_conflict_do_nothing()
+    conn.execute(stmt)
+    return int(
+        conn.execute(sa.select(t.users.c.id).where(t.users.c.pseudonym == pseudonym)).scalar_one()
     )
-    key = res.inserted_primary_key
-    if key is None:
-        raise sa.exc.SQLAlchemyError("user id not returned")
-    return int(key[0])
 
 
 def _bump_counter(conn: sa.Connection, day: date, team: str, allowed: bool) -> None:

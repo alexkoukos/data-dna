@@ -4,7 +4,9 @@ Run with: make test-gateway
 """
 
 import os
+import random
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import pytest
@@ -696,3 +698,40 @@ def test_streamed_anthropic_sse_from_litellm_is_cleaned() -> None:
     assert result["texts"][0] and not any(result["texts"][1:])
     assert "AKIA" not in result["raw"] and "[IBAN_1]" not in result["raw"]
     assert result["raw"].count("\n\n") == result["frames_in"]
+
+
+def test_parallel_pieces_of_a_document_still_reach_the_rebuild_block() -> None:
+    rng = random.Random(uuid.uuid4().int)
+    words = [
+        "".join(rng.choice("bcdfghklmnprstvz") + rng.choice("aeiou") for _ in range(4))
+        for _ in range(200)
+    ]
+    title = f"itest-parallel-{uuid.uuid4().hex[:8]}"
+    made = httpx.post(
+        f"{BRAIN}/v1/documents",
+        data={"title": title, "sensitivity": "confidential", "text": " ".join(words)},
+        timeout=60,
+    )
+    made.raise_for_status()
+    user = f"u-par-{uuid.uuid4().hex[:8]}"
+
+    def piece(n: int) -> str:
+        return " ".join(words[n * 16 : n * 16 + 16])
+
+    def ask(n: int) -> int:
+        r = httpx.post(
+            f"{BRAIN}/v1/inspect",
+            json={"user_id": user, "messages": [{"role": "user", "content": piece(n)}]},
+            timeout=60,
+        )
+        r.raise_for_status()
+        return r.status_code
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        assert list(pool.map(ask, range(10))) == [200] * 10
+    last = httpx.post(
+        f"{BRAIN}/v1/inspect",
+        json={"user_id": user, "messages": [{"role": "user", "content": piece(10)}]},
+        timeout=60,
+    ).json()
+    assert last["decision"] == "block" and any("rebuilt" in r for r in last["reasons"])

@@ -440,8 +440,8 @@ def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
         with engine.begin() as conn:
             uid = user_row_id(conn, req.user_id, req.team)
             rebuilds = update_coverage(conn, uid, result.doc_matches)
-    except sa.exc.SQLAlchemyError:
-        log.warning("Could not update session memory, continuing")
+    except sa.exc.SQLAlchemyError as err:
+        log.warning("Could not update session memory (%s), continuing", type(err).__name__)
         return
     for r in rebuilds:
         if r.escalate:
