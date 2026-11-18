@@ -4,7 +4,9 @@ import asyncio
 import base64
 import binascii
 import csv
+import hmac
 import html
+import json
 import logging
 import time
 from collections import Counter
@@ -37,6 +39,7 @@ from brain import (
     queries,
     reveal,
     settings_store,
+    siem,
     toolrequests,
 )
 from brain.api.schemas import (
@@ -986,6 +989,21 @@ def list_incidents(
 ) -> IncidentPage:
     limit = max(1, min(limit, 100))
     return _read(lambda c: queries.incidents(c, decision, team, limit, max(offset, 0)))
+
+
+@app.get("/v1/export/incidents")
+def export_incidents(
+    since: datetime | None = None,
+    limit: int = 1000,
+    authorization: str | None = Header(default=None),
+) -> Response:
+    """X30: incidents as JSON lines for a SIEM. No prompt text, no preview, no names."""
+    token = settings.siem_export_token
+    if token and not hmac.compare_digest(authorization or "", f"Bearer {token}"):
+        raise HTTPException(status_code=401, detail="This export needs the export token.")
+    events = _read(lambda c: siem.export(c, since, limit))
+    body = "".join(json.dumps(e, separators=(",", ":")) + "\n" for e in events)
+    return Response(content=body, media_type="application/x-ndjson")
 
 
 def _write[T](fn: Callable[[sa.Connection], T]) -> T:

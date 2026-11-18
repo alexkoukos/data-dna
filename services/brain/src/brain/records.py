@@ -11,6 +11,7 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
+from brain import siem
 from brain.db import tables as t
 
 log = logging.getLogger(__name__)
@@ -77,12 +78,13 @@ def record_decision(
     if engine is None:
         return
     now = datetime.now(UTC)
+    new_id: int | None = None
     try:
         with engine.begin() as conn:
             uid = user_row_id(conn, user, team)
             _bump_counter(conn, now.date(), team, decision == "allow")
             if decision != "allow":
-                conn.execute(
+                res = conn.execute(
                     sa.insert(t.incidents).values(
                         ts=now,
                         user_id=uid,
@@ -101,8 +103,27 @@ def record_decision(
                         expires_at=now + timedelta(days=RETENTION_DAYS),
                     )
                 )
+                key = res.inserted_primary_key
+                new_id = int(key[0]) if key else None
     except sa.exc.SQLAlchemyError:
         log.warning("Could not record a decision, continuing")
+        return
+    if decision != "allow":
+        # X30: after the row is saved, tell the SOC. The event is built from names fields only.
+        siem.push(
+            siem.event(
+                incident_id=new_id,
+                ts=now,
+                user_key_id=user,
+                team=team,
+                tool=tool,
+                decision=decision,
+                categories=categories,
+                document_id=document_id,
+                trace=trace,
+                shadow=shadow,
+            )
+        )
 
 
 def record_ack(engine: Engine | None, user: str, reason: str) -> None:
