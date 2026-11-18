@@ -1200,8 +1200,22 @@ def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> 
         req.text,
         policy_store.current(),
         [find_yara, injection_finder, injection_classifier.find],
+        doc_matcher=_documents().match,
+        priority_finder=_honeytokens().find,
     )
+    owners = _decoy_alarm(result)
+    for owner in owners:
+        background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
     decision = str(result.verdict.decision)
+    reasons = list(result.verdict.reasons)
+    # The tool-result answer has three values. A warning is masked when it can be (nobody is
+    # there to ask), and confidential company text that would go to the local model is withheld.
+    text = result.masked_text
+    if decision == "warn":
+        decision = "mask" if text != req.text else "block"
+    elif decision == "local":
+        decision = "block"
+        reasons.append("confidential company text in a tool result")
     if decision not in ("block", "mask"):
         return ToolResultResponse(decision="allow", text=req.text)
     background.add_task(
@@ -1211,12 +1225,13 @@ def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> 
         team=req.team,
         decision=decision,
         categories=[f.category for f in result.findings],
-        reasons=result.verdict.reasons,
+        reasons=reasons,
         masked_preview=result.findings[0].masked_preview if result.findings else None,
         tool=req.source,
     )
-    text = result.masked_text if decision == "mask" else ""
-    return ToolResultResponse(decision=decision, text=text, reasons=result.verdict.reasons)
+    return ToolResultResponse(
+        decision=decision, text=text if decision == "mask" else "", reasons=reasons
+    )
 
 
 @app.post("/v1/try", response_model=TryOut)
