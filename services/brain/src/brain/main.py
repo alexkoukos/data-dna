@@ -9,6 +9,7 @@ import hmac
 import html
 import json
 import logging
+import re
 import threading
 import time
 from collections import Counter, OrderedDict
@@ -19,6 +20,7 @@ from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import sqlalchemy as sa
 from fastapi import (
@@ -32,7 +34,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from brain import (
     alerts,
@@ -137,7 +139,12 @@ from brain.dna.marks import Mark, propose_marks
 from brain.documents.embeddings import E5Embedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
-from brain.documents.registry import DocMatch, DocumentIndex, register_document
+from brain.documents.registry import (
+    DocMatch,
+    DocumentIndex,
+    DowngradeRefused,
+    register_document,
+)
 from brain.documents.session import update_coverage
 from brain.honeytokens import (
     Honeytoken,
@@ -325,6 +332,46 @@ async def extension_cors(request: Request, call_next: Callable[[Request], Any]) 
         resp.headers["Access-Control-Max-Age"] = "600"
         resp.headers["Vary"] = "Origin"
     return resp
+
+
+def _own_origins() -> set[str]:
+    parsed = urlsplit(settings.web_url)
+    mine = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+    return {o for o in (mine, "http://localhost:3000", "http://127.0.0.1:3000") if o}
+
+
+_IDENTITY_PATH = re.compile(r"^/v1/incidents/[^/]+/identity$")
+
+
+@app.middleware("http")
+async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> Response:
+    """Refuse changes sent from another website (the brain has no login, so the browser is the
+    only thing standing between a hostile page and these routes).
+
+    Browsers label cross-site requests with Sec-Fetch-Site or Origin. The gateway, scripts and
+    tests send neither and pass. The extension routes have their own CORS rules.
+    """
+    path = request.url.path
+    unsafe = request.method not in ("GET", "HEAD", "OPTIONS") or bool(_IDENTITY_PATH.match(path))
+    if not unsafe or path.startswith("/v1/extension/") or path == "/healthz":
+        return await call_next(request)  # type: ignore[no-any-return]
+    site = request.headers.get("sec-fetch-site")
+    origin = request.headers.get("origin")
+    if site is not None:
+        ok = site in ("same-origin", "none")
+    elif origin is not None:
+        ok = origin in _own_origins()
+    else:
+        ok = True
+    if not ok:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": "This change was sent from another website, so it was refused. "
+                "Make it from the Pyli dashboard."
+            },
+        )
+    return await call_next(request)  # type: ignore[no-any-return]
 
 
 @app.get("/healthz")
@@ -1540,8 +1587,16 @@ def register(
             raise HTTPException(status_code=422, detail=str(err)) from err
     try:
         doc_id, chunks = register_document(
-            engine, embedder, title, sensitivity, text, keep_text=settings.demo_mode
+            engine,
+            embedder,
+            title,
+            sensitivity,
+            text,
+            keep_text=settings.demo_mode,
+            allow_downgrade=False,
         )
+    except DowngradeRefused as err:
+        raise HTTPException(status_code=409, detail=str(err)) from err
     except ValueError as err:
         raise HTTPException(status_code=422, detail=str(err)) from err
     except sa.exc.SQLAlchemyError as err:

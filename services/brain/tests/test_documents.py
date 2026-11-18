@@ -309,3 +309,29 @@ def test_a_name_from_a_documents_title_lowers_the_cutoff_for_that_document_only(
             registry.RELAXED_DELTA = saved
     finally:
         registry.PARAPHRASE_COSINE = old
+
+
+def test_re_registering_with_lower_sensitivity_is_refused_by_the_endpoint(
+    engine: sa.Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fastapi.testclient import TestClient
+
+    import brain.main as main
+    from brain.policy.store import PolicyStore
+    from brain.policy.store import metadata as policy_metadata
+
+    policy_metadata.create_all(engine)
+    monkeypatch.setattr(main, "policy_store", PolicyStore(engine, ttl_seconds=0))
+    client = TestClient(main.app)
+    body = {"title": "Board memo", "text": MEMO}
+    assert (
+        client.post("/v1/documents", data={**body, "sensitivity": "restricted"}).status_code == 200
+    )
+    low = client.post("/v1/documents", data={**body, "sensitivity": "internal"})
+    assert low.status_code == 409 and "already registered as restricted" in low.json()["detail"]
+    assert "Use a new title" in low.json()["detail"]
+    with engine.connect() as c:
+        stored = c.execute(sa.select(t.documents.c.sensitivity)).scalar_one()
+    assert stored == "restricted"
+    same = client.post("/v1/documents", data={**body, "sensitivity": "restricted"})
+    assert same.status_code == 200

@@ -268,6 +268,13 @@ class DocumentIndex:
         return sorted(out, key=lambda m: (m.kind != "copy", -m.score))
 
 
+_RANK = {"internal": 0, "confidential": 1, "restricted": 2}
+
+
+class DowngradeRefused(ValueError):
+    """A document with this title already has a higher sensitivity."""
+
+
 def register_document(
     engine: Engine,
     embedder: Embedder,
@@ -276,6 +283,7 @@ def register_document(
     text: str,
     keep_text: bool = False,
     translations: list[str] | None = None,
+    allow_downgrade: bool = True,
 ) -> tuple[int, int]:
     """Create (or refill) a document and its chunks. Returns (document id, chunk count).
 
@@ -304,8 +312,19 @@ def register_document(
         ]
     with engine.begin() as conn:
         found = conn.execute(
-            sa.select(t.documents.c.id).where(t.documents.c.title == title)
-        ).scalar_one_or_none()
+            sa.select(t.documents.c.id, t.documents.c.sensitivity).where(
+                t.documents.c.title == title
+            )
+        ).first()
+        if (
+            found is not None
+            and not allow_downgrade
+            and _RANK.get(sensitivity, 0) < _RANK.get(found.sensitivity, 0)
+        ):
+            raise DowngradeRefused(
+                f"A document called '{title}' is already registered as {found.sensitivity}. "
+                "Use a new title, or ask an admin to lower it."
+            )
         if found is None:
             res = conn.execute(
                 sa.insert(t.documents).values(
@@ -317,7 +336,7 @@ def register_document(
                 raise sa.exc.SQLAlchemyError("document id not returned")
             doc_id = int(key[0])
         else:
-            doc_id = int(found)
+            doc_id = int(found.id)
             conn.execute(
                 sa.update(t.documents)
                 .where(t.documents.c.id == doc_id)
