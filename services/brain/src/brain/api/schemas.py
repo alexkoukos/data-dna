@@ -55,6 +55,8 @@ class TraceStep(BaseModel):
 class InspectResponse(BaseModel):
     # Positions the brain treated as already accepted earlier text (never new content).
     accepted_applied: list[int] = Field(default_factory=list)
+    # Positions whose own check ended in a warning (the gateway remembers only these).
+    warned_indexes: list[int] = Field(default_factory=list)
     decision: Decision
     reasons: list[str]
     findings: list[FindingOut] = Field(default_factory=list)

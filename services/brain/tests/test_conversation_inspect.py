@@ -600,3 +600,16 @@ def test_a_single_negated_rule_on_one_line_is_still_dropped(text: str) -> None:
     from brain.injection.heuristics import injection_finder_instructions as guarded
 
     assert guarded(text) == [], text
+
+
+def test_warned_indexes_lists_only_warning_messages(client: TestClient) -> None:
+    spaced = " ".join("094259216")
+    msgs = [
+        {"role": "user", "content": f"ΑΦΜ {spaced}"},
+        {"role": "assistant", "content": "ok"},
+        {"role": "user", "content": HARMLESS},
+    ]
+    body = client.post("/v1/inspect", json={"messages": msgs}).json()
+    assert body["decision"] == "warn" and body["warned_indexes"] == [0]
+    clean = client.post("/v1/inspect", json={"messages": [msgs[2]]}).json()
+    assert clean["warned_indexes"] == []

@@ -1870,7 +1870,7 @@ def test_frames_split_across_byte_chunks_are_put_back_together() -> None:
     assert deltas == ["pay GR16 now", ""]
 
 
-def test_other_frames_pass_through_exactly_as_received() -> None:
+def test_ping_and_message_frames_pass_through_and_thinking_and_tool_input_are_checked() -> None:
     thinking = _sse(
         "content_block_delta",
         {"type": "content_block_delta", "index": 1,
@@ -1884,8 +1884,10 @@ def test_other_frames_pass_through_exactly_as_received() -> None:
     stream = START + PING + thinking + tool + STOP
     calls: list[str] = []
     out = _stream([stream], _cleaner(calls))
-    assert calls == []
-    assert "".join(out) == stream
+    assert calls == ["AKIAIOSFODNN7EXAMPLE", '{"a": 1}']
+    text = "".join(out)
+    assert "AKIA" not in text and "[SECRET]" in text and "partial_json" in text
+    assert text.startswith(START + PING)
 
 
 def test_text_in_the_opening_frame_is_cleaned_too() -> None:
@@ -2115,3 +2117,230 @@ def test_brain_413_becomes_a_plain_413(status: int) -> None:
     with pytest.raises(dna.GatewayError) as err:
         asyncio.run(go())
     assert err.value.status_code == 413 and err.value.body["next"] == "Shorten it or split it."
+
+
+# --- P9: tool calls, reasoning, refusal and Anthropic tool input / thinking -----------------
+
+
+def _leak_cleaner() -> tuple[Any, list[str]]:
+    seen: list[str] = []
+
+    async def transform(text: str) -> str:
+        seen.append(text)
+        return text.replace("AKIAIOSFODNN7EXAMPLE", "[AWS_OUT_1]").replace("[IBAN_1]", "GR16")
+
+    return transform, seen
+
+
+def _tool_chunk(index: int, args: str | None, name: str | None = None) -> _Obj:
+    call = _Obj(index=index, function=_Obj(name=name, arguments=args))
+    return _Obj(choices=[_Obj(delta=_Obj(content=None, tool_calls=[call]), finish_reason=None)])
+
+
+def test_streamed_tool_call_arguments_are_filtered() -> None:
+    transform, seen = _leak_cleaner()
+    chunks = [
+        _tool_chunk(0, "", "send"),
+        _tool_chunk(0, '{"key": "AKIAIOSFO'),
+        _tool_chunk(0, 'DNN7EXAMPLE", "to": "[IBAN_1]"}'),
+        _tool_chunk(1, '{"x": 1}'),
+        _chunk(None, "tool_calls"),
+    ]
+    out = _stream(chunks, transform)
+    first = [c.choices[0].delta.tool_calls[0].function.arguments for c in out[:4]]
+    assert first[0] == ""
+    assert first[1] == '{"key": "[AWS_OUT_1]", "to": "GR16"}' and first[2] == ""
+    assert first[3] == '{"x": 1}'
+    assert "AKIA" not in "".join(str(x) for x in first)
+
+
+def test_tool_call_arguments_are_filtered_and_unmasked() -> None:
+    transform, seen = _leak_cleaner()
+    out = _stream([_tool_chunk(0, '{"to": "[IBAN_1]"}'), _chunk(None, "stop")], transform)
+    assert out[0].choices[0].delta.tool_calls[0].function.arguments == '{"to": "GR16"}'
+
+
+def test_reasoning_content_and_refusal_are_filtered() -> None:
+    transform, _ = _leak_cleaner()
+
+    def reasoning(text: str) -> _Obj:
+        return _Obj(choices=[_Obj(delta=_Obj(content=None, reasoning_content=text))])
+
+    out = _stream(
+        [reasoning("key AKIAIOS"), reasoning("FODNN7EXAMPLE"), _chunk(None, "stop")], transform
+    )
+    assert out[0].choices[0].delta.reasoning_content == "key [AWS_OUT_1]"
+    assert out[1].choices[0].delta.reasoning_content == ""
+
+
+def _p9_sse(*events: tuple[str, dict[str, Any]]) -> list[bytes]:
+    return [f"event: {n}\ndata: {json.dumps(b)}\n\n".encode() for n, b in events]
+
+
+def test_anthropic_tool_use_input_and_input_json_delta_are_filtered() -> None:
+    transform, _ = _leak_cleaner()
+    frames = _p9_sse(
+        (
+            "content_block_start",
+            {
+                "type": "content_block_start",
+                "index": 1,
+                "content_block": {"type": "tool_use", "id": "t", "name": "x", "input": {}},
+            },
+        ),
+        (
+            "content_block_delta",
+            {
+                "type": "content_block_delta",
+                "index": 1,
+                "delta": {"type": "input_json_delta", "partial_json": '{"k": "AKIAIOSF'},
+            },
+        ),
+        (
+            "content_block_delta",
+            {
+                "type": "content_block_delta",
+                "index": 1,
+                "delta": {"type": "input_json_delta", "partial_json": 'ODNN7EXAMPLE"}'},
+            },
+        ),
+    )
+    out = asyncio.run(dna._rewrite_anthropic_sse(frames, transform))
+    joined = b"".join(out).decode()
+    assert "AKIA" not in joined and "[AWS_OUT_1]" in joined
+    deltas = [json.loads(f.decode().split("data: ")[1])["delta"]["partial_json"] for f in out[1:]]
+    assert deltas == ['{"k": "[AWS_OUT_1]"}', ""]
+
+
+def test_anthropic_thinking_is_filtered_without_unmasking() -> None:
+    transform, _ = _leak_cleaner()
+
+    async def only_filter(text: str) -> str:
+        return text.replace("AKIAIOSFODNN7EXAMPLE", "[AWS_OUT_1]")
+
+    frames = _p9_sse(
+        (
+            "content_block_delta",
+            {
+                "type": "content_block_delta",
+                "index": 0,
+                "delta": {
+                    "type": "thinking_delta",
+                    "thinking": "key AKIAIOSFODNN7EXAMPLE [IBAN_1]",
+                },
+            },
+        ),
+    )
+    out = asyncio.run(dna._rewrite_anthropic_sse(frames, transform, only_filter))
+    assert "key [AWS_OUT_1] [IBAN_1]" in b"".join(out).decode()
+
+
+def _guardrail() -> Any:
+    import types
+
+    class _Base:
+        def __init__(self, **kw: Any) -> None:
+            pass
+
+    mods = {
+        "litellm": types.ModuleType("litellm"),
+        "litellm.integrations": types.ModuleType("litellm.integrations"),
+        "litellm.integrations.custom_guardrail": types.ModuleType("cg"),
+    }
+    mods["litellm.integrations.custom_guardrail"].CustomGuardrail = _Base  # type: ignore[attr-defined]
+    saved = {k: sys.modules.get(k) for k in mods}
+    sys.modules.update(mods)
+    try:
+        path = _PATH.parent / "dna_guardrail.py"
+        spec = importlib.util.spec_from_file_location("dna_guardrail_t", path)
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
+    return mod.DnaGuardrail()
+
+
+def test_a_dict_answer_gets_the_decision_header_and_filtered_tool_input_and_thinking() -> None:
+    g = _guardrail()
+    calls: list[tuple[str, str | None]] = []
+
+    async def fake(text: str, user_api_key_dict: Any, meta: dict[str, Any]) -> str:
+        calls.append((text, meta.get("dna_session_id")))
+        return text.replace("AKIAIOSFODNN7EXAMPLE", "[AWS_OUT_1]")
+
+    g._finalize = fake
+    response = {
+        "content": [
+            {"type": "text", "text": "hi"},
+            {"type": "tool_use", "input": {"a": "AKIAIOSFODNN7EXAMPLE", "n": [1, "x"]}},
+            {"type": "thinking", "thinking": "AKIAIOSFODNN7EXAMPLE"},
+        ]
+    }
+    data = {"metadata": {"dna_decision": "mask", "dna_reasons": ["r"], "dna_session_id": "s1"}}
+    out = asyncio.run(g.async_post_call_success_hook(data, object(), response))
+    assert out["content"][1]["input"] == {"a": "[AWS_OUT_1]", "n": [1, "x"]}
+    assert out["content"][2]["thinking"] == "[AWS_OUT_1]"
+    assert ("AKIAIOSFODNN7EXAMPLE", None) in calls  # thinking is never unmasked
+    assert out["_hidden_params"]["additional_headers"]["x-dna-decision"] == "mask"
+
+
+def test_chat_message_tool_calls_refusal_and_reasoning_are_filtered() -> None:
+    g = _guardrail()
+
+    async def fake(text: str, user_api_key_dict: Any, meta: dict[str, Any]) -> str:
+        return text.replace("AKIAIOSFODNN7EXAMPLE", "[AWS_OUT_1]")
+
+    g._finalize = fake
+    call = _Obj(function=_Obj(arguments='{"k": "AKIAIOSFODNN7EXAMPLE"}'))
+    message = _Obj(
+        content="ok",
+        refusal="AKIAIOSFODNN7EXAMPLE",
+        reasoning_content="AKIAIOSFODNN7EXAMPLE",
+        tool_calls=[call],
+        function_call=_Obj(arguments="AKIAIOSFODNN7EXAMPLE"),
+    )
+    response = _Obj(choices=[_Obj(message=message)], _hidden_params={})
+    asyncio.run(g.async_post_call_success_hook({"metadata": {}}, object(), response))
+    assert call.function.arguments == '{"k": "[AWS_OUT_1]"}'
+    assert message.refusal == message.reasoning_content == "[AWS_OUT_1]"
+    assert message.function_call.arguments == "[AWS_OUT_1]"
+
+
+def test_only_warned_slots_are_remembered() -> None:
+    from_warn = {"decision": "warn", "reasons": ["x"], "warned_indexes": [1]}
+    data = {
+        "model": "m",
+        "messages": [
+            {"role": "user", "content": "first message"},
+            {"role": "user", "content": "second message"},
+        ],
+    }
+    seen: list[Any] = []
+    orig = dna.ACCEPTED.add
+    dna.ACCEPTED.add = lambda scope, slots: seen.append([s.text for s in slots])  # type: ignore[method-assign]
+    try:
+
+        async def go() -> None:
+            def handler(request: httpx.Request) -> httpx.Response:
+                return httpx.Response(200, json=from_warn)
+
+            async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+                await dna.apply_decision(
+                    data,
+                    user_id="u",
+                    team="t",
+                    headers={"X-DNA-Ack": "ok"},
+                    brain_url="http://b",
+                    client=client,
+                    accept_scope="scope",
+                )
+
+        asyncio.run(go())
+    finally:
+        dna.ACCEPTED.add = orig  # type: ignore[method-assign]
+    assert seen == [["second message"]]

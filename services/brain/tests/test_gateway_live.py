@@ -735,3 +735,29 @@ def test_parallel_pieces_of_a_document_still_reach_the_rebuild_block() -> None:
         timeout=60,
     ).json()
     assert last["decision"] == "block" and any("rebuilt" in r for r in last["reasons"])
+
+
+def test_anthropic_answer_sets_x_dna_decision(client: OpenAI) -> None:
+    r = _messages(client, "Check IBAN GR1601101250000000012300695", "demo-echo")
+    assert r.status_code == 200
+    assert r.headers.get("x-dna-decision") == "mask"
+    assert "_hidden_params" not in r.json()
+
+
+def test_assistants_route_is_refused_for_a_personal_key() -> None:
+    made = httpx.post(
+        f"{BRAIN}/v1/keys",
+        json={"user_id": f"u-routes-{uuid.uuid4().hex[:8]}", "team": "itest"},
+        timeout=30,
+    )
+    made.raise_for_status()
+    key = made.json()["key"]
+    auth = {"Authorization": f"Bearer {key}"}
+    assert httpx.get(f"{GATEWAY}/v1/assistants", headers=auth, timeout=30).status_code in (401, 403)
+    ok = httpx.post(
+        f"{GATEWAY}/v1/chat/completions",
+        headers=auth,
+        json={"model": "demo-mock", "messages": [{"role": "user", "content": "hi"}]},
+        timeout=60,
+    )
+    assert ok.status_code == 200

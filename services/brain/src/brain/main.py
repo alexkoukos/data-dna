@@ -994,8 +994,12 @@ def inspect(
         # X19: a warning also offers a safe rewrite, and we count how often it is shown.
         suggestion = first.masked[-1]
         background.add_task(_count_coaching, coaching.SHOWN)
+    warned = sorted(
+        {i for p in passes if p.result.verdict.decision == Decision.WARN for i in p.indexes}
+    )
     return InspectResponse(
         accepted_applied=sorted(applied),
+        warned_indexes=warned,
         session_id=session_id,
         suggested_rewrite=suggestion,
         decision=decision,

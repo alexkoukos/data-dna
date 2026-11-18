@@ -79,12 +79,30 @@ class DnaGuardrail(CustomGuardrail):
                 message = getattr(choice, "message", None)
                 if message is not None and isinstance(message.content, str):
                     message.content = await self._finalize(message.content, user_api_key_dict, meta)
+                if message is not None:
+                    await self._clean_message_extras(message, user_api_key_dict, meta)
                 # Text completions answer in `choices[].text`, not in a message.
                 if isinstance(getattr(choice, "text", None), str):
                     choice.text = await self._finalize(choice.text, user_api_key_dict, meta)
         except GatewayError as err:
             raise HTTPException(status_code=err.status_code, detail=err.body) from err
         return response
+
+    async def _clean_message_extras(self, message: Any, user_api_key_dict: Any, meta: dict) -> None:
+        """Refusal, reasoning and tool-call arguments are answer text too."""
+        for name in ("refusal", "reasoning_content"):
+            value = getattr(message, name, None)
+            if isinstance(value, str) and value:
+                setattr(message, name, await self._finalize(value, user_api_key_dict, meta))
+        calls = list(getattr(message, "tool_calls", None) or [])
+        legacy = getattr(message, "function_call", None)
+        if legacy is not None:
+            calls.append(type("Legacy", (), {"function": legacy})())
+        for call in calls:
+            fn = getattr(call, "function", None)
+            args = getattr(fn, "arguments", None)
+            if isinstance(args, str) and args:
+                fn.arguments = await self._finalize(args, user_api_key_dict, meta)
 
     async def _finalize(self, text: str, user_api_key_dict: Any, meta: dict) -> str:
         return await finalize_answer(
@@ -97,22 +115,40 @@ class DnaGuardrail(CustomGuardrail):
         )
 
     async def _clean_blocks(self, data: dict, user_api_key_dict: Any, response: dict) -> dict:
-        """Answers in the Anthropic messages shape: filter each text block."""
+        """Answers in the Anthropic messages shape: text, tool input and thinking blocks."""
         meta = data.get("metadata") or {}
+        hidden = response.setdefault("_hidden_params", {})
+        if isinstance(hidden, dict):
+            extra = hidden.setdefault("additional_headers", {})
+            extra["x-dna-decision"] = str(meta.get("dna_decision", "allow"))
+            extra["x-dna-reasons"] = quote("; ".join(meta.get("dna_reasons") or []))
         try:
             for block in response["content"]:
-                if isinstance(block, dict) and block.get("type") == "text":
-                    block["text"] = await finalize_answer(
-                        str(block.get("text", "")),
-                        user_id=getattr(user_api_key_dict, "user_id", None) or "anonymous",
-                        team=getattr(user_api_key_dict, "team_id", None) or "unknown",
-                        session_id=meta.get("dna_session_id"),
-                        brain_url=BRAIN_URL,
-                        client=self._client,
+                if not isinstance(block, dict):
+                    continue
+                kind = block.get("type")
+                if kind == "text":
+                    block["text"] = await self._finalize(
+                        str(block.get("text", "")), user_api_key_dict, meta
+                    )
+                elif kind == "tool_use":
+                    block["input"] = await self._walk(block.get("input"), user_api_key_dict, meta)
+                elif kind == "thinking" and isinstance(block.get("thinking"), str):
+                    block["thinking"] = await self._finalize(
+                        block["thinking"], user_api_key_dict, {**meta, "dna_session_id": None}
                     )
         except GatewayError as err:
             raise HTTPException(status_code=err.status_code, detail=err.body) from err
         return response
+
+    async def _walk(self, node: Any, user_api_key_dict: Any, meta: dict) -> Any:
+        if isinstance(node, str):
+            return await self._finalize(node, user_api_key_dict, meta) if node else node
+        if isinstance(node, dict):
+            return {k: await self._walk(v, user_api_key_dict, meta) for k, v in node.items()}
+        if isinstance(node, list):
+            return [await self._walk(v, user_api_key_dict, meta) for v in node]
+        return node
 
     async def async_post_call_streaming_iterator_hook(
         self, user_api_key_dict: Any, response: Any, request_data: dict
@@ -129,8 +165,18 @@ class DnaGuardrail(CustomGuardrail):
                 client=self._client,
             )
 
+        async def filter_only(text: str) -> str:
+            return await finalize_answer(
+                text,
+                user_id=getattr(user_api_key_dict, "user_id", None) or "anonymous",
+                team=getattr(user_api_key_dict, "team_id", None) or "unknown",
+                session_id=None,
+                brain_url=BRAIN_URL,
+                client=self._client,
+            )
+
         try:
-            async for item in rewrite_stream(response, clean):
+            async for item in rewrite_stream(response, clean, filter_only):
                 yield item
         except GatewayError as err:
             raise HTTPException(status_code=err.status_code, detail=err.body) from err

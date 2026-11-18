@@ -988,7 +988,12 @@ async def apply_decision(
 
     if decision == "warn":
         # Only a warning the person answered with the ack header is remembered.
-        ACCEPTED.add(accept_scope, slots)
+        warned = verdict.get("warned_indexes")
+        if verdict.get("decision") == "warn" and isinstance(warned, list):
+            only = [slots[i] for i in warned if isinstance(i, int) and 0 <= i < len(slots)]
+            ACCEPTED.add(accept_scope, only)
+        else:
+            ACCEPTED.add(accept_scope, slots)
     metadata = data.setdefault("metadata", {})
     metadata["dna_decision"] = decision
     metadata["dna_reasons"] = reasons
@@ -1286,17 +1291,26 @@ def _block_index(body: dict[str, Any]) -> int:
     return index if isinstance(index, int) else 0
 
 
+_START_FIELDS = {"text": "text", "thinking": "thinking"}
+_DELTA_FIELDS = {
+    "text_delta": "text",
+    "input_json_delta": "partial_json",
+    "thinking_delta": "thinking",
+}
+
+
 async def _rewrite_anthropic_sse(
-    chunks: list[Any], transform: Callable[[str], Awaitable[str]]
+    chunks: list[Any],
+    transform: Callable[[str], Awaitable[str]],
+    filter_only: Callable[[str], Awaitable[str]] | None = None,
 ) -> list[Any]:
     """Clean the text blocks of a streamed Anthropic `/v1/messages` answer.
 
     LiteLLM hands the stream over as raw server-sent-event bytes. The frames are put together
     first, since a frame or a placeholder can be split across chunks. For each text block the
-    `text_delta` pieces are joined and checked once; the first delta then holds the cleaned text
+    `text_delta`, `input_json_delta` (tool input) and `thinking_delta` pieces are joined and checked once (thinking is filtered but never unmasked); the first delta then holds the cleaned text
     and later ones are empty, so every frame keeps its place (if the opening frame already holds
-    text, that frame gets it). Frames of other kinds (thinking,
-    tool input, pings, message start and stop) pass through exactly as received.
+    text, that frame gets it). Other frames (pings, message start and stop) pass through as received.
     """
     as_text = isinstance(chunks[0], str)
     try:
@@ -1313,47 +1327,89 @@ async def _rewrite_anthropic_sse(
         if f.body is not None and f.body.get("type") not in _ANTHROPIC_EVENTS and _has_text(f.body):
             # Text in a shape we cannot clean (for example chat-style chunks): withhold it.
             raise _unreadable_stream()
-    parts: dict[int, list[str]] = {}
+    parts: dict[tuple[int, str], list[str]] = {}
     for f in frames:
         body = f.body
         if body is None:
             continue
         if body.get("type") == "content_block_start":
             block = body.get("content_block")
-            if isinstance(block, dict) and block.get("type") == "text":
-                parts.setdefault(_block_index(body), []).append(str(block.get("text") or ""))
+            field = _START_FIELDS.get(str(block.get("type"))) if isinstance(block, dict) else None
+            if field and isinstance(block, dict):
+                parts.setdefault((_block_index(body), field), []).append(
+                    str(block.get(field) or "")
+                )
         elif body.get("type") == "content_block_delta":
             delta = body.get("delta")
-            if isinstance(delta, dict) and delta.get("type") == "text_delta":
-                parts.setdefault(_block_index(body), []).append(str(delta.get("text") or ""))
-    cleaned = {i: await transform("".join(p)) for i, p in parts.items() if any(p)}
-    placed: set[int] = set()
+            field = _DELTA_FIELDS.get(str(delta.get("type"))) if isinstance(delta, dict) else None
+            if field and isinstance(delta, dict):
+                parts.setdefault((_block_index(body), field), []).append(
+                    str(delta.get(field) or "")
+                )
+    cleaned = {
+        k: await (filter_only if k[1] == "thinking" and filter_only else transform)("".join(p))
+        for k, p in parts.items()
+        if any(p)
+    }
+    placed: set[tuple[int, str]] = set()
     for f in frames:
         body = f.body
         if body is None:
             continue
         index = _block_index(body)
-        if body.get("type") == "content_block_start" and index in parts:
-            block = body["content_block"]
-            if isinstance(block, dict) and block.get("type") == "text" and block.get("text"):
-                block["text"] = cleaned[index] if index not in placed else ""
-                placed.add(index)
+        if body.get("type") == "content_block_start":
+            block = body.get("content_block")
+            field = _START_FIELDS.get(str(block.get("type"))) if isinstance(block, dict) else None
+            if field and isinstance(block, dict) and (index, field) in parts and block.get(field):
+                block[field] = cleaned[(index, field)] if (index, field) not in placed else ""
+                placed.add((index, field))
                 f.changed = True
-        elif body.get("type") == "content_block_delta" and index in parts:
+        elif body.get("type") == "content_block_delta":
             delta = body.get("delta")
-            if isinstance(delta, dict) and delta.get("type") == "text_delta":
-                if index in cleaned and index not in placed:
-                    placed.add(index)
-                    delta["text"] = cleaned[index]
+            field = _DELTA_FIELDS.get(str(delta.get("type"))) if isinstance(delta, dict) else None
+            if field and isinstance(delta, dict) and (index, field) in parts:
+                if (index, field) in cleaned and (index, field) not in placed:
+                    placed.add((index, field))
+                    delta[field] = cleaned[(index, field)]
                 else:
-                    delta["text"] = ""
+                    delta[field] = ""
                 f.changed = True
     out = [f.text() + "\n\n" for f in frames]
     return out if as_text else [x.encode("utf-8") for x in out]
 
 
+async def _clean_side_channels(
+    chunks: list[Any], transform: Callable[[str], Awaitable[str]]
+) -> None:
+    """Streamed tool-call arguments, reasoning and refusal text: each is joined, checked once and
+    put in the first chunk that carried it; the later chunks keep their place without text."""
+    slots: dict[tuple[str, int], list[tuple[Any, str]]] = {}
+    for chunk in chunks:
+        choices = getattr(chunk, "choices", None)
+        delta = getattr(choices[0], "delta", None) if choices else None
+        if delta is None:
+            continue
+        for name in ("reasoning_content", "refusal"):
+            if isinstance(getattr(delta, name, None), str) and getattr(delta, name):
+                slots.setdefault((name, 0), []).append((delta, name))
+        for n, call in enumerate(getattr(delta, "tool_calls", None) or []):
+            fn = getattr(call, "function", None)
+            args = getattr(fn, "arguments", None)
+            if isinstance(args, str) and args:
+                index = getattr(call, "index", None)
+                slots.setdefault(("tool", index if isinstance(index, int) else n), []).append(
+                    (fn, "arguments")
+                )
+    for holders in slots.values():
+        cleaned = await transform("".join(getattr(h, a) for h, a in holders))
+        for n, (holder, attr) in enumerate(holders):
+            setattr(holder, attr, cleaned if n == 0 else "")
+
+
 async def rewrite_stream(
-    chunks: AsyncIterator[Any], transform: Callable[[str], Awaitable[str]]
+    chunks: AsyncIterator[Any],
+    transform: Callable[[str], Awaitable[str]],
+    filter_only: Callable[[str], Awaitable[str]] | None = None,
 ) -> AsyncIterator[Any]:
     """Check a streamed answer before the client sees any of it.
 
@@ -1370,13 +1426,14 @@ async def rewrite_stream(
         if holder is not None:
             parts.append(getattr(holder[0], holder[1]))
     if buffered and all(isinstance(c, (bytes, str)) for c in buffered):
-        for frame in await _rewrite_anthropic_sse(buffered, transform):
+        for frame in await _rewrite_anthropic_sse(buffered, transform, filter_only):
             yield frame
         return
     if any(_is_response_event(c) for c in buffered):
         for event in await _rewrite_responses_events(buffered, transform):
             yield event
         return
+    await _clean_side_channels(buffered, transform)
     cleaned = await transform("".join(parts)) if parts else ""
     placed = False
     for chunk in buffered:
