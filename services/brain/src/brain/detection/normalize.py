@@ -25,6 +25,8 @@ _URL_ESCAPES = re.compile(r"(?:%[0-9A-Fa-f]{2}){6,}")
 _LONG_TOKEN = re.compile(r"[A-Za-z0-9]{15,}")
 _LETTER_RUN = re.compile(r"(?<!\w)(?:\w ){5,}\w(?!\w)")
 _LEET = str.maketrans("013457@$", "oieastas")
+# Two string literals joined in code: "sk-" + "live-...". Only between word-ish characters.
+_CONCAT = re.compile(r"(?<=[\w\-./:])[\"']\s*\+\s*[\"'](?=[\w\-./:])")
 _ENTITIES = re.compile(r"(?:&#(?:\d{2,3}|x[0-9A-Fa-f]{2});){6,}")
 
 
@@ -107,6 +109,11 @@ def normalise(raw: str) -> Normalised:
     if changed:
         signals.append("mixed_alphabets")
         text = folded_text
+
+    spliced = _CONCAT.sub("", text)
+    if spliced != text:
+        signals.append("string_concatenation")
+        text = spliced
 
     views: list[str] = []
     lookalike = digit_lookalike_view(text)
