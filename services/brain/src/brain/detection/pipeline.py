@@ -1,6 +1,6 @@
 """Run all checks on one prompt, cheapest first. Document checks plug in here later."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from brain.detection.normalize import normalise
@@ -18,6 +18,7 @@ class InspectResult:
     placeholders: dict[str, str]
     evasion_signals: list[str]
     doc_matches: list[DocMatch]
+    text: str = ""
 
 
 Finder = Callable[[str], list[Finding]]
@@ -53,6 +54,7 @@ def inspect_text(
     doc_matcher: Callable[[str], list[DocMatch]] | None = None,
     priority_finder: Finder | None = None,
     view_finders: Sequence[Finder] = (),
+    placeholders: Mapping[str, str] | None = None,
 ) -> InspectResult:
     norm = normalise(text)
     findings = find_patterns(norm.text)
@@ -83,7 +85,13 @@ def inspect_text(
     # Evasion that hides an identifier cannot be masked in place: escalate to warn.
     if hidden and verdict.decision == Decision.MASK:
         verdict.decision = Decision.WARN
-    masked, placeholders = mask(norm.text, findings)
+    masked, placeholders = mask(norm.text, findings, placeholders)
     return InspectResult(
-        verdict, findings + hidden, masked, placeholders, norm.evasion_signals, doc_matches
+        verdict,
+        findings + hidden,
+        masked,
+        placeholders,
+        norm.evasion_signals,
+        doc_matches,
+        norm.text,
     )

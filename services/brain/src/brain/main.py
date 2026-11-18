@@ -4,13 +4,17 @@ import asyncio
 import base64
 import binascii
 import csv
+import hashlib
 import html
 import logging
+import threading
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -82,7 +86,7 @@ from brain.detection.entities import EntityDetector
 from brain.detection.greeklish import find_greeklish_names
 from brain.detection.layers import explain
 from brain.detection.normalize import normalise
-from brain.detection.patterns import find_patterns, mask, unmask
+from brain.detection.patterns import Finding, find_patterns, mask, unmask
 from brain.detection.pipeline import (
     HIGH_CONFIDENCE,
     Finder,
@@ -96,7 +100,7 @@ from brain.dna.marks import Mark, propose_marks
 from brain.documents.embeddings import E5Embedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
-from brain.documents.registry import DocumentIndex, register_document
+from brain.documents.registry import DocMatch, DocumentIndex, register_document
 from brain.documents.session import update_coverage
 from brain.honeytokens import (
     Honeytoken,
@@ -110,9 +114,9 @@ from brain.injection.classifier import InjectionClassifier
 from brain.injection.heuristics import injection_finder
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy import groups
-from brain.policy.engine import Decision
+from brain.policy.engine import PRECEDENCE, Decision
 from brain.policy.preview import preview as policy_preview
-from brain.policy.store import PolicyError, PolicyStore
+from brain.policy.store import PolicyError, PolicySet, PolicyStore
 from brain.records import record_decision, user_row_id
 from brain.seed.load import run_seed
 from brain.sessions import sessions
@@ -324,64 +328,306 @@ def _decoy_alarm(result: InspectResult) -> list[Owner]:
     return owners
 
 
+SEGMENT_MARK = "\ue000"
+_SEGMENT_JOIN = f"\n\n{SEGMENT_MARK}\n\n"
+HISTORY_MAX_EMBEDDED = 8
+_TRUSTED_ROLES = {"system", "developer", "assistant"}
+# Tool descriptions and other definition text: never new content, but checked like earlier turns.
+_DEFINITION_ROLE = "definition"
+_PREFIX_HISTORY = "Earlier in this conversation: "
+_PREFIX_TRUSTED = "In the instructions, tools or earlier answers: "
+
+
+@dataclass
+class _Pass:
+    """One inspection of a group of messages that were checked together."""
+
+    result: InspectResult
+    indexes: list[int]
+    masked: list[str] | None  # one masked text per message, None if the split went wrong
+    normalised: list[str]
+    prefix: str = ""
+
+
+def _group_messages(msgs: list[Message]) -> tuple[list[int], list[int], list[int]]:
+    """Split message positions into (new content, earlier user/tool turns, trusted roles).
+
+    New content is the run of non-system messages at the end of the conversation, apart from one
+    final assistant message (a prefill). The other two lists are newest first.
+    """
+    present = [i for i, m in enumerate(msgs) if m.content]
+    j = len(present) - 1
+    if j >= 0 and msgs[present[j]].role == "assistant":
+        j -= 1
+    new: list[int] = []
+    while j >= 0 and msgs[present[j]].role not in _TRUSTED_ROLES | {_DEFINITION_ROLE}:
+        new.append(present[j])
+        j -= 1
+    new.reverse()
+    older = set(present) - set(new)
+    history = [i for i in reversed(present) if i in older and msgs[i].role not in _TRUSTED_ROLES]
+    trusted = [i for i in reversed(present) if i in older and msgs[i].role in _TRUSTED_ROLES]
+    return new, history, trusted
+
+
+def _inspect_group(
+    texts: list[str],
+    tail: str,
+    policies: PolicySet,
+    placeholders: dict[str, str] | None,
+    *,
+    finders: list[Finder],
+    view_finders: list[Finder],
+    doc_match: Callable[[str], list[DocMatch]],
+) -> tuple[InspectResult, list[str] | None, list[str]]:
+    """Inspect several texts in one call. Returns the result, masked texts and normalised texts.
+
+    The texts are joined with a marker no check treats as a word, so each one can be cut out
+    again afterwards. The masked list is None when a finding swallowed a marker.
+    """
+    segments = [x.replace(SEGMENT_MARK, "") for x in texts] or [""]
+    segments[-1] += tail
+    result = inspect_text(
+        _SEGMENT_JOIN.join(segments),
+        policies,
+        finders,
+        doc_match,
+        priority_finder=_honeytokens().find,
+        view_finders=view_finders,
+        placeholders=placeholders,
+    )
+    masked = result.masked_text.split(_SEGMENT_JOIN)
+    normalised = result.text.split(_SEGMENT_JOIN)
+    if len(masked) != len(segments) or len(normalised) != len(segments):
+        return result, None, normalised
+    return result, masked, normalised
+
+
+class _Remembered[K, V]:
+    """A small least-recently-used memory with an expiry, safe to share between requests."""
+
+    def __init__(self, size: int, ttl_seconds: float) -> None:
+        self._items: OrderedDict[K, tuple[float, V]] = OrderedDict()
+        self._size = size
+        self._ttl = ttl_seconds
+        self._lock = threading.Lock()
+
+    def get(self, key: K) -> V | None:
+        with self._lock:
+            hit = self._items.get(key)
+            if hit is None or time.monotonic() - hit[0] >= self._ttl:
+                return None
+            self._items.move_to_end(key)
+            return hit[1]
+
+    def put(self, key: K, value: V) -> None:
+        with self._lock:
+            self._items[key] = (time.monotonic(), value)
+            while len(self._items) > self._size:
+                self._items.popitem(last=False)
+
+
+# A chat resends the same earlier turns on every request, so only the newest message is new work.
+# Answers are kept briefly, so a document registered a moment ago is still found.
+_match_memory: _Remembered[tuple[DocumentIndex, int, str], list[DocMatch]] = _Remembered(256, 60.0)
+_entity_memory: _Remembered[str, list[Finding]] = _Remembered(512, 600.0)
+MAX_REMEMBERED_CHARS = 20_000  # longer messages are worked out each time, never kept
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
+
+
+def _history_matches(index: DocumentIndex, text: str) -> list[DocMatch]:
+    """Document matches for earlier turns, worked out and remembered per message."""
+    merged: dict[int, DocMatch] = {}
+    version = index.current_version()
+    for segment in text.split(_SEGMENT_JOIN):
+        keep = len(segment) <= MAX_REMEMBERED_CHARS
+        key = (index, version, _digest(segment) if keep else "")
+        found = _match_memory.get(key) if keep else None
+        if found is None:
+            found = index.match(segment, max_embedded=HISTORY_MAX_EMBEDDED)
+            if keep:
+                _match_memory.put(key, found)
+        for m in found:
+            old = merged.get(m.document_id)
+            if old is None:
+                merged[m.document_id] = m
+                continue
+            best = max((old, m), key=lambda x: (x.kind == "copy", x.score))
+            merged[m.document_id] = replace(
+                best, matched_chunks=sorted({*old.matched_chunks, *m.matched_chunks})
+            )
+    return sorted(merged.values(), key=lambda m: (m.kind != "copy", -m.score))
+
+
+def _history_entities(text: str) -> list[Finding]:
+    """The people-and-contact model run per message and remembered, because it is the slow one."""
+    out: list[Finding] = []
+    offset = 0
+    for segment in text.split(_SEGMENT_JOIN):
+        keep = len(segment) <= MAX_REMEMBERED_CHARS
+        key = _digest(segment) if keep else ""
+        found = _entity_memory.get(key) if keep else None
+        if found is None:
+            found = entity_detector.find(segment)
+            if keep:
+                _entity_memory.put(key, found)
+        out.extend(replace(f, start=f.start + offset, end=f.end + offset) for f in found)
+        offset += len(segment) + len(_SEGMENT_JOIN)
+    return out
+
+
+def _for_history(finders: list[Finder]) -> list[Finder]:
+    return [_history_entities if f == entity_detector.find else f for f in finders]
+
+
+def _combine_decisions(passes: list[_Pass]) -> tuple[Decision, list[str]]:
+    decision = Decision.ALLOW
+    reasons: list[str] = []
+    for p in passes:
+        if PRECEDENCE[p.result.verdict.decision] > PRECEDENCE[decision]:
+            decision = p.result.verdict.decision
+        reasons.extend(p.prefix + r for r in p.result.verdict.reasons)
+    return decision, reasons
+
+
+def _combined_documents(passes: list[_Pass]) -> list[DocMatch]:
+    seen: dict[int, DocMatch] = {}
+    for p in passes:
+        for m in p.result.doc_matches:
+            seen.setdefault(m.document_id, m)
+    return list(seen.values())
+
+
+def _apply_masks(msgs: list[Message], passes: list[_Pass]) -> list[Message] | None:
+    """Masked copy of the conversation. Untouched messages keep their original text."""
+    out = list(msgs)
+    for p in passes:
+        if p.result.verdict.decision != Decision.MASK:
+            continue
+        if p.masked is None:
+            return None
+        for k, i in enumerate(p.indexes):
+            if p.masked[k] != p.normalised[k]:
+                out[i] = Message(role=msgs[i].role, content=p.masked[k])
+    return out
+
+
 @app.post("/v1/inspect", response_model=InspectResponse)
 def inspect(
     req: InspectRequest, background: BackgroundTasks, response: Response
 ) -> InspectResponse:
-    # Only the last user message is inspected in this first slice.
-    last = next((m for m in reversed(req.messages) if m.role == "user"), None)
-    if last is None:
+    msgs = req.messages
+    new_idx, history_idx, trusted_idx = _group_messages(msgs)
+    attached = _attachment_text(req)
+    if not new_idx and not history_idx and not trusted_idx and not attached:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
     clock = time.perf_counter()
-    attached = _attachment_text(req)
-    result = inspect_text(
-        last.content + attached,
-        groups.effective(policy_store.engine, policy_store.current(), req.user_id, req.team),
-        _finders(),
-        _documents().match,
-        view_finders=[find_yara, injection_finder],
-        priority_finder=_honeytokens().find,
-    )
-    decoys = _decoy_alarm(result)
+    policies = groups.effective(policy_store.engine, policy_store.current(), req.user_id, req.team)
+    finders = _finders()
+    documents = _documents()
+    passes: list[_Pass] = []
+    first: _Pass | None = None
+    decoys: list[Owner] = []
+    if new_idx or attached:
+        texts = [msgs[i].content for i in new_idx]
+        r1, m1, n1 = _inspect_group(
+            texts,
+            attached,
+            policies,
+            None,
+            finders=finders,
+            view_finders=[find_yara, injection_finder],
+            doc_match=documents.match,
+        )
+        first = _Pass(r1, new_idx, m1, n1)
+        passes.append(first)
+        decoys = _decoy_alarm(r1)
     t_checks = time.perf_counter()
-    reasons_before = len(result.verdict.reasons)
-    _escalate_rebuilds(req, result)
-    memory_reasons = result.verdict.reasons[reasons_before:]
+    placeholders = dict(first.result.placeholders) if first else None
+    if history_idx:
+        # Earlier user and tool turns: the same checks, but not the slow injection model.
+        r2, m2, n2 = _inspect_group(
+            [msgs[i].content for i in history_idx],
+            "",
+            policies,
+            placeholders,
+            finders=_for_history([f for f in finders if f != injection_classifier.find]),
+            view_finders=[find_yara, injection_finder],
+            doc_match=partial(_history_matches, documents),
+        )
+        passes.append(_Pass(r2, history_idx, m2, n2, _PREFIX_HISTORY))
+        placeholders = r2.placeholders
+    if trusted_idx:
+        # System, developer and assistant text: secrets and personal data count, but an
+        # injection phrase there is the company's own prompt or a model's answer.
+        r3, m3, n3 = _inspect_group(
+            [msgs[i].content for i in trusted_idx],
+            "",
+            policies,
+            placeholders,
+            finders=[f for f in finders if f not in (injection_classifier.find, injection_finder)],
+            view_finders=[find_yara],
+            doc_match=partial(_history_matches, documents),
+        )
+        passes.append(_Pass(r3, trusted_idx, m3, n3, _PREFIX_TRUSTED))
+        placeholders = r3.placeholders
+    t_history = time.perf_counter()
+    memory_reasons: list[str] = []
+    leaked_copy = None
+    if first:
+        reasons_before = len(first.result.verdict.reasons)
+        _escalate_rebuilds(req, first.result)
+        memory_reasons = first.result.verdict.reasons[reasons_before:]
     t_memory = time.perf_counter()
-    leaked_copy = _attribute_copy(result, last.content + attached)
+    if first:
+        leaked_copy = _attribute_copy(
+            first.result, "\n\n".join(msgs[i].content for i in new_idx) + attached
+        )
     t_marks = time.perf_counter()
     response.headers["Server-Timing"] = (
         f"checks;dur={(t_checks - clock) * 1000:.1f}, "
-        f"memory;dur={(t_memory - t_checks) * 1000:.1f}, "
+        f"history;dur={(t_history - t_checks) * 1000:.1f}, "
+        f"memory;dur={(t_memory - t_history) * 1000:.1f}, "
         f"marks;dur={(t_marks - t_memory) * 1000:.1f}"
     )
-    masked = None
+    would_have_decision, combined_reasons = _combine_decisions(passes)
+    masked: list[Message] | None = None
     session_id = None
-    if result.verdict.decision == Decision.MASK and attached:
+    extra_reasons: list[str] = []
+    if would_have_decision == Decision.MASK and attached:
         # Masking cannot rewrite a file the model will receive, so ask before sending it.
-        result.verdict.decision = Decision.WARN
-        result.verdict.reasons.append(
-            "An attached file contains sensitive data that cannot be masked"
-        )
-    would_have = str(result.verdict.decision)
-    shadow = result.verdict.decision != Decision.ALLOW and settings_store.get_bool(
+        would_have_decision = Decision.WARN
+        extra_reasons.append("An attached file contains sensitive data that cannot be masked")
+    elif would_have_decision == Decision.MASK:
+        masked = _apply_masks(msgs, passes)
+        if masked is None:
+            would_have_decision = Decision.WARN
+            extra_reasons.append("Part of the conversation could not be masked safely")
+    combined_reasons += extra_reasons
+    would_have = str(would_have_decision)
+    shadow = would_have_decision != Decision.ALLOW and settings_store.get_bool(
         policy_store.engine, settings_store.SHADOW
     )
-    steps = build_trace(result, memory_reasons)
-    reasons = list(result.verdict.reasons)
-    decision = result.verdict.decision
+    top = max(passes, key=lambda p: PRECEDENCE[p.result.verdict.decision])
+    steps = build_trace(top.result, memory_reasons if top is first else None)
+    findings = [f for p in passes for f in p.result.findings]
+    categories = [f.category for f in findings]
+    decision = would_have_decision
+    reasons = combined_reasons
     if shadow:
         # Shadow mode: record what the policy would have done, but let the message through.
         decision = Decision.ALLOW
         reasons = [
             f"Shadow mode: the policy would have chosen '{would_have}'. Nothing was changed."
         ]
-    elif decision == Decision.MASK:
-        masked = [
-            m if m is not last else Message(role="user", content=result.masked_text)
-            for m in req.messages
-        ]
-        session_id = sessions.create(req.user_id, result.placeholders)
+        masked = None
+    elif decision == Decision.MASK and masked is not None:
+        session_id = sessions.create(req.user_id, placeholders or {})
+    docs = _combined_documents(passes)
+    first_docs = first.result.doc_matches if first else []
     # Written after the answer is sent, so the database never adds to the user's wait.
     background.add_task(
         record_decision,
@@ -389,30 +635,39 @@ def inspect(
         user=req.user_id,
         team=req.team,
         decision=would_have,
-        categories=[f.category for f in result.findings],
-        reasons=result.verdict.reasons,
-        masked_preview=result.findings[0].masked_preview if result.findings else None,
+        categories=categories,
+        reasons=combined_reasons,
+        masked_preview=findings[0].masked_preview if findings else None,
         document_id=(
-            result.doc_matches[0].document_id
-            if result.doc_matches
+            first_docs[0].document_id
+            if first_docs
             else decoys[0].document_id
             if decoys
+            else docs[0].document_id
+            if docs
             else None
         ),
-        score=result.doc_matches[0].score if result.doc_matches else None,
+        score=(
+            first_docs[0].score if first_docs else docs[0].score if docs and not decoys else None
+        ),
         copy_code=leaked_copy,
         trace=steps,
         shadow=shadow,
     )
     for owner in decoys:
         background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
-    categories = [f.category for f in result.findings]
-    if not shadow and alerts.is_critical(would_have, categories):
-        background.add_task(alerts.notify, would_have, categories, req.user_id, req.team)
+    first_categories = [f.category for f in first.result.findings] if first else []
+    if not shadow and alerts.is_critical(would_have, first_categories):
+        background.add_task(alerts.notify, would_have, first_categories, req.user_id, req.team)
     suggestion = None
-    if decision == Decision.WARN and result.masked_text != last.content + attached:
+    if (
+        decision == Decision.WARN
+        and first is not None
+        and first.masked is not None
+        and first.masked[-1] != first.normalised[-1]
+    ):
         # X19: a warning also offers a safe rewrite, and we count how often it is shown.
-        suggestion = result.masked_text
+        suggestion = first.masked[-1]
         background.add_task(_count_coaching, coaching.SHOWN)
     return InspectResponse(
         session_id=session_id,
@@ -423,10 +678,10 @@ def inspect(
         shadow_decision=would_have if shadow else None,
         findings=[
             FindingOut(entity=f.entity, category=f.category, masked_preview=f.masked_preview)
-            for f in result.findings
+            for f in findings
         ],
         masked_messages=masked,
-        evasion_signals=result.evasion_signals,
+        evasion_signals=sorted({s for p in passes for s in p.result.evasion_signals}),
         documents=[
             DocumentHit(
                 document_id=m.document_id,
@@ -436,7 +691,7 @@ def inspect(
                 matched_chunks=m.matched_chunks,
                 total_chunks=m.total_chunks,
             )
-            for m in result.doc_matches
+            for m in docs
         ],
     )
 

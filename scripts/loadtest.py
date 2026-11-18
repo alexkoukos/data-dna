@@ -2,6 +2,7 @@
 
 Run (stack up):  make loadtest          or   cd services/brain && uv run python ../../scripts/loadtest.py
 Options: --users 3 --seconds 15 --url http://localhost:8001 (try --users 10 to see where it saturates)
+--history N puts N earlier user and assistant turns before each prompt, like a long chat.
 Sends the prompts of data/eval (clean and risky mixed) as concurrent people and prints requests per
 second, error rate and latency p50, p95 and p99. Target (PRD 17): p95 under 100 ms without the LLM
 judge. Exit code 1 when the target is missed or any request failed.
@@ -21,6 +22,16 @@ DATA = Path(__file__).resolve().parents[1] / "data" / "eval"
 TARGET_P95_MS = 100.0
 
 
+def earlier_turns(n: int, start: int = 0) -> list[dict[str, str]]:
+    """N harmless user and assistant pairs, long enough to reach the document check. Starting
+    one pair later each time makes a chat that grows by one turn per request."""
+    out: list[dict[str, str]] = []
+    for k in range(start, start + n):
+        out.append({"role": "user", "content": f"Can you help me plan the agenda for meeting number {k + 1} next week with the whole product team, including time for questions?"})
+        out.append({"role": "assistant", "content": f"Of course. For meeting {k + 1} I suggest a short welcome, a review of last week's decisions, two focused topics with ten minutes each, and a closing round for open questions and next steps."})
+    return out
+
+
 def prompts() -> list[str]:
     for name in ("prompts.csv", "prompts.sample.csv"):
         p = DATA / name
@@ -32,10 +43,10 @@ def prompts() -> list[str]:
     sys.exit("No prompts found. Run scripts/gen_eval_sample.py or fill data/eval/prompts.csv.")
 
 
-async def worker(client: httpx.AsyncClient, url: str, texts: list[str], stop: float, n: int, out: list[float], errors: list[int]) -> None:
+async def worker(client: httpx.AsyncClient, url: str, texts: list[str], stop: float, n: int, out: list[float], errors: list[int], history: int) -> None:
     i = n
     while time.monotonic() < stop:
-        body = {"user_id": f"load-{n}", "team": "Load", "model": "m", "messages": [{"role": "user", "content": texts[i % len(texts)]}]}
+        body = {"user_id": f"load-{n}", "team": "Load", "model": "m", "messages": [*earlier_turns(history, n * 100_000 + i), {"role": "user", "content": texts[i % len(texts)]}]}
         i += 1
         start = time.perf_counter()
         try:
@@ -48,7 +59,7 @@ async def worker(client: httpx.AsyncClient, url: str, texts: list[str], stop: fl
             errors.append(1)
 
 
-async def run(url: str, users: int, seconds: float) -> int:
+async def run(url: str, users: int, seconds: float, history: int = 0) -> int:
     texts = prompts()
     latencies: list[float] = []
     errors: list[int] = []
@@ -58,7 +69,7 @@ async def run(url: str, users: int, seconds: float) -> int:
         warm.raise_for_status()
         stop = time.monotonic() + seconds
         began = time.monotonic()
-        await asyncio.gather(*(worker(client, url, texts, stop, n, latencies, errors) for n in range(users)))
+        await asyncio.gather(*(worker(client, url, texts, stop, n, latencies, errors, history) for n in range(users)))
         took = time.monotonic() - began
     s = sorted(latencies)
     pick = lambda q: s[min(len(s) - 1, int(q * len(s)))]  # noqa: E731
@@ -76,9 +87,10 @@ def main() -> int:
     ap.add_argument("--url", default="http://localhost:8001")
     ap.add_argument("--users", type=int, default=3)
     ap.add_argument("--seconds", type=float, default=15)
+    ap.add_argument("--history", type=int, default=0, help="earlier user and assistant pairs per request")
     a = ap.parse_args()
     try:
-        return asyncio.run(run(a.url, a.users, a.seconds))
+        return asyncio.run(run(a.url, a.users, a.seconds, a.history))
     except httpx.HTTPError as err:
         sys.exit(f"Could not reach {a.url}. Is the stack running (make up)? {err}")
 

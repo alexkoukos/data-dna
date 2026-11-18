@@ -223,3 +223,22 @@ def test_each_chunk_remembers_its_language_and_a_cross_language_cutoff_exists(
     with engine.connect() as conn:
         langs = {r[0] for r in conn.execute(sa.text("SELECT lang FROM doc_chunks"))}
     assert langs == {"en", "el"} or langs <= {"en", "el"}
+
+
+def test_a_zero_embedding_cap_never_calls_the_embedder(engine: sa.Engine) -> None:
+    class Counting(HashingEmbedder):
+        calls = 0
+
+        def embed(self, texts: list[str]) -> np.ndarray:
+            Counting.calls += 1
+            return super().embed(texts)
+
+    emb = Counting()
+    register_document(engine, emb, "Memo", "restricted", MEMO)
+    index = DocumentIndex(engine, emb, ttl_seconds=0)
+    before = Counting.calls
+    paraphrase = "Could you rewrite this for me please: " + " ".join(MEMO.split()[::-1])
+    index.match(paraphrase, max_embedded=0)
+    assert Counting.calls == before
+    index.match(paraphrase)
+    assert Counting.calls > before

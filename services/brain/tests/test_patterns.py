@@ -45,3 +45,29 @@ def test_greek_identifier_patterns_leave_ordinary_numbers_alone() -> None:
         "Room ABC 1234",  # letters that never appear on Greek plates
     ):
         assert find_patterns(text) == [], text
+
+
+def test_mask_continues_numbering_and_skips_tokens_already_in_the_text(valid_iban: str) -> None:
+    findings = find_patterns(f"pay {valid_iban}")
+    masked, mapping = mask(f"pay {valid_iban}", findings, {"[IBAN_1]": "x", "[IBAN_2]": "y"})
+    assert masked == "pay [IBAN_3]" and mapping == {
+        "[IBAN_1]": "x",
+        "[IBAN_2]": "y",
+        "[IBAN_3]": valid_iban,
+    }
+    literal = f"keep [IBAN_1] but pay {valid_iban}"
+    masked2, mapping2 = mask(literal, find_patterns(literal))
+    assert masked2 == "keep [IBAN_1] but pay [IBAN_2]" and mapping2 == {"[IBAN_2]": valid_iban}
+    assert mask(f"pay {valid_iban}", findings)[0] == "pay [IBAN_1]"
+
+
+def test_inspect_text_returns_the_normalised_text_and_chains_placeholders(
+    valid_iban: str,
+) -> None:
+    from brain.detection.normalize import normalise
+    from brain.detection.pipeline import inspect_text
+
+    raw = f"ﬁnal: pay {valid_iban}"
+    first = inspect_text(raw, placeholders={"[IBAN_1]": "old"})
+    assert first.text == normalise(raw).text
+    assert "[IBAN_2]" in first.masked_text and first.placeholders["[IBAN_1]"] == "old"

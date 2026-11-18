@@ -1,6 +1,7 @@
 """Pattern checks: identifiers validated by checksum, cards and secrets."""
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from brain.detection.validators import afm_ok, amka_ok, iban_ok, luhn_ok
@@ -107,15 +108,33 @@ def _dedupe(items: list[Finding]) -> list[Finding]:
     return out
 
 
-def mask(text: str, findings: list[Finding]) -> tuple[str, dict[str, str]]:
-    """Replace findings with placeholders. Returns masked text and placeholder map."""
-    mapping: dict[str, str] = {}
+_TOKEN = re.compile(r"^\[(.+)_(\d+)\]$")
+
+
+def mask(
+    text: str, findings: list[Finding], existing: Mapping[str, str] | None = None
+) -> tuple[str, dict[str, str]]:
+    """Replace findings with placeholders. Returns masked text and placeholder map.
+
+    `existing` holds placeholders from an earlier call on the same conversation: numbering
+    continues after them, and the returned map includes them.
+    """
+    mapping: dict[str, str] = dict(existing or {})
     counters: dict[str, int] = {}
+    for token in mapping:
+        m = _TOKEN.match(token)
+        if m:
+            counters[m.group(1)] = max(counters.get(m.group(1), 0), int(m.group(2)))
     parts: list[str] = []
     last = 0
     for f in sorted(findings, key=lambda f: f.start):
-        counters[f.entity] = counters.get(f.entity, 0) + 1
-        token = f"[{f.entity}_{counters[f.entity]}]"
+        n = counters.get(f.entity, 0)
+        while True:
+            n += 1
+            token = f"[{f.entity}_{n}]"
+            if token not in text:
+                break
+        counters[f.entity] = n
         mapping[token] = f.value
         parts.append(text[last : f.start])
         parts.append(token)

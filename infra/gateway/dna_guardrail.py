@@ -10,7 +10,13 @@ from litellm.integrations.custom_guardrail import CustomGuardrail
 
 from collections.abc import AsyncGenerator
 
-from dna_inspect import GatewayError, apply_decision, finalize_answer, rewrite_stream
+from dna_inspect import (
+    GatewayError,
+    apply_decision,
+    finalize_answer,
+    rewrite_output,
+    rewrite_stream,
+)
 
 BRAIN_URL = os.environ.get("BRAIN_URL", "http://brain:8001")
 
@@ -43,7 +49,12 @@ class DnaGuardrail(CustomGuardrail):
         if isinstance(response, dict) and isinstance(response.get("content"), list):
             return await self._clean_blocks(data, user_api_key_dict, response)
         choices = getattr(response, "choices", None)
-        if not choices:
+        output = (
+            response.get("output")
+            if isinstance(response, dict)
+            else getattr(response, "output", None)
+        )
+        if not choices and not isinstance(output, list):
             return response
         meta = data.get("metadata") or {}
         # Tell the client what was decided, so the app can show Allowed / Masked / Answered locally.
@@ -53,20 +64,31 @@ class DnaGuardrail(CustomGuardrail):
             extra["x-dna-decision"] = str(meta.get("dna_decision", "allow"))
             extra["x-dna-reasons"] = quote("; ".join(meta.get("dna_reasons") or []))
         try:
-            for choice in choices:
+            if isinstance(output, list):
+                # Responses API answers keep their text in output[].content[].text.
+                await rewrite_output(
+                    output, lambda text: self._finalize(text, user_api_key_dict, meta)
+                )
+            for choice in choices or []:
                 message = getattr(choice, "message", None)
                 if message is not None and isinstance(message.content, str):
-                    message.content = await finalize_answer(
-                        message.content,
-                        user_id=getattr(user_api_key_dict, "user_id", None) or "anonymous",
-                        team=getattr(user_api_key_dict, "team_id", None) or "unknown",
-                        session_id=meta.get("dna_session_id"),
-                        brain_url=BRAIN_URL,
-                        client=self._client,
-                    )
+                    message.content = await self._finalize(message.content, user_api_key_dict, meta)
+                # Text completions answer in `choices[].text`, not in a message.
+                if isinstance(getattr(choice, "text", None), str):
+                    choice.text = await self._finalize(choice.text, user_api_key_dict, meta)
         except GatewayError as err:
             raise HTTPException(status_code=err.status_code, detail=err.body) from err
         return response
+
+    async def _finalize(self, text: str, user_api_key_dict: Any, meta: dict) -> str:
+        return await finalize_answer(
+            text,
+            user_id=getattr(user_api_key_dict, "user_id", None) or "anonymous",
+            team=getattr(user_api_key_dict, "team_id", None) or "unknown",
+            session_id=meta.get("dna_session_id"),
+            brain_url=BRAIN_URL,
+            client=self._client,
+        )
 
     async def _clean_blocks(self, data: dict, user_api_key_dict: Any, response: dict) -> dict:
         """Answers in the Anthropic messages shape: filter each text block."""

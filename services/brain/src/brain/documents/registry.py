@@ -70,9 +70,18 @@ class DocumentIndex:
         self._totals: dict[int, int] = {}
         self._loaded_at = float("-inf")
         self._lock = threading.Lock()
+        self._version = 0
+        self._stamp: tuple[object, ...] = ()
 
     def invalidate(self) -> None:
         self._loaded_at = float("-inf")
+
+    def current_version(self) -> int:
+        """Changes whenever the registered documents change, so answers kept per message can
+        be dropped."""
+        with self._lock:
+            self._refresh()
+            return self._version
 
     def _refresh(self) -> None:
         if time.monotonic() - self._loaded_at < self._ttl or self.engine is None:
@@ -109,6 +118,10 @@ class DocumentIndex:
             for r in rows
             if r.minhash is not None and r.embedding is not None
         ]
+        stamp = (tuple(sorted(docs.items())), tuple((c.document_id, c.idx, c.sig) for c in chunks))
+        if stamp != self._stamp:
+            self._stamp = stamp
+            self._version += 1
         self._docs = docs
         self._chunks = chunks
         self._matrix = (
@@ -120,7 +133,7 @@ class DocumentIndex:
         self._totals = totals
         self._loaded_at = time.monotonic()
 
-    def match(self, text: str) -> list[DocMatch]:
+    def match(self, text: str, max_embedded: int = MAX_EMBEDDED_CHUNKS) -> list[DocMatch]:
         """Documents this text copies or paraphrases, best first. Empty if none are registered."""
         with self._lock:
             self._refresh()
@@ -153,15 +166,15 @@ class DocumentIndex:
                     note(c, j, "copy")
                     copied.add(i)
                     copied_query.add(qi)
-        if len(words(text)) >= MIN_WORDS_TO_EMBED:
+        if max_embedded > 0 and len(words(text)) >= MIN_WORDS_TO_EMBED:
             # The model is the slow part, so: skip everything when MinHash already explained the
             # prompt, and cap how many windows are embedded (spread evenly over long prompts).
             wanted = [p for p in chunk_text(text) if len(p.split()) >= 6]
             if copied_query and len(copied_query) >= len(pieces) - 1:
                 wanted = []
-            if len(wanted) > MAX_EMBEDDED_CHUNKS:
-                step = len(wanted) / MAX_EMBEDDED_CHUNKS
-                wanted = [wanted[int(k * step)] for k in range(MAX_EMBEDDED_CHUNKS)]
+            if len(wanted) > max_embedded:
+                step = len(wanted) / max_embedded
+                wanted = [wanted[int(k * step)] for k in range(max_embedded)]
             if wanted:
                 sims = self._embedder.embed(wanted) @ matrix.T
                 query_lang = np.array([language(p) for p in wanted])

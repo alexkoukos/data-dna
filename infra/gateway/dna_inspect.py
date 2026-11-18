@@ -6,9 +6,12 @@ Pure logic, no LiteLLM imports, so it can be unit tested without the gateway ima
 
 from __future__ import annotations
 
+import base64
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import unquote_to_bytes
 
 import httpx
 
@@ -26,74 +29,538 @@ class GatewayError(Exception):
 
 # Every way into the gateway that carries text we understand. Anything else (images, audio,
 # pass-through routes) is refused: an unchecked door would let people around the safety check.
-CHAT_CALLS = {"completion", "acompletion", "text_completion", "atext_completion"}
+CHAT_CALLS = {"completion", "acompletion"}
+TEXT_CALLS = {"text_completion", "atext_completion"}
 ANTHROPIC_CALLS = {"anthropic_messages", "aanthropic_messages"}
 RESPONSES_CALLS = {"responses", "aresponses"}
 EMBEDDING_CALLS = {"embeddings", "aembedding"}
-SUPPORTED_CALLS = CHAT_CALLS | ANTHROPIC_CALLS | RESPONSES_CALLS | EMBEDDING_CALLS
+SUPPORTED_CALLS = CHAT_CALLS | TEXT_CALLS | ANTHROPIC_CALLS | RESPONSES_CALLS | EMBEDDING_CALLS
+
+_TEXT_PARTS = {"text", "input_text", "output_text", "summary_text"}
+DEFINITION = "definition"  # tool descriptions and other request text that is not a message
 
 
-def _blocks_text(content: Any) -> tuple[str, bool]:
-    """Text of a message that is a string or a list of blocks, and whether it has other blocks.
+@dataclass
+class Slot:
+    """One piece of text the brain checks, and how to put a masked version back.
 
-    Tool results (a file Claude Code read, for example) count as text because secrets live there.
-    Images and tool calls are "other": they cannot be masked in place.
+    `write` is None when the text cannot be rewritten (a signed thinking block). `risky` means
+    the same message also carries an image, file or audio part: rewriting its text is refused
+    because the brain never saw the other part.
     """
+
+    role: str
+    text: str
+    write: Callable[[str], None] | None
+    risky: bool = False
+    where: tuple[int, Any] | None = None
+    path: str = ""
+
+
+class _Writer:
+    """Puts a new string back where the old one was, and remembers where that is."""
+
+    def __init__(self, container: Any, key: Any) -> None:
+        self.container = container
+        self.key = key
+
+    def __call__(self, value: str) -> None:
+        self.container[self.key] = value
+
+
+def _setter(container: Any, key: Any) -> Callable[[str], None]:
+    return _Writer(container, key)
+
+
+def _no_token_ids() -> GatewayError:
+    return GatewayError(
+        403,
+        {
+            "type": "block",
+            "message": "Send text, not token ids, through the company gateway.",
+            "reasons": ["The request carries token ids, which cannot be checked"],
+            "approved_alternative": "Send the text itself.",
+        },
+    )
+
+
+def _describe(node: Any, out: list[Slot]) -> None:
+    """Every description and title string in a tool definition or its JSON schema."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in ("description", "title") and isinstance(value, str):
+                if value:
+                    out.append(Slot(DEFINITION, value, _setter(node, key)))
+            else:
+                _describe(value, out)
+    elif isinstance(node, list):
+        for item in node:
+            _describe(item, out)
+
+
+def _tool_definitions(data: dict[str, Any]) -> list[Slot]:
+    out: list[Slot] = []
+    for key in ("tools", "functions"):
+        for tool in data.get(key) or []:
+            if isinstance(tool, dict):
+                _describe(tool, out)
+    return out
+
+
+def _message_slots(role: str, content: Any, out: list[Slot]) -> bool:
+    """Slots for a message body that is a string or a list of parts. True if it has parts that
+    are not text (images, files, audio)."""
     if isinstance(content, str):
-        return content, False
-    parts: list[str] = []
+        return False
     other = False
-    for block in content or []:
-        if not isinstance(block, dict):
+    for part in content if isinstance(content, list) else []:
+        if not isinstance(part, dict):
             other = True
-            continue
-        kind = block.get("type")
-        if kind in ("text", "input_text", "output_text"):
-            parts.append(str(block.get("text", "")))
-        elif kind == "tool_result":
-            inner, _ = _blocks_text(block.get("content"))
-            parts.append(inner)
-            other = True
+        elif part.get("type") in _TEXT_PARTS and isinstance(part.get("text"), str):
+            out.append(Slot(role, part["text"], _setter(part, "text")))
+        elif part.get("type") == "refusal" and isinstance(part.get("refusal"), str):
+            out.append(Slot(role, part["refusal"], _setter(part, "refusal")))
         else:
             other = True
-    return "\n".join(p for p in parts if p), other
+    return other
 
 
-def inspection_view(data: dict[str, Any], call_type: str) -> tuple[list[dict[str, str]], bool]:
-    """The request as plain chat messages for the brain, and whether it has parts that cannot
-    be masked in place."""
-    if call_type in EMBEDDING_CALLS:
-        raw = data.get("input")
-        texts = [raw] if isinstance(raw, str) else [t for t in (raw or []) if isinstance(t, str)]
-        return [{"role": "user", "content": "\n".join(texts)}], isinstance(raw, list) and len(raw) > 1
-    if call_type in RESPONSES_CALLS:
-        raw = data.get("input")
-        if isinstance(raw, str):
-            return [{"role": "user", "content": raw}], False
-        out, other = [], False
-        for item in raw or []:
-            if isinstance(item, dict):
-                text, o = _blocks_text(item.get("content"))
-                out.append({"role": str(item.get("role", "user")), "content": text})
-                other = other or o
-        return out, other
-    out, other = [], False
-    for m in data.get("messages", []):
-        text, o = _blocks_text(m.get("content") or "")
-        out.append({"role": m.get("role", "user"), "content": text})
-        other = other or (o and m is data["messages"][-1])
-    return out, other
+def _chat_slots(data: dict[str, Any]) -> list[Slot]:
+    out = _tool_definitions(data)
+    for m in data.get("messages") or []:
+        if not isinstance(m, dict):
+            continue
+        role = str(m.get("role", "user"))
+        mine: list[Slot] = []
+        content = m.get("content")
+        if isinstance(content, str):
+            mine.append(Slot(role, content, _setter(m, "content")))
+        other = _message_slots(role, content, mine)
+        for key in ("refusal", "reasoning_content"):
+            if isinstance(m.get(key), str):
+                mine.append(Slot(role, m[key], _setter(m, key)))
+        legacy = m.get("function_call")
+        if isinstance(legacy, dict) and isinstance(legacy.get("arguments"), str):
+            mine.append(Slot("assistant", legacy["arguments"], _setter(legacy, "arguments")))
+        for call in m.get("tool_calls") or []:
+            fn = call.get("function") if isinstance(call, dict) else None
+            if isinstance(fn, dict) and isinstance(fn.get("arguments"), str):
+                mine.append(Slot("assistant", fn["arguments"], _setter(fn, "arguments")))
+        for slot in mine:
+            slot.risky = other
+        out.extend(mine)
+    return out
 
 
-def _write_masked(data: dict[str, Any], call_type: str, masked_text: str) -> None:
-    """Put the masked text of the last user message back where it came from."""
-    if call_type in EMBEDDING_CALLS or (call_type in RESPONSES_CALLS and isinstance(data.get("input"), str)):
-        data["input"] = masked_text
+def _text_slots(data: dict[str, Any]) -> list[Slot]:
+    out: list[Slot] = []
+    prompt = data.get("prompt")
+    if isinstance(prompt, str):
+        out.append(Slot("user", prompt, _setter(data, "prompt")))
+    elif isinstance(prompt, list):
+        for i, item in enumerate(prompt):
+            if not isinstance(item, str):
+                raise _no_token_ids()
+            out.append(Slot("user", item, _setter(prompt, i)))
+    elif prompt is not None:
+        raise _no_token_ids()
+    if isinstance(data.get("suffix"), str):
+        out.append(Slot("user", data["suffix"], _setter(data, "suffix")))
+    return out
+
+
+def _anthropic_slots(data: dict[str, Any]) -> list[Slot]:
+    out: list[Slot] = []
+    system = data.get("system")
+    if isinstance(system, str):
+        out.append(Slot("system", system, _setter(data, "system")))
+    elif isinstance(system, list):
+        for block in system:
+            if isinstance(block, dict) and isinstance(block.get("text"), str):
+                out.append(Slot("system", block["text"], _setter(block, "text")))
+    out.extend(_tool_definitions(data))
+    for m in data.get("messages") or []:
+        if not isinstance(m, dict):
+            continue
+        role = str(m.get("role", "user"))
+        content = m.get("content")
+        mine: list[Slot] = []
+        other = False
+        if isinstance(content, str):
+            mine.append(Slot(role, content, _setter(m, "content")))
+        for block in content if isinstance(content, list) else []:
+            if not isinstance(block, dict):
+                other = True
+                continue
+            kind = block.get("type")
+            if kind == "text" and isinstance(block.get("text"), str):
+                mine.append(Slot(role, block["text"], _setter(block, "text")))
+            elif kind == "tool_result":
+                inner = block.get("content")
+                if isinstance(inner, str):
+                    mine.append(Slot("tool", inner, _setter(block, "content")))
+                else:
+                    other = _message_slots("tool", inner, mine) or other
+            elif kind == "thinking" and isinstance(block.get("thinking"), str):
+                mine.append(Slot(role, block["thinking"], None, where=(id(block), "thinking")))
+            elif kind == "document":
+                source = block.get("source")
+                if isinstance(source, dict) and source.get("type") == "text":
+                    if isinstance(source.get("data"), str):
+                        mine.append(Slot(role, source["data"], _setter(source, "data")))
+                elif isinstance(source, dict) and source.get("type") == "content":
+                    inner = source.get("content")
+                    if isinstance(inner, str):
+                        mine.append(Slot(role, inner, _setter(source, "content")))
+                    else:
+                        other = _message_slots(role, inner, mine) or other
+                else:
+                    other = True
+            elif kind == "search_result":
+                other = _message_slots(role, block.get("content"), mine) or other
+            elif kind in ("tool_use", "redacted_thinking"):
+                continue
+            else:
+                other = True
+        for slot in mine:
+            slot.risky = other
+        out.extend(mine)
+    return out
+
+
+def _responses_slots(data: dict[str, Any]) -> list[Slot]:
+    out: list[Slot] = []
+    if isinstance(data.get("instructions"), str):
+        out.append(Slot("system", data["instructions"], _setter(data, "instructions")))
+    out.extend(_tool_definitions(data))
+    raw = data.get("input")
+    if isinstance(raw, str):
+        out.append(Slot("user", raw, _setter(data, "input")))
+        return out
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        kind = item.get("type")
+        if kind in ("function_call_output", "custom_tool_call_output"):
+            if isinstance(item.get("output"), str):
+                out.append(Slot("tool", item["output"], _setter(item, "output")))
+            else:
+                mine_out: list[Slot] = []
+                other_out = _message_slots("tool", item.get("output"), mine_out)
+                for slot in mine_out:
+                    slot.risky = other_out
+                out.extend(mine_out)
+            continue
+        if kind in ("function_call", "custom_tool_call"):
+            key = "arguments" if kind == "function_call" else "input"
+            if isinstance(item.get(key), str):
+                out.append(Slot("assistant", item[key], _setter(item, key)))
+            continue
+        role = str(item.get("role", "user"))
+        content = item.get("content")
+        mine: list[Slot] = []
+        if isinstance(content, str):
+            mine.append(Slot(role, content, _setter(item, "content")))
+        other = _message_slots(role, content, mine)
+        for slot in mine:
+            slot.risky = other
+        out.extend(mine)
+    return out
+
+
+def _embedding_slots(data: dict[str, Any]) -> list[Slot]:
+    raw = data.get("input")
+    if isinstance(raw, str):
+        return [Slot("user", raw, _setter(data, "input"))]
+    out: list[Slot] = []
+    for i, item in enumerate(raw if isinstance(raw, list) else []):
+        if not isinstance(item, str):
+            raise _no_token_ids()
+        out.append(Slot("user", item, _setter(raw, i)))
+    return out
+
+
+# Top-level fields the gateway adds itself. They are not what the person sent and are not read.
+_OWN_KEYS = {
+    "model",
+    "metadata",
+    "litellm_metadata",
+    "proxy_server_request",
+    "secret_fields",
+    "provider_specific_header",
+}
+_OWN_LITELLM_KEYS = {
+    "litellm_call_id",
+    "litellm_logging_obj",
+    "litellm_metadata",
+    "litellm_trace_id",
+    "litellm_session_id",
+}
+# Settings a client could send to change where or how the gateway calls the model. LiteLLM
+# keeps them in the request it forwards, so they are refused instead of read.
+_CONNECTION_KEYS = (
+    "headers",
+    "extra_headers",
+    "organization",
+    "api_key",
+    "api_base",
+    "base_url",
+    "api_version",
+    "cache",
+)
+# Fields LiteLLM adds to `metadata` next to what the person sent.
+_LITELLM_METADATA = {"headers", "used_client_oauth_token"}
+_SPOOFED_METADATA_PREFIXES = ("user_api_key", "dna_", "litellm_")
+_SHORT_LABELS = {"type", "role", "detail", "media_type", "mime_type"}
+_LABEL_VALUE = re.compile(r"[A-Za-z0-9_./+\-]+")
+_BASE64 = re.compile(r"[A-Za-z0-9+/]+={0,2}|[A-Za-z0-9_\-]+={0,2}")
+_DATA_URL = re.compile(r"data:([^,;]*)((?:;[^,;]*)*),(.*)", re.DOTALL | re.IGNORECASE)
+_MIN_BINARY_CHARS = 256  # shorter strings are checked: API keys and phrases look like base64
+_MAX_DATA_URL_CHARS = 200_000
+_MAX_DEPTH = 24
+
+
+def _connection_error(key: str) -> GatewayError:
+    return GatewayError(
+        403,
+        {
+            "type": "block",
+            "message": "This request sets connection settings the company gateway does not "
+            f"allow. Remove {key} and try again.",
+            "reasons": [f"The request sets {key}"],
+            "approved_alternative": "Send only the model, the messages and the usual options.",
+        },
+    )
+
+
+def refuse_connection_settings(data: dict[str, Any], call_type: str) -> None:
+    """Refuse a request that sets connection settings or forges the gateway's own fields.
+
+    LiteLLM overwrites some of these itself, but not all, and a client must never decide how the
+    gateway talks to the model or which session an answer is unmasked with.
+    """
+    for key in _CONNECTION_KEYS:
+        if data.get(key):
+            raise _connection_error(key)
+    if data.get("provider_specific_header") and call_type not in ANTHROPIC_CALLS:
+        raise _connection_error("provider_specific_header")
+    for key in data:
+        if isinstance(key, str) and (
+            key.startswith("user_api_key")
+            or (key.startswith("litellm_") and key not in _OWN_LITELLM_KEYS)
+        ):
+            raise _connection_error(key)
+    for name in ("metadata", "litellm_metadata"):
+        meta = data.get(name)
+        if not isinstance(meta, dict):
+            continue
+        snapshot = meta.get("requester_metadata")
+        if name == "litellm_metadata" and snapshot is not None and "metadata" not in data:
+            raise _connection_error("metadata.requester_metadata")
+        # `headers` and `used_client_oauth_token` are written by LiteLLM over anything the client
+        # sent, so they cannot be told apart from its own and are not refused.
+        # On some routes `metadata` is LiteLLM's own dict, full of its user_api_key_* fields, so
+        # only our own dna_* keys are refused there; the snapshot of what the client sent is
+        # held to the full list.
+        mine = snapshot if isinstance(snapshot, dict) else meta
+        banned = _SPOOFED_METADATA_PREFIXES if isinstance(snapshot, dict) else ("dna_",)
+        for key in mine:
+            if (isinstance(snapshot, dict) and key == "requester_metadata") or str(key).startswith(
+                banned
+            ):
+                raise _connection_error(f"metadata.{key}")
+
+
+def _is_binary(text: str) -> bool:
+    """A long base64 blob that is not text (a signature, a file). Anything else is checked."""
+    if len(text) < _MIN_BINARY_CHARS or _BASE64.fullmatch(text) is None:
+        return False
+    try:
+        raw = base64.b64decode(
+            text.replace("-", "+").replace("_", "/") + "=" * (-len(text) % 4), validate=True
+        )
+        decoded = raw.decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return True
+    return sum(c.isprintable() or c in "\n\r\t" for c in decoded) / max(len(decoded), 1) < 0.85
+
+
+_PART = re.compile(r"(?:messages|input)\[\d+\]\.content\[\d+\](?:\.content\[\d+\])?")
+# Where each kind of content part keeps its media, as providers read it.
+_MEDIA_FIELDS = {
+    "image_url": ("image_url", "image_url.url"),
+    "input_audio": ("input_audio.data",),
+    "file": ("file.file_data",),
+    "input_image": ("image_url",),
+    "input_file": ("file_data",),
+    "image": ("source.data",),
+    "document": ("source.data",),
+}
+
+
+def _in_media_position(part_type: Any, path: str) -> bool:
+    """True only at the exact place a provider reads an image, file or audio from: the part's own
+    type decides, so the same field name anywhere else is ordinary text."""
+    if not isinstance(part_type, str):
+        return False
+    m = _PART.match(path)
+    if m is None or path[m.end() : m.end() + 1] != ".":
+        return False
+    return path[m.end() + 1 :] in _MEDIA_FIELDS.get(part_type, ())
+
+
+def _data_url_texts(value: str, media_position: bool) -> list[str] | None:
+    """What to check in a data URL: None if the string is not one (check it as text).
+
+    In a media position a binary type is skipped. Anywhere else the string itself is checked,
+    plus its payload when that decodes to something that is not a real binary file.
+    """
+    if not value[:5].lower() == "data:":
+        return None
+    m = _DATA_URL.fullmatch(value)
+    if m is None:
+        return None
+    media = m.group(1).strip().lower()
+    textual = (
+        media == ""
+        or media.startswith("text/")
+        or media in ("application/json", "application/xml")
+        or media.endswith(("+json", "+xml"))
+    )
+    if media_position and not textual:
+        return []
+    payload = m.group(3)[:_MAX_DATA_URL_CHARS]
+    out = [value]
+    try:
+        if ";base64" in m.group(2).lower():
+            raw = base64.b64decode(payload + "=" * (-len(payload) % 4))
+            if len(raw) >= _MIN_BINARY_CHARS and not _mostly_text(raw):
+                return out
+        else:
+            raw = unquote_to_bytes(payload)
+    except ValueError:
+        return out
+    decoded = raw.decode("utf-8", errors="replace")
+    if decoded and decoded != value:
+        out.append(decoded)
+    return out
+
+
+def _mostly_text(raw: bytes) -> bool:
+    try:
+        decoded = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return sum(c.isprintable() or c in "\n\r\t" for c in decoded) / max(len(decoded), 1) >= 0.85
+
+
+def _short_label(key: Any, value: str) -> bool:
+    return (
+        isinstance(key, str)
+        and key in _SHORT_LABELS
+        and len(value) <= 40
+        and _LABEL_VALUE.fullmatch(value) is not None
+    )
+
+
+def _sweep(
+    node: Any,
+    covered: set[tuple[int, Any]],
+    out: list[Slot],
+    depth: int = 0,
+    path: str = "",
+    part_type: Any = None,
+) -> None:
+    """Every string not already in a slot becomes a read-only slot, so no field is skipped by
+    accident. Anything here can be checked but not rewritten."""
+    if depth > _MAX_DEPTH:
         return
-    key = "input" if call_type in RESPONSES_CALLS else "messages"
-    items = data[key]
-    last = next(i for i in range(len(items) - 1, -1, -1) if items[i].get("role", "user") == "user")
-    items[last]["content"] = masked_text
+    pairs: Any = None
+    if isinstance(node, dict):
+        if _PART.fullmatch(path):
+            part_type = node.get("type")
+        pairs = node.items()
+    elif isinstance(node, (list, tuple)):
+        pairs = enumerate(node)
+    for key, value in pairs or ():
+        if depth == 0 and isinstance(key, str) and (key in _OWN_KEYS or key.startswith("litellm_")):
+            continue
+        here = f"{path}[{key}]" if isinstance(node, (list, tuple)) else f"{path}.{key}".lstrip(".")
+        if isinstance(value, str):
+            if not value or (id(node), key) in covered or _short_label(key, value):
+                continue
+            texts = _data_url_texts(value, _in_media_position(part_type, here))
+            if texts is None:
+                texts = [] if _is_binary(value) else [value]
+            out.extend(Slot(DEFINITION, t, None, path=here) for t in texts)
+        elif isinstance(value, (dict, list, tuple)):
+            _sweep(value, covered, out, depth + 1, here, part_type)
+
+
+def _requester_metadata(data: dict[str, Any]) -> list[tuple[str, Any]]:
+    """What the person put in `metadata`, without the fields the gateway adds to it."""
+    found: list[tuple[str, Any]] = []
+    for name in ("metadata", "litellm_metadata"):
+        meta = data.get(name)
+        if not isinstance(meta, dict):
+            continue
+        if isinstance(meta.get("requester_metadata"), dict):
+            meta = meta["requester_metadata"]
+        elif name == "litellm_metadata":
+            continue
+        mine = {k: v for k, v in meta.items() if k not in _LITELLM_METADATA}
+        if mine not in [m for _, m in found]:
+            found.append(("metadata", mine))
+    return found
+
+
+def _covered(slots: list[Slot]) -> set[tuple[int, Any]]:
+    out: set[tuple[int, Any]] = set()
+    for s in slots:
+        if isinstance(s.write, _Writer):
+            out.add((id(s.write.container), s.write.key))
+        if s.where is not None:
+            out.add(s.where)
+    return out
+
+
+def inspection_view(data: dict[str, Any], call_type: str) -> list[Slot]:
+    """Every piece of text in the request that reaches the model.
+
+    Strings found anywhere else in the request come first as read-only definition slots, then
+    the named parts: definitions, system text and messages in order. Raises GatewayError when
+    the request carries something that cannot be read as text.
+    """
+    if call_type in EMBEDDING_CALLS:
+        named = _embedding_slots(data)
+    elif call_type in RESPONSES_CALLS:
+        named = _responses_slots(data)
+    elif call_type in ANTHROPIC_CALLS:
+        named = _anthropic_slots(data)
+    elif call_type in TEXT_CALLS:
+        named = _text_slots(data)
+    else:
+        named = _chat_slots(data)
+    covered = _covered(named)
+    rest: list[Slot] = []
+    _sweep(data, covered, rest)
+    for where, meta in _requester_metadata(data):
+        _sweep(meta, covered, rest, 1, where)
+    return rest + named
+
+
+def _changes(slots: list[Slot], masked: Any) -> list[tuple[Slot, str]] | None:
+    """The slots the brain rewrote, with their new text. None if the answer does not line up."""
+    if not isinstance(masked, list) or len(masked) != len(slots):
+        return None
+    out: list[tuple[Slot, str]] = []
+    for slot, m in zip(slots, masked, strict=True):
+        content = m.get("content") if isinstance(m, dict) else None
+        if not isinstance(content, str):
+            return None
+        if content != slot.text:
+            out.append((slot, content))
+    return out
 
 
 def _ack_given(headers: dict[str, str] | None) -> bool:
@@ -127,12 +594,13 @@ async def apply_decision(
                 "approved_alternative": "Use the chat or messages interface of the gateway.",
             },
         )
-    messages, unmaskable = inspection_view(data, call_type)
+    refuse_connection_settings(data, call_type)
+    slots = inspection_view(data, call_type)
     payload = {
         "user_id": user_id,
         "team": team,
         "model": str(data.get("model", "default")),
-        "messages": messages,
+        "messages": [{"role": s.role, "content": s.text} for s in slots],
     }
     try:
         resp = await client.post(f"{brain_url}/v1/inspect", json=payload, timeout=10.0)
@@ -152,17 +620,28 @@ async def apply_decision(
     decision = verdict.get("decision", "allow")
     reasons = verdict.get("reasons", [])
 
-    if decision == "mask" and unmaskable:
-        # A file, tool result or list of inputs cannot be rewritten in place: ask first instead.
-        decision = "warn"
-        reasons = [*reasons, "Sensitive data in a file or tool output cannot be masked automatically"]
-    if decision == "mask" and verdict.get("masked_messages"):
-        if call_type in CHAT_CALLS:
-            data["messages"] = verdict["masked_messages"]
+    if decision == "mask":
+        changes = _changes(slots, verdict.get("masked_messages"))
+        if changes is None:
+            decision = "warn"
+            reasons = [*reasons, "Sensitive data could not be masked safely"]
+        elif not changes or any(s.write is None or s.risky for s, _ in changes):
+            # A file, image or signed block cannot be rewritten in place: ask first instead.
+            decision = "warn"
+            named = next((s.path for s, _ in changes if s.write is None and s.path), "")
+            reasons = [
+                *reasons,
+                f"Sensitive data in `{named}` cannot be masked automatically. Remove it or "
+                "send with the X-DNA-Ack header."
+                if named
+                else "Sensitive data in a file or tool output cannot be masked automatically",
+            ]
         else:
-            _write_masked(data, call_type, verdict["masked_messages"][-1]["content"])
-        data.setdefault("metadata", {})["dna_session_id"] = verdict.get("session_id")
-    elif decision == "local" and call_type in EMBEDDING_CALLS:
+            for slot, new_text in changes:
+                if slot.write is not None:
+                    slot.write(new_text)
+            data.setdefault("metadata", {})["dna_session_id"] = verdict.get("session_id")
+    if decision == "local" and call_type in EMBEDDING_CALLS:
         raise GatewayError(
             403,
             {
@@ -246,9 +725,38 @@ async def finalize_answer(
     return text
 
 
-def _delta(chunk: Any) -> Any:
+def _get(obj: Any, key: str) -> Any:
+    return obj.get(key) if isinstance(obj, dict) else getattr(obj, key, None)
+
+
+def _set(obj: Any, key: str, value: Any) -> None:
+    if isinstance(obj, dict):
+        obj[key] = value
+    else:
+        setattr(obj, key, value)
+
+
+async def rewrite_output(output: Any, transform: Callable[[str], Awaitable[str]]) -> None:
+    """Clean the text of a Responses API answer (`output[].content[].text`) in place."""
+    for item in output if isinstance(output, list) else []:
+        content = _get(item, "content")
+        for part in content if isinstance(content, list) else []:
+            text = _get(part, "text")
+            if _get(part, "type") == "output_text" and isinstance(text, str):
+                _set(part, "text", await transform(text))
+
+
+def _text_holder(chunk: Any) -> tuple[Any, str] | None:
+    """Where a streamed chunk keeps its text: `delta.content` for chat, `text` for completions."""
     choices = getattr(chunk, "choices", None)
-    return getattr(choices[0], "delta", None) if choices else None
+    if not choices:
+        return None
+    delta = getattr(choices[0], "delta", None)
+    if delta is not None and isinstance(getattr(delta, "content", None), str):
+        return delta, "content"
+    if isinstance(getattr(choices[0], "text", None), str):
+        return choices[0], "text"
+    return None
 
 
 async def rewrite_stream(
@@ -265,17 +773,20 @@ async def rewrite_stream(
     parts: list[str] = []
     async for chunk in chunks:
         buffered.append(chunk)
-        delta = _delta(chunk)
-        if delta is not None and isinstance(getattr(delta, "content", None), str):
-            parts.append(delta.content)
+        holder = _text_holder(chunk)
+        if holder is not None:
+            parts.append(getattr(holder[0], holder[1]))
     cleaned = await transform("".join(parts)) if parts else ""
     placed = False
     for chunk in buffered:
-        delta = _delta(chunk)
-        has_text = delta is not None and isinstance(getattr(delta, "content", None), str)
-        if not has_text:
+        holder = _text_holder(chunk)
+        if holder is None:
             yield chunk
         elif not placed:
-            delta.content = cleaned
+            setattr(holder[0], holder[1], cleaned)
             placed = True
+            yield chunk
+        elif getattr(chunk.choices[0], "finish_reason", None):
+            # A later chunk that ends the answer keeps its place, without text.
+            setattr(holder[0], holder[1], "")
             yield chunk

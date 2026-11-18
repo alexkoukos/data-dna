@@ -12,6 +12,8 @@ export OPENAI_API_KEY=<the person's own key from the Connect page>
 
 Each person gets their own key (`POST /v1/keys`, or the Connect page), so every decision is tied to a pseudonym. Python, Node and most IDE plugins need nothing else. For Claude Code use the Anthropic-format endpoint (task G4): `ANTHROPIC_BASE_URL=http://pyli.company.internal:4000`.
 
+The gateway checks the whole request: every earlier turn, the system prompt or instructions, tool descriptions and tool results, not only the last message. Tools that resend the full conversation on every call (Claude Code, API clients) are checked again each time, so a warning that was acknowledged once appears again on the next call. To avoid asking again, send the acknowledgement on every call: for Claude Code set `ANTHROPIC_CUSTOM_HEADERS="X-DNA-Ack: approved by me, reason"`.
+
 Rollout tips: give the base URL through the same channel as other developer settings (dotfiles, MDM, devcontainer), start in **shadow mode** (X11) so nobody is blocked in week one, then switch it off when the "would have blocked" numbers look right.
 
 ## 2. Force it at the network edge (so nobody can skip step 1)
