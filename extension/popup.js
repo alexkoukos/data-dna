@@ -11,7 +11,6 @@ async function init() {
   if (!key) {
     status.className = "bad";
     status.textContent = "Add your personal key in Settings.";
-    $("mascot").src = "mascot/thyro-error.svg";
     return;
   }
   const out = await chrome.runtime.sendMessage({ type: "me" });
@@ -25,7 +24,6 @@ async function init() {
       out.status === 401
         ? "The gate does not accept this key."
         : "Pyli offline. Nothing is blocked while it is.";
-    $("mascot").src = "mascot/thyro-error.svg";
     $("incidents").hidden = true;
   }
 }

@@ -73,7 +73,7 @@
     .card.warn { --accent: var(--pyli-warn, #b45309); }
     .card.block { --accent: var(--pyli-block, #b91c1c); }
     .card.local { --accent: var(--pyli-local, #0f766e); }
-    img { width: 40px; height: 40px; flex: none; }
+    img { width: 44px; height: auto; flex: none; }
     .body { flex: 1 1 200px; min-width: 0; }
     .title { font-weight: 600; margin: 0 0 2px; }
     p { margin: 0 0 6px; }
@@ -93,7 +93,7 @@
     .badge { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 2px 10px;
       border-radius: 999px; background: var(--pyli-muted, #f3f4f6); border: 1px solid var(--pyli-border, #e5e7eb);
       color: var(--pyli-text, #262626); font: 13px var(--pyli-font, system-ui, sans-serif); }
-    .badge img { width: 20px; height: 20px; }
+    .badge img { width: 22px; height: auto; }
     @media (max-width: 480px) { .row > * { flex: 1 1 100%; } }
   `;
 
@@ -122,16 +122,10 @@
     return el;
   }
 
-  const MASCOT = {
-    mask: "mask",
-    warn: "warn",
-    block: "block",
-    local: "local",
-    error: "error",
-  };
-  function mascot(state) {
+  // The Hive guard bee. The state is carried by the card colour and the words, not by the picture.
+  function mascot() {
     return h("img", {
-      src: chrome.runtime.getURL(`mascot/thyro-${MASCOT[state]}.svg`),
+      src: chrome.runtime.getURL("brand/hive-guard-bee.svg"),
       alt: "",
       "aria-hidden": "true",
     });
@@ -151,7 +145,7 @@
     const card = h(
       "div",
       { class: `card ${kind}`, role: kind === "block" ? "alert" : "status" },
-      mascot(kind),
+      mascot(),
       body,
     );
     root.replaceChildren(h("style", {}, STYLE), card);
@@ -162,7 +156,7 @@
     if (!root) return;
     root.replaceChildren(
       h("style", {}, STYLE),
-      h("span", { class: "badge", role: "status" }, mascot("error"), text),
+      h("span", { class: "badge", role: "status" }, mascot(), text),
     );
   }
 
