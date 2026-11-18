@@ -27,4 +27,7 @@ export const SAYS = {
   get block() {
     return line("block");
   },
+  get rerouted() {
+    return line("local"); // stays inside, like an answer from the local model
+  },
 } as Record<Outcome | "idle", string>;

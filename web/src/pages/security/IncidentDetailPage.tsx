@@ -15,6 +15,7 @@ const WHAT_WE_DID = {
   local: "A model inside the company answered, so the data did not leave.",
   warn: "The sender was stopped and asked before sending.",
   block: "The message was not sent.",
+  rerouted: "The sender chose Company AI instead. It was masked and answered by a company model.",
 } as const;
 
 /** Container: one incident with what was found, the document match, the timeline and the sealed

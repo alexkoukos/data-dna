@@ -8,7 +8,7 @@ export interface Metrics {
   as_of: string | null;
 }
 
-export type Decision = "allow" | "mask" | "warn" | "local" | "block";
+export type Decision = "allow" | "mask" | "warn" | "local" | "block" | "rerouted";
 
 export interface TraceStep {
   layer: string;

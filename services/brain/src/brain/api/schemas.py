@@ -20,6 +20,7 @@ class InspectRequest(BaseModel):
     model: str = "default"
     tool: str = "Company AI"
     channel: str = "gateway"
+    reroute: bool = False  # X31: the person chose "send it to Company AI instead"
     messages: list[Message]
     attachments: list[Attachment] = Field(default_factory=list)
 
@@ -57,6 +58,7 @@ class InspectResponse(BaseModel):
     trace: list[TraceStep] = Field(default_factory=list)
     shadow_decision: str | None = None
     suggested_rewrite: str | None = None
+    rerouted: bool = False
 
 
 class UnmaskRequest(BaseModel):

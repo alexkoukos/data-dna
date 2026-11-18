@@ -29,6 +29,10 @@ MARKER = "zebramarker8841 quarterly numbers for project kestrel"
 # person reviews it and adds it here, which is the point.
 REVIEWED_TEXT_COLUMNS = {
     ("doc_chunks", "text_demo"): "company-owned synthetic document text, never a prompt",
+    (
+        "breakit_candidates",
+        "text",
+    ): "only text the person chose to submit as a miss; blanked on approval, row deleted on reject",
 }
 PROMPT_LIKE = re.compile(r"prompt|message|content|text|body|raw|input|query|payload", re.I)
 

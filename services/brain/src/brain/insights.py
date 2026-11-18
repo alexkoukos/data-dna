@@ -30,7 +30,7 @@ UNIT_COST_EUR: dict[str, int] = {
 }
 DOC_COST_EUR = {"restricted": 10000, "confidential": 4000, "internal": 500}
 RISK_WEIGHT = {"low": 1, "medium": 2, "high": 3, "critical": 4}
-STOPPED = ("mask", "block", "local")
+STOPPED = ("mask", "block", "local", "rerouted")  # X31: rerouted counts as stopped
 
 
 def _base() -> Any:

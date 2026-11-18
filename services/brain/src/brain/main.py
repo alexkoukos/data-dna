@@ -149,7 +149,7 @@ from brain.policy import groups
 from brain.policy.engine import Decision
 from brain.policy.preview import preview as policy_preview
 from brain.policy.store import PolicyError, PolicyStore
-from brain.records import record_ack, record_decision, user_row_id
+from brain.records import record_ack, record_decision, record_reroute, user_row_id
 from brain.seed.load import run_seed
 from brain.sessions import sessions
 from brain.splitstore.routes import router as vault_router
@@ -376,6 +376,25 @@ def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
             result.verdict.decision = Decision.BLOCK
 
 
+NEVER_REROUTE = {"injection", "honeytoken"}
+
+
+def _can_reroute(
+    decision: Decision, categories: list[str], memory_reasons: list[str], attached: str
+) -> bool:
+    """X31: a stopped message may be answered on the company model, with sensitive data masked.
+
+    Not for injection attempts, decoy credentials or a rebuild of a document over several
+    messages: those stay blocked. Not for files, which cannot be masked in place.
+    """
+    return (
+        decision in (Decision.BLOCK, Decision.WARN, Decision.LOCAL)
+        and not NEVER_REROUTE & set(categories)
+        and not memory_reasons
+        and not attached
+    )
+
+
 def _decoy_alarm(result: InspectResult) -> list[Owner]:
     """A planted decoy in the prompt means a confidential document left the company (X4)."""
     owners: list[Owner] = []
@@ -436,7 +455,26 @@ def inspect(
     steps = build_trace(result, memory_reasons)
     reasons = list(result.verdict.reasons)
     decision = result.verdict.decision
-    if shadow:
+    rerouted = False
+    if (
+        req.reroute
+        and not shadow
+        and _can_reroute(decision, [f.category for f in result.findings], memory_reasons, attached)
+    ):
+        rerouted = True
+    if rerouted:
+        # X31: never to the blocked tool. The text is masked and answered on the company model.
+        decision = Decision.LOCAL
+        reasons = [
+            *reasons,
+            "Rerouted to Company AI: answered on a company-run model, sensitive data masked.",
+        ]
+        masked = [
+            m if m is not last else Message(role="user", content=result.masked_text)
+            for m in req.messages
+        ]
+        session_id = sessions.create(req.user_id, result.placeholders)
+    elif shadow:
         # Shadow mode: record what the policy would have done, but let the message through.
         decision = Decision.ALLOW
         reasons = [
@@ -449,29 +487,33 @@ def inspect(
         ]
         session_id = sessions.create(req.user_id, result.placeholders)
     # Written after the answer is sent, so the database never adds to the user's wait.
-    background.add_task(
-        record_decision,
-        policy_store.engine,
-        user=req.user_id,
-        team=req.team,
-        decision=would_have,
-        categories=[f.category for f in result.findings],
-        reasons=result.verdict.reasons,
-        masked_preview=result.findings[0].masked_preview if result.findings else None,
-        document_id=(
-            result.doc_matches[0].document_id
-            if result.doc_matches
-            else decoys[0].document_id
-            if decoys
-            else None
-        ),
-        score=result.doc_matches[0].score if result.doc_matches else None,
-        copy_code=leaked_copy,
-        trace=steps,
-        shadow=shadow,
-        tool=req.tool,
-        channel=req.channel,
-    )
+    # A reroute does not create a new incident: it changes the one the person just caused.
+    if rerouted:
+        background.add_task(record_reroute, policy_store.engine, req.user_id)
+    else:
+        background.add_task(
+            record_decision,
+            policy_store.engine,
+            user=req.user_id,
+            team=req.team,
+            decision=would_have,
+            categories=[f.category for f in result.findings],
+            reasons=result.verdict.reasons,
+            masked_preview=result.findings[0].masked_preview if result.findings else None,
+            document_id=(
+                result.doc_matches[0].document_id
+                if result.doc_matches
+                else decoys[0].document_id
+                if decoys
+                else None
+            ),
+            score=result.doc_matches[0].score if result.doc_matches else None,
+            copy_code=leaked_copy,
+            trace=steps,
+            shadow=shadow,
+            tool=req.tool,
+            channel=req.channel,
+        )
     for owner in decoys:
         background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
     categories = [f.category for f in result.findings]
@@ -489,6 +531,7 @@ def inspect(
         reasons=reasons,
         trace=[TraceStep(**x) for x in steps],
         shadow_decision=would_have if shadow else None,
+        rerouted=rerouted,
         findings=[
             FindingOut(entity=f.entity, category=f.category, masked_preview=f.masked_preview)
             for f in result.findings

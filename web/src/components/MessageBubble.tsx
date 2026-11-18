@@ -10,6 +10,8 @@ export interface ChatMessage {
   detail?: string;
   reasons?: string[];
   alternative?: string;
+  /** X31: the answer came from Company AI because the person rerouted a stopped message. */
+  answeredBy?: string;
 }
 
 /** Presentational: one message, its outcome chip, and a "Why?" disclosure when something happened. */
@@ -21,6 +23,11 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
       <div
         className={`max-w-[85%] rounded-lg px-4 py-3 ${mine ? "bg-brand-600 text-white" : "border border-ink-200 bg-white text-ink-900"}`}
       >
+        {message.answeredBy ? (
+          <p className="mb-1 text-sm font-semibold text-ink-700">
+            Answered by {message.answeredBy}
+          </p>
+        ) : null}
         <p className="whitespace-pre-wrap break-words text-base leading-relaxed">{message.text}</p>
         {message.outcome ? (
           <div className="mt-2 flex flex-wrap items-center gap-4 rounded-md bg-ink-50 p-3 text-ink-900">

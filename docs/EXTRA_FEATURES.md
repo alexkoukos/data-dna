@@ -1,5 +1,6 @@
 # Extra features (X1 to X29)
 # Extra features (X1 to X26, X30)
+# Extra features (X1 to X26, X31)
 
 These sit on top of the P0 and P1 items in `TASKS.md`. A feature counts only if it has tests and one paragraph in the README. Priority: **P1** if the core works, **P2** is cut first.
 Suggested order: X1, X2, X4, X5, X11, X17, X23. All small, no new infrastructure, and visible in a demo.
@@ -42,6 +43,7 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 - [x] **X28** P1 Break it leaderboard and self-growing attack set: `/break-it` shows today's attempts, stopped, got through and catch rate (misses by masked preview and kind only), an optional nickname for a top-breakers list, and "It got through", which sends the text to a review queue (Security, "Break it review"). Approved rows are appended to `data/eval/attacks_scripts.csv` with `source=breakit` and the date; rejected rows are deleted at once; `make eval` reports them as "found live, still missed: N". Owner: Alexandros.
 - [x] **X29** P1 Request and approve an AI tool: an employee asks from the Chat page (or from the block card), security decides on the new "Requests" tab of the AI tools page with a risk rating, the data categories the tool may receive and an optional alternative. Approval updates `ai_tools` (so the inventory and risk per tool change at once), every step goes to `audit_log`, and the requester sees the outcome on their next message. Owner: Alexandros.
 - [x] **X30** P1 SIEM export: `GET /v1/export/incidents?since=` (JSON lines), optional syslog sender in CEF (UDP or TCP) and optional HMAC-signed webhook, set in `.env`. Events hold the user key ID, team, tool, decision, categories, document ID and rule IDs, never prompt text or a masked preview. `docs/siem/` has a Sigma rule and Splunk and Elastic examples; compose profile `siem` (`make siem`) shows events arriving. Owner: Alexandros.
+- [x] **X31** P1 "Send it to Company AI instead": on a block or warning in Company Chat, one button resends the message with `X-DNA-Reroute: 1`. The gate masks it and answers on the company model (never the original destination), the answer is marked "Answered by Company AI", and the incident becomes "rerouted" (counted as stopped in the ROI view and the compliance evidence). Injection attempts, decoy credentials and document rebuilds cannot be rerouted. Owner: Alexandros.
 
 ## 6. Trust and explanation
 - [x] **X23** P1 "Why?" on every decision: which layers fired and with what score, stored on the incident. Owner: Alexandros.
