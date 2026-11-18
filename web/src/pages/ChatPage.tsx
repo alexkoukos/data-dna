@@ -5,6 +5,7 @@ import { ChatSkeleton } from "../components/ChatSkeleton";
 import { Composer } from "../components/Composer";
 import { MessageBubble, type ChatMessage } from "../components/MessageBubble";
 import { NextStep } from "../components/NextStep";
+import { RequestToolForm } from "../components/RequestToolForm";
 import { StarterPrompts } from "../components/StarterPrompts";
 import { WarnCard } from "../components/WarnCard";
 import {
@@ -14,6 +15,7 @@ import {
   type ChatTurn,
   type Identity,
 } from "../lib/chatApi";
+import { collectOutcomes, outcomeText } from "../lib/toolRequestsApi";
 
 type Setup = { status: "loading" } | { status: "ready"; identity: Identity } | { status: "failed" };
 
@@ -34,6 +36,10 @@ export default function ChatPage() {
     suggestion?: string;
   } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
+  // X29: answers to tool requests, shown on the next message. Kept apart from `messages`, which
+  // are paired question and answer.
+  const [notices, setNotices] = useState<string[]>([]);
 
   const connect = useCallback(() => {
     ensureIdentity().then(
@@ -127,6 +133,11 @@ export default function ChatPage() {
     setMessages((m) => [...m, { id, role: "user", text }]);
     setDraft("");
     void deliver(text, id);
+    if (setup.status === "ready") {
+      void collectOutcomes(setup.identity.userId).then((rs) => {
+        if (rs.length > 0) setNotices((n) => [...n, ...rs.map(outcomeText)]);
+      });
+    }
   };
 
   const sendAnyway = (reason: string) => {
@@ -166,6 +177,19 @@ export default function ChatPage() {
         </p>
       </header>
 
+      {notices.length > 0 ? (
+        <div role="status" className="mb-4 space-y-2">
+          {notices.map((n) => (
+            <p
+              key={n}
+              className="rounded-lg border border-brand-600/30 bg-brand-50 p-3 text-sm text-ink-900"
+            >
+              {n}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
       {setup.status === "loading" ? <ChatSkeleton /> : null}
 
       {setup.status === "failed" ? (
@@ -192,6 +216,18 @@ export default function ChatPage() {
 
       {setup.status === "ready" ? (
         <>
+          {!requestOpen ? (
+            <p className="mb-3 text-sm text-ink-600">
+              Need another AI tool?{" "}
+              <button
+                type="button"
+                onClick={() => setRequestOpen(true)}
+                className="min-h-11 font-medium text-brand-700 underline underline-offset-2"
+              >
+                Request approval
+              </button>
+            </p>
+          ) : null}
           <div className="flex-1">
             {messages.length === 0 ? (
               <StarterPrompts onPick={setDraft} />
@@ -227,6 +263,27 @@ export default function ChatPage() {
             !busy &&
             messages.some((m) => m.role === "user" && m.outcome && m.outcome !== "allow") ? (
               <NextStep />
+            ) : null}
+            {!held &&
+            !busy &&
+            messages.some((m) => m.role === "user" && m.outcome === "block") &&
+            !requestOpen ? (
+              <button
+                type="button"
+                onClick={() => setRequestOpen(true)}
+                className="mt-3 min-h-11 rounded-md border border-ink-300 bg-white px-4 text-sm font-medium text-ink-900 hover:bg-ink-100"
+              >
+                Request approval for the tool you wanted
+              </button>
+            ) : null}
+            {requestOpen && setup.status === "ready" ? (
+              <div className="mt-4">
+                <RequestToolForm
+                  userId={setup.identity.userId}
+                  team={setup.identity.team}
+                  onClose={() => setRequestOpen(false)}
+                />
+              </div>
             ) : null}
             {error ? (
               <div

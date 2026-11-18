@@ -28,7 +28,17 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse
 
-from brain import alerts, breakit, coaching, compliance, insights, queries, reveal, settings_store
+from brain import (
+    alerts,
+    breakit,
+    coaching,
+    compliance,
+    insights,
+    queries,
+    reveal,
+    settings_store,
+    toolrequests,
+)
 from brain.api.schemas import (
     ApproveMarks,
     AskOut,
@@ -80,7 +90,10 @@ from brain.api.schemas import (
     SeenOut,
     ShadowIn,
     ShadowOut,
+    ToolDecisionIn,
     ToolOut,
+    ToolRequestIn,
+    ToolRequestOut,
     ToolResultRequest,
     ToolResultResponse,
     TraceStep,
@@ -1203,3 +1216,56 @@ def ask(req: AskRequest) -> AskOut:
 @app.get("/v1/inventory", response_model=list[ToolOut])
 def get_inventory() -> list[ToolOut]:
     return _read(queries.inventory)
+
+
+def _tool_error(err: toolrequests.RequestError) -> HTTPException:
+    return HTTPException(status_code=err.status, detail=str(err))
+
+
+@app.post("/v1/tool-requests", response_model=ToolRequestOut, status_code=201)
+def request_tool(req: ToolRequestIn) -> ToolRequestOut:
+    """X29: an employee asks for an AI tool."""
+    try:
+        rid = _write(
+            lambda c: toolrequests.create(
+                c, requester=req.user_id, team=req.team, tool=req.tool, reason=req.reason
+            )
+        )
+        return ToolRequestOut.model_validate(_read(lambda c: toolrequests.get(c, rid)))
+    except toolrequests.RequestError as err:
+        raise _tool_error(err) from err
+
+
+@app.get("/v1/tool-requests", response_model=list[ToolRequestOut])
+def list_tool_requests(status: str | None = None) -> list[ToolRequestOut]:
+    return [
+        ToolRequestOut.model_validate(r) for r in _read(lambda c: toolrequests.listing(c, status))
+    ]
+
+
+@app.post("/v1/tool-requests/{request_id}/decision", response_model=ToolRequestOut)
+def decide_tool_request(request_id: int, req: ToolDecisionIn) -> ToolRequestOut:
+    """X29: security approves (risk, allowed data, optional alternative) or rejects."""
+    try:
+        row = _write(
+            lambda c: toolrequests.decide(
+                c,
+                request_id,
+                reviewer=req.reviewer,
+                approve=req.approve,
+                risk=req.risk,
+                allowed_categories=req.allowed_categories,
+                alternative=req.alternative,
+                note=req.note,
+            )
+        )
+    except toolrequests.RequestError as err:
+        raise _tool_error(err) from err
+    return ToolRequestOut.model_validate(row)
+
+
+@app.post("/v1/users/{user_id}/tool-request-outcomes", response_model=list[ToolRequestOut])
+def tool_request_outcomes(user_id: str) -> list[ToolRequestOut]:
+    """X29: decisions the person has not seen yet. Shown once, on their next message."""
+    rows = _write(lambda c: toolrequests.collect_outcomes(c, user_id))
+    return [ToolRequestOut.model_validate(r) for r in rows]

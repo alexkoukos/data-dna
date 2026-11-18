@@ -1,4 +1,4 @@
-# Extra features (X1 to X28)
+# Extra features (X1 to X29)
 
 These sit on top of the P0 and P1 items in `TASKS.md`. A feature counts only if it has tests and one paragraph in the README. Priority: **P1** if the core works, **P2** is cut first.
 Suggested order: X1, X2, X4, X5, X11, X17, X23. All small, no new infrastructure, and visible in a demo.
@@ -39,6 +39,7 @@ Status: `[ ]` open, `[~] (name)` in progress, `[x]` done.
 - [x] **X22** P2 Guide for pointing a company's AI traffic at the gateway (env vars, base URL, Squid ICAP sketch). Owner: Konstantinos.
 - [x] **X27** P1 Browser extension for personal ChatGPT (Chrome or Edge, `chatgpt.com`): checks paste and send with `/v1/inspect`, masks, warns, blocks or records in shadow mode, and fails open with a "Pyli offline" badge. Key-to-user lookup and extension-only CORS in the brain. Owner: Alexandros.
 - [x] **X28** P1 Break it leaderboard and self-growing attack set: `/break-it` shows today's attempts, stopped, got through and catch rate (misses by masked preview and kind only), an optional nickname for a top-breakers list, and "It got through", which sends the text to a review queue (Security, "Break it review"). Approved rows are appended to `data/eval/attacks_scripts.csv` with `source=breakit` and the date; rejected rows are deleted at once; `make eval` reports them as "found live, still missed: N". Owner: Alexandros.
+- [x] **X29** P1 Request and approve an AI tool: an employee asks from the Chat page (or from the block card), security decides on the new "Requests" tab of the AI tools page with a risk rating, the data categories the tool may receive and an optional alternative. Approval updates `ai_tools` (so the inventory and risk per tool change at once), every step goes to `audit_log`, and the requester sees the outcome on their next message. Owner: Alexandros.
 
 ## 6. Trust and explanation
 - [x] **X23** P1 "Why?" on every decision: which layers fired and with what score, stored on the incident. Owner: Alexandros.

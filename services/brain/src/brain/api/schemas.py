@@ -166,6 +166,7 @@ class ToolOut(BaseModel):
     requests: int
     trend: list[int]
     first_seen: str | None
+    allowed_categories: list[str] = Field(default_factory=list)
 
 
 class DocumentOut(BaseModel):
@@ -459,3 +460,38 @@ class BoardOut(BaseModel):
     catch_rate: float | None = None
     misses: list[MissOut]
     top_breakers: list[BreakerOut]
+
+
+_NAME = r"^[A-Za-z0-9_.\-]+$"
+
+
+class ToolRequestIn(BaseModel):
+    user_id: str = Field(min_length=1, max_length=64, pattern=_NAME)
+    team: str = Field(default="general", min_length=1, max_length=64, pattern=_NAME)
+    tool: str = Field(min_length=1, max_length=80)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class ToolRequestOut(BaseModel):
+    id: int
+    created_at: datetime
+    requester: str
+    team: str
+    tool: str
+    reason: str
+    status: str
+    decided_by: str | None = None
+    decided_at: datetime | None = None
+    note: str | None = None
+    risk: str | None = None
+    allowed_categories: list[str] | None = None
+    alternative: str | None = None
+
+
+class ToolDecisionIn(BaseModel):
+    reviewer: str = Field(min_length=1, max_length=64)
+    approve: bool
+    risk: str | None = None
+    allowed_categories: list[str] = Field(default_factory=list, max_length=20)
+    alternative: str | None = Field(default=None, max_length=80)
+    note: str = Field(default="", max_length=300)
