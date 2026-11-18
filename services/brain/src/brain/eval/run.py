@@ -99,6 +99,8 @@ class Attack:
     text: str
     expected: str
     notes: str
+    source: str = ""
+    added: str = ""
 
 
 @dataclass
@@ -122,7 +124,15 @@ def load_attacks(data_dir: Path) -> list[Attack]:
         return []
     with path.open(encoding="utf-8", newline="") as f:
         return [
-            Attack(r["id"], r["category"], r["text"], r["expected_decision"], r.get("notes", ""))
+            Attack(
+                r["id"],
+                r["category"],
+                r["text"],
+                r["expected_decision"],
+                r.get("notes", ""),
+                r.get("source") or "",
+                r.get("added") or "",
+            )
             for r in csv.DictReader(f)
             if r.get("text")
         ]
@@ -167,6 +177,30 @@ def summarise_attacks(results: list[AttackResult]) -> dict[str, Any] | None:
             }
             for x in results
             if x.decision != x.attack.expected
+        ],
+    }
+
+
+def summarise_breakit(results: list[AttackResult]) -> dict[str, Any] | None:
+    """X28: bypasses found live on /break-it, kept apart so they are not lost among the old rows."""
+    rows = [x for x in results if x.attack.source == "breakit"]
+    if not rows:
+        return None
+    missed = [x for x in rows if x.decision == "allow"]
+    return {
+        "n": len(rows),
+        "still_missed": len(missed),
+        "now_caught": len(rows) - len(missed),
+        "rows": [
+            {
+                "id": x.attack.id,
+                "category": x.attack.category,
+                "expected": x.attack.expected,
+                "got": x.decision,
+                "added": x.attack.added,
+                "text": x.attack.text[:90],
+            }
+            for x in rows
         ],
     }
 
@@ -286,7 +320,13 @@ def run(data_dir: Path | None = None) -> dict[str, Any]:
         )
         for a in load_attacks(data)
     ]
-    rep = summarise(results, source, attribution_accuracy(data), summarise_attacks(script_attacks))
+    rep = summarise(
+        results,
+        source,
+        attribution_accuracy(data),
+        summarise_attacks([x for x in script_attacks if x.attack.source != "breakit"]),
+    )
+    rep["breakit"] = summarise_breakit(script_attacks)
     rep["attacks"] = run_attacks(data / "eval" / "attacks.csv", finders, index)
     return rep
 
@@ -587,6 +627,28 @@ def to_markdown(rep: dict[str, Any]) -> str:
                 )
         else:
             lines.append("None.")
+    bi = rep.get("breakit")
+    if bi:
+        lines += [
+            "",
+            "## Found live on /break-it: data/eval/attacks_scripts.csv rows with source=breakit (X28)",
+            "",
+            f"**Found live, still missed: {bi['still_missed']}** of {bi['n']} "
+            f"({bi['now_caught']} now caught). These rows are not in the numbers above.",
+            "",
+        ]
+        if bi["still_missed"]:
+            lines += [
+                "| Id | Kind | Expected | Got | Added | Text |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ]
+            for x in bi["rows"]:
+                if x["got"] == "allow":
+                    text = x["text"].replace("|", "/").replace("\n", " ")
+                    lines.append(
+                        f"| {x['id']} | {x['category']} | {x['expected']} | {x['got']} "
+                        f"| {x['added']} | {text} |"
+                    )
     return "\n".join(lines) + "\n"
 
 

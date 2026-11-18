@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Pyli settings</title>
+    <link rel="stylesheet" href="palette.css" />
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="options">
+    <main>
+      <header>
+        <img src="brand/hive-guard-bee.svg" alt="" width="48" height="36" />
+        <h1>Pyli settings</h1>
+      </header>
+      <p>
+        Your personal key tells the gate who you are. Copy it from the
+        <strong>Connect</strong> page of Pyli. It is kept only in this browser.
+      </p>
+      <form id="form">
+        <label for="key">Personal gateway key</label>
+        <input
+          id="key"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="sk-…"
+        />
+        <label for="brain">Gate address</label>
+        <input id="brain" type="url" placeholder="http://localhost:8001" />
+        <p class="hint">
+          Your text is sent only to this address. There are no other network
+          calls and no analytics.
+        </p>
+        <button type="submit" class="btn primary">Save</button>
+        <p id="result" role="status"></p>
+      </form>
+      <p class="hint">
+        Extension ID (put it in <code>EXTENSION_ID</code> in <code>.env</code>):
+        <code id="ext-id"></code>
+      </p>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

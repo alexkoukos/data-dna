@@ -66,18 +66,21 @@ interface GatewayError {
   error?: { code?: string; message?: string; provider_specific_fields?: Record<string, unknown> };
 }
 
-const OUTCOMES: Outcome[] = ["allow", "mask", "warn", "local", "block"];
+const OUTCOMES: Outcome[] = ["allow", "mask", "warn", "local", "block", "rerouted"];
 
 export async function sendChat(
   identity: Identity,
   history: ChatTurn[],
   ack?: string,
+  reroute = false,
 ): Promise<ChatResult> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${identity.key}`,
   };
   if (ack) headers["X-DNA-Ack"] = ack;
+  // X31: "send it to Company AI instead". The gate masks the text and answers on the company model.
+  if (reroute) headers["X-DNA-Reroute"] = "1";
 
   let res: Response;
   try {

@@ -73,6 +73,18 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         re.compile(r"νέες οδηγίες από (τον|το|τη) (διαχειριστ|σύστημ|διευθυντ)", _I),
     ),
     ("greek_no_limits", re.compile(r"χωρίς (κανέναν|κανένα|κανεναν)\s+περιορισμ", _I)),
+    (
+        "greeklish_override",
+        re.compile(
+            r"\b(agnoi?s[eo]|agnoeste|xexna|ksexna|parakampse)\b[^.\n]{0,40}"
+            r"\b(odigies|kanones|entoles|proigoumen\w+)\b",
+            _I,
+        ),
+    ),
+    (
+        "greeklish_reveal",
+        re.compile(r"\b(deixe|deikse|emfanise|typose|ektypose)\b[^.\n]{0,30}system prompt", _I),
+    ),
     ("greek_reveal", re.compile(r"(εμφάνισε|δείξε|τύπωσε)[^.\n]{0,30}system prompt", _I)),
 ]
 

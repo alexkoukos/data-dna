@@ -17,6 +17,8 @@ export const EFFECT: Record<Decision, string> = {
   local:
     "The message is answered by the model on company hardware. It never goes to a cloud model.",
   block: "The message is not sent. The sender sees why and which approved tool to use instead.",
+  rerouted:
+    "The sender chose to send a stopped message to Company AI instead. It is masked first and answered by a company model.",
 };
 
 export const CATEGORY_TEXT: Record<string, { label: string; about: string }> = {

@@ -6,7 +6,7 @@ import App from "./App";
 describe("App", () => {
   it("renders main navigation", () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/app"]}>
         <App />
       </MemoryRouter>,
     );

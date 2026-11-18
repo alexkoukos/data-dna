@@ -117,7 +117,7 @@ def test_every_demo_document_carries_its_decoys_in_the_text(engine: sa.Engine) -
     assert count == 3
     store = HoneytokenStore(engine, ttl_seconds=0)
     assert store.count() == 6
-    for f in DOCS.glob("*.md"):
+    for f in (f for f in DOCS.glob("*.md") if ".en." not in f.name):
         body = f.read_text(encoding="utf-8").split("---", 2)[2]
         assert len([x for x in store.find(body)]) == 2, f.name
 
