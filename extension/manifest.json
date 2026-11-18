@@ -24,6 +24,6 @@
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["mascot/*.svg"], "matches": ["https://chatgpt.com/*"] }
+    { "resources": ["brand/*.svg", "fonts/*.woff2"], "matches": ["https://chatgpt.com/*"] }
   ]
 }

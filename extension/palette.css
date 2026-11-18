@@ -1,3 +1,29 @@
+/* Plus Jakarta Sans is bundled so the card looks the same on every page. */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/pjs-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/pjs-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/pjs-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-weight: 800;
+  font-display: swap;
+  src: url("fonts/pjs-800.woff2") format("woff2");
+}
+
 /* The one place the extension's colours live: the Hive brand kit v1 (Nov 2026).
    Swapping the brand later means editing this file only. */
 :root,
