@@ -480,7 +480,7 @@ def pair(req: PairRequest) -> PairResponse:
     if engine is None or hit is None or hit[1] < time.monotonic():
         raise HTTPException(status_code=400, detail="That code is wrong or has expired.")
     who = identify(None, hit[0])
-    token = "pyli_" + secrets.token_urlsafe(24)
+    token = "hive_" + secrets.token_urlsafe(24)
     with engine.begin() as conn:
         uid = user_row_id(conn, who.user, who.team)
         conn.execute(

@@ -1,6 +1,6 @@
 > **Update 17 Nov 2026.** The product front door is now a browser extension plus the dashboard, not the gateway and Company Chat described below. See [PIVOT.md](PIVOT.md). The detection, policy and data sections still apply.
 
-# PRD: Pyli (Data DNA), the AI gate that keeps company data inside
+# PRD: Hive (Data DNA), the AI gate that keeps company data inside
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 Team: Alexandros (gateway, web app, Docker, CI), Stelios (detection, routing, DNA, MCP, eval, synthetic org), Vasilis (research, business, policy), Konstantinos (data, story, video, slides, pitch).
@@ -12,7 +12,7 @@ This document is the build spec. Read it fully before writing code. When somethi
 
 ## 1. One sentence
 
-Pyli, the gate (working title Data DNA), is the AI gate that every AI tool in the company goes through: it discovers which AI tools are used (including hidden ones, from network logs), catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
+Hive, the gate (working title Data DNA), is the AI gate that every AI tool in the company goes through: it discovers which AI tools are used (including hidden ones, from network logs), catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
 
 ## 2. Hard rules from Netcompany (failing any of these voids or hurts the submission)
 

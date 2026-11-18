@@ -7,7 +7,7 @@ Branch: `task/pivot-extension`. Date: Tue 17 Nov 2026.
 
 Today the demo path is: employee uses Company Chat (web) or an API key, the LiteLLM gateway calls the brain, the brain decides. The new demo path is: a Chrome extension (MV3) on chatgpt.com, claude.ai, gemini and a local `mock-ai` page, which checks text where the employee pastes it, and talks to the same brain. The web app becomes the admin dashboard only.
 
-The product name stays **Pyli** (the pivot brief had a `{{NAME}}` placeholder; the repo, brand pack and README already use Pyli). "Data DNA" only names the leak-attribution feature.
+The product name stays **Hive** (the pivot brief had a `{{NAME}}` placeholder; the repo, brand pack and README already use Hive). "Data DNA" only names the leak-attribution feature.
 
 ## Keep and reuse (no rewrite)
 

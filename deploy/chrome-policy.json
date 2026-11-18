@@ -1,16 +1,16 @@
 {
-  "_comment": "Example Chrome enterprise policy. Replace EXTENSION_ID and the URLs. On Linux put it in /etc/opt/chrome/policies/managed/pyli.json, on Windows set the same keys in the registry or Group Policy, on macOS use a configuration profile. Employees cannot remove the extension or change these settings.",
+  "_comment": "Example Chrome enterprise policy. Replace EXTENSION_ID and the URLs. On Linux put it in /etc/opt/chrome/policies/managed/hive.json, on Windows set the same keys in the registry or Group Policy, on macOS use a configuration profile. Employees cannot remove the extension or change these settings.",
   "ExtensionSettings": {
     "EXTENSION_ID": {
       "installation_mode": "force_installed",
-      "update_url": "https://pyli.example.com/extension/updates.xml",
+      "update_url": "https://hive.example.com/extension/updates.xml",
       "toolbar_pin": "force_pinned"
     }
   },
   "3rdparty": {
     "extensions": {
       "EXTENSION_ID": {
-        "brainUrl": "https://pyli.example.com/api",
+        "brainUrl": "https://hive.example.com/api",
         "token": "DEVICE_TOKEN_FROM_THE_DASHBOARD",
         "userLabel": "anna.k@example.com (Sales)"
       }

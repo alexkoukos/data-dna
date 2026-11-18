@@ -2,7 +2,7 @@
 
 For the demo you load the extension by hand and pair it with a 6-digit code. In a real company, IT installs it for everyone with a Chrome policy, so nobody can switch it off and nobody has to type anything.
 
-1. Build or download `pyli-extension.zip` (dashboard, Get the extension), host the unpacked build and an `updates.xml` on an internal web server, and note the extension ID Chrome shows on `chrome://extensions`.
+1. Build or download `hive-extension.zip` (dashboard, Get the extension), host the unpacked build and an `updates.xml` on an internal web server, and note the extension ID Chrome shows on `chrome://extensions`.
 2. Copy `chrome-policy.json`, replace `EXTENSION_ID` and the two URLs, and push it with your usual tool (Group Policy, Intune, Jamf, or a file in `/etc/opt/chrome/policies/managed/` on Linux).
 3. Give each device its own token. The settings are read from `chrome.storage.managed`; the schema is `extension/public/managed-schema.json`.
 
