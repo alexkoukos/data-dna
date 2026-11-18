@@ -12,12 +12,13 @@ describe("sendChat with a stale key", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
-        calls.push(`${url} ${(init?.headers as Record<string, string>)?.Authorization ?? ""}`);
+        const headers = (init?.headers ?? {}) as Record<string, string>;
+        calls.push(`${url} ${headers.Authorization ?? ""}`);
         if (url === "/api/v1/keys")
           return new Response(JSON.stringify({ key: "sk-new", default_model: "demo-mock" }), {
             status: 201,
           });
-        const auth = (init?.headers as Record<string, string>).Authorization;
+        const auth = headers.Authorization;
         return auth === "Bearer sk-old"
           ? new Response("{}", { status: 401 })
           : new Response(JSON.stringify({ choices: [{ message: { content: "hello" } }] }), {

@@ -325,7 +325,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-61px)] min-h-[32rem] overflow-hidden bg-white">
+    <div className="flex h-[calc(100dvh-84px)] min-h-[32rem] overflow-hidden bg-white">
       <ChatSidebar
         chats={chats}
         activeId={activeId}

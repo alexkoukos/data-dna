@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
-import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
+import { GlassNav } from "./components/GlassNav";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
 import ExtensionPage from "./pages/ExtensionPage";
@@ -30,14 +31,6 @@ const SITE_PAGES: Record<string, React.LazyExoticComponent<() => React.JSX.Eleme
   "/developers": Developers,
 };
 
-const links = [
-  { to: "/extension", label: "Get the extension" },
-  { to: "/break-it", label: "Try to break it" },
-  { to: "/chat", label: "Company AI" },
-  { to: "/security", label: "Security" },
-  { to: "/connect", label: "Connect a tool" },
-];
-
 export default function App() {
   const { pathname } = useLocation();
   // The public site has its own header and footer, and no app chrome.
@@ -51,29 +44,7 @@ export default function App() {
   }
   return (
     <div className="min-h-screen">
-      <nav
-        aria-label="Main"
-        className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
-      >
-        <Link
-          to="/app"
-          aria-label="Hive home"
-          className="mr-4 flex min-h-11 min-w-11 items-center self-center"
-        >
-          <img src="/brand/hive-wordmark.svg" alt="Hive" className="h-8" />
-        </Link>
-        {links.map((l) => (
-          <NavLink
-            key={l.to}
-            to={l.to}
-            className={({ isActive }) =>
-              `min-h-11 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`
-            }
-          >
-            {l.label}
-          </NavLink>
-        ))}
-      </nav>
+      <GlassNav />
       <Routes>
         <Route path="/app" element={<HomePage />} />
         <Route path="/extension" element={<ExtensionPage />} />
