@@ -122,14 +122,14 @@ export default function AskPage() {
       </p>
       <ul className="mt-4 grid gap-2 sm:grid-cols-2">
         {presets.data.map((p) => (
-          <li key={p.id}>
+          <li key={p.id} className="min-w-0">
             <TextureButton
               type="button"
               aria-pressed={active === p.id}
               disabled={busy}
               onClick={() => ask(p.id)}
               variant={active === p.id ? "primary" : "secondary"}
-              className="w-full text-left"
+              className="h-auto w-full whitespace-normal py-2 text-left"
             >
               {p.question}
             </TextureButton>

@@ -238,17 +238,21 @@ export function TrendChart({
           </g>
         )}
       </svg>
-      <table className="sr-only">
-        <caption>{summary}</caption>
-        <tbody>
-          {labels.map((l, i) => (
-            <tr key={i}>
-              <th scope="row">{l}</th>
-              <td>{at0(data, i)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* A table ignores the 1 px width of sr-only and stretches the page on a phone, so the
+          visually hidden box is a div that clips it. Screen readers still read the table. */}
+      <div className="sr-only">
+        <table>
+          <caption>{summary}</caption>
+          <tbody>
+            {labels.map((l, i) => (
+              <tr key={i}>
+                <th scope="row">{l}</th>
+                <td>{at0(data, i)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

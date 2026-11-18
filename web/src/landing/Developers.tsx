@@ -33,7 +33,7 @@ export default function Developers() {
         <section className="section section-white" aria-labelledby="run-title">
           <div className="wrap">
             <h2 id="run-title">Start.</h2>
-            <pre className="code">{`git clone ${GITHUB}
+            <pre className="code" tabIndex={0} aria-label="Code example">{`git clone ${GITHUB}
 cd data-dna
 docker compose up --build`}</pre>
             <p className="prose">
@@ -64,7 +64,9 @@ docker compose up --build`}</pre>
         <section className="section section-white" aria-labelledby="api-title">
           <div className="wrap">
             <h2 id="api-title">The extension's API.</h2>
-            <pre className="code">{API.join("\n")}</pre>
+            <pre className="code" tabIndex={0} aria-label="Code example">
+              {API.join("\n")}
+            </pre>
             <p className="prose">
               Browser rules are shared JSON, tested by both Python and TypeScript on the same
               fixtures.
@@ -75,7 +77,11 @@ docker compose up --build`}</pre>
         <section className="section" aria-labelledby="test-title">
           <div className="wrap">
             <h2 id="test-title">Prove it.</h2>
-            <pre className="code">{`make check     # lint, types, unit tests
+            <pre
+              className="code"
+              tabIndex={0}
+              aria-label="Code example"
+            >{`make check     # lint, types, unit tests
 make eval      # accuracy vs baseline
 make redteam   # attack prompts
 make e2e       # browser tests`}</pre>
