@@ -43,12 +43,23 @@ function transfer(files: File[]): DataTransfer {
  * has read them. Fails open when the server cannot be reached, like the text check outside
  * fail-closed categories. No selectors here: file inputs and drop events are the same on every site.
  */
-export function installFileGuard(opts: FileGuardOptions): void {
-  let passing = false;
+export interface FileGuard {
+  /** Reviews files. Resolves true when they may go on, false when they were stopped. */
+  review: (files: File[]) => Promise<boolean>;
+}
 
-  async function guard(files: File[], release: () => void, drop: () => void) {
-    const list = readable(files);
-    if (!list.length) return release();
+/**
+ * Holds back files until the company server has read them. Two doors, one decision:
+ * the page's own events (file picker, drag and drop, paste) remove the file before the site sees it,
+ * and the upload hook (src/upload-bridge) stops the upload itself, whatever way the file got there.
+ * A verdict is remembered for a minute so one file never asks twice.
+ */
+export function installFileGuard(opts: FileGuardOptions): FileGuard {
+  let passing = false;
+  const verdicts = new Map<string, { ok: boolean; at: number }>();
+  const keyOf = (f: File) => `${f.name}|${f.size}|${f.lastModified}`;
+
+  async function decide(list: File[]): Promise<boolean> {
     const attachments = await Promise.all(list.map(toAttachment));
     const out = await opts.check(attachments);
     if (!out || !out.action) {
@@ -66,16 +77,14 @@ export function installFileGuard(opts: FileGuardOptions): void {
           { id: "attach", label: "Attach anyway", kind: "danger" },
         ],
       });
-      if (choice.id === "attach") release();
-      else drop();
-      return;
+      return choice.id === "attach";
     }
     if (out.action === "allow") {
       opts.overlay.note(
         `Checked by Hive: ${list.length === 1 ? (list[0]?.name ?? "1 file") : `${list.length} files`}, nothing sensitive found.`,
         3000,
       );
-      return release();
+      return true;
     }
     opts.onEvent(out.action, out.findings?.[0]?.category ?? "document");
     const reasons = out.reasons?.length
@@ -94,26 +103,43 @@ export function installFileGuard(opts: FileGuardOptions): void {
           { id: "attach", label: "Attach anyway", kind: "danger" },
         ],
       });
-      if (choice.id === "attach") release();
-      else drop();
-      return;
+      return choice.id === "attach";
     }
 
-    drop();
-    const choice = await opts.overlay.card({
-      action: "block",
-      title: "File not attached",
-      reasons: [
-        "This file is confidential and must stay inside the company.",
-        "The company AI can read it safely. Open it there and your file comes with you.",
-      ],
-      details: reasons,
-      buttons: [
-        { id: "close", label: "Close", kind: "secondary" },
-        { id: "ask", label: "Open company AI", kind: "primary" },
-      ],
-    });
-    if (choice.id === "ask") opts.onOpenCompanyAi(attachments);
+    void opts.overlay
+      .card({
+        action: "block",
+        title: "File not attached",
+        reasons: [
+          "This file is confidential and must stay inside the company.",
+          "The company AI can read it safely. Open it there and your file comes with you.",
+        ],
+        details: reasons,
+        buttons: [
+          { id: "close", label: "Close", kind: "secondary" },
+          { id: "ask", label: "Open company AI", kind: "primary" },
+        ],
+      })
+      .then((choice) => {
+        if (choice.id === "ask") opts.onOpenCompanyAi(attachments);
+      });
+    return false;
+  }
+
+  async function review(files: File[]): Promise<boolean> {
+    const list = readable(files);
+    if (!list.length) return true;
+    const now = Date.now();
+    const known = list.map((f) => verdicts.get(keyOf(f)));
+    if (known.every((v) => v && now - v.at < 60_000)) return known.every((v) => v?.ok);
+    const ok = await decide(list);
+    for (const f of list) verdicts.set(keyOf(f), { ok, at: Date.now() });
+    return ok;
+  }
+
+  async function guard(files: File[], release: () => void, drop: () => void) {
+    if (await review(files)) release();
+    else drop();
   }
 
   // File picker.
@@ -175,12 +201,11 @@ export function installFileGuard(opts: FileGuardOptions): void {
     true,
   );
 
-  // A copied file pasted in. Pasted text is handled by the text check.
+  // A file copied in Finder and pasted. Finder also puts the file name on the clipboard as text.
   document.addEventListener(
     "paste",
     (e) => {
       const files = [...(e.clipboardData?.files ?? [])];
-      // A file copied in Finder also carries its name as text, so do not skip on text.
       if (passing || !readable(files).length) return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -207,4 +232,6 @@ export function installFileGuard(opts: FileGuardOptions): void {
     },
     true,
   );
+
+  return { review };
 }

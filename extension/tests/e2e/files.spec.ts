@@ -85,3 +85,62 @@ test("a file the server cannot read makes Hive ask, it does not pass silently", 
   await expect(page.getByRole("alertdialog")).toContainText("could not read");
   expect(await landed(page)).toEqual([]);
 });
+
+/** What a site does when its picker is hidden or detached: no event on the page, just an upload. */
+async function uploadOutOfSight(
+  page: import("@playwright/test").Page,
+  bytes: number[],
+  how: "fetch" | "xhr" | "put-blob",
+) {
+  return page.evaluate(
+    async ({ bytes, how }) => {
+      const file = new File([new Uint8Array(bytes)], "report.pdf", { type: "application/pdf" });
+      try {
+        if (how === "fetch") {
+          const fd = new FormData();
+          fd.append("file", file);
+          await fetch("/upload", { method: "POST", body: fd });
+        } else if (how === "put-blob") {
+          await fetch("/upload", { method: "PUT", body: new Blob([file], { type: file.type }) });
+        } else {
+          await new Promise<void>((resolve, reject) => {
+            const x = new XMLHttpRequest();
+            x.open("POST", "/upload");
+            x.onloadend = () => resolve();
+            x.onerror = () => reject(new Error("Hive stopped"));
+            const fd = new FormData();
+            fd.append("file", file);
+            x.send(fd);
+          });
+        }
+        return "sent";
+      } catch (e) {
+        return String(e);
+      }
+    },
+    { bytes, how },
+  );
+}
+
+for (const how of ["fetch", "xhr", "put-blob"] as const) {
+  test(`an upload by ${how} of a stamped file is stopped, with no picker event on the page`, async ({
+    context,
+  }) => {
+    const page = await context.newPage();
+    await page.goto("/");
+    expect(await uploadOutOfSight(page, [...STAMPED], how)).toContain("Hive stopped");
+    await expect(page.getByRole("alertdialog")).toContainText("File not attached");
+  });
+}
+
+test("an upload of a clean file goes out", async ({ context }) => {
+  const page = await context.newPage();
+  await page.goto("/");
+  expect(await uploadOutOfSight(page, [...CLEAN], "fetch")).toBe("sent");
+});
+
+test("Hive says it is on when the page loads", async ({ context }) => {
+  const page = await context.newPage();
+  await page.goto("/");
+  await expect(page.locator(".note").first()).toContainText("Hive is on");
+});

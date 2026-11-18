@@ -238,7 +238,7 @@ export default defineContentScript({
 
     // Files: held back until the company server has read them. A file stamped confidential
     // (RESTRICTED, ΕΜΠΙΣΤΕΥΤΙΚΟ, internal use only) is removed and never reaches the AI tool.
-    installFileGuard({
+    const fileGuard = installFileGuard({
       overlay,
       check: (attachments) =>
         send<Partial<CheckResult>>({
@@ -252,6 +252,18 @@ export default defineContentScript({
         void send({ type: "event", tool: adapter.tool, host: location.hostname, action, category }),
       onOpenCompanyAi: (attachments) => void send({ type: "openPanel", prompt: "", attachments }),
     });
+
+    // The upload hook (upload-hook.content.ts, in the page) asks here before any file is uploaded.
+    window.addEventListener("message", (e) => {
+      if (e.source !== window || e.data?.hive !== "files") return;
+      const id = e.data.id as number;
+      void fileGuard
+        .review(e.data.files as File[])
+        .then((ok) => window.postMessage({ hive: "verdict", id, ok }, "*"));
+    });
+
+    // So you can see it is running. Silence on a page would otherwise look the same as "off".
+    overlay.note("Hive is on. It checks what you paste and attach here.", 3500);
 
     document.addEventListener(
       "keydown",
