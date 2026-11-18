@@ -93,3 +93,17 @@ def test_a_hidden_second_copy_of_the_same_iban_is_masked_too(client: TestClient)
     assert out["changed"]
     assert out["text"].count("[IBAN_OUT_") == 2
     assert "1250000000012300695" not in out["text"]
+
+
+def test_a_raw_only_finding_and_a_hidden_duplicate_are_both_masked(client: TestClient) -> None:
+    key = "AKIAIOSFODNN7EXAMPLE"
+    hidden = "GR16​0110​1250000000012300695"
+    out = check(client, f"Key {key} and also {hidden} done")
+    assert out["changed"] and key not in out["text"]
+    assert "1250000000012300695" not in out["text"] and "0110" not in out["text"]
+    assert out["text"].count("_OUT_") >= 2
+
+
+def test_plain_answer_text_is_unchanged_when_nothing_is_found(client: TestClient) -> None:
+    text = "Ｈｅｌｌｏ ​ Привет, wörld"
+    assert check(client, text)["text"] == text

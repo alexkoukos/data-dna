@@ -1135,22 +1135,32 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
                 for m in matches
             ],
         )
-    # Mask the answer as written whenever the cleaned-up copy finds nothing more, so ordinary text
-    # (full-width letters, Cyrillic, zero-width characters) is never rewritten. Only when the
-    # cleaned-up copy finds something the raw text does not (a value hidden behind zero-width
-    # characters) is the cleaned-up copy masked. The _OUT label keeps these tokens apart from the
-    # person's own [IBAN_1].
+    # Mask the answer as written unless the cleaned-up copy (zero-width characters and look-alikes
+    # removed) finds something the written text does not: a value hidden on purpose. Only then is
+    # the cleaned-up copy masked, and it is scanned once more so a finding that only the written
+    # text had is not dropped. The _OUT label keeps these tokens apart from the person's own
+    # [IBAN_1].
     raw_found = _add_without_overlap(find_patterns(req.text), find_yara(req.text))
     clean_found = _add_without_overlap(find_patterns(text), find_yara(text))
-    if Counter((f.entity, f.value) for f in clean_found) == Counter(
+    hidden = Counter((f.entity, f.value) for f in clean_found) - Counter(
         (f.entity, f.value) for f in raw_found
-    ):
-        findings, source = raw_found, req.text
+    )
+    if not hidden:
+        findings = raw_found
+        masked, _ = mask(req.text, findings, label_suffix="_OUT")
     else:
-        findings, source = clean_found, text
+        findings = clean_found
+        masked, mapping = mask(text, findings, label_suffix="_OUT")
+        more = [
+            f
+            for f in _add_without_overlap(find_patterns(masked), find_yara(masked))
+            if "_OUT_" not in f.value
+        ]
+        if more:
+            masked, _ = mask(masked, more, existing=mapping, label_suffix="_OUT")
+            findings = [*findings, *more]
     if not findings:
         return InspectOutputResponse(text=req.text)
-    masked, _ = mask(source, findings, label_suffix="_OUT")
     return InspectOutputResponse(
         text=masked,
         changed=True,
