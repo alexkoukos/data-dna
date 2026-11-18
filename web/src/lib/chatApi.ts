@@ -96,6 +96,7 @@ export async function sendChat(
   history: ChatTurn[],
   ack?: string,
   attachments: ChatAttachment[] = [],
+  retried = false,
 ): Promise<ChatResult> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -161,6 +162,15 @@ export async function sendChat(
   }
   if (res.status === 401) {
     forgetIdentity();
+    if (!retried) {
+      // The saved key is stale (the server was reset). Get a new one and send once more.
+      try {
+        Object.assign(identity, await ensureIdentity());
+        return sendChat(identity, history, ack, attachments, true);
+      } catch {
+        // fall through to the message below
+      }
+    }
     return {
       kind: "error",
       message: "Your key is no longer valid. Reload the page to get a new one.",

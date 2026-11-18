@@ -382,6 +382,14 @@ def inspect(
     )
     steps = build_trace(result, memory_reasons)
     reasons = list(result.verdict.reasons)
+    if stamped:
+        # Lead with why the file is stopped. Layout false alarms on a table of numbers and memory
+        # of earlier prompts would only bury it.
+        reasons = stamped + [
+            r
+            for r in reasons
+            if r not in stamped and not r.startswith("Evasion") and "rebuilt from" not in r
+        ]
     decision = result.verdict.decision
     if shadow:
         # Shadow mode: record what the policy would have done, but let the message through.

@@ -235,3 +235,9 @@ def test_check_asks_when_a_file_cannot_be_read(client: TestClient) -> None:
     assert r.status_code == 200
     assert r.json()["action"] == "warn"
     assert any("could not read" in x for x in r.json()["reasons"])
+
+
+def test_a_stamped_file_leads_with_the_stamp_and_drops_noise(client: TestClient) -> None:
+    r = _post(client, "Akryon_Report_Q4.pdf", pdf_with_text(STAMPED))
+    assert "marked RESTRICTED" in r["reasons"][0]
+    assert not any(x.startswith("Evasion") or "rebuilt from" in x for x in r["reasons"])

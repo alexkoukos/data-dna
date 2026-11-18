@@ -249,7 +249,7 @@ export default function ChatPage() {
     if (!clean || busy) return;
     const files = opts.retry ? [] : attachments;
     const shown = files.length
-      ? `${clean}\n\n[Attached: ${files.map((f) => f.filename).join(", ")}]`
+      ? `${clean}\n\n📎 ${files.map((f) => f.filename).join(", ")}`
       : clean;
     let id = activeId;
     if (!id) {
