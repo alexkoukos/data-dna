@@ -64,3 +64,23 @@ def test_secrets_found_by_the_rules_are_masked_in_answers(client: TestClient) ->
 def test_the_answer_check_masks_greek_phone_numbers(client: TestClient) -> None:
     out = check(client, "Call her on +30 694 123 4567 tomorrow")
     assert "694 123" not in out["text"] and out["changed"]
+
+
+def test_masking_keeps_fullwidth_zwsp_and_cyrillic_text_elsewhere_unchanged(
+    client: TestClient,
+) -> None:
+    other = "Ｈｅｌｌｏ ​ Привет, wörld"
+    out = check(client, f"{other} AKIAIOSFODNN7EXAMPLE and more")
+    assert out["changed"] and "AKIAIOSFODNN7EXAMPLE" not in out["text"]
+    assert out["text"].startswith(other)
+
+
+def test_an_iban_hidden_by_zero_width_chars_is_still_masked(client: TestClient) -> None:
+    hidden = "GR16​0110​1250000000012300695"
+    out = check(client, f"Send it to {hidden} please")
+    assert out["changed"] and "0110" not in out["text"].replace("[IBAN_OUT_1]", "")
+
+
+def test_output_tokens_never_look_like_session_tokens(client: TestClient) -> None:
+    out = check(client, "key AKIAIOSFODNN7EXAMPLE")
+    assert "_OUT_" in out["text"]

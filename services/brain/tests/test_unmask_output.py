@@ -67,3 +67,14 @@ def test_inspect_output_leaves_clean_text() -> None:
         "withheld": False,
         "findings": [],
     }
+
+
+def test_an_invented_value_in_the_answer_is_never_unmasked_to_the_users_value() -> None:
+    sid = _masked_session()
+    other = "GR7001101250000000012300111"
+    out = client.post("/v1/inspect-output", json={"user_id": "u1", "text": f"Pay {other}"}).json()
+    assert "[IBAN_OUT_1]" in out["text"] and "[IBAN_1]" not in out["text"]
+    back = client.post(
+        "/v1/unmask", json={"session_id": sid, "user_id": "u1", "text": out["text"]}
+    ).json()
+    assert back["restored"] == 0 and "[IBAN_OUT_1]" in back["text"] and IBAN not in back["text"]

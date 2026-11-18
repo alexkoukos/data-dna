@@ -1107,10 +1107,21 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
                 for m in matches
             ],
         )
-    findings = _add_without_overlap(find_patterns(text), find_yara(text))
+    # Mask the answer as written whenever the cleaned-up copy finds nothing more, so ordinary text
+    # (full-width letters, Cyrillic, zero-width characters) is never rewritten. Only when the
+    # cleaned-up copy finds something the raw text does not (a value hidden behind zero-width
+    # characters) is the cleaned-up copy masked. The _OUT label keeps these tokens apart from the
+    # person's own [IBAN_1].
+    raw_found = _add_without_overlap(find_patterns(req.text), find_yara(req.text))
+    clean_found = _add_without_overlap(find_patterns(text), find_yara(text))
+    seen = {(f.entity, f.value) for f in raw_found}
+    if all((f.entity, f.value) in seen for f in clean_found):
+        findings, source = raw_found, req.text
+    else:
+        findings, source = clean_found, text
     if not findings:
         return InspectOutputResponse(text=req.text)
-    masked, _ = mask(text, findings)
+    masked, _ = mask(source, findings, label_suffix="_OUT")
     return InspectOutputResponse(
         text=masked,
         changed=True,

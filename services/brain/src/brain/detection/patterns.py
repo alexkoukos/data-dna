@@ -112,12 +112,16 @@ _TOKEN = re.compile(r"^\[(.+)_(\d+)\]$")
 
 
 def mask(
-    text: str, findings: list[Finding], existing: Mapping[str, str] | None = None
+    text: str,
+    findings: list[Finding],
+    existing: Mapping[str, str] | None = None,
+    label_suffix: str = "",
 ) -> tuple[str, dict[str, str]]:
     """Replace findings with placeholders. Returns masked text and placeholder map.
 
     `existing` holds placeholders from an earlier call on the same conversation: numbering
-    continues after them, and the returned map includes them.
+    continues after them, and the returned map includes them. `label_suffix` is put after the
+    entity name (`[IBAN_OUT_1]`) so the tokens of one source never collide with another's.
     """
     mapping: dict[str, str] = dict(existing or {})
     counters: dict[str, int] = {}
@@ -131,7 +135,7 @@ def mask(
         n = counters.get(f.entity, 0)
         while True:
             n += 1
-            token = f"[{f.entity}_{n}]"
+            token = f"[{f.entity}{label_suffix}_{n}]"
             if token not in text:
                 break
         counters[f.entity] = n
