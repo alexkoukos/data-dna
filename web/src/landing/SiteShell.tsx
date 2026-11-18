@@ -1,8 +1,7 @@
-import "@fontsource/poppins/400.css";
-import "@fontsource/poppins/500.css";
-import "@fontsource/poppins/600.css";
-import "@fontsource/poppins/700.css";
-import "@fontsource/playfair-display/600.css";
+import "@fontsource/plus-jakarta-sans/400.css";
+import "@fontsource/plus-jakarta-sans/500.css";
+import "@fontsource/plus-jakarta-sans/700.css";
+import "@fontsource/plus-jakarta-sans/800.css";
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import "./landing.css";
@@ -34,7 +33,7 @@ const LINKS = [
 ];
 
 /** Header and footer shared by every public page. The app has its own chrome. */
-export function SiteShell({ children }: { children: ReactNode }) {
+export function SiteShell({ children, home = false }: { children: ReactNode; home?: boolean }) {
   return (
     <div className="hive">
       <a className="skip" href="#main">
@@ -45,20 +44,31 @@ export function SiteShell({ children }: { children: ReactNode }) {
           <Link to="/" className="top-logo" aria-label="Hive home">
             <Wordmark className="top-wordmark" />
           </Link>
-          <div className="top-links">
-            {LINKS.map((l) => (
-              <NavLink
-                key={l.to}
-                to={l.to}
-                className={({ isActive }) => (isActive ? "is-here" : undefined)}
-              >
-                {l.label}
-              </NavLink>
-            ))}
-            <Link to="/app" className="btn btn-primary btn-sm">
-              Open the app
-            </Link>
-          </div>
+          {home ? (
+            <div className="top-links">
+              <a href="#how">How it works</a>
+              <a href="#catches">What it catches</a>
+              <a href="#security">For security teams</a>
+              <Link to="/app" className="btn btn-primary btn-sm">
+                Live demo
+              </Link>
+            </div>
+          ) : (
+            <div className="top-links">
+              {LINKS.map((l) => (
+                <NavLink
+                  key={l.to}
+                  to={l.to}
+                  className={({ isActive }) => (isActive ? "is-here" : undefined)}
+                >
+                  {l.label}
+                </NavLink>
+              ))}
+              <Link to="/app" className="btn btn-primary btn-sm">
+                Open the app
+              </Link>
+            </div>
+          )}
         </nav>
       </header>
       {children}
@@ -66,9 +76,16 @@ export function SiteShell({ children }: { children: ReactNode }) {
         <div className="wrap foot-in">
           <Wordmark className="foot-wordmark" />
           <p>Built for the Netcompany Hackathon 2026</p>
-          <a href={GITHUB} className="foot-link">
-            GitHub
-          </a>
+          <nav aria-label="Footer" className="foot-nav">
+            {LINKS.map((l) => (
+              <Link key={l.to} to={l.to} className="foot-link">
+                {l.label}
+              </Link>
+            ))}
+            <a href={GITHUB} className="foot-link">
+              GitHub
+            </a>
+          </nav>
         </div>
       </footer>
     </div>

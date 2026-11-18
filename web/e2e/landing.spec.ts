@@ -12,7 +12,7 @@ test("the landing page loads at / with the headline and both calls to action", a
     "href",
     "/app",
   );
-  await expect(page.getByRole("link", { name: "Read the deep dive" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "How it works" }).first()).toBeVisible();
   await expect(loop(page)).toBeVisible();
 });
 
@@ -127,11 +127,11 @@ for (const [path, h1] of [
   ["/trust", "The gate is guarded too."],
   ["/developers", "Run it. Read it. Test it."],
 ] as const) {
-  test(`${path} shows its headline, is reachable from the header and has no axe violations`, async ({
+  test(`${path} shows its headline, is reachable from the footer and has no axe violations`, async ({
     page,
   }) => {
     await page.goto("/");
-    await page.getByRole("navigation", { name: "Main" }).locator(`a[href="${path}"]`).click();
+    await page.getByRole("navigation", { name: "Footer" }).locator(`a[href="${path}"]`).click();
     await expect(page).toHaveURL(path);
     await expect(page.getByRole("heading", { level: 1, name: h1 })).toBeVisible();
     const r = await new AxeBuilder({ page }).analyze();

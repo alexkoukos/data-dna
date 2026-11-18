@@ -1,8 +1,3 @@
-import "@fontsource/poppins/400.css";
-import "@fontsource/poppins/500.css";
-import "@fontsource/poppins/600.css";
-import "@fontsource/poppins/700.css";
-import "@fontsource/playfair-display/600.css";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { SiteShell } from "./SiteShell";
@@ -11,7 +6,6 @@ import { HeroLoop } from "./HeroLoop";
 import { PHASE } from "./loop";
 import { Scaled } from "./Scaled";
 import { Screen } from "./Screen";
-
 
 const STEPS = [
   {
@@ -199,108 +193,106 @@ function Catches() {
 
 export default function Landing() {
   return (
-    <SiteShell>
+    <SiteShell home>
       <main id="main">
-          <section className="hero" aria-labelledby="hero-title">
-            <div className="hero-in">
-              <div className="hero-copy">
-                <h1 id="hero-title">Your data is the honey. We guard the gate.</h1>
-                <p className="lead">
-                  Hive checks every prompt before it reaches an AI tool, masks or stops what belongs
-                  to your company, and always shows a way to still get your answer.
-                </p>
-                <div className="cta">
-                  <Link to="/app" className="btn btn-primary">
-                    See the live demo
-                  </Link>
-                  <Link to="/how-it-works" className="btn btn-secondary">
-                    Read the deep dive
-                  </Link>
-                </div>
-              </div>
-              <HeroLoop />
-            </div>
-          </section>
-  
-          <section id="how" className="section section-white" aria-labelledby="how-title">
-            <div className="wrap">
-              <h2 id="how-title">Every prompt passes the gate.</h2>
-              <ol className="steps">
-                {STEPS.map((s, i) => (
-                  <li key={s.title} className="step">
-                    <div className="step-frame" aria-hidden="true">
-                      <Scaled width={720} height={450}>
-                        <Screen still scene={s.scene} phase={s.phase} />
-                      </Scaled>
-                    </div>
-                    <h3>
-                      <span className="step-n" aria-hidden="true">
-                        {i + 1}
-                      </span>
-                      {s.title}
-                    </h3>
-                    <p>{s.body}</p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </section>
-  
-          <section id="catches" className="section" aria-labelledby="catches-title">
-            <div className="wrap">
-              <h2 id="catches-title">The things people paste without thinking.</h2>
-              <p className="section-sub">Pick one to see what you paste and what leaves.</p>
-              <Catches />
-            </div>
-          </section>
-  
-          <section id="security" className="section section-white" aria-labelledby="sec-title">
-            <div className="wrap sec-grid">
-              <div>
-                <h2 id="sec-title">One screen for the question you actually have.</h2>
-                <p className="lead">
-                  The Overview counts saves, not violations. It shows which tools your teams use, what
-                  was kept in, and what needs a second look.
-                </p>
-                <Link to="/security" className="btn btn-secondary">
-                  Open the Overview
+        <section className="hero" aria-labelledby="hero-title">
+          <div className="hero-in">
+            <div className="hero-copy">
+              <h1 id="hero-title">Your data is the honey. We guard the gate.</h1>
+              <p className="lead">
+                Hive checks every prompt before it reaches an AI tool, masks or stops what belongs
+                to your company, and always shows a way to still get your answer.
+              </p>
+              <div className="cta">
+                <Link to="/app" className="btn btn-primary">
+                  See the live demo
                 </Link>
+                <a href="#how" className="btn btn-secondary">
+                  How it works
+                </a>
               </div>
-              <figure className="shot">
-                <div className="shot-frame">
-                  <div className="shot-bar" aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
+            </div>
+            <HeroLoop />
+          </div>
+        </section>
+
+        <section id="how" className="section section-white" aria-labelledby="how-title">
+          <div className="wrap">
+            <h2 id="how-title">Every prompt passes the gate.</h2>
+            <ol className="steps">
+              {STEPS.map((s, i) => (
+                <li key={s.title} className="step">
+                  <div className="step-frame" aria-hidden="true">
+                    <Scaled width={720} height={450}>
+                      <Screen still scene={s.scene} phase={s.phase} />
+                    </Scaled>
                   </div>
-                  <img
+                  <h3>
+                    <span className="step-n" aria-hidden="true">
+                      {i + 1}
+                    </span>
+                    {s.title}
+                  </h3>
+                  <p>{s.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section id="catches" className="section" aria-labelledby="catches-title">
+          <div className="wrap">
+            <h2 id="catches-title">The things people paste without thinking.</h2>
+            <p className="section-sub">Pick one to see what you paste and what leaves.</p>
+            <Catches />
+          </div>
+        </section>
+
+        <section id="security" className="section section-white" aria-labelledby="sec-title">
+          <div className="wrap sec-grid">
+            <div>
+              <h2 id="sec-title">One screen for the question you actually have.</h2>
+              <p className="lead">
+                The Overview counts saves, not violations. It shows which tools your teams use, what
+                was kept in, and what needs a second look.
+              </p>
+              <Link to="/security" className="btn btn-secondary">
+                Open the Overview
+              </Link>
+            </div>
+            <figure className="shot">
+              <div className="shot-frame">
+                <div className="shot-bar" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <img
                   src="/landing/overview.webp"
                   width="1560"
                   height="1155"
                   loading="lazy"
                   alt="The Hive Overview: trend charts for incidents and leaks stopped, and counts of prompts checked, share handled without an AI model, incidents and unapproved tools. Demo data."
                 />
-                </div>
-                <figcaption>
-                  The real Overview, running on invented demo data.
-                </figcaption>
-              </figure>
-            </div>
-          </section>
-  
-          <section className="section" aria-labelledby="watch-title">
-            <div className="wrap">
-              <h2 id="watch-title">The gate is guarded too.</h2>
-              <ul className="watch">
-                {WATCHER.map(([title, text]) => (
-                  <li key={title}>
-                    <strong>{title}</strong> {text}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        </main>
+              </div>
+              <figcaption>The real Overview, running on invented demo data.</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section className="section" aria-labelledby="watch-title">
+          <div className="wrap">
+            <h2 id="watch-title">The gate is guarded too.</h2>
+            <ul className="watch">
+              {WATCHER.map(([title, text]) => (
+                <li key={title}>
+                  <strong>{title}</strong> {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      </main>
     </SiteShell>
   );
 }

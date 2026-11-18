@@ -34,7 +34,7 @@
   --r-xl: 20px;
 
   font-family:
-    "Poppins",
+    "Plus Jakarta Sans",
     system-ui,
     -apple-system,
     "Segoe UI",
@@ -114,7 +114,7 @@
   border-radius: var(--r-md);
   border: 1px solid transparent;
   font:
-    600 15px/1 "Poppins",
+    700 15px/1 "Plus Jakarta Sans",
     system-ui,
     sans-serif;
   color: var(--ink);
@@ -1300,7 +1300,7 @@
   background: transparent;
   color: var(--ink-muted);
   font:
-    500 15px/1.3 "Poppins",
+    500 15px/1.3 "Plus Jakarta Sans",
     system-ui,
     sans-serif;
   cursor: pointer;
@@ -1426,11 +1426,6 @@
 }
 
 /* Text pages: deep dive, trust, developers */
-.hive h1,
-.hive h2 {
-  font-family: "Playfair Display", Georgia, serif;
-  font-weight: 600;
-}
 .top-links a.is-here {
   color: var(--ink);
   box-shadow: inset 0 -2px 0 var(--amber);
@@ -1536,7 +1531,7 @@
 }
 .stat strong {
   display: block;
-  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 800;
   font-size: 30px;
   line-height: 1.1;
 }
@@ -1659,4 +1654,16 @@
 }
 .section .prose {
   margin-top: 20px;
+}
+.foot-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-left: auto;
+}
+
+/* The public site keeps its own typeface; the app's heading font stays in the app. */
+.hive :where(h1, h2, h3) {
+  font-family: inherit;
+  font-weight: 700;
 }
