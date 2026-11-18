@@ -1,5 +1,5 @@
 import { askLocal, checkRemote, postEvents, refreshPolicy } from "../src/api";
-import { bumpStats, getPolicy } from "../src/storage";
+import { bumpStats, getPolicy, getSettings } from "../src/storage";
 import type { Msg } from "../src/types";
 
 interface QueuedEvent {
@@ -97,7 +97,17 @@ export default defineBackground(() => {
           return;
         case "openPanel": {
           await chrome.storage.session.set({ pendingPrompt: msg.prompt });
-          if (sender.tab?.id !== undefined) await chrome.sidePanel.open({ tabId: sender.tab.id });
+          let opened = false;
+          try {
+            // Brave and some other browsers have no side panel API: this throws there.
+            if (sender.tab?.id !== undefined && chrome.sidePanel?.open) {
+              await chrome.sidePanel.open({ tabId: sender.tab.id });
+              opened = true;
+            }
+          } catch {
+            opened = false;
+          }
+          if (!opened) await chrome.tabs.create({ url: await companyChatUrl() });
           reply({ ok: true });
           return;
         }
@@ -108,3 +118,15 @@ export default defineBackground(() => {
     return true;
   });
 });
+
+/** The company chat page on the dashboard, next to the brain (port 8001 -> dashboard 3000). */
+async function companyChatUrl(): Promise<string> {
+  const { brainUrl } = await getSettings();
+  try {
+    const u = new URL(brainUrl);
+    if (u.port === "8001") u.port = "3000";
+    return `${u.origin}/chat`;
+  } catch {
+    return "http://localhost:3000/chat";
+  }
+}

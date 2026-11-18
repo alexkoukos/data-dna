@@ -107,21 +107,18 @@ export default defineContentScript({
     }
 
     function resubmit(a: Adapter) {
-      bypass = true;
       const button = a.getSendButton();
       if (button && !(button as HTMLButtonElement).disabled) {
+        bypass = true;
         button.click();
-      } else {
-        a.getComposer()?.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key: "Enter",
-            code: "Enter",
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
+        window.setTimeout(() => (bypass = false), 80);
+        return;
       }
-      window.setTimeout(() => (bypass = false), 80);
+      // No send button we can click. A fake Enter key is ignored by most sites, so let the
+      // person press the real one: the next Enter goes straight through.
+      bypass = true;
+      overlay.note("Checked by Hive. Press Enter again to send.", 4000);
+      window.setTimeout(() => (bypass = false), 8000);
     }
 
     async function handle(a: Adapter, original: string, r: CheckResult) {
@@ -138,6 +135,7 @@ export default defineContentScript({
         r.source === "offline" ? " (company server not reached, checked in your browser only)" : "";
 
       if (r.action === "allow") {
+        overlay.note("Checked by Hive. Nothing sensitive found.", 2500);
         resubmit(a);
         return;
       }

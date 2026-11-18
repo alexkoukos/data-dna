@@ -14,8 +14,13 @@ export const claude: Adapter = {
   setText(text) {
     return writeText(this.getComposer(), text);
   },
-  getSendButton: () =>
-    document.querySelector<HTMLElement>('button[aria-label="Send message"]') ??
-    document.querySelector<HTMLElement>('button[aria-label="Send Message"]'),
+  getSendButton() {
+    // Look next to the composer first, then anywhere: the label changes between releases.
+    const scope = this.getComposer()?.closest("fieldset, form") ?? document;
+    const find = (root: ParentNode) =>
+      root.querySelector<HTMLElement>('button[aria-label*="send" i]:not([disabled])') ??
+      root.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+    return find(scope) ?? find(document);
+  },
   responseRoot: () => document.querySelector<HTMLElement>("main") ?? document.body,
 };
