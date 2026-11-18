@@ -56,9 +56,8 @@ import {
 } from "../lib/chatStore";
 import { explainReason } from "../lib/explain";
 
-/** Stock portrait for the person (Unsplash). If it cannot load, the initials show instead. */
-const USER_AVATAR =
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&q=80";
+/** The person's profile picture, served with the app. If it cannot load, the initials show instead. */
+const USER_AVATAR = "/brand/avatar-user.jpg";
 /** The company AI's avatar is the Hive bee, drawn inline so it works offline. */
 const BEE_AVATAR =
   "data:image/svg+xml;utf8," +
