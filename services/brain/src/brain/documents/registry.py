@@ -22,7 +22,7 @@ from sqlalchemy.engine import Engine
 from brain.db import tables as t
 from brain.documents.chunking import chunk_text, language, words
 from brain.documents.embeddings import Embedder
-from brain.documents.fingerprint import PERMS, jaccard, signature
+from brain.documents.fingerprint import PERMS, signature
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ PARAPHRASE_COSINE = 0.88  # e5 scores are compressed: same-topic text sits near 
 # lower for true and false matches alike, so it gets its own, lower cutoff.
 CROSS_LANGUAGE_COSINE = 0.86
 MIN_WORDS_TO_EMBED = 10
-MAX_QUERY_CHUNKS = 64  # chunks compared by MinHash (cheap)
+MAX_QUERY_CHUNKS = 6000  # chunks compared by MinHash: enough for a 200,000 character message
 MAX_EMBEDDED_CHUNKS = 16  # windows sent through the embedding model (about 4 ms each)
 
 # A document can carry translations of itself (data/documents/<name>.<lang>.md). Their chunks are
@@ -88,6 +88,7 @@ class DocumentIndex:
         self._ttl = ttl_seconds
         self._chunks: list[_Chunk] = []
         self._matrix = np.zeros((0, 384), dtype=np.float32)
+        self._sigs = np.zeros((0, PERMS), dtype=np.uint64)
         self._docs: dict[int, tuple[str, str]] = {}
         self._totals: dict[int, int] = {}
         self._tsizes: dict[tuple[int, int], int] = {}
@@ -147,6 +148,11 @@ class DocumentIndex:
             self._version += 1
         self._docs = docs
         self._chunks = chunks
+        self._sigs = (
+            np.stack([np.frombuffer(c.sig, dtype=np.uint64) for c in chunks])
+            if chunks
+            else np.zeros((0, PERMS), dtype=np.uint64)
+        )
         self._matrix = (
             np.stack([c.vec for c in chunks]) if chunks else np.zeros((0, 384), dtype=np.float32)
         )
@@ -189,7 +195,7 @@ class DocumentIndex:
         embedded; 0 means MinHash only."""
         with self._lock:
             self._refresh()
-            chunks, matrix = self._chunks, self._matrix
+            chunks, matrix, sigs = self._chunks, self._matrix, self._sigs
         if not chunks:
             return []
         pieces = chunk_text(text)[:MAX_QUERY_CHUNKS]
@@ -212,12 +218,11 @@ class DocumentIndex:
         copied: set[int] = set()
         copied_query: set[int] = set()
         for qi, qs in enumerate(query_sigs):
-            for i, c in enumerate(chunks):
-                j = jaccard(qs, c.sig)
-                if j >= COPY_JACCARD:
-                    note(c, j, "copy")
-                    copied.add(i)
-                    copied_query.add(qi)
+            scores = (sigs == np.frombuffer(qs, dtype=np.uint64)).mean(axis=1)
+            for i in np.nonzero(scores >= COPY_JACCARD)[0]:
+                note(chunks[int(i)], float(scores[i]), "copy")
+                copied.add(int(i))
+                copied_query.add(qi)
         if max_embedded > 0 and len(words(text)) >= MIN_WORDS_TO_EMBED:
             # The model is the slow part, so: skip everything when MinHash already explained the
             # prompt, and cap how many windows are embedded (spread evenly over long prompts).

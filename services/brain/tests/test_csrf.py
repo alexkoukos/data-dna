@@ -105,3 +105,12 @@ def test_the_copy_link_is_guarded_like_a_change(monkeypatch) -> None:  # type: i
     client, _ = _client(monkeypatch)
     r = client.get("/v1/documents/1/copies/ABC", headers={"Sec-Fetch-Site": "cross-site"})
     assert r.status_code == 403 and "another website" in r.json()["detail"]
+
+
+def test_more_host_spellings(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    client, _ = _client(monkeypatch)
+    for ok in ("localhost.:8001", "0.0.0.0:8001", "host.docker.internal:8001", "[::1]:8001"):
+        assert client.get("/v1/ask/presets", headers={"Host": ok}).status_code == 200, ok
+    assert (
+        client.get("/v1/ask/presets", headers={"Host": "evil.localhost.example"}).status_code == 403
+    )

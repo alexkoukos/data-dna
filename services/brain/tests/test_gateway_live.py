@@ -763,23 +763,35 @@ def test_assistants_route_is_refused_for_a_personal_key() -> None:
     assert ok.status_code == 200
 
 
-def test_a_long_history_through_the_gateway_is_answered_and_a_deep_secret_is_masked(
+def test_a_long_history_through_the_gateway_is_answered_masked_and_faster_the_second_time(
     client: OpenAI,
 ) -> None:
-    filler = "The quarterly numbers were discussed at length. " * 2200
+    import time
+
+    filler = f"Gardening notes {uuid.uuid4().hex[:6]}: tomatoes like sunlight and water. " * 2200
     messages: list[dict[str, str]] = [
         {"role": "user", "content": "key AKIAIOSFODNN7EXAMPLE " + filler}
     ]
     for _ in range(3):
         messages += [
-            {"role": "assistant", "content": filler},
+            {"role": "assistant", "content": "Reply. " + filler},
             {"role": "user", "content": "ok, continue please"},
         ]
-    r = httpx.post(
-        f"{GATEWAY}/v1/chat/completions",
-        headers={"Authorization": f"Bearer {client.api_key}"},
-        json={"model": "demo-mock", "messages": messages},
-        timeout=120,
-    )
-    assert r.status_code == 200
-    assert r.headers.get("x-dna-decision") == "mask"
+
+    def send() -> tuple[httpx.Response, float]:
+        start = time.perf_counter()
+        r = httpx.post(
+            f"{GATEWAY}/v1/chat/completions",
+            headers={"Authorization": f"Bearer {client.api_key}"},
+            json={"model": "demo-mock", "messages": messages},
+            timeout=180,
+        )
+        return r, time.perf_counter() - start
+
+    first, t1 = send()
+    second, t2 = send()
+    size = sum(len(m["content"]) for m in messages)
+    print(f"long history ({size} chars): {t1:.1f}s then {t2:.1f}s")
+    for r in (first, second):
+        assert r.status_code == 200 and r.headers.get("x-dna-decision") == "mask"
+    assert t2 < t1

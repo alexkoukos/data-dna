@@ -165,3 +165,16 @@ def test_changing_group_policies_clears_the_cached_roles(client: TestClient) -> 
             "admin",
         )
     assert "u-hr" not in groups._roles
+
+
+def test_group_rules_that_cannot_be_read_and_were_never_read_mark_the_policy_degraded(
+    client: TestClient,
+) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    groups._clear()
+    with engine.begin() as c:
+        c.execute(sa.text("DROP TABLE settings"))
+    base = main.policy_store.current()
+    got = groups.effective(engine, base, "u-hr", "HR")
+    assert got.degraded and got.categories == base.categories

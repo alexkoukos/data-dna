@@ -2418,3 +2418,50 @@ def test_non_streamed_chat_thinking_blocks_and_tool_input_keys_are_filtered() ->
     anthropic = {"content": [{"type": "tool_use", "input": {"AKIAIOSFODNN7EXAMPLE": 1}}]}
     out = asyncio.run(g.async_post_call_success_hook({"metadata": {}}, object(), anthropic))
     assert out["content"][0]["input"] == {"[AWS_OUT_1]": 1}
+
+
+_NASTY = 'say "hi"\\there\nline2 AKIAIOSFODNN7EXAMPLE'
+
+
+def test_tool_call_arguments_stay_valid_json_with_quotes_backslashes_and_newlines() -> None:
+    transform, _ = _leak_cleaner()
+    raw = json.dumps({"msg": _NASTY, "AKIAIOSFODNN7EXAMPLE": ["x", {"deep": "[IBAN_1]"}]})
+    cleaned, notice = asyncio.run(dna.clean_arguments(raw, transform))
+    parsed = json.loads(cleaned)
+    assert notice is None
+    assert parsed["msg"] == _NASTY.replace("AKIAIOSFODNN7EXAMPLE", "[AWS_OUT_1]")
+    assert "[AWS_OUT_1]" in parsed and parsed["[AWS_OUT_1]"][1]["deep"] == "GR16"
+
+
+def test_non_json_arguments_are_cleaned_as_text() -> None:
+    transform, _ = _leak_cleaner()
+    cleaned, notice = asyncio.run(dna.clean_arguments("not json AKIAIOSFODNN7EXAMPLE", transform))
+    assert cleaned == "not json [AWS_OUT_1]" and notice is None
+
+
+def test_a_withheld_argument_becomes_empty_json_and_the_notice_is_shown() -> None:
+    async def withhold(text: str) -> str:
+        return "[Removed: this answer repeated text from a protected company document.]"
+
+    cleaned, notice = asyncio.run(dna.clean_arguments('{"a": "secret memo"}', withhold))
+    assert cleaned == "{}" and notice and notice.startswith("[Removed")
+
+
+def test_streamed_tool_arguments_with_quotes_stay_valid_and_a_withheld_one_shows_a_notice() -> None:
+    transform, _ = _leak_cleaner()
+    args = json.dumps({"m": _NASTY})
+    half = len(args) // 2
+    out = _stream(
+        [_tool_chunk(0, args[:half], "f"), _tool_chunk(0, args[half:]), _chunk(None, "stop")],
+        transform,
+    )
+    got = out[0].choices[0].delta.tool_calls[0].function.arguments
+    assert json.loads(got)["m"] == _NASTY.replace("AKIAIOSFODNN7EXAMPLE", "[AWS_OUT_1]")
+
+    async def withhold(text: str) -> str:
+        return "[Removed: this answer repeated text from a protected company document.]"
+
+    out = _stream([_tool_chunk(0, '{"a": "x"}'), _chunk(None, "stop")], withhold)
+    assert out[0].choices[0].delta.tool_calls[0].function.arguments == "{}"
+    contents = [c.choices[0].delta.content for c in out]
+    assert any(x and x.startswith("[Removed") for x in contents)

@@ -42,6 +42,11 @@ def _clear() -> None:
 
 
 def load(engine: Engine | None) -> list[Override]:
+    return _load(engine) or []
+
+
+def _load(engine: Engine | None) -> list[Override] | None:
+    """The overrides, or None when they cannot be read and nothing was read before."""
     if engine is None:
         return []
     hit = _cache.get(id(engine))
@@ -54,7 +59,7 @@ def load(engine: Engine | None) -> list[Override]:
             ).scalar()
     except sa.exc.SQLAlchemyError:
         log.warning("Could not read group policies, keeping the last list")
-        return hit[1] if hit is not None else []
+        return hit[1] if hit is not None else None
     items: list[Override] = []
     try:
         for r in json.loads(raw) if raw else []:
@@ -121,7 +126,11 @@ def strictest(base: PolicySet, overrides: list[Override], team: str) -> PolicySe
 
 
 def effective(engine: Engine | None, base: PolicySet, user_id: str, team: str) -> PolicySet:
-    overrides = load(engine)
+    loaded = _load(engine)
+    if loaded is None:
+        # The team and role rules are unknown: the company policy applies, and the answer says so.
+        return PolicySet(base.categories, base.sensitivity, degraded=True)
+    overrides = loaded
     if not overrides:
         return base
     role = _lookup_role(engine, user_id)

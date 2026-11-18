@@ -14,6 +14,7 @@ from dna_inspect import (
     GatewayError,
     acceptance_scope,
     apply_decision,
+    clean_arguments,
     finalize_answer,
     rewrite_output,
     rewrite_stream,
@@ -112,7 +113,11 @@ class DnaGuardrail(CustomGuardrail):
             fn = getattr(call, "function", None)
             args = getattr(fn, "arguments", None)
             if isinstance(args, str) and args:
-                fn.arguments = await self._finalize(args, user_api_key_dict, meta)
+                fn.arguments, notice = await clean_arguments(
+                    args, lambda text: self._finalize(text, user_api_key_dict, meta)
+                )
+                if notice:
+                    message.content = "\n".join(x for x in (message.content or "", notice) if x)
 
     async def _finalize(self, text: str, user_api_key_dict: Any, meta: dict) -> str:
         return await finalize_answer(

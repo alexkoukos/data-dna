@@ -391,7 +391,17 @@ def _own_origins() -> set[str]:
 
 # Names this app is reached by: the browser on this machine, the web container's proxy and the
 # gateway (docker service names), and the hosts of the configured dashboard and Company AI links.
-_FIXED_HOSTS = {"localhost", "127.0.0.1", "::1", "brain", "web", "gateway", "testserver"}
+_FIXED_HOSTS = {
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",  # noqa: S104 - a name a browser may send, not an address we bind
+    "::1",
+    "host.docker.internal",
+    "brain",
+    "web",
+    "gateway",
+    "testserver",
+}
 
 
 def _known_hosts() -> set[str]:
@@ -405,8 +415,10 @@ def _known_hosts() -> set[str]:
 def _request_host(request: Request) -> str:
     raw = request.headers.get("host", "")
     if raw.startswith("["):
-        return raw[1 : raw.find("]")].lower() if "]" in raw else raw.lower()
-    return raw.rsplit(":", 1)[0].lower() if raw.count(":") == 1 else raw.lower()
+        host = raw[1 : raw.find("]")] if "]" in raw else raw
+    else:
+        host = raw.rsplit(":", 1)[0] if raw.count(":") == 1 else raw
+    return host.lower().rstrip(".")
 
 
 # GET routes that write to the audit log: guarded like a change.
@@ -652,18 +664,6 @@ class _HistoryGroup:
     indexes: list[int]
     prefix: str
     accepted: bool = False
-    cheap: bool = False  # beyond the character budget: only the cheap checks run
-
-
-def _beyond_budget(msgs: list[Message], *groups: list[int]) -> set[int]:
-    """Earlier messages past the character budget, counting from the newest backwards."""
-    over: set[int] = set()
-    used = 0
-    for i in sorted({i for g in groups for i in g}, reverse=True):
-        used += len(msgs[i].content)
-        if used > MAX_INSPECT_CHARS:
-            over.add(i)
-    return over
 
 
 def _history_groups(
@@ -687,22 +687,19 @@ def _history_groups(
     tools = [i for i in history_idx if msgs[i].role == _TOOL_DEFINITION_ROLE]
     instructions = [i for i in history_idx if msgs[i].role in _INSTRUCTION_ROLES]
     rest = [i for i in history_idx if i not in set(tools) | set(instructions)]
-    over = _beyond_budget(msgs, history_idx, trusted_idx)
     out: list[_HistoryGroup] = []
-    for kind, all_indexes, prefix in (
+    for kind, indexes, prefix in (
         ("history", rest, _PREFIX_HISTORY),
         ("tool", tools, _PREFIX_TOOL),
         ("instructions", instructions, _PREFIX_HISTORY),
         ("trusted", trusted_idx, _PREFIX_TRUSTED),
     ):
-        for cheap in (False, True):
-            indexes = [i for i in all_indexes if (i in over) == cheap]
-            fresh = [i for i in indexes if i not in accepted]
-            done = [i for i in indexes if i in accepted]
-            if fresh:
-                out.append(_HistoryGroup(kind, fresh, prefix, cheap=cheap))
-            if done:
-                out.append(_HistoryGroup(kind, done, _PREFIX_ACCEPTED, accepted=True, cheap=cheap))
+        fresh = [i for i in indexes if i not in accepted]
+        done = [i for i in indexes if i in accepted]
+        if fresh:
+            out.append(_HistoryGroup(kind, fresh, prefix))
+        if done:
+            out.append(_HistoryGroup(kind, done, _PREFIX_ACCEPTED, accepted=True))
     return out
 
 
@@ -789,7 +786,7 @@ _match_memory: _Remembered[tuple[DocumentIndex, int, str, tuple[str, ...]], list
     _Remembered(256, 60.0)
 )
 _entity_memory: _Remembered[str, list[Finding]] = _Remembered(512, 600.0)
-MAX_REMEMBERED_CHARS = 20_000  # longer messages are worked out each time, never kept
+MAX_CONVERSATION_CHARS = 1_000_000
 
 
 def _digest(text: str) -> str:
@@ -803,13 +800,11 @@ def _history_matches(
     merged: dict[int, DocMatch] = {}
     version = index.current_version()
     for segment in text.split(_SEGMENT_JOIN):
-        keep = len(segment) <= MAX_REMEMBERED_CHARS
-        key = (index, version, _digest(segment) if keep else "", tuple(relaxed_for))
-        found = _match_memory.get(key) if keep else None
+        key = (index, version, _digest(segment), tuple(relaxed_for))
+        found = _match_memory.get(key)
         if found is None:
             found = index.match(segment, relaxed_for=relaxed_for, max_embedded=HISTORY_MAX_EMBEDDED)
-            if keep:
-                _match_memory.put(key, found)
+            _match_memory.put(key, found)
         for m in found:
             old = merged.get(m.document_id)
             if old is None:
@@ -827,13 +822,11 @@ def _history_entities(text: str) -> list[Finding]:
     out: list[Finding] = []
     offset = 0
     for segment in text.split(_SEGMENT_JOIN):
-        keep = len(segment) <= MAX_REMEMBERED_CHARS
-        key = _digest(segment) if keep else ""
-        found = _entity_memory.get(key) if keep else None
+        key = _digest(segment)
+        found = _entity_memory.get(key)
         if found is None:
             found = entity_detector.find(segment)
-            if keep:
-                _entity_memory.put(key, found)
+            _entity_memory.put(key, found)
         out.extend(replace(f, start=f.start + offset, end=f.end + offset) for f in found)
         offset += len(segment) + len(_SEGMENT_JOIN)
     return out
@@ -890,14 +883,20 @@ def inspect(
 ) -> InspectResponse:
     msgs = req.messages
     new_idx, history_idx, trusted_idx = _group_messages(msgs)
-    # The limit is on new text. Earlier turns, system prompts and tool definitions are not
-    # refused however long they grow; the part beyond the same budget gets the cheap checks only.
+    # The 100,000 limit is on new text. Earlier turns, system prompts and tool definitions are
+    # all checked in full (remembered per message), up to a hard limit on the whole request.
     new_chars = sum(len(msgs[i].content) for i in new_idx)
     if new_chars > MAX_INSPECT_CHARS:
         raise _too_long()
     attached = _attachment_text(req, MAX_INSPECT_CHARS - new_chars)
     if new_chars + len(attached) > MAX_INSPECT_CHARS:
         raise _too_long()
+    if sum(len(m.content) for m in msgs) + len(attached) > MAX_CONVERSATION_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail="This conversation is too long to check. Start a new chat and paste only "
+            "what you need.",
+        )
     if not new_idx and not history_idx and not trusted_idx and not attached:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
     clock = time.perf_counter()
@@ -945,18 +944,11 @@ def inspect(
             group_finders = earlier
             view_finders = [find_yara, injection_finder]
             mask_injection = group.kind != "tool"
-        # Earlier turns get the same checks as new content, but not the slow injection model.
-        # Text beyond the budget (very long histories) gets patterns, YARA, decoys and client
-        # names only: no entity model, no embeddings, no document matching.
-        if group.cheap:
-            # `finders[-1]` is the client-name finder (see _finders).
-            group_finders = [f for f in group_finders if f in (find_yara, finders[-1])]
-            doc_match: Callable[..., list[DocMatch]] = lambda *_a, **_k: []  # noqa: E731
-        else:
-            group_finders = (
-                group_finders if group.kind == "trusted" else _for_history(group_finders)
-            )
-            doc_match = partial(_history_matches, documents)
+        # Earlier turns get the same checks as new content, but not the slow injection model. The
+        # costly parts (people and contact model, document matching) are remembered per message,
+        # so a long chat that resends its history pays for each message once.
+        group_finders = _for_history(group_finders)
+        doc_match = partial(_history_matches, documents)
         rg, mg, ng = _inspect_group(
             [msgs[i].content for i in group.indexes],
             "",

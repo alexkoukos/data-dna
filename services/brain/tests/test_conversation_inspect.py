@@ -253,16 +253,14 @@ def test_a_document_registered_after_a_message_was_checked_is_found_next_time(
     assert send(client, msgs)["decision"] == "block"
 
 
-def test_very_long_messages_are_not_kept_in_memory(
+def test_even_very_long_messages_are_remembered_and_the_memory_is_bounded(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     main._entity_memory._items.clear()
-    monkeypatch.setattr(main, "MAX_REMEMBERED_CHARS", 20)
-    send(client, turns("a message that is clearly longer than twenty characters", "ok", HARMLESS))
-    assert not main._entity_memory._items
-    monkeypatch.setattr(main, "MAX_REMEMBERED_CHARS", 20_000)
-    send(client, turns("a message that is clearly longer than twenty characters", "ok", HARMLESS))
+    long_text = "a message that is clearly longer than twenty characters " * 600
+    send(client, turns(long_text, "ok", HARMLESS))
     assert main._entity_memory._items
+    assert len(main._entity_memory._items) <= main._entity_memory._size
 
 
 def _grouped(*roles: str) -> tuple[list[int], list[int], list[int]]:

@@ -858,7 +858,11 @@ async def apply_decision(
     if _reroute_asked(headers):
         payload["reroute"] = True
     try:
-        resp = await client.post(f"{brain_url}/v1/inspect", json=payload, timeout=10.0)
+        # A long chat is worked out once and remembered, so only its first request is slow.
+        size = sum(len(m["content"]) for m in payload["messages"])
+        resp = await client.post(
+            f"{brain_url}/v1/inspect", json=payload, timeout=min(120.0, 10.0 + size / 5000)
+        )
         if resp.status_code == 413:
             raise GatewayError(
                 413,
@@ -1407,13 +1411,55 @@ async def _rewrite_anthropic_sse(
     return out if as_text else [x.encode("utf-8") for x in out]
 
 
+WITHHELD_MARK = "[Removed"
+
+
+async def clean_arguments(
+    text: str, transform: Callable[[str], Awaitable[str]]
+) -> tuple[str, str | None]:
+    """Clean tool-call arguments. Valid JSON is cleaned string by string (values and keys), so a
+    value that holds a quote, a backslash or a newline stays valid JSON; anything else is cleaned
+    as plain text. Returns the arguments and, if the answer filter withheld something, its notice
+    (the arguments are then `{}` and the caller shows the notice instead)."""
+    seen: dict[str, str] = {}
+    notice: list[str] = []
+
+    async def leaf(value: str) -> str:
+        if not value.strip():
+            return value
+        if value not in seen:
+            seen[value] = await transform(value)
+            if seen[value].startswith(WITHHELD_MARK):
+                notice.append(seen[value])
+        return seen[value]
+
+    async def walk(node: Any) -> Any:
+        if isinstance(node, str):
+            return await leaf(node)
+        if isinstance(node, dict):
+            return {(await leaf(k)): await walk(v) for k, v in node.items()}
+        if isinstance(node, list):
+            return [await walk(v) for v in node]
+        return node
+
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        out = await leaf(text)
+        return ("{}", notice[0]) if notice else (out, None)
+    cleaned = json.dumps(await walk(parsed), ensure_ascii=False)
+    return ("{}", notice[0]) if notice else (cleaned, None)
+
+
 async def _clean_side_channels(
     chunks: list[Any],
     transform: Callable[[str], Awaitable[str]],
     filter_only: Callable[[str], Awaitable[str]] | None = None,
-) -> None:
+) -> list[str]:
     """Streamed tool-call arguments, reasoning and refusal text: each is joined, checked once and
-    put in the first chunk that carried it; the later chunks keep their place without text."""
+    put in the first chunk that carried it; the later chunks keep their place without text.
+    Returns the notices of any tool call whose arguments had to be withheld."""
+    notices: list[str] = []
     slots: dict[tuple[str, int], list[tuple[Any, str]]] = {}
     for chunk in chunks:
         choices = getattr(chunk, "choices", None)
@@ -1435,11 +1481,18 @@ async def _clean_side_channels(
                     (fn, "arguments")
                 )
     for (kind, _), holders in slots.items():
-        # Thinking is filtered but never unmasked, as for Anthropic blocks.
-        run = filter_only if kind == "thinking" and filter_only else transform
-        cleaned = await run("".join(str(_get(h, a)) for h, a in holders))
+        joined = "".join(str(_get(h, a)) for h, a in holders)
+        if kind == "tool":
+            cleaned, notice = await clean_arguments(joined, transform)
+            if notice:
+                notices.append(notice)
+        else:
+            # Thinking is filtered but never unmasked, as for Anthropic blocks.
+            run = filter_only if kind == "thinking" and filter_only else transform
+            cleaned = await run(joined)
         for n, (holder, attr) in enumerate(holders):
             _set(holder, attr, cleaned if n == 0 else "")
+    return notices
 
 
 async def rewrite_stream(
@@ -1469,8 +1522,18 @@ async def rewrite_stream(
         for event in await _rewrite_responses_events(buffered, transform):
             yield event
         return
-    await _clean_side_channels(buffered, transform, filter_only)
+    notices = await _clean_side_channels(buffered, transform, filter_only)
     cleaned = await transform("".join(parts)) if parts else ""
+    if notices:
+        cleaned = "\n".join(x for x in (cleaned, *notices) if x)
+        if not parts:
+            # No chunk carried text: let the first one with a delta carry the notice.
+            for chunk in buffered:
+                choices = getattr(chunk, "choices", None)
+                delta = getattr(choices[0], "delta", None) if choices else None
+                if delta is not None:
+                    delta.content = ""
+                    break
     placed = False
     for chunk in buffered:
         holder = _text_holder(chunk)
