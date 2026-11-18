@@ -149,7 +149,9 @@ class HoneytokenStore:
         owners = self._owners()
         if not owners or not text:
             return []
-        low = text.lower()
+        # Lower-case one character at a time: a few letters change length when lowered, which
+        # would shift every later offset.
+        low = "".join(c.lower() if len(c.lower()) == 1 else c for c in text)
         found: list[Finding] = []
         for value in owners:
             start = low.find(value)

@@ -101,3 +101,17 @@ def test_policy_api_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert bad.status_code == 422
     assert "Use one of" in bad.json()["detail"]
+
+
+def test_a_db_blip_keeps_the_last_loaded_policies() -> None:
+    engine = sa.create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    metadata.create_all(engine)
+    store = PolicyStore(engine, ttl_seconds=0)
+    store.seed_if_empty()
+    store.update("category", "iban", "block", "alice")
+    assert store.current().categories["iban"] == Decision.BLOCK
+    with engine.begin() as conn:
+        conn.execute(sa.text("DROP TABLE policies"))
+    assert store.current().categories["iban"] == Decision.BLOCK

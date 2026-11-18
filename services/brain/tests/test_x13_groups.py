@@ -101,3 +101,25 @@ def test_changes_are_audited(client: TestClient) -> None:
 def test_without_a_database_nothing_changes() -> None:
     assert groups.load(None) == []
     assert groups.role_of(None, "x") == "employee"
+
+
+def test_a_db_blip_keeps_the_last_team_overrides(client: TestClient) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    groups._clear()
+    with engine.begin() as c:
+        groups.put(
+            c,
+            main.policy_store.current(),
+            groups.Override("team", "HR", "category", "iban", "block"),
+            "admin",
+        )
+    groups._clear()
+    assert [o.group for o in groups.load(engine)] == ["HR"]
+    assert groups.role_of(engine, "u-hr") == "hr_manager"
+    groups._cache[id(engine)] = (0.0, groups._cache[id(engine)][1])  # expired
+    with engine.begin() as c:
+        c.execute(sa.text("DROP TABLE settings"))
+        c.execute(sa.text("DROP TABLE users"))
+    assert [o.group for o in groups.load(engine)] == ["HR"]
+    assert groups.role_of(engine, "u-hr") == "hr_manager"

@@ -433,3 +433,19 @@ def test_app_role_is_not_a_superuser(store: SplitStore) -> None:
         assert not (sup or create_role or create_db)
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             _exec(url, "CREATE TABLE evil (x int)")
+
+
+def test_unreadable_key_is_503_not_500(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi.testclient import TestClient
+
+    import brain.main as main_mod
+    import brain.splitstore.routes as routes
+
+    monkeypatch.setattr(main_mod.settings, "vault_api_token", "tok")
+    monkeypatch.setattr(
+        routes, "get_store", lambda: (_ for _ in ()).throw(PermissionError("key unreadable"))
+    )
+    r = TestClient(main_mod.app).post(
+        "/v1/vault/aggregate", headers={"Authorization": "Bearer tok"}, json={"field": "salary"}
+    )
+    assert r.status_code == 503

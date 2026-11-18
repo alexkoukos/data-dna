@@ -23,7 +23,7 @@ from brain.db import tables as t
 
 log = logging.getLogger(__name__)
 
-SEVERITY = {"block": 8, "local": 6, "warn": 5, "mask": 3}
+SEVERITY = {"block": 8, "local": 6, "warn": 5, "rerouted": 4, "mask": 3}
 FIELDS = (
     "id",
     "time",

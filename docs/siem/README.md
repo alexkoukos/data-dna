@@ -17,7 +17,7 @@ Set the variables in `.env` (see `.env.example`) and run `docker compose up -d b
 - `user_key_id` is the pseudonym (for example `u-de036ece`), never the name. Learning who it is still needs the two-person reveal in the Security area.
 - `rule_ids` are the detection layers that fired, for example `patterns-and-checksums`, `document-matching`.
 - **No prompt text, no masked preview and no free-text reasons**, by construction: an event is built from the named fields above and nothing else (`services/brain/src/brain/siem.py`, tested in `test_x30_siem.py`).
-- Only incidents are sent (mask, warn, local, block). Allowed prompts are not.
+- Only incidents are sent (mask, warn, local, block, rerouted). Allowed prompts are not.
 
 Example JSON line:
 
@@ -33,7 +33,7 @@ CEF:0|Pyli|Gate|1.0|block|Pyli block: ChatGPT (personal)|8|rt=1795084200000 exte
   cs4Label=ruleIds cs4=document-matching,patterns-and-checksums cn1Label=documentId cn1=3 cn2Label=shadow cn2=0
 ```
 
-Severity: block 8, local 6, warn 5, mask 3.
+Severity: block 8, local 6, warn 5, rerouted 4, mask 3. A `rerouted` event is sent when someone sends a stopped message to Company AI instead.
 
 ## Verifying a webhook
 

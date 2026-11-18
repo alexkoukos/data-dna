@@ -58,7 +58,7 @@ def _call(fn: Any, *args: Any, **kw: Any) -> Any:
         raise HTTPException(404, str(e.args[0]) if e.args else "not found") from None
     except ValueError as e:
         raise HTTPException(422, str(e)) from None
-    except (KeyMismatchError, RuntimeError, psycopg.OperationalError) as e:
+    except (KeyMismatchError, RuntimeError, psycopg.OperationalError, OSError) as e:
         raise HTTPException(503, f"split storage unavailable: {type(e).__name__}") from None
 
 

@@ -108,6 +108,11 @@ class PolicyStore:
             with self._engine.connect() as conn:
                 rows = conn.execute(sa.select(policies_table)).mappings().all()
         except sa.exc.SQLAlchemyError:
+            with self._lock:
+                last = self._cached
+            if last is not None:
+                log.warning("Policy table unreachable, keeping the last loaded policies")
+                return last
             log.warning("Policy table unreachable, using the seed file")
             return self._seed
         merged = PolicySet(dict(self._seed.categories), dict(self._seed.sensitivity))

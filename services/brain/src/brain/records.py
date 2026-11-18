@@ -178,7 +178,15 @@ def record_reroute(engine: Engine | None, user: str) -> None:
             if uid is None:
                 return
             row = conn.execute(
-                sa.select(t.incidents.c.id, t.incidents.c.reasons)
+                sa.select(
+                    t.incidents.c.id,
+                    t.incidents.c.reasons,
+                    t.incidents.c.team,
+                    t.incidents.c.tool,
+                    t.incidents.c.categories,
+                    t.incidents.c.document_id,
+                    t.incidents.c.trace,
+                )
                 .where(
                     t.incidents.c.user_id == uid,
                     t.incidents.c.decision.in_(("block", "warn", "local")),
@@ -200,3 +208,18 @@ def record_reroute(engine: Engine | None, user: str) -> None:
             )
     except sa.exc.SQLAlchemyError:
         log.warning("Could not record a reroute, continuing")
+        return
+    siem.push(
+        siem.event(
+            incident_id=row.id,
+            ts=datetime.now(UTC),
+            user_key_id=user,
+            team=row.team or "",
+            tool=row.tool or "",
+            decision="rerouted",
+            categories=list(row.categories or []),
+            document_id=row.document_id,
+            trace=row.trace,
+            shadow=False,
+        )
+    )

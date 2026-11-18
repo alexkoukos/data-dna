@@ -420,7 +420,16 @@ async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> R
 
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+    """Always 200 while the app runs (compose health). `database` says whether it is reachable."""
+    engine = policy_store.engine
+    if engine is None:
+        return {"status": "ok", "database": "off"}
+    try:
+        with engine.connect() as conn:
+            conn.execute(sa.text("SELECT 1"))
+    except sa.exc.SQLAlchemyError:
+        return {"status": "ok", "database": "unreachable"}
+    return {"status": "ok", "database": "ok"}
 
 
 def _attachment_text(req: InspectRequest) -> str:
@@ -1386,7 +1395,10 @@ def plant_honeytokens(document_id: int, req: HoneytokenRequest) -> HoneytokenOut
             sa.select(t.documents.c.title).where(t.documents.c.id == document_id)
         ).scalar_one_or_none()
     if title is None:
-        raise HTTPException(status_code=404, detail="That document is not registered.")
+        raise HTTPException(
+            status_code=404,
+            detail="That document is not registered. Pick one from the Documents page.",
+        )
     tokens: list[Honeytoken] = generate(req.count)
     _honeytokens().register(document_id, tokens)
     return HoneytokenOut(
@@ -1408,9 +1420,11 @@ def preview_policy(req: PolicyPreviewRequest) -> PolicyPreview:
     try:
         action = Decision(req.action)
     except ValueError:
-        raise HTTPException(status_code=422, detail="Unknown action.") from None
+        raise HTTPException(
+            status_code=422, detail="Unknown action. Use one of: allow, mask, warn, local, block."
+        ) from None
     if req.scope not in ("category", "sensitivity"):
-        raise HTTPException(status_code=422, detail="Unknown scope.")
+        raise HTTPException(status_code=422, detail="Unknown scope. Use category or sensitivity.")
     out = _read(lambda c: policy_preview(c, policy_store.current(), req.scope, req.key, action))
     return PolicyPreview(**out)  # type: ignore[arg-type]
 
@@ -1513,7 +1527,9 @@ def document_history(document_id: int) -> dict[str, Any]:
     """X24: every incident that matched one document, newest first."""
     out = _read(lambda c: insights.history_for_document(c, document_id))
     if not out["found"] and out["subject"] is None:
-        raise HTTPException(status_code=404, detail="No such document.")
+        raise HTTPException(
+            status_code=404, detail="No such document. Check the id on the Documents page."
+        )
     return out
 
 

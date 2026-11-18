@@ -52,8 +52,8 @@ def load(engine: Engine | None) -> list[Override]:
                 sa.select(t.settings.c.value).where(t.settings.c.key == KEY)
             ).scalar()
     except sa.exc.SQLAlchemyError:
-        log.warning("Could not read group policies, using company policy only")
-        return []
+        log.warning("Could not read group policies, keeping the last list")
+        return hit[1] if hit is not None else []
     items: list[Override] = []
     try:
         for r in json.loads(raw) if raw else []:
@@ -65,7 +65,12 @@ def load(engine: Engine | None) -> list[Override]:
     return items
 
 
+_roles: dict[str, str] = {}
+_MAX_ROLES = 10_000
+
+
 def role_of(engine: Engine | None, user_id: str) -> str:
+    """A person's role. If the database cannot be read, the last role seen is used."""
     if engine is None:
         return "employee"
     try:
@@ -74,8 +79,12 @@ def role_of(engine: Engine | None, user_id: str) -> str:
                 sa.select(t.users.c.role).where(t.users.c.pseudonym == user_id)
             ).scalar()
     except sa.exc.SQLAlchemyError:
-        return "employee"
-    return str(role or "employee")
+        return _roles.get(user_id, "employee")
+    found = str(role or "employee")
+    if len(_roles) >= _MAX_ROLES:
+        _roles.clear()
+    _roles[user_id] = found
+    return found
 
 
 def apply(base: PolicySet, overrides: list[Override], team: str, role: str) -> PolicySet:

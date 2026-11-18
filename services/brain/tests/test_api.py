@@ -6,7 +6,7 @@ client = TestClient(app)
 
 
 def test_healthz() -> None:
-    assert client.get("/healthz").json() == {"status": "ok"}
+    assert client.get("/healthz").json()["status"] == "ok"
 
 
 def test_inspect_masks_iban(valid_iban: str) -> None:
@@ -81,3 +81,25 @@ def test_a_chunked_body_without_content_length_is_413(monkeypatch) -> None:  # t
     small = {"messages": [{"role": "user", "content": "hi"}]}
     monkeypatch.setattr(main_mod, "MAX_BODY_BYTES", 15 * 1024 * 1024)
     assert client.post("/v1/inspect", json=small).status_code == 200
+
+
+def test_healthz_reports_the_database(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import sqlalchemy as sa
+    from sqlalchemy.pool import StaticPool
+
+    import brain.main as main_mod
+    from brain.policy.store import PolicyStore
+
+    engine = sa.create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    monkeypatch.setattr(main_mod, "policy_store", PolicyStore(engine, ttl_seconds=0))
+    assert client.get("/healthz").json() == {"status": "ok", "database": "ok"}
+
+    class _Down:
+        def connect(self):  # type: ignore[no-untyped-def]
+            raise sa.exc.OperationalError("x", {}, Exception("down"))
+
+    monkeypatch.setattr(main_mod.policy_store, "_engine", _Down())
+    r = client.get("/healthz")
+    assert r.status_code == 200 and r.json()["database"] == "unreachable"
