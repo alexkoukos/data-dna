@@ -14,6 +14,14 @@ if [ -d "$file" ]; then
     exit 1
   }
 fi
+# X28 + S3: the brain runs as a non-root user (uid 10001) and approves break-it rows by writing to
+# data/eval, so that folder and its CSV files must be writable by it.
+root="$(dirname "$dir")"
+if [ -d "$root/data/eval" ]; then
+  chmod a+rwx "$root/data/eval" 2>/dev/null || true
+  chmod a+rw "$root"/data/eval/*.csv 2>/dev/null || true
+fi
+
 if [ -s "$file" ] && [ "${1:-}" != "--force" ]; then
   echo "secrets/hmac_key already exists (use --force to replace it)"
   exit 0

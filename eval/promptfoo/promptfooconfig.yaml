@@ -109,7 +109,7 @@ tests:
       - type: javascript
         value: "output !== 'allow'"
   - description: "evasion: Check this account: G\u200bR\u200b1\u200b6\u200b"
-    vars: { text: "Check this account: G\\u200bR\\u200b1\\u200b6\\u200b0\\u200b1\\u200b1\\u200b0\\u200b1\\u200b2\\u200b5\\u200b0\\u200b0\\u200b0\\u200b0\\u200b0\\u200b0\\u200b0\\u200b0\\u200b1\\u200b2\\u200b3\\u200b0\\u200b0\\u200b6\\u200b9\\u200b5" }
+    vars: { text: "Check this account: G\u200bR\u200b1\u200b6\u200b0\u200b1\u200b1\u200b0\u200b1\u200b2\u200b5\u200b0\u200b0\u200b0\u200b0\u200b0\u200b0\u200b0\u200b0\u200b1\u200b2\u200b3\u200b0\u200b0\u200b6\u200b9\u200b5" }
     metadata: { category: evasion }
     assert:
       - type: javascript

@@ -1,0 +1,18 @@
+# Ollama Modelfile for the tuned D7 judge (see docs/JUDGE_FINETUNE.md).
+# Build:  ollama create dna-judge -f judge.Modelfile      (the GGUF file must sit next to this file)
+FROM ./dna-judge.gguf
+TEMPLATE """{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 }}
+{{- if or (eq .Role "user") (eq .Role "system") }}<start_of_turn>user
+{{ .Content }}<end_of_turn>
+{{ if $last }}<start_of_turn>model
+{{ end }}
+{{- else if eq .Role "assistant" }}<start_of_turn>model
+{{ .Content }}{{ if not $last }}<end_of_turn>
+{{ end }}
+{{- end }}
+{{- end }}"""
+PARAMETER stop "<end_of_turn>"
+PARAMETER temperature 0
+PARAMETER num_ctx 2048
+PARAMETER num_thread 4

@@ -11,6 +11,8 @@ interface Props {
   onEdit: () => void;
   onSendAnyway: (reason: string) => void;
   onCancel: () => void;
+  /** X31: send it to Company AI instead, masked and answered inside the company. */
+  onReroute?: () => void;
   busy?: boolean;
 }
 
@@ -22,6 +24,7 @@ export function WarnCard({
   onEdit,
   onSendAnyway,
   onCancel,
+  onReroute,
   busy,
 }: Props) {
   const [reason, setReason] = useState("");
@@ -87,6 +90,16 @@ export function WarnCard({
         >
           Edit message
         </button>
+        {onReroute ? (
+          <button
+            type="button"
+            onClick={onReroute}
+            disabled={busy}
+            className="min-h-11 rounded-md border border-warn-fg/40 bg-white px-4 text-sm font-semibold text-warn-fg hover:bg-ink-50 disabled:opacity-60"
+          >
+            Send it to Company AI instead
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => onSendAnyway(reason.trim())}

@@ -5,6 +5,7 @@ export type ThyroPose =
   | "mask"
   | "local"
   | "block"
+  | "rerouted"
   | "empty"
   | "avatar"
   | "thinking"
@@ -15,7 +16,7 @@ export type ThyroPose =
 export function Thyro({ pose, size = 160 }: { pose: ThyroPose; size?: number }) {
   return (
     <img
-      src={`${window.location.origin}/mascot/thyro-${pose}.svg`}
+      src={`${window.location.origin}/mascot/thyro-${pose === "rerouted" ? "local" : pose}.svg`}
       alt=""
       width={size}
       height={size}

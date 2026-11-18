@@ -11,6 +11,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "warn", label: "Warned" },
   { id: "mask", label: "Masked" },
   { id: "local", label: "Answered locally" },
+  { id: "rerouted", label: "Sent to Company AI" },
 ];
 
 type View =

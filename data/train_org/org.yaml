@@ -1,0 +1,28 @@
+# TRAINING company for the judge fine-tune (scripts/gen_finetune.py). Invented: no real company or person.
+# Never mix with data/org (the eval company, Aegean Meridian Consulting).
+company:
+  name: "Taygetos Oils SA"
+  industry: "olive oil and food export"
+  city: Kalamata
+people:
+  - { name: "Lefteris Kanakis", role: CEO }
+  - { name: "Despina Papadaki", role: "Finance director" }
+  - { name: "Giorgos Dimou", role: "Head of HR" }
+  - { name: "Katerina Kalli", role: "Export director" }
+  - { name: "Panos Sideri", role: "Production supervisor" }
+  - { name: "Argyro Mavrogeni", role: "Quality manager" }
+  - { name: "Helen Marsh", role: "Sales manager, UK" }
+clients:
+  - { name: "Nordmarkt Feinkost" }
+  - { name: "Evripos Supermarkets" }
+  - { name: "Baltic Delikatessen" }
+documents:
+  - { file: salary-bands-2028.md, lang: el, sensitivity: confidential }
+  - { file: nordmarkt-supply-agreement.md, lang: en, sensitivity: confidential }
+  - { file: board-memo-bottling-plant.md, lang: el, sensitivity: restricted }
+  - { file: pricing-engine.py, lang: en, sensitivity: restricted }
+  - { file: hr-file-sideri.md, lang: el, sensitivity: confidential }
+  - { file: strategy-deck-2028.md, lang: en, sensitivity: restricted }
+  - { file: export-price-list-2028.md, lang: el, sensitivity: confidential }
+  - { file: newsletter-harvest-2028.md, lang: el, sensitivity: public }
+  - { file: visitor-shop-info.md, lang: en, sensitivity: public }

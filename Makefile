@@ -79,10 +79,24 @@ split-demo: ## Split storage demo: seed salaries, dump vault-a, aggregate, tampe
 e2e: ## End-to-end + accessibility (needs `make up` first)
 	cd web && npx playwright install chromium && npm run e2e
 
+siem: ## Start the demo SOC (syslog receiver) and follow the incidents arriving (X30; set SIEM_SYSLOG_HOST=syslog-receiver in .env first)
+	docker compose --profile siem up -d syslog-receiver
+	docker compose up -d brain
+	docker compose logs -f --tail=20 syslog-receiver
+
 calibrate: ## Sweep the paraphrase cutoff and write docs/calibration.md and .svg (X25)
 	cd services/brain && uv run python ../../scripts/calibrate.py
 
 eval: ## Detection quality report vs regex baseline, pass/fail against the targets (writes eval/report.md)
 	cd services/brain && uv run python -m brain.eval.run
 
-.PHONY: split-test split-demo calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+judge-data: ## Regenerate the judge fine-tune data from data/train_org (D7, deterministic, no dependencies)
+	python3 scripts/gen_finetune.py
+
+judge-ollama: ## Start the judge's own Ollama on port 11435 (separate from `make up`, which would remove a compose-started one)
+	docker start judge-ollama 2>/dev/null || docker run -d --name judge-ollama --restart unless-stopped -p 11435:11434 -v data-dna_ollama:/root/.ollama -e OLLAMA_KEEP_ALIVE=30m ollama/ollama:0.40.16
+
+judge-eval: ## Compare plain gemma3:1b (dna-local) with the tuned judge on the test set (needs `make judge-ollama` and the dna-judge model, see docs/JUDGE_FINETUNE.md)
+	python3 scripts/eval_judge.py dna-judge dna-local --url http://localhost:11435 --out eval/judge_eval.md
+
+.PHONY: siem judge-data judge-ollama judge-eval split-test split-demo calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval

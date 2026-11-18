@@ -30,6 +30,15 @@ class Settings(BaseSettings):
     hmac_key_file: str = "/run/secrets/hmac_key"
     # Bearer token for /v1/vault/*. Empty = those routes answer 503 (off until you set one).
     vault_api_token: str = ""
+    # X30: where new incidents are pushed. Everything is off until a value is set.
+    siem_syslog_host: str = ""
+    siem_syslog_port: int = 514
+    siem_syslog_proto: str = "udp"  # udp or tcp
+    siem_webhook_url: str = ""
+    siem_webhook_secret: str = ""
+    siem_export_token: str = (
+        ""  # when set, GET /v1/export/incidents needs "Authorization: Bearer <it>"
+    )
 
 
 settings = Settings()

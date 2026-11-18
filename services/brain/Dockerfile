@@ -16,7 +16,9 @@ ENV PATH="/app/.venv/bin:$PATH" HF_HOME=/opt/models/hf EMBED_THREADS=4
 RUN python -c "from brain.documents.embeddings import fetch_model_files; fetch_model_files()"
 ENV HF_HUB_OFFLINE=1
 EXPOSE 8001
-HEALTHCHECK --interval=10s --timeout=3s --retries=12 CMD python -c "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8001/healthz').status==200 else 1)"
+# start-period: model and NLP loading can take over a minute on a slow machine; failures in that
+# window do not count, so a slow first start is not marked unhealthy.
+HEALTHCHECK --interval=10s --timeout=3s --retries=12 --start-period=120s CMD python -c "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8001/healthz').status==200 else 1)"
 CMD ["uvicorn", "brain.main:app", "--host", "0.0.0.0", "--port", "8001"]
 
 # Test image: the runtime plus dev dependencies and tests (compose service `splitstore-tests`).
@@ -24,5 +26,11 @@ FROM runtime AS test
 RUN uv sync --frozen
 COPY tests ./tests
 
-# Keep the runtime image the default (last) target.
+# Keep the runtime image the default (last) target. Runs as an unprivileged user. The code, the
+# venv and the baked model stay root-owned and read-only; only the volume mount points are owned by
+# the app user (a new named volume copies this ownership on first use).
 FROM runtime AS app
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
+ && mkdir -p /models /var/dna/logs /var/dna/keys \
+ && chown app:app /models /var/dna/logs /var/dna/keys
+USER app

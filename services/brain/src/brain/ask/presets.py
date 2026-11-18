@@ -5,6 +5,8 @@ uses only portable SQL so it runs on Postgres and on the SQLite used in tests. `
 filled in by the code (a number of days back from today), never from user text.
 """
 
+import difflib
+import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -24,8 +26,10 @@ class Preset:
 PRESETS: tuple[Preset, ...] = (
     Preset(
         id="client_data_unapproved",
-        question="Which teams used unapproved AI tools and also had client data caught this week?",
+        question="Which teams sent client data to unapproved AI tools this week?",
         days=7,
+        # Client data is caught at the gateway (approved tools); unapproved-tool use is seen in
+        # usage logs without content. The honest join is by team, and the page says so.
         sql="""SELECT u.team, SUM(u.requests) AS unapproved_tool_requests, c.client_data_incidents
 FROM tool_usage_daily u
 JOIN ai_tools a ON a.id = u.tool_id AND a.approval = 'unapproved'
@@ -90,6 +94,35 @@ ORDER BY incidents DESC""",
 )
 
 BY_ID = {p.id: p for p in PRESETS}
+
+# Other ways of asking a preset question. Free text that matches is answered by the fixed SQL.
+ALIASES: dict[str, tuple[str, ...]] = {
+    "client_data_unapproved": (
+        "Which teams used unapproved AI tools and also had client data caught this week?",
+        "Which teams sent client data to unapproved AI tools?",
+        "Which teams sent customer data to unapproved AI tools this week?",
+        "Which teams sent client data to unapproved AI tools this week",
+    ),
+}
+
+
+def _norm(text: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text.lower()).split())
+
+
+def match_preset(question: str) -> Preset | None:
+    """The preset a typed question means, or None. Exact after tidying, or a very close copy."""
+    typed = _norm(question)
+    if not typed:
+        return None
+    for p in PRESETS:
+        for known in (p.question, *ALIASES.get(p.id, ())):
+            if (
+                typed == _norm(known)
+                or difflib.SequenceMatcher(None, typed, _norm(known)).ratio() >= 0.92
+            ):
+                return p
+    return None
 
 
 def _plain(value: Any) -> Any:

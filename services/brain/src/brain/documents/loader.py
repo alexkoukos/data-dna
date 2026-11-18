@@ -15,9 +15,14 @@ a prompt that contains one raises the alarm.
       - AKIAXXXXXXXXXXXXXXXX
 
 Files named `*.sample.md` are invented examples. They are skipped once a real file exists.
+
+A document can carry translations: `salary-bands.en.md` next to `salary-bands.md` holds the same
+text in English (header optional). An English rewrite of a Greek document is then compared with
+English text. A translation is only used for matching; it is never shown.
 """
 
 import logging
+import re
 from pathlib import Path
 
 import yaml
@@ -28,6 +33,8 @@ from brain.documents.registry import register_document
 from brain.honeytokens import Honeytoken, HoneytokenStore
 
 log = logging.getLogger(__name__)
+
+_TRANSLATION = re.compile(r"\.[a-z]{2}\.md$")
 
 
 def parse(raw: str) -> tuple[dict[str, str], str] | None:
@@ -55,7 +62,7 @@ def header_honeytokens(raw: str) -> list[Honeytoken]:
 
 
 def load_documents(engine: Engine, embedder: Embedder, folder: Path, keep_text: bool) -> int:
-    files = sorted(folder.glob("*.md"))
+    files = [f for f in sorted(folder.glob("*.md")) if not _TRANSLATION.search(f.name)]
     real = [f for f in files if not f.name.endswith(".sample.md")]
     count = 0
     for f in real or files:
@@ -64,12 +71,19 @@ def load_documents(engine: Engine, embedder: Embedder, folder: Path, keep_text: 
             log.warning("Skipping %s: it needs a header with title and sensitivity", f.name)
             continue
         meta, body = parsed
+        translations = [_translation_text(x) for x in sorted(folder.glob(f"{f.stem}.??.md"))]
         try:
             doc_id, _ = register_document(
-                engine, embedder, meta["title"], meta["sensitivity"], body, keep_text
+                engine, embedder, meta["title"], meta["sensitivity"], body, keep_text, translations
             )
             HoneytokenStore(engine).register(doc_id, header_honeytokens(f.read_text("utf-8")))
             count += 1
         except ValueError:
             log.warning("Skipping %s: no text", f.name)
     return count
+
+
+def _translation_text(path: Path) -> str:
+    raw = path.read_text(encoding="utf-8")
+    parsed = parse(raw)
+    return parsed[1] if parsed else raw.strip()

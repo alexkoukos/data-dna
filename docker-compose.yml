@@ -80,6 +80,13 @@ services:
       DEMO_MODE: ${DEMO_MODE:-true}
       DATA_DIR: /data
       EXTENSION_ID: ${EXTENSION_ID:-}
+      # X30: SIEM push. All off unless set in .env; see docs/siem/README.md.
+      SIEM_SYSLOG_HOST: ${SIEM_SYSLOG_HOST:-}
+      SIEM_SYSLOG_PORT: ${SIEM_SYSLOG_PORT:-514}
+      SIEM_SYSLOG_PROTO: ${SIEM_SYSLOG_PROTO:-udp}
+      SIEM_WEBHOOK_URL: ${SIEM_WEBHOOK_URL:-}
+      SIEM_WEBHOOK_SECRET: ${SIEM_WEBHOOK_SECRET:-}
+      SIEM_EXPORT_TOKEN: ${SIEM_EXPORT_TOKEN:-}
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
       # Few threads per model: many small requests beat one wide one (see the load test).
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
@@ -91,8 +98,10 @@ services:
       - ./data/eval:/data/eval
       - logs:/var/dna/logs
       - keys:/var/dna/keys # app-only: fallback HMAC key when secrets/hmac_key is absent
+    # Published on localhost only: the brain admin API has no login and the gateway uses the
+    # master key. Other machines on the network cannot reach them.
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     networks: [default, vault-a-net, vault-b-net]
     secrets: [hmac_key]
     depends_on:
@@ -112,7 +121,7 @@ services:
       BRAIN_URL: http://brain:8001
       LOCAL_LLM_URL: ${LOCAL_LLM_URL:-http://ollama:11434}
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     depends_on:
       db:
         condition: service_healthy
@@ -122,7 +131,7 @@ services:
   web:
     build: ./web
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       brain:
         condition: service_healthy
@@ -145,7 +154,7 @@ services:
       LOCAL_THREADS: ${LOCAL_THREADS:-4}
       OLLAMA_KEEP_ALIVE: 30m
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama:/root/.ollama
     healthcheck:
@@ -172,6 +181,14 @@ services:
         condition: service_healthy
       vault-b:
         condition: service_healthy
+  # X30 demo SOC: a tiny syslog receiver that prints the incidents the brain pushes. Not started by
+  # `up`: set SIEM_SYSLOG_HOST=syslog-receiver in .env, then run `make siem`.
+  syslog-receiver:
+    profiles: ["siem"]
+    image: python:3.12-alpine
+    command: ["python", "-u", "/receiver.py"]
+    volumes:
+      - ./infra/siem/receiver.py:/receiver.py:ro
 
   # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
   sim:

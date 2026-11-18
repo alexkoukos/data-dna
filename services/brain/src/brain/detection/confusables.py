@@ -26,6 +26,7 @@ def ascii_digits(text: str) -> str:
 
 
 _GREEK_LETTER = re.compile("[\u0370-\u03ff\u1f00-\u1fff]")
+_GREEK_COUNTRY_CODE = re.compile(r"^[ΓG][ΡRP](?=\d)")
 _TO_GREEK = {
     **dict(zip("ABEZHIKMNOPTYX", "ΑΒΕΖΗΙΚΜΝΟΡΤΥΧ", strict=True)),
     **dict(zip("ovupkiwa", "ονυρκιωα", strict=True)),
@@ -44,7 +45,17 @@ def _fold_word(word: str) -> str:
     letters into Latin."""
     greek = len(_GREEK_LETTER.findall(word))
     latin = len(_LATIN_LETTER.findall(word))
-    if greek > latin and len(_DIGIT.findall(word)) < 8:
+    digits = len(_DIGIT.findall(word))
+    if digits >= 8:
+        # An identifier typed with Greek letters for its country code: the Greek G and R read
+        # as "GR" by sound, although the Greek rho looks like a P.
+        m = _GREEK_COUNTRY_CODE.match(word)
+        if m and not m.group(0).isascii():
+            return "GR" + word[2:]
+    # A word of mostly Greek letters stays Greek only if it has a letter with no Latin look-alike
+    # (a real Greek word). "ΙGΝΟRΕ" and "ΙΝSΤRUCΤΙΟΝS" are Latin words dressed in Greek capitals.
+    real_greek = any(_GREEK_LETTER.match(c) and c not in _TO_LATIN for c in word)
+    if greek > latin and digits < 8 and (real_greek or latin == 0):
         out = []
         for c in word:
             if c.isascii():

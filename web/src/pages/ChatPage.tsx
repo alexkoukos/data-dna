@@ -71,7 +71,7 @@ export default function ChatPage() {
     return turns;
   };
 
-  const deliver = async (text: string, userId: string, ack?: string) => {
+  const deliver = async (text: string, userId: string, ack?: string, reroute = false) => {
     if (setup.status !== "ready") return;
     setBusy(true);
     setError(null);
@@ -79,6 +79,7 @@ export default function ChatPage() {
       setup.identity,
       [...cleanHistory(), { role: "user", content: text }],
       ack,
+      reroute,
     );
     setBusy(false);
 
@@ -110,7 +111,7 @@ export default function ChatPage() {
       return;
     }
     setHeld(null);
-    announce(result.outcome === "local" ? "local" : result.outcome);
+    announce(result.outcome);
     setMessages((m) => [
       ...m.map((x) =>
         x.id === userId && result.outcome !== "allow"
@@ -121,7 +122,9 @@ export default function ChatPage() {
         id: nextId(),
         role: "assistant",
         text: result.text,
-        outcome: result.outcome === "local" ? "local" : "allow",
+        outcome:
+          result.outcome === "local" || result.outcome === "rerouted" ? result.outcome : "allow",
+        answeredBy: result.outcome === "rerouted" ? "Company AI" : undefined,
       },
     ]);
   };
@@ -138,6 +141,12 @@ export default function ChatPage() {
         if (rs.length > 0) setNotices((n) => [...n, ...rs.map(outcomeText)]);
       });
     }
+  };
+
+  /** X31: send the held or blocked message to Company AI instead. The gate masks it first. */
+  const reroute = (id: string, text: string) => {
+    setHeld(null);
+    void deliver(text, id, undefined, true);
   };
 
   const sendAnyway = (reason: string) => {
@@ -256,6 +265,7 @@ export default function ChatPage() {
                   onEdit={editHeld}
                   onSendAnyway={sendAnyway}
                   onCancel={cancelHeld}
+                  onReroute={() => reroute(held.id, held.text)}
                 />
               </div>
             ) : null}
@@ -285,6 +295,18 @@ export default function ChatPage() {
                 />
               </div>
             ) : null}
+            {(() => {
+              const blocked = [...messages].reverse().find((m) => m.role === "user");
+              return !held && !busy && blocked?.outcome === "block" ? (
+                <button
+                  type="button"
+                  onClick={() => reroute(blocked.id, blocked.text)}
+                  className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
+                >
+                  Send it to Company AI instead
+                </button>
+              ) : null;
+            })()}
             {error ? (
               <div
                 role="alert"
