@@ -1,4 +1,4 @@
-// Pyli on chatgpt.com and claude.ai: check paste and send in the composer, and every file attached
+// Hive on chatgpt.com and claude.ai: check paste and send in the composer, and every file attached
 // (picker, drag and drop, paste), before it leaves the page.
 // Fails open: if the gate cannot be reached nothing is blocked, and a small badge says so.
 (() => {
@@ -208,10 +208,10 @@
       return v.shadow ? { ...v, decision: "allow" } : v;
     }
     if (out.error === "no-key")
-      showBadge("Pyli: add your key in the extension options");
+      showBadge("Hive: add your key in the extension options");
     else if (out.status === 401)
-      showBadge("Pyli: key not accepted, copy it again from Connect");
-    else showBadge("Pyli offline");
+      showBadge("Hive: key not accepted, copy it again from Connect");
+    else showBadge("Hive offline");
     return null;
   }
 

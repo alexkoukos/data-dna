@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Pyli for personal AI tools",
+  "name": "Hive for personal AI tools",
   "version": "0.1.0",
-  "description": "Checks what you paste or send into personal ChatGPT or Claude, and the files you attach, against your company's Pyli gate, before it leaves the page.",
+  "description": "Checks what you paste or send into personal ChatGPT or Claude, and the files you attach, against your company's Hive gate, before it leaves the page.",
   "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/16.png",
@@ -13,7 +13,7 @@
   "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
   "optional_host_permissions": ["https://*/*", "http://*/*"],
   "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_popup": "popup.html", "default_title": "Pyli" },
+  "action": { "default_popup": "popup.html", "default_title": "Hive" },
   "options_ui": { "page": "options.html", "open_in_tab": true },
   "content_scripts": [
     {

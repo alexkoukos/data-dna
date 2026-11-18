@@ -23,7 +23,7 @@ async function init() {
     status.textContent =
       out.status === 401
         ? "The gate does not accept this key."
-        : "Pyli offline. Nothing is blocked while it is.";
+        : "Hive offline. Nothing is blocked while it is.";
     $("incidents").hidden = true;
   }
 }
