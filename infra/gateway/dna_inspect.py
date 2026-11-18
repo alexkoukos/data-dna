@@ -84,6 +84,16 @@ def _no_token_ids() -> GatewayError:
     )
 
 
+_CLIENT_ROLES = {"system", "developer", "user", "assistant", "tool"}
+
+
+def _client_role(raw: Any) -> str:
+    """The role a client claimed, if the brain knows it. Anything else (including the gateway's
+    own "definition" role) is checked as the person's own text."""
+    role = str(raw if raw is not None else "user").strip().lower()
+    return role if role in _CLIENT_ROLES else "user"
+
+
 def _describe(node: Any, out: list[Slot]) -> None:
     """Every description and title string in a tool definition or its JSON schema."""
     if isinstance(node, dict):
@@ -130,7 +140,7 @@ def _chat_slots(data: dict[str, Any]) -> list[Slot]:
     for m in data.get("messages") or []:
         if not isinstance(m, dict):
             continue
-        role = str(m.get("role", "user"))
+        role = _client_role(m.get("role"))
         mine: list[Slot] = []
         content = m.get("content")
         if isinstance(content, str):
@@ -179,16 +189,16 @@ def _anthropic_slots(data: dict[str, Any]) -> list[Slot]:
             if isinstance(block, dict) and isinstance(block.get("text"), str):
                 out.append(Slot("system", block["text"], _setter(block, "text")))
     out.extend(_tool_definitions(data))
-    for m in data.get("messages") or []:
+    for index, m in enumerate(data.get("messages") or []):
         if not isinstance(m, dict):
             continue
-        role = str(m.get("role", "user"))
+        role = _client_role(m.get("role"))
         content = m.get("content")
         mine: list[Slot] = []
         other = False
         if isinstance(content, str):
             mine.append(Slot(role, content, _setter(m, "content")))
-        for block in content if isinstance(content, list) else []:
+        for n, block in enumerate(content if isinstance(content, list) else []):
             if not isinstance(block, dict):
                 other = True
                 continue
@@ -214,6 +224,15 @@ def _anthropic_slots(data: dict[str, Any]) -> list[Slot]:
                         mine.append(Slot(role, inner, _setter(source, "content")))
                     else:
                         other = _message_slots(role, inner, mine) or other
+                elif isinstance(source, dict) and source.get("type") == "base64":
+                    decoded = _base64_document_text(source)
+                    if decoded is None:
+                        other = True
+                    else:
+                        field_path = f"messages[{index}].content[{n}].source.data"
+                        mine.append(
+                            Slot(role, decoded, None, where=(id(source), "data"), path=field_path)
+                        )
                 else:
                     other = True
             elif kind == "search_result":
@@ -256,7 +275,7 @@ def _responses_slots(data: dict[str, Any]) -> list[Slot]:
             if isinstance(item.get(key), str):
                 out.append(Slot("assistant", item[key], _setter(item, key)))
             continue
-        role = str(item.get("role", "user"))
+        role = _client_role(item.get("role"))
         content = item.get("content")
         mine: list[Slot] = []
         if isinstance(content, str):
@@ -372,7 +391,8 @@ def refuse_connection_settings(data: dict[str, Any], call_type: str) -> None:
 
 
 def _is_binary(text: str) -> bool:
-    """A long base64 blob that is not text (a signature, a file). Anything else is checked."""
+    """A long base64 blob that is not text (a signature, a file). Anything else is checked,
+    including a string that only looks like base64 but does not decode."""
     if len(text) < _MIN_BINARY_CHARS or _BASE64.fullmatch(text) is None:
         return False
     try:
@@ -380,8 +400,10 @@ def _is_binary(text: str) -> bool:
             text.replace("-", "+").replace("_", "/") + "=" * (-len(text) % 4), validate=True
         )
         decoded = raw.decode("utf-8")
-    except (ValueError, UnicodeDecodeError):
+    except UnicodeDecodeError:
         return True
+    except ValueError:
+        return False
     return sum(c.isprintable() or c in "\n\r\t" for c in decoded) / max(len(decoded), 1) < 0.85
 
 
@@ -409,6 +431,28 @@ def _in_media_position(part_type: Any, path: str) -> bool:
     return path[m.end() + 1 :] in _MEDIA_FIELDS.get(part_type, ())
 
 
+def _textual_media(media: str) -> bool:
+    media = media.split(";", 1)[0].strip().lower()
+    return (
+        media.startswith("text/")
+        or media in ("application/json", "application/xml")
+        or media.endswith(("+json", "+xml"))
+    )
+
+
+def _base64_document_text(source: dict[str, Any]) -> str | None:
+    """The text inside a base64 document whose media type is text, JSON or XML, else None."""
+    data = source.get("data")
+    media = source.get("media_type")
+    if not isinstance(data, str) or not isinstance(media, str) or not _textual_media(media):
+        return None
+    try:
+        raw = base64.b64decode(data + "=" * (-len(data) % 4))
+    except ValueError:
+        return None
+    return raw.decode("utf-8", errors="replace")
+
+
 def _data_url_texts(value: str, media_position: bool) -> list[str] | None:
     """What to check in a data URL: None if the string is not one (check it as text).
 
@@ -421,12 +465,7 @@ def _data_url_texts(value: str, media_position: bool) -> list[str] | None:
     if m is None:
         return None
     media = m.group(1).strip().lower()
-    textual = (
-        media == ""
-        or media.startswith("text/")
-        or media in ("application/json", "application/xml")
-        or media.endswith(("+json", "+xml"))
-    )
+    textual = media == "" or _textual_media(media)
     if media_position and not textual:
         return []
     payload = m.group(3)[:_MAX_DATA_URL_CHARS]

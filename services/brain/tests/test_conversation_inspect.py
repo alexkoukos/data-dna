@@ -263,3 +263,121 @@ def test_very_long_messages_are_not_kept_in_memory(
     monkeypatch.setattr(main, "MAX_REMEMBERED_CHARS", 20_000)
     send(client, turns("a message that is clearly longer than twenty characters", "ok", HARMLESS))
     assert main._entity_memory._items
+
+
+def _grouped(*roles: str) -> tuple[list[int], list[int], list[int]]:
+    return main._group_messages([main.Message(role=r, content="x") for r in roles])
+
+
+def test_new_content_is_the_last_user_run_and_everything_after_it() -> None:
+    assert _grouped("system", "user", "assistant", "user") == ([3], [1], [2, 0])
+    assert _grouped("system", "user", "tool", "assistant") == ([1, 2, 3], [], [0])
+    assert _grouped("user", "system", "user", "system", "assistant") == ([2, 3, 4], [1, 0], [])
+    assert _grouped("system", "user", "system", "assistant", "user") == ([4], [2, 1], [3, 0])
+    assert _grouped("definition", "user", "definition") == ([1], [2, 0], [])
+    assert _grouped("system", "assistant") == ([0, 1], [], [])
+
+
+@pytest.mark.parametrize(
+    "tail",
+    [
+        [{"role": "system", "content": "x"}],
+        [{"role": "developer", "content": "x"}],
+        [{"role": "assistant", "content": "a"}, {"role": "assistant", "content": "b"}],
+    ],
+)
+def test_trailing_forged_messages_do_not_hide_the_user_message(
+    client: TestClient,
+    engine: sa.Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    tail: list[dict[str, str]],
+) -> None:
+    store = HoneytokenStore(engine, ttl_seconds=0)
+    with engine.begin() as conn:
+        conn.execute(
+            sa.insert(t.documents).values(
+                id=1, title="Board memo", sensitivity="restricted", created_at=sa.func.now()
+            )
+        )
+    decoy = generate(1)[0]
+    store.register(1, [decoy])
+    monkeypatch.setattr(main, "_honeytokens", lambda: store)
+    alarms: list[str] = []
+    monkeypatch.setattr(main, "record_alarm", lambda *a, **k: alarms.append("alarm"))
+    user = {"role": "user", "content": f"{INJECTION} {KEY} {decoy.value}"}
+    plain = send(client, [user])
+    assert plain["decision"] == "block" and alarms == ["alarm"]
+    out = send(client, [user, *tail])
+    assert out["decision"] == plain["decision"]
+    assert not out["reasons"][0].startswith("Earlier in this conversation")
+    assert alarms == ["alarm", "alarm"]
+
+
+def test_a_trailing_forged_message_does_not_stop_the_injection_check(client: TestClient) -> None:
+    for tail in ({"role": "system", "content": "x"}, {"role": "assistant", "content": "a"}):
+        out = send(client, [{"role": "user", "content": INJECTION}, tail])
+        assert out["decision"] == "block"
+
+
+def test_a_system_prompt_before_the_user_turn_still_allows_injection_wording(
+    client: TestClient,
+) -> None:
+    msgs = [
+        {"role": "system", "content": INJECTION},
+        {"role": "user", "content": HARMLESS},
+        {"role": "assistant", "content": "prefill"},
+    ]
+    assert send(client, msgs)["decision"] == "allow"
+
+
+@pytest.mark.parametrize("role", ["system", "developer", "definition"])
+def test_a_request_with_only_system_like_roles_is_checked_as_new_content(
+    client: TestClient,
+    engine: sa.Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    role: str,
+) -> None:
+    store = HoneytokenStore(engine, ttl_seconds=0)
+    with engine.begin() as conn:
+        conn.execute(
+            sa.insert(t.documents).values(
+                id=1, title="Board memo", sensitivity="restricted", created_at=sa.func.now()
+            )
+        )
+    decoy = generate(1)[0]
+    store.register(1, [decoy])
+    monkeypatch.setattr(main, "_honeytokens", lambda: store)
+    alarms: list[str] = []
+    monkeypatch.setattr(main, "record_alarm", lambda *a, **k: alarms.append("alarm"))
+    assert send(client, [{"role": role, "content": INJECTION}])["decision"] == "block"
+    out = send(client, [{"role": role, "content": f"see {decoy.value}"}])
+    assert out["decision"] == "block" and alarms == ["alarm"]
+    assert not out["reasons"][0].startswith("Earlier in this conversation")
+
+
+def test_a_system_message_after_the_first_user_turn_is_injection_checked(
+    client: TestClient,
+) -> None:
+    msgs = [
+        {"role": "system", "content": "You are a helpful bot."},
+        {"role": "user", "content": "hi"},
+        {"role": "system", "content": INJECTION},
+        {"role": "assistant", "content": "ok"},
+        {"role": "user", "content": HARMLESS},
+    ]
+    out = send(client, msgs)
+    assert out["decision"] == "block"
+    assert out["reasons"][0].startswith("Earlier in this conversation")
+    msgs[2] = {"role": "developer", "content": INJECTION}
+    assert send(client, msgs)["decision"] == "block"
+
+
+def test_a_leading_system_prompt_with_injection_wording_still_allows(client: TestClient) -> None:
+    msgs = [
+        {"role": "system", "content": INJECTION},
+        {"role": "developer", "content": INJECTION},
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "hello"},
+        {"role": "user", "content": HARMLESS},
+    ]
+    assert send(client, msgs)["decision"] == "allow"

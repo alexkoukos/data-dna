@@ -352,21 +352,39 @@ class _Pass:
 def _group_messages(msgs: list[Message]) -> tuple[list[int], list[int], list[int]]:
     """Split message positions into (new content, earlier user/tool turns, trusted roles).
 
-    New content is the run of non-system messages at the end of the conversation, apart from one
-    final assistant message (a prefill). The other two lists are newest first.
+    Let L be the last message from a user or tool. New content is the unbroken run of user and
+    tool messages that ends at L, plus every message after L whatever its role, so a system or
+    assistant message a client appends after its question gets the full checks too (a single
+    assistant prefill included). System and developer text is trusted (no injection checks)
+    only in the leading block before the first user or tool message, which is the normal
+    prompt; one that comes later is checked as an earlier turn. Assistant text before the new
+    content stays trusted. With no user or tool message at all, everything present is new
+    content, so a request never carries text that gets no full check. The other two lists
+    are newest first.
     """
     present = [i for i, m in enumerate(msgs) if m.content]
-    j = len(present) - 1
-    if j >= 0 and msgs[present[j]].role == "assistant":
-        j -= 1
-    new: list[int] = []
-    while j >= 0 and msgs[present[j]].role not in _TRUSTED_ROLES | {_DEFINITION_ROLE}:
-        new.append(present[j])
-        j -= 1
-    new.reverse()
+    skip = _TRUSTED_ROLES | {_DEFINITION_ROLE}
+    user_like = [k for k, i in enumerate(present) if msgs[i].role not in skip]
+    if not user_like:
+        return list(present), [], []
+    last = user_like[-1]
+    first = last
+    while first > 0 and msgs[present[first - 1]].role not in skip:
+        first -= 1
+    new = [
+        present[k]
+        for k in range(first, len(present))
+        if k <= last or msgs[present[k]].role != _DEFINITION_ROLE
+    ]
+    leading = set(present[: user_like[0]])
     older = set(present) - set(new)
-    history = [i for i in reversed(present) if i in older and msgs[i].role not in _TRUSTED_ROLES]
-    trusted = [i for i in reversed(present) if i in older and msgs[i].role in _TRUSTED_ROLES]
+
+    def trusted_role(i: int) -> bool:
+        role = msgs[i].role
+        return role == "assistant" or (role in _TRUSTED_ROLES and i in leading)
+
+    history = [i for i in reversed(present) if i in older and not trusted_role(i)]
+    trusted = [i for i in reversed(present) if i in older and trusted_role(i)]
     return new, history, trusted
 
 

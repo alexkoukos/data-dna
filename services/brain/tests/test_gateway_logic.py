@@ -1114,3 +1114,146 @@ def test_the_reason_for_a_read_only_field_names_it_in_plain_words() -> None:
         "Sensitive data in `tools[0].function.parameters.default` cannot be masked "
         "automatically. Remove it or send with the X-DNA-Ack header."
     )
+
+
+# --- round 6: fail closed on undecodable blobs, base64 text documents -------------------------
+
+_AWS_KEY = "AKIAIOSFODNN7EXAMPLE"
+
+
+def test_a_long_alphanumeric_string_that_is_not_base64_is_checked_as_text() -> None:
+    # 300 characters with an invalid base64 length (301 would be fine, 297 mod 4 == 1 is not)
+    text = "x" * 140 + _AWS_KEY + "y" * 141
+    assert len(text) % 4 == 1
+    assert dna._is_binary(text) is False
+    data = {"messages": [{"role": "user", "content": "hi"}], "user": text}
+    assert text in _extras(data)
+
+
+def test_a_blob_that_decodes_to_non_text_bytes_is_still_binary() -> None:
+    assert dna._is_binary(base64.b64encode(bytes([255, 254, 253]) * 200).decode()) is True
+
+
+def _doc_request(media: str, payload: bytes, kind: str = "document") -> dict[str, Any]:
+    return {
+        "model": "m",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "summarise"},
+                    {
+                        "type": kind,
+                        "source": {
+                            "type": "base64",
+                            "media_type": media,
+                            "data": base64.b64encode(payload).decode(),
+                        },
+                    },
+                ],
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "media", ["text/plain", "application/json", "application/xml", "application/ld+json"]
+)
+def test_a_base64_text_document_is_decoded_and_checked_read_only(media: str) -> None:
+    data = _doc_request(media, f'{{"key": "{_AWS_KEY}"}}'.encode())
+    slots = dna.inspection_view(data, "anthropic_messages")
+    doc = [s for s in slots if _AWS_KEY in s.text]
+    assert len(doc) == 1
+    assert doc[0].write is None and doc[0].path == "messages[0].content[1].source.data"
+    assert not any(s.text == data["messages"][0]["content"][1]["source"]["data"] for s in slots)
+    assert all(not s.risky for s in slots)
+
+
+def test_a_secret_in_a_base64_text_document_becomes_a_warning_naming_the_field() -> None:
+    data = _doc_request("text/plain", f"key {_AWS_KEY}".encode())
+    sent: list[dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        sent.append(body)
+        masked = [
+            {"role": m["role"], "content": m["content"].replace(_AWS_KEY, "[AWS_ACCESS_KEY_1]")}
+            for m in body["messages"]
+        ]
+        return httpx.Response(200, json={"decision": "mask", "masked_messages": masked})
+
+    async def go() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await dna.apply_decision(
+                data,
+                user_id="u",
+                team="t",
+                headers=None,
+                brain_url="http://brain",
+                client=client,
+                call_type="anthropic_messages",
+            )
+
+    with pytest.raises(dna.GatewayError) as err:
+        asyncio.run(go())
+    assert err.value.status_code == 409
+    assert "messages[0].content[1].source.data" in json.dumps(err.value.body)
+    assert any(_AWS_KEY in m["content"] for m in sent[0]["messages"])
+
+
+def test_binary_documents_and_images_are_not_decoded_or_sent() -> None:
+    blob = bytes(range(256)) * 2
+    for media, kind in (("application/pdf", "document"), ("image/png", "image")):
+        slots = dna.inspection_view(_doc_request(media, blob, kind), "anthropic_messages")
+        assert all(len(s.text) < 100 for s in slots)
+        assert slots[-1].risky is True
+
+
+def test_an_openai_file_part_with_a_textual_data_url_is_decoded() -> None:
+    payload = base64.b64encode(f"key {_AWS_KEY}".encode()).decode()
+    data = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "file",
+                        "file": {
+                            "file_data": f"data:text/plain;base64,{payload}",
+                            "filename": "a.txt",
+                        },
+                    }
+                ],
+            }
+        ]
+    }
+    assert f"key {_AWS_KEY}" in _texts(data, "completion")
+
+
+@pytest.mark.parametrize("claimed", ["definition", "Definition", "func", "", None, "SYSTEM "])
+def test_a_client_cannot_claim_the_gateways_definition_role(claimed: Any) -> None:
+    expected = "system" if claimed == "SYSTEM " else "user"
+    chat = {"messages": [{"role": claimed, "content": "hello"}]}
+    anthropic = {"messages": [{"role": claimed, "content": [{"type": "text", "text": "hello"}]}]}
+    responses = {"input": [{"role": claimed, "content": "hello"}]}
+    for call, data in (
+        ("completion", chat),
+        ("anthropic_messages", anthropic),
+        ("responses", responses),
+    ):
+        roles = [s.role for s in dna.inspection_view(data, call) if s.text == "hello"]
+        assert roles == [expected], call
+
+
+def test_known_client_roles_are_kept_and_tool_definitions_stay_definitions() -> None:
+    data = {
+        "messages": [
+            {"role": "Developer", "content": "a"},
+            {"role": "tool", "content": "b"},
+            {"role": "assistant", "content": "c"},
+        ],
+        "tools": [{"function": {"name": "f", "description": "what it does"}}],
+    }
+    roles = {s.text: s.role for s in dna.inspection_view(data, "completion")}
+    assert roles["a"] == "developer" and roles["b"] == "tool" and roles["c"] == "assistant"
+    assert roles["what it does"] == "definition"
