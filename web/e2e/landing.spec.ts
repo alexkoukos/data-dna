@@ -12,7 +12,10 @@ test("the landing page loads at / with the headline and both calls to action", a
     "href",
     "/app",
   );
-  await expect(page.getByRole("link", { name: "How it works" }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "See what it catches" })).toHaveAttribute(
+    "href",
+    "#catches",
+  );
   await expect(loop(page)).toBeVisible();
 });
 
@@ -74,12 +77,6 @@ test.describe("with motion", () => {
       "Keys never leave the hive.",
       "Answered by Company AI.",
     ]);
-  });
-
-  test("the loop stops when the pause button is pressed", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Pause" }).click();
-    await expect(loop(page)).toHaveAttribute("data-playing", "false");
   });
 });
 

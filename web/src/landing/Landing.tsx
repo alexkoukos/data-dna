@@ -1,32 +1,15 @@
-import { useState } from "react";
+import "@fontsource/plus-jakarta-sans/400.css";
+import "@fontsource/plus-jakarta-sans/500.css";
+import "@fontsource/plus-jakarta-sans/700.css";
+import "@fontsource/plus-jakarta-sans/800.css";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { SiteShell } from "./SiteShell";
 import "./landing.css";
+import { TextureButton } from "@/components/ui/texture-button";
 import { HeroLoop } from "./HeroLoop";
-import { PHASE } from "./loop";
-import { Scaled } from "./Scaled";
-import { Screen } from "./Screen";
+import { RibbonField } from "./RibbonField";
 
-const STEPS = [
-  {
-    title: "Paste",
-    body: "Someone drops a table, a key or a document into an AI tool, the way people do every day.",
-    scene: 0,
-    phase: PHASE.paste,
-  },
-  {
-    title: "The bee checks",
-    body: "Before anything is sent, the guard bee looks at the text, masks or stops what belongs to the hive, and says why.",
-    scene: 1,
-    phase: PHASE.bee,
-  },
-  {
-    title: "You still get your answer",
-    body: "Every block names a safe way forward, like Company AI, which can read it on your own servers.",
-    scene: 3,
-    phase: PHASE.card,
-  },
-];
+const GITHUB = "https://github.com/alexkoukos/data-dna";
 
 type Kind = "mask" | "block" | "local" | "warn";
 const GLYPH: Record<Kind, string> = { mask: "◐", block: "■", local: "⌂", warn: "▲" };
@@ -128,6 +111,18 @@ const WATCHER = [
   ["An audit log.", "Every decision and every reveal is recorded."],
 ];
 
+function Wordmark({ reverse = false, className = "" }: { reverse?: boolean; className?: string }) {
+  return (
+    <img
+      className={className}
+      src={reverse ? "/brand/hive-wordmark-reverse.svg" : "/brand/hive-wordmark.svg"}
+      alt="Hive"
+      width="173"
+      height="70"
+    />
+  );
+}
+
 function Catches() {
   const [pick, setPick] = useState(0);
   const c = CATCHES[pick];
@@ -191,11 +186,57 @@ function Catches() {
   );
 }
 
+// Sections below the hero fade up once as they scroll into view. Nothing repeats, and with
+// reduced motion (or no IntersectionObserver) everything is simply visible.
+function useReveal(root: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = root.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const items = Array.from(el.querySelectorAll<HTMLElement>("[data-reveal]"));
+    el.classList.add("reveal-ready");
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-in");
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
+    );
+    items.forEach((i) => io.observe(i));
+    return () => io.disconnect();
+  }, [root]);
+}
+
 export default function Landing() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useReveal(rootRef);
   return (
-    <SiteShell home>
+    <div className="hive" ref={rootRef}>
+      <a className="skip" href="#main">
+        Skip to content
+      </a>
+      <header className="top">
+        <nav aria-label="Main" className="top-in">
+          <Link to="/" className="top-logo" aria-label="Hive home">
+            <Wordmark reverse className="top-wordmark" />
+          </Link>
+          <div className="top-links">
+            <a href="#catches">What it catches</a>
+            <a href="#security">For security teams</a>
+            <TextureButton asChild variant="primary" size="lg">
+              <Link to="/app">Live demo</Link>
+            </TextureButton>
+          </div>
+        </nav>
+      </header>
+
       <main id="main">
         <section className="hero" aria-labelledby="hero-title">
+          <RibbonField className="hero-ribbon" />
           <div className="hero-in">
             <div className="hero-copy">
               <h1 id="hero-title">Your data is the honey. We guard the gate.</h1>
@@ -204,44 +245,20 @@ export default function Landing() {
                 to your company, and always shows a way to still get your answer.
               </p>
               <div className="cta">
-                <Link to="/app" className="btn btn-primary">
-                  See the live demo
-                </Link>
-                <a href="#how" className="btn btn-secondary">
-                  How it works
-                </a>
+                <TextureButton asChild variant="primary" size="lg">
+                  <Link to="/app">See the live demo</Link>
+                </TextureButton>
+                <TextureButton asChild variant="secondary" size="lg">
+                  <a href="#catches">See what it catches</a>
+                </TextureButton>
               </div>
             </div>
             <HeroLoop />
           </div>
         </section>
 
-        <section id="how" className="section section-white" aria-labelledby="how-title">
-          <div className="wrap">
-            <h2 id="how-title">Every prompt passes the gate.</h2>
-            <ol className="steps">
-              {STEPS.map((s, i) => (
-                <li key={s.title} className="step">
-                  <div className="step-frame" aria-hidden="true">
-                    <Scaled width={720} height={450}>
-                      <Screen still scene={s.scene} phase={s.phase} />
-                    </Scaled>
-                  </div>
-                  <h3>
-                    <span className="step-n" aria-hidden="true">
-                      {i + 1}
-                    </span>
-                    {s.title}
-                  </h3>
-                  <p>{s.body}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
-
         <section id="catches" className="section" aria-labelledby="catches-title">
-          <div className="wrap">
+          <div className="wrap" data-reveal>
             <h2 id="catches-title">The things people paste without thinking.</h2>
             <p className="section-sub">Pick one to see what you paste and what leaves.</p>
             <Catches />
@@ -249,16 +266,16 @@ export default function Landing() {
         </section>
 
         <section id="security" className="section section-white" aria-labelledby="sec-title">
-          <div className="wrap sec-grid">
+          <div className="wrap sec-grid" data-reveal>
             <div>
               <h2 id="sec-title">One screen for the question you actually have.</h2>
               <p className="lead">
                 The Overview counts saves, not violations. It shows which tools your teams use, what
                 was kept in, and what needs a second look.
               </p>
-              <Link to="/security" className="btn btn-secondary">
-                Open the Overview
-              </Link>
+              <TextureButton asChild variant="secondary" size="lg">
+                <Link to="/security">Open the Overview</Link>
+              </TextureButton>
             </div>
             <figure className="shot">
               <div className="shot-frame">
@@ -275,13 +292,15 @@ export default function Landing() {
                   alt="The Hive Overview: trend charts for incidents and leaks stopped, and counts of prompts checked, share handled without an AI model, incidents and unapproved tools. Demo data."
                 />
               </div>
-              <figcaption>The real Overview, running on invented demo data.</figcaption>
+              <figcaption>
+                The real Overview, running on invented demo data.
+              </figcaption>
             </figure>
           </div>
         </section>
 
         <section className="section" aria-labelledby="watch-title">
-          <div className="wrap">
+          <div className="wrap" data-reveal>
             <h2 id="watch-title">The gate is guarded too.</h2>
             <ul className="watch">
               {WATCHER.map(([title, text]) => (
@@ -293,6 +312,27 @@ export default function Landing() {
           </div>
         </section>
       </main>
-    </SiteShell>
+
+      <footer className="foot">
+        <div className="wrap foot-in">
+          <Wordmark className="foot-wordmark" />
+          <p>Built for the Netcompany Hackathon 2026</p>
+          <nav aria-label="Footer" className="foot-nav">
+            <Link to="/how-it-works" className="foot-link">
+              Deep dive
+            </Link>
+            <Link to="/trust" className="foot-link">
+              Security and privacy
+            </Link>
+            <Link to="/developers" className="foot-link">
+              Developers
+            </Link>
+            <a href={GITHUB} className="foot-link">
+              GitHub
+            </a>
+          </nav>
+        </div>
+      </footer>
+    </div>
   );
 }

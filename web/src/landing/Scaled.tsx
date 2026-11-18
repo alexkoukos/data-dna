@@ -8,12 +8,14 @@ export function Scaled({
   width,
   height,
   max = 1,
+  align = "center",
   children,
   className,
 }: {
   width: number;
   height: number;
   max?: number;
+  align?: "center" | "right";
   children: ReactNode;
   className?: string;
 }) {
@@ -25,14 +27,17 @@ export function Scaled({
     if (!el) return;
     const measure = () => {
       const scale = Math.min(max, el.clientWidth / width) || 0.5;
-      setFit({ scale, left: Math.max(0, (el.clientWidth - width * scale) / 2) });
+      setFit({
+        scale,
+        left: Math.max(0, (el.clientWidth - width * scale) / (align === "right" ? 1 : 2)),
+      });
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [width, max]);
+  }, [width, max, align]);
 
   const outer: CSSProperties = { height: height * fit.scale };
   const inner: CSSProperties = {

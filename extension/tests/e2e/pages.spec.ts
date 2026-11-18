@@ -25,7 +25,8 @@ test("the side panel says so when the company AI cannot be reached", async ({ co
   await page.goto(`chrome-extension://${id}/sidepanel.html`);
   await page.getByLabel("Your question").fill("Summarise our travel policy");
   await page.getByRole("button", { name: "Ask company AI" }).click();
+  // The answer bubble and the note under it both say so; either one is enough.
   await expect(
-    page.getByText(/could not be reached|Answered locally|Stand-in answer/),
+    page.getByText(/could not be reached|Answered locally|Stand-in answer/).first(),
   ).toBeVisible();
 });

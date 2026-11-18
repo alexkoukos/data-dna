@@ -495,3 +495,95 @@ ul.events li.ev .tag {
   font-weight: 500;
   color: var(--muted);
 }
+
+/* Company chat */
+.chat-scroll {
+  flex: 1;
+  overflow: auto;
+  margin-top: 12px;
+}
+.conv-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 2px 12px;
+}
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.msg.assistant {
+  align-items: flex-start;
+}
+.msg.user {
+  align-items: flex-end;
+}
+.avatar-chat {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.bee-avatar {
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.me-avatar {
+  background: var(--amber);
+  color: var(--on-amber);
+}
+.msg-bubble {
+  max-width: 92%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 22px;
+}
+.msg.assistant .msg-bubble {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-top-left-radius: 6px;
+}
+.msg.user .msg-bubble {
+  background: var(--amber);
+  color: var(--on-amber);
+  border-top-right-radius: 6px;
+}
+.msg-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--subtle-fg);
+}
+.msg-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: -2px;
+}
+button.act {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+button.act:hover:not(:disabled) {
+  background: var(--muted-bg);
+  color: var(--fg);
+}
+button.act[aria-pressed="true"] {
+  background: var(--tint);
+  border-color: var(--amber);
+  color: var(--amber-text);
+}
+
+/* As a full tab the chat keeps a readable width */
+.in-tab {
+  max-width: 760px;
+  margin: 0 auto;
+}
