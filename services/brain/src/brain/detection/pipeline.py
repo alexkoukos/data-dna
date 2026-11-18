@@ -19,6 +19,7 @@ class InspectResult:
     evasion_signals: list[str]
     doc_matches: list[DocMatch]
     text: str = ""
+    stopped_early: bool = False  # the language models were skipped: the cheap checks blocked
 
 
 Finder = Callable[[str], list[Finding]]
@@ -62,9 +63,10 @@ def inspect_text(
     """Run every check on one text.
 
     With `early_stop`, the cheap finders run first and the `expensive` ones (models) only run if
-    the cheap ones did not already decide to block; the document matcher is skipped on a block
-    too. Findings are always merged in the order of `finders`, so when nothing blocks the result
-    is exactly the same as without `early_stop`.
+    the cheap ones did not already decide to block. The document matcher always runs, because
+    session memory, copy attribution and the incident record depend on it. Findings are always
+    merged in the order of `finders`, so when nothing blocks the result is exactly the same as
+    without `early_stop`.
     """
     norm = normalise(text)
     findings = find_patterns(norm.text)
@@ -111,8 +113,8 @@ def inspect_text(
         for vf in view_finders:
             hidden.extend(vf(view))
     categories = [f.category for f in findings + hidden]
-    doc_matches = doc_matcher(norm.text) if doc_matcher and not stopped else []
-    if doc_matcher and not stopped and not doc_matches and "client_name" in categories:
+    doc_matches = doc_matcher(norm.text) if doc_matcher else []
+    if doc_matcher and not doc_matches and "client_name" in categories:
         # The name of the counterparty in a document's title, plus a near miss against that
         # document, is two signals, not one.
         names = [f.value for f in findings + hidden if f.category == "client_name"]
@@ -137,6 +139,7 @@ def inspect_text(
         norm.evasion_signals,
         doc_matches,
         norm.text,
+        stopped_early=stopped,
     )
 
 

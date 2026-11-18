@@ -906,6 +906,8 @@ def inspect(
     passes: list[_Pass] = []
     first: _Pass | None = None
     decoys: list[Owner] = []
+    # Shadow mode records what would have happened, so it always runs every check.
+    shadow_on = settings_store.get_bool(policy_store.engine, settings_store.SHADOW)
     if new_idx or attached:
         texts = [msgs[i].content for i in new_idx]
         r1, m1, n1 = _inspect_group(
@@ -916,8 +918,9 @@ def inspect(
             finders=finders,
             view_finders=[find_yara, injection_finder],
             doc_match=documents.match,
-            # A reroute needs every finding to mask them all, so it never stops early.
-            early_stop=not req.reroute,
+            # A reroute needs every finding to mask them all, and shadow mode must see every check,
+            # so neither stops early.
+            early_stop=not req.reroute and not shadow_on,
         )
         first = _Pass(r1, new_idx, m1, n1)
         passes.append(first)

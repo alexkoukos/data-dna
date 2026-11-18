@@ -56,6 +56,15 @@ def build_trace(
                 "detail": "Seen: " + ", ".join(result.evasion_signals),
             }
         )
+    if result.stopped_early:
+        steps.append(
+            {
+                "layer": "Early stop",
+                "fired": False,
+                "score": None,
+                "detail": "Already blocked by the cheap checks, so the language models did not run",
+            }
+        )
     for m in result.doc_matches:
         steps.append(
             {
