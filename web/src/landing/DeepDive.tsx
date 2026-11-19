@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { TextureButton } from "@/components/ui/texture-button";
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { PageHead, SiteShell } from "./SiteShell";
+import { LANDING_ONLY } from "./mode";
 
 const FLOW: [string, string, string][] = [
   ["Paste", "Text or a file goes into an AI tool. Nothing has left the page yet.", "On the page"],
@@ -281,10 +282,12 @@ export default function DeepDive() {
             </div>
             <p className="prose">Invented data, tuned on that set. Read it as a ceiling.</p>
             <div className="cta-row">
-              <TextureButton asChild variant="primary" size="lg">
-                <Link to="/break-it">Try to break it</Link>
-              </TextureButton>
-              <TextureButton asChild variant="secondary" size="lg">
+              {LANDING_ONLY ? null : (
+                <TextureButton asChild variant="primary" size="lg">
+                  <Link to="/break-it">Try to break it</Link>
+                </TextureButton>
+              )}
+              <TextureButton asChild variant={LANDING_ONLY ? "primary" : "secondary"} size="lg">
                 <Link to="/developers">For developers</Link>
               </TextureButton>
             </div>

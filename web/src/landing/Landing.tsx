@@ -5,6 +5,7 @@ import "@fontsource/plus-jakarta-sans/800.css";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./landing.css";
+import { LANDING_ONLY } from "./mode";
 import { SiteNav } from "./SiteNav";
 import { LogoBar } from "./LogoBar";
 import { Checkpoint, HowItWorks, Solved } from "./Sections";
@@ -230,10 +231,12 @@ export default function Landing() {
           description="Sentry checks every prompt before it reaches an AI tool, masks or stops what belongs to your company, and always shows a way to still get your answer."
           renderCta={() => (
             <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              <TextureButton asChild variant="primary" size="lg">
-                <Link to="/app">See the live demo</Link>
-              </TextureButton>
-              <TextureButton asChild variant="secondary" size="lg">
+              {LANDING_ONLY ? null : (
+                <TextureButton asChild variant="primary" size="lg">
+                  <Link to="/app">See the live demo</Link>
+                </TextureButton>
+              )}
+              <TextureButton asChild variant={LANDING_ONLY ? "primary" : "secondary"} size="lg">
                 <Link to="/how-it-works">See how it works</Link>
               </TextureButton>
             </div>
@@ -291,9 +294,11 @@ export default function Landing() {
                 was kept in, and what needs a second look.
               </p>
               <Checkpoint />
-              <TextureButton asChild variant="secondary" size="lg">
-                <Link to="/security">Open the Overview</Link>
-              </TextureButton>
+              {LANDING_ONLY ? null : (
+                <TextureButton asChild variant="secondary" size="lg">
+                  <Link to="/security">Open the Overview</Link>
+                </TextureButton>
+              )}
             </div>
             <figure className="shot">
               <div className="shot-frame">

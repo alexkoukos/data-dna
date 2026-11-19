@@ -1,6 +1,7 @@
 import { Link, NavLink } from "react-router-dom";
 import { Sentinel } from "@/components/Sentinel";
 import "./landing.css";
+import { LANDING_ONLY } from "./mode";
 
 const PAGES = [
   { to: "/how-it-works", label: "How it works" },
@@ -36,12 +37,16 @@ export function SiteNav() {
               {l.label}
             </NavLink>
           ))}
-          <NavLink to="/chat" className={({ isActive }) => (isActive ? "is-here" : undefined)}>
-            Company AI
-          </NavLink>
-          <Link to="/app" className="btn btn-primary btn-sm">
-            Live demo
-          </Link>
+          {LANDING_ONLY ? null : (
+            <>
+              <NavLink to="/chat" className={({ isActive }) => (isActive ? "is-here" : undefined)}>
+                Company AI
+              </NavLink>
+              <Link to="/app" className="btn btn-primary btn-sm">
+                Live demo
+              </Link>
+            </>
+          )}
         </div>
       </nav>
     </header>
