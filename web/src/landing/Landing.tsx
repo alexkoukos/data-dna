@@ -331,8 +331,8 @@ export default function Landing() {
         <div className="wrap foot-in">
           <Wordmark className="foot-wordmark" />
           <p>Built for the Netcompany Hackathon 2026</p>
-          <a href={GITHUB} className="foot-link">
-            GitHub
+          <a href={GITHUB} className="foot-link" target="_blank" rel="noopener noreferrer">
+            GitHub<span className="sr-only"> (opens in a new tab)</span>
           </a>
         </div>
       </footer>

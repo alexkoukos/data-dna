@@ -1159,6 +1159,14 @@
   .foot {
     padding: 32px 16px;
   }
+  /* Wordmark and GitHub share the first row; the tagline gets the full width below. */
+  .foot-in p {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .foot-link {
+    margin-left: auto;
+  }
 }
 
 /* Overview picture */

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { DECISION_EVENT, SAYS } from "../lib/companion";
 import { fetchIncidents } from "../lib/securityApi";
+import { useLiftAboveFooter } from "../lib/useLiftAboveFooter";
 import { openVideoPip, openWindowPip, pipSupport, type VideoPip } from "../lib/pip";
 import { OutcomeChip, type Outcome } from "./OutcomeChip";
 import { Thyro, type ThyroPose } from "./Thyro";
@@ -86,7 +87,10 @@ export function Companion() {
   const lastSeen = useRef<number | null>(null);
   const support = pipSupport();
   // On the chat screen he sits above the message box, so he never covers what people type.
-  const onChat = useLocation().pathname.startsWith("/chat");
+  const { pathname } = useLocation();
+  const onChat = pathname.startsWith("/chat");
+  // Never cover the footer's status and links: rise above it when it scrolls into view.
+  const liftRef = useLiftAboveFooter<HTMLElement>([hidden, pathname]);
 
   const save = (next: Partial<{ corner: Corner; hidden: boolean }>) =>
     setPrefs((p) => {
@@ -181,6 +185,7 @@ export function Companion() {
   if (hidden) {
     return (
       <button
+        ref={liftRef as RefObject<HTMLElement | null> as RefObject<HTMLButtonElement | null>}
         type="button"
         aria-label="Show Thyro"
         onClick={() => save({ hidden: false })}
@@ -193,6 +198,7 @@ export function Companion() {
 
   return (
     <aside
+      ref={liftRef}
       aria-label="Thyro, your companion"
       className={`pointer-events-none fixed z-40 flex flex-col gap-2 ${onChat ? "bottom-36" : "bottom-4 max-md:bottom-24"} ${side}`}
     >

@@ -19,6 +19,9 @@ import DigestPage from "./pages/security/DigestPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 import { Companion } from "./components/Companion";
+import { AppFooter } from "./components/AppFooter";
+import { useGateHealth } from "./lib/healthApi";
+import NotFoundPage from "./pages/NotFoundPage";
 
 const Landing = lazy(() => import("./landing/Landing"));
 
@@ -39,8 +42,14 @@ export default function App() {
       </Suspense>
     );
   }
+  return <AppShell />;
+}
+
+/** Nav, the current screen, and a footer that sits at the bottom even on short screens. */
+function AppShell() {
+  const health = useGateHealth();
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <nav
         aria-label="Main"
         className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
@@ -64,26 +73,30 @@ export default function App() {
           </NavLink>
         ))}
       </nav>
-      <Routes>
-        <Route path="/app" element={<HomePage />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/connect" element={<ConnectPage />} />
-        <Route path="/break-it" element={<BreakItPage />} />
-        <Route path="/security" element={<SecurityLayout />}>
-          <Route index element={<OverviewPage />} />
-          <Route path="tools" element={<ToolsPage />} />
-          <Route path="incidents" element={<IncidentsPage />} />
-          <Route path="incidents/:id" element={<IncidentDetailPage />} />
-          <Route path="documents" element={<DocumentsPage />} />
-          <Route path="policies" element={<PoliciesPage />} />
-          <Route path="groups" element={<GroupsPage />} />
-          <Route path="history" element={<HistoryPage />} />
-          <Route path="impact" element={<ImpactPage />} />
-          <Route path="review" element={<ReviewPage />} />
-          <Route path="digest" element={<DigestPage />} />
-          <Route path="ask" element={<AskPage />} />
-        </Route>
-      </Routes>
+      <div className="flex-1">
+        <Routes>
+          <Route path="/app" element={<HomePage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/connect" element={<ConnectPage />} />
+          <Route path="/break-it" element={<BreakItPage />} />
+          <Route path="/security" element={<SecurityLayout />}>
+            <Route index element={<OverviewPage />} />
+            <Route path="tools" element={<ToolsPage />} />
+            <Route path="incidents" element={<IncidentsPage />} />
+            <Route path="incidents/:id" element={<IncidentDetailPage />} />
+            <Route path="documents" element={<DocumentsPage />} />
+            <Route path="policies" element={<PoliciesPage />} />
+            <Route path="groups" element={<GroupsPage />} />
+            <Route path="history" element={<HistoryPage />} />
+            <Route path="impact" element={<ImpactPage />} />
+            <Route path="review" element={<ReviewPage />} />
+            <Route path="digest" element={<DigestPage />} />
+            <Route path="ask" element={<AskPage />} />
+          </Route>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </div>
+      <AppFooter status={health} />
       <Companion />
     </div>
   );
