@@ -54,8 +54,11 @@ test("a miss goes from /break-it to the review queue to the eval file to make ev
     }
     // CI's smoke job has no Python environment for `make eval`, so no report is written there.
     // The report line itself is also covered by a brain unit test.
-    if (existsSync(`${REPO}eval/report.md`)) {
-      const md = readFileSync(`${REPO}eval/report.md`, "utf8");
+    // The report is tracked in git now, so only check it when `make eval` actually rewrote it.
+    const md = existsSync(`${REPO}eval/report.md`)
+      ? readFileSync(`${REPO}eval/report.md`, "utf8")
+      : null;
+    if (md !== null && md !== reports[0]) {
       expect(md).toMatch(/Found live, still missed: \d+/);
       expect(md).toContain("source=breakit");
     } else {

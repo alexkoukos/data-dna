@@ -203,5 +203,5 @@ def to_email(d: dict[str, Any]) -> dict[str, str]:
             + "."
         )
     parts += ["", "Do this instead:"] + [f"- {tip}" for tip in d["tips"]]
-    parts += ["", "Thank you,", "Pyli"]
+    parts += ["", "Thank you,", "Sentry"]
     return {"subject": f"Weekly AI digest for {d['team']}", "body": "\n".join(parts)}

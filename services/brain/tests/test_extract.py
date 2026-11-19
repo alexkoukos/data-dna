@@ -1,8 +1,11 @@
 import base64
 import io
+import zipfile
 
 import pytest
 from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from fastapi.testclient import TestClient
 from pypdf import PdfWriter
 
@@ -150,3 +153,67 @@ def test_a_file_can_be_registered_instead_of_pasted_text(client: TestClient) -> 
         files={"file": ("tool.exe", b"MZ", "application/octet-stream")},
     )
     assert bad.status_code in (422, 503)
+
+
+def _zip_without(data: bytes, name: str) -> bytes:
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(data)) as src, zipfile.ZipFile(out, "w") as dst:
+        for item in src.infolist():
+            if item.filename != name:
+                dst.writestr(item, src.read(item.filename))
+    return out.getvalue()
+
+
+def _with_span(value: str) -> bytes:
+    doc = Document()
+    table = doc.add_table(rows=1, cols=2)
+    table.cell(0, 0).text = "a"
+    tc_pr = table.cell(0, 0)._tc.get_or_add_tcPr()
+    span = OxmlElement("w:gridSpan")
+    span.set(qn("w:val"), value)
+    tc_pr.append(span)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def test_docx_zip_bomb_is_refused() -> None:
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("word/document.xml", b"\0" * (100 * 1024 * 1024))
+    assert len(out.getvalue()) < 1_000_000
+    with pytest.raises(ExtractError, match="too much data"):
+        extract_text("bomb.docx", out.getvalue())
+
+
+def test_docx_huge_gridspan_is_refused() -> None:
+    with pytest.raises(ExtractError, match="too wide"):
+        extract_text("wide.docx", _with_span("100000"))
+
+
+def test_gridspan_not_a_number_is_a_422() -> None:
+    with pytest.raises(ExtractError, match="could not be read"):
+        extract_text("odd.docx", _with_span("abc"))
+
+
+def test_docx_without_body_is_a_422() -> None:
+    broken = _zip_without(docx_bytes("hello"), "word/document.xml")
+    with pytest.raises(ExtractError, match="could not be read"):
+        extract_text("nobody.docx", broken)
+
+
+def test_text_over_the_cap_is_refused() -> None:
+    with pytest.raises(ExtractError, match="Split it"):
+        extract_text("big.txt", b"a" * 200_001)
+    assert extract_text("ok.txt", b"a" * 200_000)
+
+
+def test_pdf_type_error_is_a_422(monkeypatch: pytest.MonkeyPatch) -> None:
+    import brain.documents.extract as ex
+
+    def boom(*_a: object, **_k: object) -> None:
+        raise TypeError("odd pdf")
+
+    monkeypatch.setattr(ex, "PdfReader", boom)
+    with pytest.raises(ExtractError, match="could not be read"):
+        extract_text("x.pdf", b"%PDF-1.4")

@@ -13,6 +13,7 @@ import httpx
 from brain.config import settings
 
 CACHE_SECONDS = 60.0
+MAX_CACHED = 10_000
 _cache: dict[str, tuple[float, "Identity"]] = {}
 
 
@@ -51,11 +52,13 @@ def resolve_key(key: str, client: httpx.Client | None = None) -> Identity | None
     try:
         resp = http.get(
             "/key/info",
-            params={"key": key},
+            params={"key": digest},
             headers={"Authorization": f"Bearer {settings.litellm_master_key}"},
         )
     except httpx.HTTPError as err:
-        raise GatewayUnavailable("The gate could not check your key.") from err
+        raise GatewayUnavailable(
+            "The gate could not check your key. Try again in a minute."
+        ) from err
     finally:
         if own:
             http.close()
@@ -71,6 +74,10 @@ def resolve_key(key: str, client: httpx.Client | None = None) -> Identity | None
     if not isinstance(user, str) or not user:
         return None
     found = Identity(user_id=user, team=str(info.get("team_id") or "unknown"))
+    for stale in [k for k, (at, _) in _cache.items() if now - at >= CACHE_SECONDS]:
+        del _cache[stale]
+    if len(_cache) >= MAX_CACHED:
+        _cache.clear()
     _cache[digest] = (now, found)
     return found
 

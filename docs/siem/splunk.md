@@ -5,14 +5,14 @@ Send syslog to a Splunk UDP/TCP input (`SIEM_SYSLOG_HOST=<splunk host>`, port 51
 `inputs.conf`
 ```
 [udp://514]
-sourcetype = pyli:cef
+sourcetype = sentry:cef
 index = ai_dlp
 ```
 
 `props.conf`
 ```
-[pyli:cef]
-EXTRACT-cef = CEF:0\|Pyli\|Gate\|[^|]*\|(?<decision>[^|]*)\|[^|]*\|(?<severity>\d+)\|
+[sentry:cef]
+EXTRACT-cef = CEF:0\|Sentry\|Gate\|[^|]*\|(?<decision>[^|]*)\|[^|]*\|(?<severity>\d+)\|
 EXTRACT-user = suser=(?<user_key_id>\S+)
 EXTRACT-team = cs1=(?<team>.+?) cs2Label=
 EXTRACT-tool = cs2=(?<tool>.+?) cs3Label=
@@ -20,7 +20,7 @@ EXTRACT-tool = cs2=(?<tool>.+?) cs3Label=
 
 Three or more blocks for one user key in 10 minutes:
 ```
-index=ai_dlp sourcetype=pyli:cef decision=block
+index=ai_dlp sourcetype=sentry:cef decision=block
 | bin _time span=10m
 | stats count values(tool) AS tools by user_key_id, _time
 | where count>=3

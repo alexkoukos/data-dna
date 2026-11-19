@@ -1,8 +1,8 @@
 # Compliance mapping (X17)
 
-Which duty each Data DNA control helps with. The same table is built into the one-click PDF report (`GET /v1/compliance-report.pdf`, source `services/brain/src/brain/compliance.py`). It supports the company's own compliance work. It is not legal advice and it certifies nothing: a lawyer or data protection officer should confirm how each duty applies.
+Which duty each Sentry control helps with. The same table is built into the one-click PDF report (`GET /v1/compliance-report.pdf`, source `services/brain/src/brain/compliance.py`). It supports the company's own compliance work. It is not legal advice and it certifies nothing: a lawyer or data protection officer should confirm how each duty applies.
 
-| Framework | Reference | Duty | How Data DNA helps |
+| Framework | Reference | Duty | How Sentry helps |
 |---|---|---|---|
 | GDPR | Art. 5(1)(c) | Data minimisation | Identifiers (AFM, AMKA, IBAN, names, contact details) are masked before a prompt reaches a cloud model |
 | GDPR | Art. 5(1)(f), 32 | Integrity, confidentiality, security of processing | Every prompt is checked before it leaves; restricted documents are blocked; incidents show only pseudonyms and masked previews |

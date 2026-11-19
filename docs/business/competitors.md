@@ -1,8 +1,8 @@
 # Competitors (T5)
 
-Categories and positioning come from the vendors' public descriptions as we understand them. **We have not tested any of these products**, and features change; verify before quoting. "Pyli today" means what is in this repo and is measured by `make eval`, not a plan.
+Categories and positioning come from the vendors' public descriptions as we understand them. **We have not tested any of these products**, and features change; verify before quoting. "Sentry today" means what is in this repo and is measured by `make eval`, not a plan.
 
-| Category | Examples | What they do well | What they do not (for this problem) | Where Pyli sits |
+| Category | Examples | What they do well | What they do not (for this problem) | Where Sentry sits |
 |---|---|---|---|---|
 | Classic DLP and CASB | Microsoft Purview, Netskope, Zscaler, Symantec | Pattern and label based control across email, files, cloud apps; already bought by large firms | Built before chat prompts: weak on rewritten text, little explanation to the employee, heavy to deploy, often priced per suite | We catch a **rewritten** confidential document (paraphrase matching), answer locally instead of only blocking, and explain each decision in plain words |
 | Browser-side AI security | LayerX, Harmonic and similar | See what people type into AI sites in the browser, including unsanctioned tools | Needs an extension on every browser; sees the page, not the company's own API and agent traffic | We sit at the gateway, so apps, scripts and agents are covered too. Their strength is coverage of web tools we only get through network logs. The extension is on our roadmap |

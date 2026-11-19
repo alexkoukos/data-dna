@@ -1,16 +1,16 @@
-# Pyli, the gate
+# Sentry, the gate
 
 Πύλη (πύλη, "the gate"). Every prompt passes the gate. Brand and mascot: [docs/BRAND.md](docs/BRAND.md).
 
 > Video: [link, added Thu 19 Nov]
-> Pyli is the gate that every AI tool in the company goes through: it finds which AI tools are used, catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
+> Sentry is the gate that every AI tool in the company goes through: it finds which AI tools are used, catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 
 ## Concept
-Companies cannot see which AI tools their people use, and cannot stop a client list, a key or a confidential memo from being pasted into one. Banning the tools does not work: people use them anyway, from personal accounts. Pyli takes the other route. It gives people a safe door, one gateway that every AI tool in the company goes through, and checks each prompt on the way out.
+Companies cannot see which AI tools their people use, and cannot stop a client list, a key or a confidential memo from being pasted into one. Banning the tools does not work: people use them anyway, from personal accounts. Sentry takes the other route. It gives people a safe door, one gateway that every AI tool in the company goes through, and checks each prompt on the way out.
 
-For every prompt Pyli decides one of five things: **allow**, **mask** (hide the sensitive part and still get an answer), **warn** (ask the person to confirm), **answer with a local model** (the data never leaves), or **block**. Every decision comes with a reason in plain words and an approved alternative, and the security team sees all of it with the data protected. It also finds which AI tools are in use, including unapproved ones, from usage logs.
+For every prompt Sentry decides one of five things: **allow**, **mask** (hide the sensitive part and still get an answer), **warn** (ask the person to confirm), **answer with a local model** (the data never leaves), or **block**. Every decision comes with a reason in plain words and an approved alternative, and the security team sees all of it with the data protected. It also finds which AI tools are in use, including unapproved ones, from usage logs.
 
 The brief's questions are answered one by one, with the number and the demo step for each, in `docs/BRIEF_MAP.md`. The five-minute demo is in `docs/DEMO.md`.
 
@@ -36,31 +36,32 @@ The brief's questions are answered one by one, with the number and the demo step
 ## Setup and run
 Requirements: Docker with Compose v2, about 2 GB of free RAM for Docker, and ports 3000, 4000 and 8001 free.
 
-Measured on macOS Apple silicon (arm64, OrbStack, fresh clone, no build cache, 13 Nov 2026):
+Measured on Linux (amd64, Docker 15 GB, 19 Nov 2026, images already built, fresh volumes):
 
 | What | Result |
 | --- | --- |
-| Build from scratch (`docker compose build --no-cache`) | 72 s |
-| Start until all four services are healthy | 48 s |
-| RAM when idle (web, gateway, brain, database) | about 770 MB (gateway 658, brain 70, database 34, web 9) |
+| Start until all six services are healthy (`make up` after `make reset`) | 78 s |
+| RAM when idle for 2 minutes (six services) | about 1.7 GB: brain 881 MB, gateway 712 MB, database 67 MB, vault-a 22 MB, vault-b 21 MB, web 5 MB |
 | Web (3000) and API docs (8001) answer | yes, HTTP 200 |
 
-Linux and Windows (WSL 2) are not measured yet.
+The first build from scratch downloads the models and takes several minutes; macOS (arm64, OrbStack) measured 72 s to build and 48 s to start on 13 Nov, before the vaults were added. Windows (WSL 2) is not measured.
 
 ```bash
 git clone <this repo>
-cd data-dna
+cd sentry
 cp .env.example .env        # optional: add OPENAI_API_KEY
 docker compose up --build
 ```
 Open http://localhost:3000 (app) and http://localhost:8001/docs (API).
+
+**Demo access.** There is no login. Get a personal key on the Connect page (`/connect`). The offline demo models are `demo-mock`, `demo-echo` and `demo-leaky`, so everything works without an OpenAI key.
 
 ## Split storage (additive secret sharing)
 Sensitive fields (salaries, names) are never stored whole. Each value is split into two shares kept in two separate Postgres vaults, so a dump of one vault is random noise.
 
 - **Splitting.** Numbers are integer cents mod `P = 2^127 - 1`: `share_a` is random, `share_b = (value - share_a) mod P`, decoded centered so negatives work. Text and bytes are XOR-split with a random pad (UTF-8, so Greek works).
 - **Isolation.** `vault-a` and `vault-b` have their own credentials, volume and `internal` network. Only `brain` is on both; the vaults cannot see each other. `brain` starts only when both are healthy. Schema: `infra/vault/init.sql`.
-- **Integrity.** Three HMAC-SHA256 tags: `tag_a` (in vault-a), `tag_b` and `value_tag` (in vault-b). The key is the compose secret `secrets/hmac_key` and is never in a vault. `reveal` checks both share tags, rebuilds the value, checks `value_tag` (constant-time compares) and on any mismatch raises `IntegrityError` and writes an audit event. Tags bind `record_id` and `field`, so moving a share to another record fails.
+- **Integrity.** Three HMAC-SHA256 tags: `tag_a` (in vault-a), `tag_b` and `value_tag` (in vault-b). The key lives in the app-only `keys` volume and is never in a vault. `reveal` checks both share tags, rebuilds the value, checks `value_tag` (constant-time compares) and on any mismatch raises `IntegrityError` and writes an audit event. Tags bind `record_id` and `field`, so moving a share to another record fails.
 - **API** (`brain.splitstore`): `store(record_id, field, value)`, `reveal(record_id, field, actor)` (roles `admin`, `dpo`, `payroll`; every call, allowed or not, goes to `audit_log`, never with values) and `aggregate_sum(field, record_ids=None, verify_tags=True)` (each vault sums its own shares, only the two sums are combined). By default the aggregate also checks every share against its own tag (`tag_a` / `tag_b`), so a changed, swapped or missing share is caught there too; no value is rebuilt. `verify_tags=False` sums inside the vaults instead (faster, no tag check). `value_tag` needs the whole value, so only `reveal` checks it.
 - **Atomic writes.** `store` uses two-phase commit (`PREPARE TRANSACTION`, enabled on both vaults), so either both shares land or neither. If the app dies between prepare and commit, a failed write and a background check (every 60 s) settle the leftovers: prepared in both -> commit both; only in vault-b -> commit; only in vault-a -> roll back. Only entries older than 30 s are touched, so it is safe with several app instances. Until settled (up to about 90 s), a write to the same record waits.
 - **Wrong key is not "tampering".** vault-b keeps a canary (`HMAC(key, "canary")`, which says nothing about the key). On first use the app compares it with the current key and raises `KeyMismatchError` with a clear message, instead of every reveal failing as if attacked.
@@ -69,7 +70,7 @@ Sensitive fields (salaries, names) are never stored whole. Each value is split i
 - **Least privilege.** Each vault has an admin account (`VAULT_*_ADMIN_USER`, used only at first start to load the schema and create the app role) and the app role (`VAULT_*_USER`): not a superuser, cannot create anything, only SELECT/INSERT/UPDATE/DELETE on its two tables. The app role settles its own prepared transactions, so no superuser is needed at run time.
 - **Limits.** The sum must fit in about +/-1.7e38. The role and schema are created on a fresh volume only: after pulling this change run `docker compose down -v` (or `make reset`) once, which deletes demo data in the vaults.
 
-Key: run `./scripts/gen_hmac_key.sh` (or `make up`, which does it first) to create `secrets/hmac_key`. If you skip it, compose mounts an empty directory there and a plain `docker compose up` still works: the app generates a key once into an app-only volume and logs a warning. That key lives in a Docker volume, so create the real file before storing data you care about; switching keys later is reported as `KeyMismatchError`. If Docker already made the empty directory, the script replaces it (or tells you to `sudo rmdir secrets/hmac_key`, which needs root because Docker owns it).
+Key: nothing to set up. On first start the brain generates the HMAC key once into the app-only `keys` volume (mode 600), so a plain `docker compose up --build` works on a fresh clone. To use your own key, set `HMAC_KEY_FILE` in `.env` to a file inside a volume you mount into the brain (compose override). `make reset` drops the vaults and the key together; if you keep the vaults but lose the key, copy the old key file into the `keys` volume. Switching keys while vault data exists is reported as `KeyMismatchError`.
 
 ```bash
 docker compose up --build -d --wait                          # whole stack, both vaults included
@@ -98,7 +99,7 @@ Full design: `docs/PRD.md` section 7. Threats and honest limits: `docs/THREAT_MO
 
 ## Browser extension
 
-Personal ChatGPT in the browser bypasses the gate, so the extension (`extension/`, Chrome or Edge, Manifest V3, plain JavaScript, no build step) checks paste and send on `chatgpt.com` against the same `POST /v1/inspect` the gate uses, before the text leaves the page.
+Personal ChatGPT in the browser bypasses the gate, so the extension (`extension/`, Chrome or Edge, Manifest V3, plain JavaScript, no build step) checks paste and send on `chatgpt.com` against the gate's own checks through its three extension endpoints, `POST /v1/extension/inspect`, `POST /v1/extension/ack` and `GET /v1/extension/me`, before the text leaves the page.
 
 **Load it (3 clicks)**
 1. Open `chrome://extensions`, turn on *Developer mode*, press *Load unpacked* and choose the `extension/` folder.
@@ -107,28 +108,34 @@ Personal ChatGPT in the browser bypasses the gate, so the extension (`extension/
 
 **What it does.** Allow: nothing. Mask: the composer text is replaced with the masked text and a note names the entity types and the "Why?" reasons. Warn: a card with the reasons and *Send anyway*, which is recorded on the incident like the gate's `X-DNA-Ack`. Block and local: the send is stopped and the card offers *Use Company AI*. Every non-allow decision is an incident with the tool "ChatGPT (personal)" and channel `browser`, so the Shadow AI view shows it was intercepted. In shadow mode (X11) nothing is changed or stopped; it is only recorded. The user is the owner of the key, resolved by the brain through the gateway; the extension never sends a user or team. The extension stores only the key, the gate address and a daily counter for its popup, and makes no network calls except to the gate address.
 
-**Limits.** One site (`chatgpt.com`); other sites and the ChatGPT desktop or phone apps are not covered, and a person can disable or remove the extension (the Squid and Zeek logs still see that). Only text is checked: pasted images and file uploads are not. If the gate cannot be reached the extension **fails open**: nothing is blocked, a small "Pyli offline" badge shows, and nothing is recorded. ChatGPT changes its page often, so the composer and send-button selectors in `extension/content.js` may need an update. The test (`web/e2e/extension.spec.ts`) runs against a saved composer page, `extension/test/fixture.html`, not the live site.
+**Limits.** One site (`chatgpt.com`); other sites and the ChatGPT desktop or phone apps are not covered, and a person can disable or remove the extension (the Squid and Zeek logs still see that). Only text is checked: pasted images and file uploads are not. If the gate cannot be reached (offline, 502, 503, 504, 429) the extension **fails open**: nothing is blocked and a small badge says so, and nothing is recorded. If the gate answers but refuses to read the text (too long, over 100,000 characters, or malformed) it **fails closed**: the card says "Too long: shorten it or use Company AI". ChatGPT changes its page often, so the composer and send-button selectors in `extension/content.js` may need an update. The test (`web/e2e/extension.spec.ts`) runs against a saved composer page, `extension/test/fixture.html`, not the live site.
 
 ## Evaluation
 How accuracy is measured: a labelled synthetic set of 195 prompts (`data/eval/prompts.csv`: copies, edits, paraphrases, patterns, split leaks and clean prompts, in Greek and English), scored against a regex-and-keyword baseline, plus two attack sets of 80 each (`data/eval/attacks.csv`, `attacks_scripts.csv`) and a red-team run. The expected answer is written before the result is looked at, so known gaps stay in the files. All data is invented.
 
-Measured on 17 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; full tables in `eval/report.md`):
+Measured on 19 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; detection tables in `eval/report.md` and `eval/redteam/report.md`, both committed; load-test and RAM numbers come from `make loadtest` and `docker stats` and are also in PROGRESS.md):
 
 | What | Result | Target |
 | --- | --- | --- |
 | Paraphrased document leaks found | 100%, 40 of 40 (baseline 5.0%; tuned on this set) | 80% |
 | False alarms on clean prompts | 2.1% | 5% |
-| Added latency, brain only (p50 / p95) | 12.3 / 28.3 ms | p95 under 100 ms |
-| Latency under load, 3 users for 15 s (`make loadtest`) | p50 58 ms, p95 95 to 101 ms over five runs on a quiet machine (4 of 5 under target), 0 errors | p95 under 100 ms |
+| Added latency, brain only, one request at a time (p50 / p95) | 19.4 / 67.4 ms | p95 under 100 ms |
+| Latency under load, 3 people for 15 s (`make loadtest`), three runs | p50 about 110 ms, p95 316 to 326 ms, 0 errors | p95 under 100 ms: **missed** |
+| Latency under load with 3 earlier turns per request (`loadtest.py --history 3`) | p50 484 ms, p95 666 ms | not a target; a fresh long conversation costs more (see below) |
 | Prompts needing zero LLM tokens | 100% | 90% |
 | Correct copy named when a document leaks | 99.2% | 90% |
+| Greeklish, look-alike and foreign-digit attacks caught (X5) | 100% | 80% |
 | Attack set `attacks.csv` handled as expected | 80 of 80 | |
 | Attack set `attacks_scripts.csv` as expected | 80 of 80 | |
 | promptfoo curated cases (`make redteam`) | 25 of 25 | |
 
-The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test p95 sits on the target: 4 of 5 runs passed, by a few milliseconds. Unit tests: 365 brain tests at 91% coverage and 79 web tests (`make check`); end-to-end and accessibility checks: 41 specs (`make e2e`).
+The load-test target is missed on this machine: with three people at once the single brain process queues requests, so p95 is about three times the target even though one request alone is well under it. With earlier turns in the request each earlier message costs an embedding and a people-and-contact call, which is why p95 is higher still; those results are remembered per person for 30 minutes, so only the first request of a long chat is slow (a fresh 300,000 character history takes about 7 s, and one that needs more than the per-request allowance is refused with "too long to check" until a retry has worked through it). `make eval` itself passes its latency target (it measures one request at a time).
+
+The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test numbers are in the table above; they are not part of `eval/report.md`. Unit tests: 874 brain tests at 88% coverage, 114 web tests and 5 extension tests (`make check`); 40 live gateway tests (`make test-gateway`); 64 end-to-end and accessibility specs (`make e2e`).
 
 ## Privacy and governance
+
+### What Sentry itself stores
 A watcher must keep little: masked previews and entity names instead of prompts, fingerprints instead of document text, pseudonyms with a two-person reveal and audit log, 30-day retention, local answers for confidential content, and split storage for the most sensitive fields. Plain-language page on GDPR, NIS2 and the EU AI Act (not legal advice): [docs/business/privacy-and-regulation.md](docs/business/privacy-and-regulation.md). Article table: [compliance-mapping.md](docs/business/compliance-mapping.md).
 
 ## Business case
@@ -136,7 +143,7 @@ Market and cost figures with sources: [market.md](docs/business/market.md). Comp
 
 
 **Break it (X28).** Practice on `/break-it` is never stored and never creates an incident; only counters, a masked preview, the attack kind and an optional nickname (no login, nothing that identifies a person) are kept, in memory. The one exception is the "It got through" button: the person chooses to submit the exact text as a test case, and the button says so. That raw text lives only in a review-queue row until a security user decides. Approve moves it into `data/eval/attacks_scripts.csv` and blanks the row; reject deletes the row at once.
-Pyli inspects what people type, so it holds itself to the same rule it enforces. Each claim below points at the code and at a test that fails if the claim stops being true (`services/brain/tests/test_privacy_claims.py` also checks that every test named here exists).
+Sentry inspects what people type, so it holds itself to the same rule it enforces. Each claim below points at the code and at a test that fails if the claim stops being true (`services/brain/tests/test_privacy_claims.py` also checks that every test named here exists).
 
 | Claim | Code | Test |
 | --- | --- | --- |
@@ -152,10 +159,10 @@ Other protections: API keys live in `.env` only (gitleaks runs in CI); model ans
 ## Known limits
 - **Only traffic through the gateway is checked.** Personal devices and tools that bypass it are seen in usage logs, not stopped.
 - **Detection is probabilistic.** Both attack sets and the 40 paraphrases pass on our own files, but the fixes were written after seeing the failures, so new forms of attack can still pass. What we know gets through: many model-attack prompts from garak that carry no company data and still reach the model (the gateway flagged only 4 of 27 in one family, 5 of 40 in another). A clean Greek prompt was sent to the local model (P0159). See `docs/BRIEF_MAP.md`.
-- **Meaning without matching words** can pass; a strong paraphrase goes to the local model rather than being blocked, to avoid false blocks. A document can carry translations (`name.en.md` next to `name.md`) so rewrites in another language are compared with text in their own language; that is how Greek salary bands are protected against English rewrites. Translations have to be supplied for each document and language.
+- **Meaning without matching words** can pass; a paraphrase of a restricted document that scores below 0.91 goes to the local model rather than being blocked, to avoid false blocks; 0.91 or above on a restricted document is blocked (demo step 3 shows 91%). A document can carry translations (`name.en.md` next to `name.md`) so rewrites in another language are compared with text in their own language; that is how Greek salary bands are protected against English rewrites. Translations have to be supplied for each document and language.
 - **Slow leaks** beyond the session window, and anything retyped by hand or photographed, are not caught.
-- **No login.** The brain API is unauthenticated in demo mode and uses a default master key. Do not expose ports 8001 and 4000 beyond a trusted network. Roles, TLS and a key store are roadmap.
-- **Load test is right at its target** (p95 95 to 101 ms against 100 ms with nothing else running; worse on a busy machine). There is almost no margin. Linux and Windows start times are not measured on separate machines.
+- **No login.** The brain API is unauthenticated in demo mode and uses a default master key. Do not expose ports 8001 and 4000 beyond a trusted network. Roles, TLS and a key store are roadmap. In demo mode `POST /v1/keys` gives a personal key to any user id, so anything that trusts a personal key (including the tool-request outcomes) is only as strong as that: a demo-only gap.
+- **Load test misses its target.** With three people at once p95 is about 320 ms against 100 ms (one request alone: 67 ms). The brain is one process. Linux and Windows start times are not measured on separate machines.
 - Details and reasoning: `docs/THREAT_MODEL.md`.
 
 ## Extra features
@@ -175,7 +182,7 @@ Other protections: API keys live in `.env` only (gitleaks runs in CI); model ans
 **Weekly team digest (X32).** Brief question 4 also says "warn and educate", so the **Digest** tab in Security (`/security/digest`) gives each team lead one page for the last 7 days: incidents per outcome and per kind of data, the top tools and whether they are approved, the trend against the week before, and two or three short "do this instead" tips picked from the kinds of data that fired (fixed templates in `services/brain/src/brain/digest.py`, no model call). "Copy as email" puts a subject and body on the clipboard and "Download Markdown" saves the same text; nothing is emailed. Data minimisation: the page says at the top that it has team-level counts only, and the SQL reads the views `v_incidents` and `v_inventory` without the column that names the user, so no name, pseudonym, message text or masked preview can appear. "This week" ends at the newest incident, so the seeded demo week is shown. API: `GET /v1/digest/teams`, `/v1/digest?team=`, `/v1/digest.md?team=`. Tests: `services/brain/tests/test_x32_digest.py` (counts match the seeded incidents, no names or text), `web/src/pages/security/Digest.test.tsx`.
 
 ## Roadmap
-Next: (1) browser extension, (2) Slack and Teams, (3) SIEM export, (4) more languages, (5) a small-company edition with login and roles. Details and what is already built: [docs/business/roadmap.md](docs/business/roadmap.md).
+Built already: the browser extension and the SIEM export. Next: (1) Slack and Teams, (2) more languages, (3) a small-company edition with login and roles. Details and what is already built: [docs/business/roadmap.md](docs/business/roadmap.md).
 
 ## Team
 Alexandros, Stelios, Vasilis, Konstantinos.

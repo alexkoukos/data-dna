@@ -80,13 +80,13 @@ def check_once(
     try:
         result = inspect_fn(url, text)
     except (urllib.error.URLError, OSError, ValueError):
-        say("Paste guard could not reach Pyli, so this was not checked. Start it with: make up")
+        say("Paste guard could not reach Sentry, so this was not checked. Start it with: make up")
         return "offline"
     decision = result.get("decision", "allow")
     if decision == "allow":
         return "ok"
     reasons = "; ".join(result.get("reasons", [])) or "sensitive content"
-    say(f"Pyli says {decision.upper()}: {reasons}.")
+    say(f"Sentry says {decision.upper()}: {reasons}.")
     safe = masked_text(result)
     if decision in ("mask", "warn") and safe:
         if auto or ask("Replace the clipboard with the masked version?"):
@@ -104,7 +104,7 @@ def _ask(question: str) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--url", default=DEFAULT_URL, help="Pyli brain URL")
+    ap.add_argument("--url", default=DEFAULT_URL, help="Sentry brain URL")
     ap.add_argument("--auto", action="store_true", help="replace without asking")
     ap.add_argument("--once", action="store_true", help="check the clipboard once and exit")
     ap.add_argument("--interval", type=float, default=1.0, help="seconds between checks")

@@ -1,4 +1,4 @@
-# Pyli: το πλήρες πλάνο του Αλέξανδρου
+# Sentry: το πλήρες πλάνο του Αλέξανδρου
 
 Ένα αρχείο με όλα όσα συζητήθηκαν στις 13 Νοεμβρίου. Οι τεχνικές λεπτομέρειες είναι στο `docs/PRD.md`, τα tasks στο `TASKS.md`, το brand στο `docs/BRAND.md`.
 
@@ -6,7 +6,7 @@
 
 **Στόχος:** να κερδίσουμε το Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection και Data Protection).
 
-**Ημερομηνίες:** go/no-go για τα έγγραφα Σάββατο 14, feature freeze Τρίτη 17 βράδυ, freeze υποβολής Πέμπτη 19 στις 20:00, **υποβολή Παρασκευή 20 μέχρι το μεσημέρι**, pitching Πέμπτη 26 (Πανεπιστήμιο Πειραιώς), απονομή Παρασκευή 27.
+**Ημερομηνίες:** go/no-go για τα έγγραφα Σάββατο 14, **υποβολή Παρασκευή 20 μέχρι το μεσημέρι**, pitching Πέμπτη 26 (Πανεπιστήμιο Πειραιώς), απονομή Παρασκευή 27.
 
 **Κανόνες που αν σπάσουν χάνουμε:**
 - `git clone` και μετά `docker compose up --build` στο Linux πρέπει να δουλεύει. Αλλιώς η υποβολή ακυρώνεται.
@@ -17,10 +17,10 @@
 
 ## 2. Τι κάνει η εφαρμογή
 
-Η Pyli (πύλη) είναι ένα gateway για AI μέσα σε εταιρείες.
+Η Sentry (πύλη) είναι ένα gateway για AI μέσα σε εταιρείες.
 
-1. Ο υπάλληλος χρησιμοποιεί ένα AI εργαλείο που περνά από την Pyli.
-2. Η Pyli καθαρίζει το κείμενο από κόλπα (κρυφοί χαρακτήρες, χωρισμένα ψηφία, base64).
+1. Ο υπάλληλος χρησιμοποιεί ένα AI εργαλείο που περνά από την Sentry.
+2. Η Sentry καθαρίζει το κείμενο από κόλπα (κρυφοί χαρακτήρες, χωρισμένα ψηφία, base64).
 3. Ανιχνεύει ευαίσθητα σε επίπεδα: αριθμοί με έλεγχο ορθότητας (ΑΦΜ, ΑΜΚΑ, IBAN, κάρτες), ονόματα και email, κλειδιά και κώδικας, κομμάτια εμπιστευτικών εγγράφων ακόμα και ξαναγραμμένα, και η εικόνα από πολλά prompts μαζί.
 4. Η πολιτική αποφασίζει: **allow**, **warn**, **mask** (κρύβει και ξαναβάζει στην απάντηση), **local** (απαντά τοπικό μοντέλο), **block**.
 5. Ελέγχεται και η απάντηση πριν φτάσει στον χρήστη. Όλα καταγράφονται, και κάθε απόφαση έχει «Why?».
@@ -28,7 +28,7 @@
 7. **DNA:** σε εμπιστευτικά έγγραφα μπαίνουν μικρές διαφορές ανά αντίγραφο, ώστε μια διαρροή να δείχνει ποιο αντίγραφο ήταν. Η ταυτότητα μένει σφραγισμένη και αποκαλύπτεται με δύο εγκρίσεις.
 8. Ο αναλυτής ρωτά σε απλά λόγια και βλέπει το SQL.
 
-**Όριο που λέμε ανοιχτά (threat model):** η Pyli προστατεύει ό,τι περνά από αυτήν. Το προσωπικό κινητό ενός υπαλλήλου δεν καλύπτεται από κανένα εργαλείο.
+**Όριο που λέμε ανοιχτά (threat model):** η Sentry προστατεύει ό,τι περνά από αυτήν. Το προσωπικό κινητό ενός υπαλλήλου δεν καλύπτεται από κανένα εργαλείο.
 
 ## 3. Τέσσερις είσοδοι στο ίδιο brain
 
@@ -39,7 +39,7 @@
 | **Gateway (API)** | Εγκεκριμένα εργαλεία, SDK, Claude Code | G1 |
 | **Επέκταση browser** | Web chat (ChatGPT, Grok, Claude, Gemini): μπλοκάρει στο ίδιο το textbox, με τη μασκότ ως overlay | X21 |
 | **Logs δικτύου** | Ανακάλυψη κρυφών AI | O2 |
-| **MCP server** | Οι AI agents ρωτούν την Pyli (μόνο masked, μόνο ανάγνωση) | X28 |
+| **MCP server** | Οι AI agents ρωτούν την Sentry (μόνο masked, μόνο ανάγνωση) | X28 |
 
 Στο pitch λέγεται: gateway για APIs, επέκταση για web chat, logs για ανακάλυψη.
 
@@ -57,9 +57,9 @@
 | Σάβ 14 | S1 τελειωμένο, D3 (go/no-go στις 20 παραφράσεις), L1 (τοπικό μοντέλο), δεδομένα από Βασίλη και Κωνσταντίνο |
 | Κυρ 15 | G1 gateway, O1 οργανισμός, UI οθόνες με το brand |
 | Δευ 16 | X21 επέκταση (1 μέρα), μασκότ (μισή μέρα), πρώτο `make eval`, δοκιμή από Fable |
-| Τρί 17 | Διορθώσεις από τη δοκιμή. **Feature freeze το βράδυ.** |
+| Τρί 17 | Διορθώσεις από τη δοκιμή. |
 | Τετ 18 | Μόνο tests, README, δεδομένα business, πρόβα demo |
-| Πεμ 19 | Video, slides, καθαρό clone σε 3 μηχανήματα. **Freeze 20:00.** |
+| Πεμ 19 | Video, slides, καθαρό clone σε 3 μηχανήματα. |
 | Παρ 20 | Τελικός έλεγχος και **υποβολή μέχρι το μεσημέρι** |
 
 ## 5. Η επέκταση browser (X21)
@@ -70,7 +70,7 @@
 1. Content script στα chatgpt.com, grok.com, claude.ai, gemini.google.com πιάνει το paste και το Send ή Enter.
 2. Το κείμενο πάει στο background service worker, που καλεί `http://localhost:8001/v1/inspect`. Η κλήση γίνεται από το background, όχι από τη σελίδα, γιατί το CSP του site μπλοκάρει τις κλήσεις της σελίδας.
 3. Block: ακυρώνει την αποστολή και δείχνει τη μασκότ με τον λόγο. Mask: αντικαθιστά το κείμενο με την κρυμμένη εκδοχή. Warn: ρωτά.
-4. Αν η Pyli δεν τρέχει, η επέκταση αποτυγχάνει με ασφάλεια: warn, ποτέ σιωπηλό allow.
+4. Αν η Sentry δεν τρέχει, η επέκταση αποτυγχάνει με ασφάλεια: warn, ποτέ σιωπηλό allow.
 
 **Εγκατάσταση (3 βήματα για το README):**
 1. `make up`
@@ -108,7 +108,7 @@
 
 **MCP server (X28):** εργαλεία `check_text`, `list_incidents`, `incident_summary`, `ai_tool_inventory`, `explain_decision`. Μόνο ανάγνωση, μόνο masked. Καμία αποκάλυψη ταυτότητας και κανένα ακατέργαστο prompt. Κλειδί από το `.env`.
 
-**MCP proxy (M1, P2):** η Pyli μπροστά από άλλους MCP servers, με έλεγχο για prompt injection. Μόνο αν περισσέψει χρόνος.
+**MCP proxy (M1, P2):** η Sentry μπροστά από άλλους MCP servers, με έλεγχο για prompt injection. Μόνο αν περισσέψει χρόνος.
 
 ## 7b. Φωτογραφίες (OCR) και φωνή
 
@@ -154,7 +154,7 @@
 ## 9. Πώς ανοίγεις το project στο VS Code
 
 1. Βγάλε το zip σε φάκελο. Μέσα του πρέπει να είναι τα `CLAUDE.md`, `TASKS.md`, `docker-compose.yml` στο πρώτο επίπεδο.
-2. Στα Windows ξεζίπαρε μέσα στο WSL (π.χ. `~/pyli`) και γράψε `code .` εκεί. Αλλιώς: File, Open Folder.
+2. Στα Windows ξεζίπαρε μέσα στο WSL (π.χ. `~/sentry`) και γράψε `code .` εκεί. Αλλιώς: File, Open Folder.
 3. Άνοιξε το Claude Code. Διαβάζει αυτόματα το `CLAUDE.md`.
 4. Ξεκίνα με το prompt A παρακάτω.
 5. Για να δείξεις αρχείο: γράψε `@docs/PRD.md`. Για αρχεία εκτός φακέλου: σύρε τα με πατημένο Shift. (Δεν έχει ελεγχθεί στην τρέχουσα τεκμηρίωση.)
@@ -180,13 +180,13 @@
 ### A. Γενικό prompt (για οποιοδήποτε AI, οποιονδήποτε της ομάδας)
 
 ```
-You are helping me on a hackathon project called Pyli. Read this briefing fully before answering, then wait for my question.
+You are helping me on a hackathon project called Sentry. Read this briefing fully before answering, then wait for my question.
 
 PROJECT
-Pyli (Greek "πύλη", gate) is an AI gateway for companies. Every AI tool an employee uses goes through it. It (1) discovers "shadow AI", AI tools used without approval, from network logs (Squid, Zeek) and gateway traffic, (2) detects sensitive data before it leaves, and (3) decides per prompt: allow, warn, mask (hide and restore in the answer), local (answered by a small local model), or block. Optional DNA feature: confidential documents get small per-copy differences so a leaked copy can be traced to its recipient; identities stay sealed and need two people to reveal. Analysts ask questions in plain language and see the SQL. A Chrome extension (optional) catches paste and Send on chatgpt.com, grok.com, claude.ai and gemini.google.com and shows a mascot overlay. A read-only MCP server exposes masked incident data.
+Sentry (Greek "πύλη", gate) is an AI gateway for companies. Every AI tool an employee uses goes through it. It (1) discovers "shadow AI", AI tools used without approval, from network logs (Squid, Zeek) and gateway traffic, (2) detects sensitive data before it leaves, and (3) decides per prompt: allow, warn, mask (hide and restore in the answer), local (answered by a small local model), or block. Optional DNA feature: confidential documents get small per-copy differences so a leaked copy can be traced to its recipient; identities stay sealed and need two people to reveal. Analysts ask questions in plain language and see the SQL. A Chrome extension (optional) catches paste and Send on chatgpt.com, grok.com, claude.ai and gemini.google.com and shows a mascot overlay. A read-only MCP server exposes masked incident data.
 
 CONTEXT
-- Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection. Submission Friday 20 Nov at noon, pitching Thursday 26 Nov, awards 27 Nov. Feature freeze Tuesday 17 Nov evening.
+- Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection. Submission Friday 20 Nov at noon, pitching Thursday 26 Nov, awards 27 Nov.
 - 80 percent of the score comes from the GitHub repo alone, so the repo must run: `git clone` then `docker compose up --build` on Linux must work or the submission is void.
 - Rules: official vendor DB images only, synthetic data only, no secrets in the repo, cross-platform (amd64 and arm64, Linux, macOS, Windows via WSL), README with concept, features, setup and architecture.
 - Judges include a cybersecurity and red-team lead, an AI lead, senior engineers and a software testing director. Expect attacks on the filter and scrutiny of tests.
@@ -218,7 +218,7 @@ Now wait for my question.
 ### B. Animations και μασκότ (χωρίς Picture-in-Picture)
 
 ```
-Animate and integrate the Pyli mascot across every surface of the product. Pyli (Greek "πύλη", gate) is a company AI gateway that decides per prompt: allow, warn, mask, local (answered by a local model) or block. The mascot is a calm, slightly witty gate guardian. It must feel hand-made and trustworthy, not childish and not generic-SaaS.
+Animate and integrate the Sentry mascot across every surface of the product. Sentry (Greek "πύλη", gate) is a company AI gateway that decides per prompt: allow, warn, mask, local (answered by a local model) or block. The mascot is a calm, slightly witty gate guardian. It must feel hand-made and trustworthy, not childish and not generic-SaaS.
 
 INPUT
 I will supply the mascot as a layered SVG (or you design it from the brief: the Greek capital Π as a character, two pillars as legs, lintel as head, a small light in the opening as the eye). Layer/group ids must be named: head, lintel, eye, pupil, eyelid, brow, left-arm, right-arm, body, prop-mask, prop-house, prop-hand, prop-door. Do not outline or merge layers.
@@ -243,7 +243,7 @@ A scripted storyboard player: a sequence of frames, each with state, caption and
 
 SURFACES
 1. Web app (React 19, Tailwind v4): a `<Mascot state size speak />` component. Placed beside each reply in Company Chat, in empty states, on the "Try to break it" page (reacts live to each attempt), on error screens.
-2. Browser extension overlay (Chrome, Manifest V3): the same mascot injected bottom right in each tab on chatgpt.com, grok.com, claude.ai and gemini.google.com, reacting to the decisions of the local Pyli brain.
+2. Browser extension overlay (Chrome, Manifest V3): the same mascot injected bottom right in each tab on chatgpt.com, grok.com, claude.ai and gemini.google.com, reacting to the decisions of the local Sentry brain.
 3. Video and slides: transparent WebM per state plus the storyboard player export.
 
 IMPLEMENTATION RULES
@@ -264,12 +264,12 @@ DELIVERABLES
 ### C. Branding (για design εργαλείο ή designer)
 
 ```
-Design the brand identity for "Pyli" (Greek: πύλη, "gate"). Pyli is a company AI gateway: every AI tool an employee uses goes through it. It discovers hidden "shadow AI" tools, catches sensitive data before it leaves, and decides per prompt: allow, warn, mask, answer with a local model, or block. It was built for a university hackathon judged by a cybersecurity, AI and testing committee at Netcompany (Athens, November 2026). Audience: engineers and security people, plus a business pitch.
+Design the brand identity for "Sentry" (Greek: πύλη, "gate"). Sentry is a company AI gateway: every AI tool an employee uses goes through it. It discovers hidden "shadow AI" tools, catches sensitive data before it leaves, and decides per prompt: allow, warn, mask, answer with a local model, or block. It was built for a university hackathon judged by a cybersecurity, AI and testing committee at Netcompany (Athens, November 2026). Audience: engineers and security people, plus a business pitch.
 
 What I want
 - A brand that does NOT look AI-generated or like a generic SaaS template. It should feel hand-made and intentional, with a clear point of view.
 - A MASCOT: a friendly gate guardian character that can express the five outcomes (allow, warn, mask, local, block) and appear in empty states, the demo and the slides. It must be an original character, not based on any existing mascot or brand. It should feel trustworthy and calm rather than scary, and a little witty, not childish.
-- A logo mark and wordmark for "Pyli". The current mark is a placeholder: a capital Greek Π (pillars and a lintel) with one small light in the opening. Keep the Π-as-gate idea if it helps, or replace it with something better.
+- A logo mark and wordmark for "Sentry". The current mark is a placeholder: a capital Greek Π (pillars and a lintel) with one small light in the opening. Keep the Π-as-gate idea if it helps, or replace it with something better.
 - Tone: calm, precise, a guardian that explains itself and never shouts. Short sentences, strong verbs, no buzzwords.
 
 Hard constraints (the product UI already depends on them)
@@ -291,18 +291,18 @@ Deliverables
 ### D. Χτίσιμο της επέκτασης (X21), για Claude Code μέσα στο repo
 
 ```
-Task X21 in TASKS.md: build the Pyli browser extension. Follow CLAUDE.md, work on branch task/X21-extension, run `make check` before every commit.
+Task X21 in TASKS.md: build the Sentry browser extension. Follow CLAUDE.md, work on branch task/X21-extension, run `make check` before every commit.
 
-Goal: a Chrome extension (Manifest V3) in `extension/` that protects web AI chats. On chatgpt.com, grok.com, claude.ai and gemini.google.com it catches paste and Send (button click and Enter), asks the local Pyli brain, then blocks, masks or warns, and shows the Pyli mascot overlay bottom right.
+Goal: a Chrome extension (Manifest V3) in `extension/` that protects web AI chats. On chatgpt.com, grok.com, claude.ai and gemini.google.com it catches paste and Send (button click and Enter), asks the local Sentry brain, then blocks, masks or warns, and shows the Sentry mascot overlay bottom right.
 
 Requirements
 - manifest.json: MV3, host_permissions for http://localhost:8001/* and the four sites, background service worker, one content script. No remote code, no analytics, nothing sent anywhere except localhost.
 - The content script never calls the brain directly (site CSP and CORS). It sends a message to the background worker, which calls `POST http://localhost:8001/v1/inspect` and returns the decision.
-- Decision mapping: allow passes; warn shows a confirm card and sends only after confirmation; mask replaces the textbox content with `masked_messages`; local and block cancel the send and show the reason from the response; any other or failed response (Pyli down, timeout over 1.5 s) behaves as warn, never as silent allow.
+- Decision mapping: allow passes; warn shows a confirm card and sends only after confirmation; mask replaces the textbox content with `masked_messages`; local and block cancel the send and show the reason from the response; any other or failed response (Sentry down, timeout over 1.5 s) behaves as warn, never as silent allow.
 - Per-site adapters in separate small files (textbox selector, send button selector, how to read and set text, handles contenteditable and ProseMirror). Selectors in one config file so they are easy to fix when a site changes.
-- Overlay: shadow DOM so site CSS cannot touch it, bottom right, reduced-motion aware, uses the mascot assets and copy from X27 if present, otherwise the Pyli mark and text labels (Allowed, Masked, Warned, Answered locally, Blocked). The text label is always visible.
-- Options page: Pyli URL (default http://localhost:8001), on/off per site. No secrets stored.
-- Pure functions (decision mapping, timeout fallback, text replacement) are unit-tested with Vitest. A Playwright test loads the extension against a local mock chat page (a static page with a textbox and Send button served from `extension/test/mock-chat.html`) and checks all five outcomes plus the Pyli-down case.
+- Overlay: shadow DOM so site CSS cannot touch it, bottom right, reduced-motion aware, uses the mascot assets and copy from X27 if present, otherwise the Sentry mark and text labels (Allowed, Masked, Warned, Answered locally, Blocked). The text label is always visible.
+- Options page: Sentry URL (default http://localhost:8001), on/off per site. No secrets stored.
+- Pure functions (decision mapping, timeout fallback, text replacement) are unit-tested with Vitest. A Playwright test loads the extension against a local mock chat page (a static page with a textbox and Send button served from `extension/test/mock-chat.html`) and checks all five outcomes plus the Sentry-down case.
 - README section "Optional: browser extension" with the 3 install steps (make up; Chrome, Extensions, Developer mode, Load unpacked, choose `extension/`; open chatgpt.com and try an AFM), the limits (Chrome only, not on chrome:// pages, selectors may change), and the statement that `docker compose up` works without it.
 - Add CORS is NOT needed because the background worker has host_permissions; do not weaken brain CORS.
 - Record in PROGRESS.md what you could not verify (real sites need a manual check by the owner).
@@ -311,7 +311,7 @@ Requirements
 ### E. Prompt για Fable (red team και έλεγχος)
 
 ```
-You are a security reviewer for Pyli, a company AI gateway for a hackathon. Read CLAUDE.md, docs/PRD.md, TASKS.md and the code. This is our own system and a defensive review; the goal is to find weaknesses before the judges do.
+You are a security reviewer for Sentry, a company AI gateway for a hackathon. Read CLAUDE.md, docs/PRD.md, TASKS.md and the code. This is our own system and a defensive review; the goal is to find weaknesses before the judges do.
 
 Do five jobs, one at a time, and write the results to docs/REVIEW_<n>.md:
 1. Red team of `/v1/inspect` and the detection layers. Try realistic evasions a red-team judge would try: Greeklish and mixed-script names and numbers, homoglyphs, invisible characters, digits split across words or across several prompts, nested encodings, paraphrased copies of the confidential documents, prompt injection in the prompt and in uploaded files. For each attempt record the input, expected decision, actual decision. Add every successful evasion as a labelled row in data/eval/attacks.csv and as a failing test.

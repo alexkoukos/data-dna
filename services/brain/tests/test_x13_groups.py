@@ -1,3 +1,5 @@
+import time
+
 import pytest
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
@@ -7,6 +9,7 @@ import brain.main as main
 from brain import settings_store
 from brain.db import tables as t
 from brain.policy import groups
+from brain.policy.engine import Decision
 from brain.policy.store import PolicyStore
 from brain.policy.store import metadata as policy_metadata
 
@@ -101,3 +104,77 @@ def test_changes_are_audited(client: TestClient) -> None:
 def test_without_a_database_nothing_changes() -> None:
     assert groups.load(None) == []
     assert groups.role_of(None, "x") == "employee"
+
+
+def test_a_db_blip_keeps_the_last_team_overrides(client: TestClient) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    groups._clear()
+    with engine.begin() as c:
+        groups.put(
+            c,
+            main.policy_store.current(),
+            groups.Override("team", "HR", "category", "iban", "block"),
+            "admin",
+        )
+    groups._clear()
+    assert [o.group for o in groups.load(engine)] == ["HR"]
+    assert groups.role_of(engine, "u-hr") == "hr_manager"
+    groups._cache[id(engine)] = (0.0, groups._cache[id(engine)][1])  # expired
+    with engine.begin() as c:
+        c.execute(sa.text("DROP TABLE settings"))
+        c.execute(sa.text("DROP TABLE users"))
+    assert [o.group for o in groups.load(engine)] == ["HR"]
+    assert groups.role_of(engine, "u-hr") == "hr_manager"
+
+
+def test_an_expired_role_cache_with_the_db_down_applies_the_strictest_policy(
+    client: TestClient,
+) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    base = main.policy_store.current()
+    with engine.begin() as c:
+        groups.put(c, base, groups.Override("role", "hr_manager", "category", "iban", "allow"), "a")
+        groups.put(c, base, groups.Override("role", "auditor", "category", "iban", "block"), "a")
+        groups.put(c, base, groups.Override("team", "Sales", "category", "card", "block"), "a")
+    assert groups.role_of(engine, "u-hr") == "hr_manager"
+    ok = groups.effective(engine, base, "u-hr", "HR")
+    assert ok.categories["iban"] == Decision.ALLOW and not ok.degraded
+    groups._cache.clear()
+    groups._roles["u-hr"] = (time.monotonic() - 10_000, "hr_manager")  # too old to trust
+    with engine.begin() as c:
+        c.execute(sa.text("DROP TABLE users"))
+    degraded = groups.effective(engine, base, "u-hr", "HR")
+    assert degraded.degraded and degraded.categories["iban"] == Decision.BLOCK
+    assert degraded.categories["card"] == base.categories["card"]  # another team's rule unused
+    other = groups.effective(engine, base, "u-hr", "Sales")
+    assert other.categories["card"] == Decision.BLOCK
+
+
+def test_changing_group_policies_clears_the_cached_roles(client: TestClient) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    assert groups.role_of(engine, "u-hr") == "hr_manager"
+    assert "u-hr" in groups._roles
+    with engine.begin() as c:
+        groups.put(
+            c,
+            main.policy_store.current(),
+            groups.Override("team", "HR", "category", "iban", "warn"),
+            "admin",
+        )
+    assert "u-hr" not in groups._roles
+
+
+def test_group_rules_that_cannot_be_read_and_were_never_read_mark_the_policy_degraded(
+    client: TestClient,
+) -> None:
+    engine = main.policy_store.engine
+    assert engine is not None
+    groups._clear()
+    with engine.begin() as c:
+        c.execute(sa.text("DROP TABLE settings"))
+    base = main.policy_store.current()
+    got = groups.effective(engine, base, "u-hr", "HR")
+    assert got.degraded and got.categories == base.categories

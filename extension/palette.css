@@ -24,26 +24,26 @@
   src: url("fonts/pjs-800.woff2") format("woff2");
 }
 
-/* The one place the extension's colours live: the Hive brand kit v1 (Nov 2026).
+/* The one place the extension's colours live: the Sentry brand kit v1 (Nov 2026).
    Swapping the brand later means editing this file only. */
 :root,
-.pyli-root {
-  --pyli-bg: #ffffff;
-  --pyli-text: #262626;
-  --pyli-muted-text: #525252;
-  --pyli-subtle-text: #6b7280;
-  --pyli-border: #e5e7eb;
-  --pyli-muted: #f3f4f6;
-  --pyli-subtle: #f9fafb;
-  --pyli-tint: #fffbeb;
-  --pyli-primary: #f59e0b; /* fills only */
-  --pyli-on-primary: #262626; /* white on amber fails WCAG AA, so text on amber is ink */
-  --pyli-focus: #b45309; /* amber-text: the amber that must be read */
+.sentry-root {
+  --sentry-bg: #ffffff;
+  --sentry-text: #262626;
+  --sentry-muted-text: #525252;
+  --sentry-subtle-text: #6b7280;
+  --sentry-border: #e5e7eb;
+  --sentry-muted: #f3f4f6;
+  --sentry-subtle: #f9fafb;
+  --sentry-tint: #fffbeb;
+  --sentry-primary: #f59e0b; /* fills only */
+  --sentry-on-primary: #262626; /* white on amber fails WCAG AA, so text on amber is ink */
+  --sentry-focus: #b45309; /* amber-text: the amber that must be read */
   /* Outcome colours stay separate from the brand and always come with text and icon. */
-  --pyli-allow: #30752a;
-  --pyli-mask: #764aa2;
-  --pyli-warn: #915b00;
-  --pyli-block: #b02a2d;
-  --pyli-local: #1666aa;
-  --pyli-font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sentry-allow: #30752a;
+  --sentry-mask: #764aa2;
+  --sentry-warn: #915b00;
+  --sentry-block: #b02a2d;
+  --sentry-local: #1666aa;
+  --sentry-font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 }

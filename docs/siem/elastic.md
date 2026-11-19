@@ -4,7 +4,7 @@
 
 ```
 curl -s "http://brain:8001/v1/export/incidents?since=2026-11-17T09:00:00Z" \
-  | curl -s -XPOST "https://es:9200/pyli-incidents/_bulk" -H 'Content-Type: application/x-ndjson' \
+  | curl -s -XPOST "https://es:9200/sentry-incidents/_bulk" -H 'Content-Type: application/x-ndjson' \
       --data-binary @<(awk '{print "{\"index\":{}}"; print}')
 ```
 
@@ -16,7 +16,7 @@ decision : "block"
 ```
 Or ES|QL:
 ```
-FROM pyli-incidents
+FROM sentry-incidents
 | WHERE decision == "block" AND @timestamp > NOW() - 10 minutes
 | STATS blocks = COUNT(*) BY user_key_id
 | WHERE blocks >= 3

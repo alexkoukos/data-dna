@@ -155,3 +155,15 @@ def test_plant_endpoint_then_leak_is_an_alarm(client: TestClient, engine: sa.Eng
 
 def test_plant_endpoint_rejects_an_unknown_document(client: TestClient) -> None:
     assert client.post("/v1/documents/99/honeytokens", json={}).status_code == 404
+
+
+def test_dotted_capital_i_prefix_keeps_offsets_and_owner(engine: sa.Engine) -> None:
+    store = HoneytokenStore(engine, ttl_seconds=0)
+    tokens = generate(1)
+    store.register(1, tokens)
+    value = tokens[0].value
+    text = f"\u0130\u0130\u0130 key {value} end"  # each dotted I grows by one when lowered
+    found = store.find(text)
+    assert [text[f.start : f.end] for f in found] == [value]
+    owner = store.owner(found[0].value)
+    assert owner is not None and owner.title == "Board memo"

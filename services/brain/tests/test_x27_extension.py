@@ -1,5 +1,7 @@
 """X27: the browser extension endpoints, the key-to-user lookup and the CORS rule."""
 
+import hashlib
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -39,7 +41,7 @@ def test_resolve_key_reads_user_and_team_from_the_gateway() -> None:
         return httpx.Response(200, json={"info": {"user_id": "maria", "team_id": "finance"}})
 
     assert resolve_key("sk-maria", _gateway(handler)) == Identity("maria", "finance")
-    assert seen[0].url.params["key"] == "sk-maria"
+    assert seen[0].url.params["key"] != "sk-maria" and len(seen[0].url.params["key"]) == 64
     assert seen[0].headers["authorization"].startswith("Bearer ")  # the admin key, not the user's
     assert seen[0].headers["authorization"] != "Bearer sk-maria"
 
@@ -50,7 +52,7 @@ def test_resolve_key_is_cached_but_unknown_keys_are_not() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         nonlocal calls
         calls += 1
-        if request.url.params["key"] == "sk-ok":
+        if request.url.params["key"] == hashlib.sha256(b"sk-ok").hexdigest():
             return httpx.Response(200, json={"info": {"user_id": "u", "team_id": "t"}})
         return httpx.Response(404, json={})
 
@@ -206,3 +208,32 @@ def test_card_number_warns(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert r.json()["decision"] == "warn"
     assert r.json()["masked_text"] is None
+
+
+def test_key_lookup_sends_only_the_hash() -> None:
+    import hashlib
+
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"info": {"user_id": "maria", "team_id": "finance"}})
+
+    resolve_key("sk-hash-me", _gateway(handler))
+    sent = seen[0].url.params["key"]
+    assert sent == hashlib.sha256(b"sk-hash-me").hexdigest() and "sk-hash-me" not in str(
+        seen[0].url
+    )
+
+
+def test_expired_identities_are_evicted() -> None:
+    import brain.identity as ident
+
+    ident._cache.clear()
+    ident._cache["old"] = (0.0, Identity("a", "t"))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"info": {"user_id": "u", "team_id": "t"}})
+
+    resolve_key("sk-new", _gateway(handler))
+    assert "old" not in ident._cache and len(ident._cache) == 1

@@ -153,4 +153,20 @@ describe("ChatPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Try a bank account number" }));
     expect((screen.getByLabelText("Message") as HTMLTextAreaElement).value).toContain("IBAN");
   });
+
+  it("does not send a masked turn again, so the gateway never sees the raw text twice", async () => {
+    const box = await openChat();
+    fetchMock.mockResolvedValueOnce(answer("Looks fine.", { "x-dna-decision": "mask" }));
+    await userEvent.type(box, "Check my IBAN");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("Looks fine.")).toBeInTheDocument();
+
+    fetchMock.mockResolvedValueOnce(answer("Sure.", { "x-dna-decision": "allow" }));
+    await userEvent.type(screen.getByLabelText("Message"), "And one more thing");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("Sure.")).toBeInTheDocument();
+    const chats = fetchMock.mock.calls.filter(([, init]) => typeof init?.body === "string");
+    const [, init] = chats.at(-1)!;
+    expect(JSON.parse(init.body).messages).toHaveLength(1);
+  });
 });

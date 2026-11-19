@@ -10,9 +10,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     litellm_master_key: str = "sk-admin-change-me"
     gateway_url: str = "http://gateway:4000"
-    local_llm_model: str = "gemma3:1b"
     local_llm_url: str = "http://ollama:11434"
-    embed_model: str = "intfloat/multilingual-e5-small"
     retention_days: int = 30
     alert_webhook_url: str = ""
     key_rpm_limit: int = 0
@@ -27,7 +25,7 @@ class Settings(BaseSettings):
     # Split storage (brain.splitstore). Empty URLs mean the feature is off (unit tests).
     vault_a_url: str = ""
     vault_b_url: str = ""
-    hmac_key_file: str = "/run/secrets/hmac_key"
+    hmac_key_file: str = "/var/dna/keys/hmac_key"
     # Bearer token for /v1/vault/*. Empty = those routes answer 503 (off until you set one).
     vault_api_token: str = ""
     # X30: where new incidents are pushed. Everything is off until a value is set.

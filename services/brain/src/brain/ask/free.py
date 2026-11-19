@@ -1,17 +1,20 @@
 """Free-text analyst questions (PRD 13, A2): a model writes the SQL, we check it hard, then run it.
 
 The model never sees data, only the schema of three read-only views. Its SQL is accepted only if
-it is a single SELECT over those views. On Postgres it also runs as a role that can read nothing
-else, in a read-only transaction with a time limit, and is capped at 500 rows. The SQL is always
-shown next to the answer, because a model can be wrong.
+it is a single SELECT over those views. On Postgres it also runs on its own connection as a login
+role (analyst_ro, never a superuser) that can read nothing else, in a read-only transaction with a
+time limit, and is capped at 500 rows. The SQL is always shown next to the answer, because a
+model can be wrong.
 """
 
 import re
+import secrets
+import threading
 from typing import Any
 
 import httpx
 import sqlalchemy as sa
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 
 from brain.config import settings
 
@@ -46,6 +49,18 @@ class AskError(ValueError):
     """The question could not be answered. The message says why and what to do."""
 
 
+# Same statements as infra/db/07-analyst-login.sql, run again at start so an older volume that
+# was created before that file existed gets the login role and its limits too.
+_ANALYST_ROLE_SQL = (
+    "ALTER ROLE analyst_ro WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION "
+    "NOBYPASSRLS CONNECTION LIMIT 3",
+    "ALTER ROLE analyst_ro SET statement_timeout = '3s'",
+    "ALTER ROLE analyst_ro SET default_transaction_read_only = on",
+)
+_analyst: tuple[Engine, Engine] | None = None
+_analyst_lock = threading.Lock()
+
+
 def create_views(engine: Engine) -> None:
     """(Re)create the views, and on Postgres let the read-only role see only them."""
     with engine.begin() as conn:
@@ -53,9 +68,64 @@ def create_views(engine: Engine) -> None:
             conn.execute(sa.text(f"DROP VIEW IF EXISTS {name}"))
             conn.execute(sa.text(sql))
         if engine.dialect.name == "postgresql":
+            for stmt in _ANALYST_ROLE_SQL:
+                conn.execute(sa.text(stmt))
             conn.execute(sa.text("GRANT USAGE ON SCHEMA public TO analyst_ro"))
             for name in VIEW_SQL:
                 conn.execute(sa.text(f"GRANT SELECT ON {name} TO analyst_ro"))
+
+
+def analyst_engine(admin: Engine) -> Engine | None:
+    """The engine free questions run on: a separate login as analyst_ro, not the app's account.
+
+    The password is random for each start and never stored. Returns None when the role cannot be
+    prepared (database not ready), so the caller can say so instead of falling back to the app
+    account. Without Postgres (unit tests) the given engine is returned.
+    """
+    global _analyst
+    if admin.dialect.name != "postgresql":
+        return admin
+    with _analyst_lock:
+        if _analyst is not None:
+            if _analyst[0] is admin:
+                return _analyst[1]
+            _analyst[1].dispose()
+            _analyst = None
+        password = secrets.token_urlsafe(32)
+        try:
+            with admin.begin() as conn:
+                for stmt in _ANALYST_ROLE_SQL:
+                    conn.execute(sa.text(stmt))
+                alter = conn.execute(
+                    sa.text(
+                        "SELECT format('ALTER ROLE analyst_ro PASSWORD %L', CAST(:pw AS text))"
+                    ),
+                    {"pw": password},
+                ).scalar_one()
+                conn.execute(sa.text(alter))
+        except sa.exc.SQLAlchemyError:
+            return None
+        url = make_url(admin.url.render_as_string(hide_password=False)).set(
+            username="analyst_ro", password=password
+        )
+        engine = sa.create_engine(
+            url,
+            pool_size=2,
+            max_overflow=0,
+            pool_pre_ping=True,
+            connect_args={"connect_timeout": 3},
+        )
+        _analyst = (admin, engine)
+        return engine
+
+
+def reset_analyst() -> None:
+    """Forget the analyst engine, for example after its password stopped working."""
+    global _analyst
+    with _analyst_lock:
+        if _analyst is not None:
+            _analyst[1].dispose()
+            _analyst = None
 
 
 _FORBIDDEN = re.compile(
@@ -63,8 +133,13 @@ _FORBIDDEN = re.compile(
     r"execute|set|reset|vacuum|truncate|merge|replace|lock|listen|notify|load|import)\b",
     re.IGNORECASE,
 )
+# Substring matches on purpose: a name can be built inside a string literal ('pg' || '_read_file').
+# Unicode escapes (U&'..', UESCAPE) and quoted identifiers could spell a blocked name; the views
+# need no quoting.
 _UNSAFE_NAMES = re.compile(
-    r"\b(pg_\w+|information_schema|current_setting|set_config|sqlite_\w+|lo_\w+|dblink\w*)\b|--|/\*",
+    r"pg_|set_config|current_setting|information_schema|sqlite_|\blo_\w*|dblink|\|\||_to_xml|"
+    r"query_to_|xpath|xmlparse|\bconcat\s*\(|\bformat\s*\(|ts_stat|ts_rewrite|\bchr\s*\(|"
+    r"convert_from|\bdecode\s*\(|\$|\\|--|/\*|u&|uescape|\"",
     re.IGNORECASE,
 )
 _SOURCES = re.compile(r"\b(?:from|join)\s+([A-Za-z_][\w.]*)", re.IGNORECASE)
@@ -155,7 +230,14 @@ def run_free(engine: Engine, question: str, writer: Any = None) -> dict[str, Any
             if engine.dialect.name == "postgresql":
                 conn.execute(sa.text("SET TRANSACTION READ ONLY"))
                 conn.execute(sa.text("SET LOCAL statement_timeout = 3000"))
-                conn.execute(sa.text("SET LOCAL ROLE analyst_ro"))
+                if (
+                    conn.execute(sa.text("SELECT current_setting('is_superuser')")).scalar()
+                    != "off"
+                ):
+                    raise AskError(
+                        "Free questions are switched off: the database role is not safe. "
+                        "Use a preset question."
+                    )
             result = conn.execute(sa.text(capped))
             columns = list(result.keys())
             rows = [[_plain(v) for v in row] for row in result.fetchall()]
@@ -172,6 +254,30 @@ def run_free(engine: Engine, question: str, writer: Any = None) -> dict[str, Any
         "columns": columns,
         "rows": rows,
     }
+
+
+def _password_stale(err: BaseException | None) -> bool:
+    return isinstance(err, sa.exc.OperationalError) and "authentication failed" in str(err)
+
+
+def ask_free(admin: Engine, question: str, writer: Any = None) -> dict[str, Any] | None:
+    """Run a free question on the analyst login. None means the role could not be prepared.
+
+    If the database no longer accepts the password (for example it was restarted or the role was
+    changed), the engine is rebuilt with a new one and the question is tried once more.
+    """
+    for attempt in (0, 1):
+        analyst = analyst_engine(admin)
+        if analyst is None:
+            return None
+        try:
+            return run_free(analyst, question, writer)
+        except AskError as err:
+            if attempt == 0 and _password_stale(err.__cause__):
+                reset_analyst()
+                continue
+            raise
+    return None
 
 
 def _plain(value: Any) -> Any:

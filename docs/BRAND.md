@@ -1,21 +1,21 @@
-# Pyli brand
+# Sentry brand
 
-Pyli (πύλη, "gate") is the company AI gateway. The brand is a gatekeeper: calm, exact, and always ready to say why.
+Sentry (πύλη, "gate") is the company AI gateway. The brand is a gatekeeper: calm, exact, and always ready to say why.
 
 One-page overview: [`docs/brand/brand-sheet.png`](brand/brand-sheet.png) (source: `brand-sheet.html`).
 
 ## Name
 
-The product is **Pyli** (πύλη), and in plain words it is **the gate**. Say it that way everywhere: in the UI, the README, the pitch and the video.
+The product is **Sentry** (πύλη), and in plain words it is **the gate**. Say it that way everywhere: in the UI, the README, the pitch and the video.
 
 | Say | Not |
 |---|---|
-| Pyli, the gate | Data DNA, the gateway |
+| Sentry, the gate | Sentry, the gateway |
 | Every prompt passes the gate. | Every request goes through the gateway. |
 | The gate masked 2 card numbers. | The system sanitized the data. |
 | Gate address | Gateway URL |
 
-"Gateway" stays only inside code and API paths (`gateway/`, `/gateway/v1`). Anything a person reads says "the gate". The repo and some internal names still say Data DNA; they are being renamed as files are touched.
+"Gateway" stays only inside code and API paths (`gateway/`, `/gateway/v1`). Anything a person reads says "the gate". The repo and some internal names still say Sentry; they are being renamed as files are touched.
 
 ## Idea
 
@@ -27,11 +27,11 @@ Material palette: verdigris (the green patina old bronze gates get after years o
 
 | File | Use |
 |---|---|
-| `brand/logo/pyli-logo.svg` / `-dark.svg` | Primary lockup, light / dark backgrounds |
-| `brand/logo/pyli-mark.svg` / `-dark.svg` | Mark alone (nav, avatars, slides) |
-| `brand/logo/pyli-mark-mono.svg` | One color, uses `currentColor` |
-| `brand/logo/pyli-wordmark.svg` / `-dark.svg` | Wordmark alone |
-| `brand/logo/pyli-app-icon.svg` | Mark on a verdigris tile (OS icons, social) |
+| `brand/logo/sentry-logo.svg` / `-dark.svg` | Primary lockup, light / dark backgrounds |
+| `brand/logo/sentry-mark.svg` / `-dark.svg` | Mark alone (nav, avatars, slides) |
+| `brand/logo/sentry-mark-mono.svg` | One color, uses `currentColor` |
+| `brand/logo/sentry-wordmark.svg` / `-dark.svg` | Wordmark alone |
+| `brand/logo/sentry-app-icon.svg` | Mark on a verdigris tile (OS icons, social) |
 | `brand/favicon/favicon.svg`, `.ico`, `favicon-16/32/48.png`, `apple-touch-icon.png`, `icon-512.png` | Browser and device icons |
 
 All text is converted to outlines. PNGs are exported at 256 px and 512 px height (`@2x`).
@@ -109,7 +109,7 @@ Timing: 0.2 to 0.55 s for interface, 3 to 6 s for idle loops. Easing is a soft e
 
 ## Color
 
-Tokens live in `web/src/index.css` under `@theme static`. Names are unchanged; paste the values from `web/src/pyli-tokens.css`.
+Tokens live in `web/src/index.css` under `@theme static`. Names are unchanged; paste the values from `web/src/sentry-tokens.css`.
 
 **brand** (verdigris)
 

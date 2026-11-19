@@ -3,15 +3,17 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from brain.policy.engine import Decision
+
 
 class Message(BaseModel):
     role: str
-    content: str
+    content: str = Field(max_length=200_000)
 
 
 class Attachment(BaseModel):
     filename: str = Field(min_length=1, max_length=200)
-    content_base64: str
+    content_base64: str = Field(max_length=14_000_000)
 
 
 class InspectRequest(BaseModel):
@@ -21,8 +23,11 @@ class InspectRequest(BaseModel):
     tool: str = "Company AI"
     channel: str = "gateway"
     reroute: bool = False  # X31: the person chose "send it to Company AI instead"
-    messages: list[Message]
-    attachments: list[Attachment] = Field(default_factory=list)
+    # Positions in `messages` the gateway knows this person already accepted (sent with the
+    # acknowledgement header). Only earlier text is lowered; new content is always checked.
+    accepted_indexes: list[int] = Field(default_factory=list, max_length=1000)
+    messages: list[Message] = Field(max_length=10_000)
+    attachments: list[Attachment] = Field(default_factory=list, max_length=10)
 
 
 class FindingOut(BaseModel):
@@ -48,7 +53,11 @@ class TraceStep(BaseModel):
 
 
 class InspectResponse(BaseModel):
-    decision: str
+    # Positions the brain treated as already accepted earlier text (never new content).
+    accepted_applied: list[int] = Field(default_factory=list)
+    # Positions whose own check ended in a warning (the gateway remembers only these).
+    warned_indexes: list[int] = Field(default_factory=list)
+    decision: Decision
     reasons: list[str]
     findings: list[FindingOut] = Field(default_factory=list)
     masked_messages: list[Message] | None = None
@@ -64,7 +73,7 @@ class InspectResponse(BaseModel):
 class UnmaskRequest(BaseModel):
     session_id: str
     user_id: str
-    text: str
+    text: str = Field(max_length=200_000)
 
 
 class UnmaskResponse(BaseModel):
@@ -75,7 +84,7 @@ class UnmaskResponse(BaseModel):
 class InspectOutputRequest(BaseModel):
     user_id: str = "anonymous"
     team: str = "unknown"
-    text: str
+    text: str = Field(max_length=200_000)
 
 
 class InspectOutputResponse(BaseModel):
@@ -282,7 +291,7 @@ class DnaState(BaseModel):
 
 
 class ToolResultRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=200_000)
     source: str = Field(default="MCP tool", max_length=100)
     user_id: str = "anonymous"
     team: str = "unknown"
@@ -385,7 +394,7 @@ class Attempt(BaseModel):
 class ExtensionInspect(BaseModel):
     """What the browser extension sends. Who the user is comes from the key, never from here."""
 
-    text: str = Field(max_length=200_000)
+    text: str = Field(max_length=100_000)  # the same limit as MAX_INSPECT_CHARS in main.py
     model: str = Field(default="ChatGPT (personal)", max_length=80)
 
 
@@ -439,6 +448,7 @@ class ReviewIn(BaseModel):
 class ReviewOut(BaseModel):
     status: str
     eval_id: str | None = None
+    note: str | None = None
 
 
 class BreakerOut(BaseModel):

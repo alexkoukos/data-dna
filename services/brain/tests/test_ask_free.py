@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 import sqlalchemy as sa
@@ -58,6 +59,20 @@ def test_a_plain_select_over_the_views_is_accepted(sql: str) -> None:
         "",
         "I think the answer is five teams.",
         "SELECT * FROM sqlite_master",
+        "SELECT query_to_xml('select s'||'et_config(''x'',''y'',false)', true, true, '')",
+        "SELECT table_to_xml('users', true, true, '')",
+        "SELECT * FROM v_incidents WHERE decision = concat('pg','_read_file')",
+        "SELECT format('%s', team) FROM v_incidents",
+        "SELECT * FROM ts_stat('select 1')",
+        "SELECT $$x$$ FROM v_incidents",
+        "SELECT chr(112) FROM v_incidents",
+        "SELECT convert_from(decode('aGk=', 'base64'), 'utf8')",
+        "SELECT 'a' || 'b' FROM v_incidents",
+        "SELECT U&\"p\\0067_read_file\"('/etc/passwd')",
+        "SELECT * FROM v_incidents WHERE team = U&'x!0041' UESCAPE '!'",
+        "select u&'\\0041' from v_incidents",
+        'SELECT "team" FROM v_incidents',
+        "SELECT * FROM v_incidents WHERE team = 'x\\y'",
         "WITH x AS (DELETE FROM incidents RETURNING *) SELECT * FROM x",
     ],
 )
@@ -132,8 +147,14 @@ def test_the_brief_question_is_the_first_preset_and_returns_the_expected_teams(
     # Seed 42 (the demo data): these teams, most client-data incidents first.
     teams = [r[0] for r in out["rows"]]
     # Operations and HR tie on client-data incidents, so their order is not fixed.
-    assert teams[0] == "Engineering" and teams[-1] == "Legal"
-    assert set(teams) == {"Engineering", "Operations", "HR", "Legal"}
+    # The data is generated relative to today, so which smaller teams fall in the 7-day window
+    # moves with the weekday: the top three are stable, Legal and Marketing come and go.
+    assert teams[0] == "Engineering"
+    assert (
+        {"Engineering", "Operations", "HR"}
+        <= set(teams)
+        <= {"Engineering", "Operations", "HR", "Legal", "Marketing"}
+    )
     # Every team listed really has client data caught and unapproved-tool requests.
     engine = main.policy_store.engine
     assert engine is not None
@@ -178,3 +199,176 @@ def test_a_different_question_still_goes_to_the_model(
     monkeypatch.setattr(free, "write_sql", lambda q: GOOD[1])
     body = client.post("/v1/ask", json={"question": "which tools are unapproved?"}).json()
     assert body["id"] == "free"
+
+
+class _Result:
+    def __init__(self, value: Any = None, cols: list[str] | None = None) -> None:
+        self._value = value
+        self._cols = cols or []
+
+    def scalar(self) -> Any:
+        return self._value
+
+    def keys(self) -> list[str]:
+        return self._cols
+
+    def fetchall(self) -> list[tuple[Any, ...]]:
+        return []
+
+
+class _Conn:
+    def __init__(self, superuser: str, log: list[str]) -> None:
+        self._superuser = superuser
+        self._log = log
+
+    def __enter__(self) -> "_Conn":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def execute(self, stmt: Any) -> _Result:
+        text = str(stmt)
+        self._log.append(text)
+        if "is_superuser" in text:
+            return _Result(self._superuser)
+        return _Result(cols=["team"])
+
+    def rollback(self) -> None:
+        self._log.append("ROLLBACK")
+
+
+class _PgEngine:
+    class dialect:  # noqa: N801
+        name = "postgresql"
+
+    def __init__(self, superuser: str) -> None:
+        self.log: list[str] = []
+        self._superuser = superuser
+
+    def connect(self) -> _Conn:
+        return _Conn(self._superuser, self.log)
+
+
+def test_run_free_never_switches_role_and_refuses_a_superuser_connection() -> None:
+    safe = _PgEngine("off")
+    out = run_free(safe, "q", lambda _q: GOOD[0])  # type: ignore[arg-type]
+    assert out["columns"] == ["team"]
+    assert not any("ROLE" in s.upper() for s in safe.log)
+    assert any("READ ONLY" in s for s in safe.log)
+    unsafe = _PgEngine("on")
+    with pytest.raises(AskError, match="switched off"):
+        run_free(unsafe, "q", lambda _q: GOOD[0])  # type: ignore[arg-type]
+    assert not any("FROM (" in s for s in unsafe.log)
+
+
+def test_analyst_url_uses_the_analyst_role(monkeypatch: pytest.MonkeyPatch) -> None:
+    built: list[Any] = []
+    real_url = sa.engine.make_url("postgresql+psycopg://dna:adminpw@db:5432/dna")
+
+    class _Admin(_PgEngine):
+        url = real_url
+
+        def begin(self) -> _Conn:
+            return _Conn("on", self.log)
+
+    class _Row(_Result):
+        def scalar_one(self) -> str:
+            return "ALTER ROLE analyst_ro PASSWORD 'x'"
+
+    monkeypatch.setattr(_Conn, "execute", lambda self, *a: _Row(), raising=True)
+    monkeypatch.setattr(
+        free.sa, "create_engine", lambda url, **kw: built.append((url, kw)) or object()
+    )
+    monkeypatch.setattr(free, "_analyst", None)
+    admin = _Admin("on")
+    first = free.analyst_engine(admin)  # type: ignore[arg-type]
+    assert first is free.analyst_engine(admin)  # type: ignore[arg-type]
+    ((url, kw),) = built
+    assert url.username == "analyst_ro" and url.password not in (None, "adminpw")
+    assert url.host == "db" and kw["pool_size"] == 2 and kw["max_overflow"] == 0
+    monkeypatch.setattr(free, "_analyst", None)
+
+
+def test_analyst_engine_is_none_when_the_role_cannot_be_prepared(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Broken(_PgEngine):
+        url = sa.engine.make_url("postgresql+psycopg://dna:x@db/dna")
+
+        def begin(self) -> _Conn:
+            raise sa.exc.OperationalError("x", {}, Exception("down"))
+
+    monkeypatch.setattr(free, "_analyst", None)
+    assert free.analyst_engine(_Broken("on")) is None  # type: ignore[arg-type]
+
+
+def test_a_stale_analyst_password_rebuilds_the_engine_and_retries_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    built: list[int] = []
+    disposed: list[int] = []
+
+    class _E:
+        def __init__(self, n: int) -> None:
+            self.n = n
+
+        def dispose(self) -> None:
+            disposed.append(self.n)
+
+    def fake_engine(admin: Any) -> Any:
+        if free._analyst is None:
+            built.append(len(built) + 1)
+            free._analyst = (admin, _E(built[-1]))  # type: ignore[assignment]
+        return free._analyst[1]
+
+    calls: list[int] = []
+
+    def fake_run(engine: Any, question: str, writer: Any = None) -> dict[str, Any]:
+        calls.append(engine.n)
+        if engine.n == 1:
+            err = sa.exc.OperationalError("x", {}, Exception("password authentication failed"))
+            raise AskError("did not run") from err
+        return {"id": "free"}
+
+    monkeypatch.setattr(free, "_analyst", None)
+    monkeypatch.setattr(free, "analyst_engine", fake_engine)
+    monkeypatch.setattr(free, "run_free", fake_run)
+    assert free.ask_free(object(), "q") == {"id": "free"}  # type: ignore[arg-type]
+    assert calls == [1, 2] and disposed == [1]
+    monkeypatch.setattr(free, "_analyst", None)
+
+
+def test_other_failures_are_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def fake_run(engine: Any, question: str, writer: Any = None) -> dict[str, Any]:
+        calls.append(1)
+        raise AskError("did not run")
+
+    monkeypatch.setattr(free, "analyst_engine", lambda admin: object())
+    monkeypatch.setattr(free, "run_free", fake_run)
+    with pytest.raises(AskError):
+        free.ask_free(object(), "q")  # type: ignore[arg-type]
+    assert calls == [1]
+
+
+def test_a_new_admin_engine_disposes_the_old_analyst_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    disposed: list[bool] = []
+
+    class _Old:
+        def dispose(self) -> None:
+            disposed.append(True)
+
+    class _Adm(_PgEngine):
+        url = sa.engine.make_url("postgresql+psycopg://dna:x@db/dna")
+
+        def begin(self) -> _Conn:
+            raise sa.exc.OperationalError("x", {}, Exception("down"))
+
+    monkeypatch.setattr(free, "_analyst", (object(), _Old()))
+    assert free.analyst_engine(_Adm("on")) is None  # type: ignore[arg-type]
+    assert disposed == [True]
+    monkeypatch.setattr(free, "_analyst", None)

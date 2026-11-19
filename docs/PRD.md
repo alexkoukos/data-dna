@@ -1,4 +1,4 @@
-# PRD: Pyli (Data DNA), the AI gate that keeps company data inside
+# PRD: Sentry (Sentry), the AI gate that keeps company data inside
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 Team: Alexandros (gateway, web app, Docker, CI), Stelios (detection, routing, DNA, MCP, eval, synthetic org), Vasilis (research, business, policy), Konstantinos (data, story, video, slides, pitch).
@@ -10,7 +10,7 @@ This document is the build spec. Read it fully before writing code. When somethi
 
 ## 1. One sentence
 
-Pyli, the gate (working title Data DNA), is the AI gate that every AI tool in the company goes through: it discovers which AI tools are used (including hidden ones, from network logs), catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
+Sentry, the gate (working title Sentry), is the AI gate that every AI tool in the company goes through: it discovers which AI tools are used (including hidden ones, from network logs), catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
 
 ## 2. Hard rules from Netcompany (failing any of these voids or hurts the submission)
 
@@ -136,6 +136,8 @@ Pyli, the gate (working title Data DNA), is the AI gate that every AI tool in th
 
 **Compose services**
 
+As built: see the README Architecture section. The MCP proxy is `scripts/mcp_proxy.py` (a stdio wrapper, not a service), there is no seed service (seeding runs inside the brain at start), and the local model is `gemma3:1b`. The table below is the original plan.
+
 | Service | Image / build | Port | Notes |
 | --- | --- | --- | --- |
 | `db` | build `infra/db` (FROM `postgres:16` + pgvector) | 5432 (internal) | Init SQL + seed |
@@ -225,8 +227,7 @@ Each finding: `{entity, start, end, confidence, masked_preview}`. Never store ra
 Config in DB, editable in the dashboard, seeded from `policies.yaml`:
 
 ```yaml
-defaults:
-  on_gateway_down: { restricted: fail_closed, other: fail_open }
+# on_gateway_down is not implemented: the gateway always fails closed (503) when the brain is down.
 categories:
   greek_id:     mask
   iban:         mask
@@ -459,8 +460,8 @@ Go/no-go on Sat 14: measure time to first token and tokens per second on a mid-r
 | Sun 15 | Document checks, warn and block, normalisation, file upload; `gen_org.py` builds the synthetic organisation; logs ingested, inventory shows hidden tools |
 | Mon 16 | Dashboard: incidents, policy editor; local-model routing |
 | Tue 17 | Session memory + puzzle view; DNA copies + attribution; onboarding page; employee simulator |
-| Wed 18 | `make eval` with targets; analyst presets; injection checks; MCP if time. Feature freeze 18:00 |
-| Thu 19 | Platform matrix test; Playwright + axe green; README final; video recorded. Code freeze 20:00 |
+| Wed 18 | `make eval` with targets; analyst presets; injection checks; MCP if time |
+| Thu 19 | Platform matrix test; Playwright + axe green; README final; video recorded |
 | Fri 20 | Submit by midday |
 
 Go/no-go fallback (Sat 14): if paraphrase recall is weak, try `intfloat/multilingual-e5-base`, smaller chunks; if still weak, DNA becomes P2 and the story leads with gateway + local routing + cross-prompt tracking.

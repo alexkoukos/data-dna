@@ -64,3 +64,54 @@ def test_secrets_found_by_the_rules_are_masked_in_answers(client: TestClient) ->
 def test_the_answer_check_masks_greek_phone_numbers(client: TestClient) -> None:
     out = check(client, "Call her on +30 694 123 4567 tomorrow")
     assert "694 123" not in out["text"] and out["changed"]
+
+
+def test_masking_keeps_fullwidth_zwsp_and_cyrillic_text_elsewhere_unchanged(
+    client: TestClient,
+) -> None:
+    other = "Ｈｅｌｌｏ ​ Привет, wörld"
+    out = check(client, f"{other} AKIAIOSFODNN7EXAMPLE and more")
+    assert out["changed"] and "AKIAIOSFODNN7EXAMPLE" not in out["text"]
+    assert out["text"].startswith(other)
+
+
+def test_an_iban_hidden_by_zero_width_chars_is_still_masked(client: TestClient) -> None:
+    hidden = "GR16​0110​1250000000012300695"
+    out = check(client, f"Send it to {hidden} please")
+    assert out["changed"] and "0110" not in out["text"].replace("[IBAN_OUT_1]", "")
+
+
+def test_output_tokens_never_look_like_session_tokens(client: TestClient) -> None:
+    out = check(client, "key AKIAIOSFODNN7EXAMPLE")
+    assert "_OUT_" in out["text"]
+
+
+def test_a_hidden_second_copy_of_the_same_iban_is_masked_too(client: TestClient) -> None:
+    iban = "GR1601101250000000012300695"
+    hidden = "GR16​0110​1250000000012300695"
+    out = check(client, f"First {iban} and again {hidden} end")
+    assert out["changed"]
+    assert out["text"].count("[IBAN_OUT_") == 2
+    assert "1250000000012300695" not in out["text"]
+
+
+def test_a_raw_only_finding_and_a_hidden_duplicate_are_both_masked(client: TestClient) -> None:
+    key = "AKIAIOSFODNN7EXAMPLE"
+    hidden = "GR16​0110​1250000000012300695"
+    out = check(client, f"Key {key} and also {hidden} done")
+    assert out["changed"] and key not in out["text"]
+    assert "1250000000012300695" not in out["text"] and "0110" not in out["text"]
+    assert out["text"].count("_OUT_") >= 2
+
+
+def test_plain_answer_text_is_unchanged_when_nothing_is_found(client: TestClient) -> None:
+    text = "Ｈｅｌｌｏ ​ Привет, wörld"
+    assert check(client, text)["text"] == text
+
+
+def test_an_answer_that_still_holds_a_finding_after_masking_is_withheld(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main, "mask", lambda text, findings, *a, **k: (text, {}))
+    out = check(client, "key AKIAIOSFODNN7EXAMPLE")
+    assert out["withheld"] is True and "AKIA" not in out["text"]

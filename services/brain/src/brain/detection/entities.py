@@ -23,6 +23,8 @@ _LATIN = re.compile(r"[A-Za-z]")
 _GREEK_PHONE = re.compile(
     r"(?<![\w+])(?:\+30[ .-]?)?(?:69\d{2}[ .-]?\d{6}|(?<=\+30)[ .-]?2\d{9})(?!\d)"
 )
+_WINDOW = 20_000
+_OVERLAP = 200
 _ENTITY_NAMES = {"PERSON": "PERSON", "EMAIL_ADDRESS": "EMAIL", "PHONE_NUMBER": "PHONE"}
 _MIN_SCORE = {"PERSON": 0.6, "EMAIL_ADDRESS": 0.5, "PHONE_NUMBER": 0.35}
 
@@ -67,28 +69,34 @@ class EntityDetector:
                 log.info("Entity detector ready (en, el)")
             return self._analyzer
 
+    def _window(self, text: str, offset: int, found: list[Finding]) -> None:
+        analyzer = self._load()
+        for lang in _languages(text):
+            for r in analyzer.analyze(
+                text=text, language=lang, entities=list(_ENTITY_NAMES), score_threshold=0.3
+            ):
+                if (
+                    r.score >= _MIN_SCORE[r.entity_type]
+                    and not _stray_word(text, r)
+                    and not _cyrillic_name(text, r)
+                ):
+                    found.append(
+                        Finding(
+                            _ENTITY_NAMES[r.entity_type],
+                            "person_email_phone",
+                            r.start + offset,
+                            r.end + offset,
+                            text[r.start : r.end],
+                        )
+                    )
+
     def find(self, text: str) -> list[Finding]:
         found: list[Finding] = []
         if text.strip():
-            analyzer = self._load()
-            for lang in _languages(text):
-                for r in analyzer.analyze(
-                    text=text, language=lang, entities=list(_ENTITY_NAMES), score_threshold=0.3
-                ):
-                    if (
-                        r.score >= _MIN_SCORE[r.entity_type]
-                        and not _stray_word(text, r)
-                        and not _cyrillic_name(text, r)
-                    ):
-                        found.append(
-                            Finding(
-                                _ENTITY_NAMES[r.entity_type],
-                                "person_email_phone",
-                                r.start,
-                                r.end,
-                                text[r.start : r.end],
-                            )
-                        )
+            # Long text is read in windows so the language model's memory stays bounded.
+            step = _WINDOW - _OVERLAP
+            for start in range(0, max(len(text) - _OVERLAP, 1), step):
+                self._window(text[start : start + _WINDOW], start, found)
         for m in _GREEK_PHONE.finditer(text):
             found.append(Finding("PHONE", "person_email_phone", m.start(), m.end(), m.group(0)))
         return _merge(found)

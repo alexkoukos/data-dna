@@ -4,10 +4,12 @@ risk per tool, and every step is in the audit log."""
 import pytest
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
+from httpx import Response
 from sqlalchemy.pool import StaticPool
 
 import brain.main as main
 from brain.db import tables as t
+from brain.identity import Identity
 from brain.policy.store import PolicyStore, audit_table
 from brain.policy.store import metadata as policy_metadata
 
@@ -117,15 +119,44 @@ def test_reject_leaves_the_tool_unapproved_and_is_audited(
     assert actions == ["tool.request", "tool.reject"]
 
 
-def test_requester_sees_the_outcome_once(env: tuple[TestClient, sa.Engine]) -> None:
+def _as(monkeypatch: pytest.MonkeyPatch, keys: dict[str, str]) -> None:
+    monkeypatch.setattr(
+        main,
+        "resolve_key",
+        lambda key: Identity(keys[key], "finance") if key in keys else None,
+    )
+
+
+def _outcomes(client: TestClient, user: str, key: str | None = None) -> Response:
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    return client.post(f"/v1/users/{user}/tool-request-outcomes", headers=headers)
+
+
+def test_requester_sees_the_outcome_once(
+    env: tuple[TestClient, sa.Engine], monkeypatch: pytest.MonkeyPatch
+) -> None:
     client, _ = env
+    _as(monkeypatch, {"sk-maria": "maria", "sk-else": "someone-else"})
     req = _ask(client)
-    assert client.post("/v1/users/maria/tool-request-outcomes").json() == []  # still pending
+    assert _outcomes(client, "maria", "sk-maria").json() == []  # still pending
     _decide(client, int(req["id"]))  # type: ignore[arg-type]
-    first = client.post("/v1/users/maria/tool-request-outcomes").json()
+    first = _outcomes(client, "maria", "sk-maria").json()
     assert [(o["tool"], o["status"]) for o in first] == [("Perplexity", "approved")]
-    assert client.post("/v1/users/maria/tool-request-outcomes").json() == []
-    assert client.post("/v1/users/someone-else/tool-request-outcomes").json() == []
+    assert _outcomes(client, "maria", "sk-maria").json() == []
+    assert _outcomes(client, "someone-else", "sk-else").json() == []
+
+
+def test_outcomes_need_the_owners_key(
+    env: tuple[TestClient, sa.Engine], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, _ = env
+    _as(monkeypatch, {"sk-maria": "maria", "sk-else": "someone-else"})
+    req = _ask(client)
+    _decide(client, int(req["id"]))  # type: ignore[arg-type]
+    assert _outcomes(client, "maria").status_code == 401
+    other = _outcomes(client, "maria", "sk-else")
+    assert other.status_code == 403 and "another person" in other.json()["detail"]
+    assert [o["status"] for o in _outcomes(client, "maria", "sk-maria").json()] == ["approved"]
 
 
 def test_approval_needs_a_risk_rating(env: tuple[TestClient, sa.Engine]) -> None:

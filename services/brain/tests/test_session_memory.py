@@ -102,3 +102,54 @@ def test_rebuilding_a_confidential_document_over_prompts_ends_in_a_block(
     assert decisions[0]["decision"] == "local"
     assert decisions[-1]["decision"] == "block"
     assert any("rebuilt from" in r for r in decisions[-1]["reasons"])
+
+
+class _Row(dict):  # type: ignore[type-arg]
+    pass
+
+
+class _FakePg:
+    class dialect:  # noqa: N801
+        name = "postgresql"
+
+    def __init__(self) -> None:
+        self.sql: list[str] = []
+
+    def execute(self, stmt: object) -> "_FakePg":
+        from sqlalchemy.dialects import postgresql
+
+        self.sql.append(str(stmt.compile(dialect=postgresql.dialect())))  # type: ignore[attr-defined]
+        return self
+
+    def mappings(self) -> "_FakePg":
+        return self
+
+    def first(self) -> _Row:
+        return _Row(chunk_idx=[], prompts=0, window_start=None)
+
+
+def test_update_coverage_compiles_to_upsert_and_row_lock_on_postgres() -> None:
+    fake = _FakePg()
+    update_coverage(fake, 1, [match([0])], NOW)  # type: ignore[arg-type]
+    assert "ON CONFLICT" in fake.sql[0]
+    assert "FOR UPDATE" in fake.sql[1]
+    assert fake.sql[2].startswith("UPDATE session_coverage")
+
+
+def test_sequential_union_and_prompt_count_still_hold(conn: sa.Connection) -> None:
+    update_coverage(conn, 1, [match([0])], NOW)
+    r = update_coverage(conn, 1, [match([1])], NOW + timedelta(minutes=1))[0]
+    assert r.prompts == 2 and r.coverage == 0.2
+    assert len(conn.execute(sa.select(t.session_coverage)).all()) == 1
+
+
+def test_documents_are_locked_in_a_fixed_order() -> None:
+    fake = _FakePg()
+    two = [
+        DocMatch(9, "B", "confidential", 0.9, "paraphrase", [0], 10),
+        DocMatch(2, "A", "confidential", 0.9, "paraphrase", [0], 10),
+    ]
+    update_coverage(fake, 1, two, NOW)  # type: ignore[arg-type]
+    locked = [s for s in fake.sql if "FOR UPDATE" in s]
+    assert len(locked) == 2
+    assert [r.document_id for r in update_coverage(fake, 1, two, NOW)] == [2, 9]

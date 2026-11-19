@@ -1,6 +1,6 @@
 # Threat model (X26)
 
-What Pyli stops, what it does not, and how sure we are. Written for the judges and for the first customer's security team, so it says the uncomfortable parts too. Numbers come from `make eval`, `make calibrate` and the attack file `data/eval/attacks.csv`; all test data is invented.
+What Sentry stops, what it does not, and how sure we are. Written for the judges and for the first customer's security team, so it says the uncomfortable parts too. Numbers come from `make eval`, `make calibrate` and the attack file `data/eval/attacks.csv`; all test data is invented.
 
 ## What we protect
 Company data leaving through AI tools: personal identifiers (AFM, AMKA, IBAN, cards, ID, phones), secrets and keys, source code, client names, and the text of confidential documents (copied, lightly edited, or paraphrased).
@@ -21,7 +21,7 @@ Cheapest first: normalisation, patterns with checksums, YARA and code fingerprin
 
 ## What we do not stop (honest limits)
 - **Traffic that bypasses the gateway.** Personal devices, mobile data, tools with pinned certificates. Network controls (docs/GATEWAY_SETUP.md) reduce this; nothing removes it.
-- **Meaning without matching words.** A paraphrase that shares no wording or topic with the registered documents can pass. A strong paraphrase of a restricted document goes to the local model rather than being blocked, on purpose, to avoid false blocks.
+- **Meaning without matching words.** A paraphrase that shares no wording or topic with the registered documents can pass. A paraphrase of a restricted document that scores below 0.91 goes to the local model rather than being blocked, on purpose, to avoid false blocks; at 0.91 or above on a restricted document it is blocked.
 - **Slow leaks.** Session memory reassembles a document across prompts inside a time window; leaking one line a day beyond it is not caught.
 - **Images** are read only when OCR is installed (`uv sync --extra ocr`); handwriting and low-quality photos are missed. Other languages beyond Greek, English, German and French match by exact copy only.
 - **Detection is probabilistic.** Expect false alarms (a question about a similar topic goes local) and misses. Shadow mode measures them before enforcement.

@@ -7,7 +7,10 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **S0** Scaffold: locks, tests, CI, devcontainer, Makefile. (Alexandros)
 - [x] **S1** P0 `make up` works on a real machine; fix Dockerfiles; CI smoke green. Owner: Alexandros. Done when: fresh clone, `make up`, both URLs load, CI green.
 - [~] (Alexandros) **S2** P0 Platform check: Linux, macOS Apple silicon, Windows WSL. Owner: Alexandros. Done when: `make up` works on all three; RAM and first-start time written in README.
-- [~] (Stelios) **S3** P0 Docker hardening: brain health check start period, brain runs as non-root, nginx pinned, published ports on localhost only. Owner: Stelios. Done when: fresh `make reset && make up` healthy, CI green.
+- [~] (Stelios) **S4** P0 Gateway inspects the whole request: all conversation turns, system, instructions, prompt, tool definitions; masks in place. Owner: Stelios. Done when: unit + live tests pass, multi-turn p95 < 100 ms.
+- [x] **S3** P0 Docker hardening: brain health check start period, brain runs as non-root, nginx pinned, published ports on localhost only. Owner: Stelios. Done when: fresh `make reset && make up` healthy, CI green.
+- [x] **S5** P1 Gateway follow-ups after S4: remember acknowledged history per user, tool-description injection warns instead of blocks, drop `organization` instead of refusing, filter and unmask streamed Responses and Anthropic answers, no false block on negated mid-conversation system text. Owner: Stelios. Done when: unit + live tests pass, security review clean.
+- [~] (Stelios) **S6** P0 Audit fixes from `docs/AUDIT_2026-11-19.md`: fresh-clone start, gateway steering and verdicts, analyst SQL role, CSRF and host checks, size caps, answer and tool-call filtering, MCP proxy, extension fail-closed, infra hygiene, measured README numbers. Owner: Stelios. Done when: `make check`, `make test-gateway` and `make e2e` pass and the PR is merged.
 
 ## Gateway and routing
 - [x] **G1** P0 Add LiteLLM gateway service (pin the latest stable image tag from its releases page), per-user virtual keys, custom guardrail calling `brain /v1/inspect` (PRD 7, 8). Owner: Alexandros. Done when: an OpenAI SDK client with a personal key gets a masked-and-answered reply through the gateway; integration test passes.
@@ -25,7 +28,7 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **D4** P0 File upload text extraction (PDF, DOCX) into the pipeline (PRD 9.1). Owner: Stelios.
 - [x] **D5** P1 Session memory: rebuild across prompts (PRD 9.4). Owner: Stelios.
 - [x] **D6** P1 Prompt-injection classifier (PRD 9.5). Owner: Stelios.
-- [~] (evaluated, not adopted; fine-tune data and eval script ready on branch task/D7-judge-finetune, see PROGRESS) **D7** P2 LLM judge for borderline scores, cached (PRD 9.6). Owner: Stelios.
+- [x] (evaluated, not adopted; merged in #58, see PROGRESS) **D7** P2 LLM judge for borderline scores, cached (PRD 9.6). Owner: Stelios.
 - [x] **P1** P0 Policies from DB + `policies.yaml` seed, editable (PRD 10). Owner: Alexandros.
 
 ## Shadow AI, DNA, analyst
@@ -59,11 +62,11 @@ Priority: **P0** must work on 20 Nov, **P1** should, **P2** cut first.
 - [x] **T5** P1 Business pack in `docs/business/`: market, competitors, SWOT, pricing, roadmap, GDPR/AI Act, engagement. Owner: Vasilis. Mon 16 to Wed 18.
 
 ## Submission
-- [ ] **R1** P0 README in the required parts (PRD 22) with measured numbers. Owners: Konstantinos (text), Alexandros (setup).
+- [~] **R1** P0 README in the required parts (PRD 22) with measured numbers. Owners: Konstantinos (text), Alexandros (setup).
 - [ ] **R2** P1 Video (private YouTube) linked at the top of README. Owner: Konstantinos with Alexandros. Thu 19.
 - [ ] **R3** P1 Slides. Owner: Konstantinos. Draft Thu 19, final Tue 24.
-- [ ] **R4** P0 Freeze Thu 19 20:00, submit Fri 20 by noon, judges have repo access. Owner: Alexandros.
+- [ ] **R4** P0 Submit Fri 20 by noon, judges have repo access. Owner: Alexandros.
 
 ## Extra features
-Full list, owners and priorities are in `docs/EXTRA_FEATURES.md` (X1 to X26). Technical items are Alexandros's; business and writing items stay with Vasilis and Konstantinos.
+Full list, owners and priorities are in `docs/EXTRA_FEATURES.md` (X1 to X32). Technical items are Alexandros's; business and writing items stay with Vasilis and Konstantinos.
 - [x] **SS1** P1 Split storage: two vaults, additive shares, HMAC integrity, tests and demo (branch `task/split-storage`). Done when: `docker compose up` works from a clean clone and `make split-test` passes.

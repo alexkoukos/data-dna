@@ -16,9 +16,11 @@ models/
 *.gguf
 *.onnx
 eval/report.*
+!eval/report.md
 .DS_Store
 eval/redteam/promptfoo.json
 eval/redteam/report.*
+!eval/redteam/report.md
 eval/local_llm_bench.md.tmp
 secrets/*
 !secrets/.gitkeep
