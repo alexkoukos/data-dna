@@ -1,4 +1,5 @@
 import { useState } from "react";
+import RequestsTab from "./RequestsTab";
 import {
   ApprovalBadge,
   EmptyPanel,
@@ -42,6 +43,13 @@ function ToolCard({ tool }: { tool: Tool }) {
         </div>
       </div>
       {tool.reason ? <p className="mt-2 max-w-prose text-sm text-ink-700">{tool.reason}</p> : null}
+      {tool.approval === "approved" &&
+      tool.allowed_categories &&
+      tool.allowed_categories.length > 0 ? (
+        <p className="mt-1 text-sm text-ink-700">
+          May receive: {tool.allowed_categories.join(", ").replace(/_/g, " ")}.
+        </p>
+      ) : null}
       {tool.alternative && tool.approval !== "approved" ? (
         <p className="mt-1 text-sm font-medium text-ink-900">Use {tool.alternative} instead.</p>
       ) : null}
@@ -91,6 +99,39 @@ function ToolCard({ tool }: { tool: Tool }) {
 
 /** Container: the AI tool inventory, unapproved tools first, with a filter by approval. */
 export default function ToolsPage() {
+  const [tab, setTab] = useState<"inventory" | "requests">("inventory");
+  const [version, setVersion] = useState(0);
+  return (
+    <>
+      <div role="tablist" aria-label="AI tools" className="mb-4 flex gap-2">
+        {(
+          [
+            ["inventory", "Inventory"],
+            ["requests", "Requests"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`min-h-11 rounded-md border px-4 text-sm font-medium ${tab === id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "inventory" ? (
+        <Inventory key={version} />
+      ) : (
+        <RequestsTab onChanged={() => setVersion((v) => v + 1)} />
+      )}
+    </>
+  );
+}
+
+function Inventory() {
   const [state, reload] = useFetch(fetchInventory);
   const [filter, setFilter] = useState<Filter>("all");
   const [source, setSource] = useState<SourceFilter>("all");

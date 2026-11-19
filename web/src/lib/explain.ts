@@ -33,4 +33,6 @@ export const WHAT_WE_DID: Record<Outcome, string> = {
   local: "A model that runs inside the company answered, so the data did not leave.",
   warn: "We asked before sending.",
   block: "We did not send it.",
+  rerouted:
+    "You chose Company AI instead. We masked the sensitive parts and a company model answered; nothing was sent to the other tool.",
 };

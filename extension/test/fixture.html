@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- A trimmed, saved copy of the ChatGPT composer page (structure and test ids only, no
+     ChatGPT code or text), so the extension test never depends on the live site. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChatGPT</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #fff; color: #0d0d0d; }
+  main { max-width: 768px; margin: 0 auto; padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; min-height: 100vh; }
+  #log { flex: 1; }
+  .msg { background: #f4f4f4; border-radius: 12px; padding: 8px 12px; margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  form { display: flex; align-items: flex-end; gap: 8px; border: 1px solid #ddd; border-radius: 24px; padding: 8px 12px; }
+  #prompt-textarea { flex: 1; min-height: 24px; max-height: 200px; overflow: auto; outline: none; white-space: pre-wrap; }
+  button[data-testid="send-button"] { width: 32px; height: 32px; border-radius: 50%; border: 0; background: #000; color: #fff; }
+</style>
+</head>
+<body>
+<main>
+  <div id="log" aria-live="polite"></div>
+  <form id="composer-form">
+    <div id="prompt-textarea" contenteditable="true" role="textbox" aria-label="Message" data-placeholder="Ask anything"></div>
+    <button type="submit" data-testid="send-button" aria-label="Send prompt">↑</button>
+  </form>
+</main>
+<script>
+  // Stand-in for ChatGPT's own send: moves the composer text into the log.
+  const field = document.getElementById("prompt-textarea");
+  const log = document.getElementById("log");
+  function sendNow() {
+    const text = field.innerText.replace(/\n$/, "");
+    if (!text.trim()) return;
+    const div = document.createElement("div");
+    div.className = "msg";
+    div.dataset.testid = "sent";
+    div.textContent = text;
+    log.append(div);
+    field.textContent = "";
+  }
+  document.getElementById("composer-form").addEventListener("submit", (e) => { e.preventDefault(); sendNow(); });
+  field.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendNow(); }
+  });
+</script>
+</body>
+</html>

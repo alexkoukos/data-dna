@@ -15,6 +15,8 @@ import IncidentDetailPage from "./pages/security/IncidentDetailPage";
 import IncidentsPage from "./pages/security/IncidentsPage";
 import OverviewPage from "./pages/security/OverviewPage";
 import PoliciesPage from "./pages/security/PoliciesPage";
+import ReviewPage from "./pages/security/ReviewPage";
+import DigestPage from "./pages/security/DigestPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 
@@ -90,6 +92,8 @@ export default function App() {
           <Route path="groups" element={<GroupsPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="impact" element={<ImpactPage />} />
+          <Route path="review" element={<ReviewPage />} />
+          <Route path="digest" element={<DigestPage />} />
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>

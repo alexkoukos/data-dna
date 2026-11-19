@@ -18,10 +18,11 @@ class InspectRequest(BaseModel):
     user_id: str = "anonymous"
     team: str = "unknown"
     model: str = "default"
+    tool: str = "Company AI"
+    channel: str = "gateway"
+    reroute: bool = False  # X31: the person chose "send it to Company AI instead"
     messages: list[Message]
     attachments: list[Attachment] = Field(default_factory=list)
-    tool: str | None = None
-    channel: str = "gateway"
 
 
 class FindingOut(BaseModel):
@@ -57,6 +58,7 @@ class InspectResponse(BaseModel):
     trace: list[TraceStep] = Field(default_factory=list)
     shadow_decision: str | None = None
     suggested_rewrite: str | None = None
+    rerouted: bool = False
 
 
 class UnmaskRequest(BaseModel):
@@ -166,8 +168,7 @@ class ToolOut(BaseModel):
     requests: int
     trend: list[int]
     first_seen: str | None
-    # Where we saw it: the browser extension, network logs (Squid, Zeek, gateway), or both.
-    sources: list[str] = Field(default_factory=list)
+    allowed_categories: list[str] = Field(default_factory=list)
 
 
 class DocumentOut(BaseModel):
@@ -295,6 +296,8 @@ class ToolResultResponse(BaseModel):
 
 class TryRequest(BaseModel):
     text: str = Field(min_length=1, max_length=20000)
+    kind: str = Field(default="other", max_length=32, pattern=r"^[a-z_]+$")
+    nickname: str | None = Field(default=None, max_length=24, pattern=r"^[\w .\-]{1,24}$")
 
 
 class LayerOut(BaseModel):
@@ -313,6 +316,7 @@ class TryOut(BaseModel):
     evasion_signals: list[str]
     layers: list[LayerOut]
     caught_by: str | None = None
+    attempt_id: str = ""
 
 
 class TryExample(BaseModel):
@@ -368,8 +372,128 @@ class PurgeRequest(BaseModel):
 
 
 class Attempt(BaseModel):
+    id: str = ""
     at: datetime
     decision: str
     caught_by: str | None = None
     preview: str
     length: int
+    kind: str = "other"
+    nickname: str | None = None
+
+
+class ExtensionInspect(BaseModel):
+    """What the browser extension sends. Who the user is comes from the key, never from here."""
+
+    text: str = Field(max_length=200_000)
+    model: str = Field(default="ChatGPT (personal)", max_length=80)
+
+
+class ExtensionVerdict(BaseModel):
+    decision: str
+    reasons: list[str]
+    entity_types: list[str] = Field(default_factory=list)
+    masked_text: str | None = None
+    shadow: bool = False
+    would_have: str | None = None
+    alternative: str = "Company AI"
+    alternative_url: str = ""
+    user_id: str = ""
+
+
+class ExtensionAck(BaseModel):
+    reason: str = Field(default="", max_length=200)
+
+
+class ExtensionMe(BaseModel):
+    user_id: str
+    team: str
+    shadow_mode: bool
+    incidents_url: str
+
+
+class CandidateIn(BaseModel):
+    """ "It got through": the person chose to submit this raw text as a test case."""
+
+    text: str = Field(min_length=1, max_length=2000)
+    expected_decision: str
+    kind: str = Field(max_length=32, pattern=r"^[a-z_]+$")
+    nickname: str | None = Field(default=None, max_length=24, pattern=r"^[\w .\-]{1,24}$")
+
+
+class CandidateOut(BaseModel):
+    id: int
+    created_at: datetime
+    nickname: str | None = None
+    kind: str
+    expected_decision: str
+    got_decision: str
+    text: str | None = None
+    preview: str
+
+
+class ReviewIn(BaseModel):
+    reviewer: str = Field(min_length=1, max_length=64)
+
+
+class ReviewOut(BaseModel):
+    status: str
+    eval_id: str | None = None
+
+
+class BreakerOut(BaseModel):
+    nickname: str
+    submitted: int
+    approved: int
+
+
+class MissOut(BaseModel):
+    id: str
+    kind: str
+    preview: str
+    nickname: str | None = None
+    at: datetime
+
+
+class BoardOut(BaseModel):
+    attempts: int
+    stopped: int
+    got_through: int
+    catch_rate: float | None = None
+    misses: list[MissOut]
+    top_breakers: list[BreakerOut]
+
+
+_NAME = r"^[A-Za-z0-9_.\-]+$"
+
+
+class ToolRequestIn(BaseModel):
+    user_id: str = Field(min_length=1, max_length=64, pattern=_NAME)
+    team: str = Field(default="general", min_length=1, max_length=64, pattern=_NAME)
+    tool: str = Field(min_length=1, max_length=80)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class ToolRequestOut(BaseModel):
+    id: int
+    created_at: datetime
+    requester: str
+    team: str
+    tool: str
+    reason: str
+    status: str
+    decided_by: str | None = None
+    decided_at: datetime | None = None
+    note: str | None = None
+    risk: str | None = None
+    allowed_categories: list[str] | None = None
+    alternative: str | None = None
+
+
+class ToolDecisionIn(BaseModel):
+    reviewer: str = Field(min_length=1, max_length=64)
+    approve: bool
+    risk: str | None = None
+    allowed_categories: list[str] = Field(default_factory=list, max_length=20)
+    alternative: str | None = Field(default=None, max_length=80)
+    note: str = Field(default="", max_length=300)

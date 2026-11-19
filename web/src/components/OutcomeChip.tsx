@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { AlertIcon, BanIcon, CheckIcon, EyeOffIcon, HomeIcon } from "./icons";
 
-export type Outcome = "allow" | "mask" | "warn" | "local" | "block";
+export type Outcome = "allow" | "mask" | "warn" | "local" | "block" | "rerouted";
 
 const LABELS: Record<Outcome, string> = {
   allow: "Allowed",
@@ -9,6 +9,7 @@ const LABELS: Record<Outcome, string> = {
   warn: "Warned",
   local: "Answered locally",
   block: "Blocked",
+  rerouted: "Sent to Company AI",
 };
 
 const STYLES: Record<Outcome, string> = {
@@ -17,6 +18,7 @@ const STYLES: Record<Outcome, string> = {
   warn: "bg-warn-bg text-warn-fg",
   local: "bg-local-bg text-local-fg",
   block: "bg-block-bg text-block-fg",
+  rerouted: "bg-local-bg text-local-fg",
 };
 
 const DOTS: Record<Outcome, string> = {
@@ -25,6 +27,7 @@ const DOTS: Record<Outcome, string> = {
   warn: "bg-warn-solid",
   local: "bg-local-solid",
   block: "bg-block-solid",
+  rerouted: "bg-local-solid",
 };
 
 const ICONS: Record<Outcome, ReactNode> = {
@@ -33,6 +36,7 @@ const ICONS: Record<Outcome, ReactNode> = {
   warn: <AlertIcon />,
   local: <HomeIcon />,
   block: <BanIcon />,
+  rerouted: <HomeIcon />,
 };
 
 /** Presentational: shows an outcome with an icon and text, never color alone. */

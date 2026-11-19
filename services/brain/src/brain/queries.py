@@ -100,25 +100,9 @@ def inventory(conn: sa.Connection) -> list[ToolOut]:
     by_tool: dict[int, list[Any]] = defaultdict(list)
     for r in usage:
         by_tool[r["tool_id"]].append(r)
-    # Visits the extension reported. Those sent live were also added to the daily usage ("counted"),
-    # so they are taken off the total before asking whether the network logs saw anything.
-    ext_visits: dict[int, int] = {}
-    ext_counted: dict[int, int] = defaultdict(int)
-    for tid, action, n in conn.execute(
-        sa.select(t.ext_events.c.tool_id, t.ext_events.c.action, sa.func.count())
-        .where(t.ext_events.c.kind == "visit")
-        .group_by(t.ext_events.c.tool_id, t.ext_events.c.action)
-    ).all():
-        ext_visits[int(tid)] = ext_visits.get(int(tid), 0) + int(n)
-        if action == "counted":
-            ext_counted[int(tid)] += int(n)
     out: list[ToolOut] = []
     for tool in conn.execute(sa.select(t.ai_tools).order_by(t.ai_tools.c.name)).mappings():
         rows = by_tool.get(tool["id"], [])
-        total_requests = sum(r["requests"] or 0 for r in rows)
-        sources = (["extension"] if ext_visits.get(tool["id"]) else []) + (
-            ["logs"] if total_requests > ext_counted.get(tool["id"], 0) else []
-        )
         per_day_users: dict[date, int] = defaultdict(int)
         per_day_requests: dict[date, int] = defaultdict(int)
         for r in rows:
@@ -144,7 +128,7 @@ def inventory(conn: sa.Connection) -> list[ToolOut]:
                 requests=sum(per_day_requests.values()),
                 trend=trend,
                 first_seen=min(per_day_requests).isoformat() if per_day_requests else None,
-                sources=sources,
+                allowed_categories=list(tool["allowed_categories"] or []),
             )
         )
     return out

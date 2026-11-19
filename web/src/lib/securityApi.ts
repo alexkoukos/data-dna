@@ -8,7 +8,7 @@ export interface Metrics {
   as_of: string | null;
 }
 
-export type Decision = "allow" | "mask" | "warn" | "local" | "block";
+export type Decision = "allow" | "mask" | "warn" | "local" | "block" | "rerouted";
 
 export interface TraceStep {
   layer: string;
@@ -53,6 +53,7 @@ export interface Tool {
   first_seen: string | null;
   /** Where we saw it: the browser extension, network logs, or both. */
   sources: ("extension" | "logs")[];
+  allowed_categories?: string[];
 }
 
 async function get<T>(path: string): Promise<T> {

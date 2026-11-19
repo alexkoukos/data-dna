@@ -123,8 +123,8 @@ export default function OverviewPage() {
           Ask a question
         </h2>
         <p className="mt-1 max-w-prose text-ink-600">
-          For example: which teams used unapproved AI tools and also had client data caught this
-          week? You get a table and the SQL behind it.
+          For example: which teams sent client data to unapproved AI tools this week? You get a
+          table and the SQL behind it.
         </p>
         <Link
           to="/security/ask"

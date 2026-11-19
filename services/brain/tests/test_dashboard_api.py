@@ -144,7 +144,8 @@ def test_inspect_warns_when_a_seeded_client_name_is_in_the_message(client: TestC
 def test_preset_questions_are_listed(client: TestClient) -> None:
     presets = client.get("/v1/ask/presets").json()
     assert len(presets) == 5
-    assert any("unapproved AI tools and also had client data" in p["question"] for p in presets)
+    brief = "Which teams sent client data to unapproved AI tools this week?"
+    assert presets[0]["question"] == brief
 
 
 def test_every_preset_runs_and_shows_its_sql(client: TestClient) -> None:

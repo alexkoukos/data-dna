@@ -87,6 +87,7 @@ ai_tools = sa.Table(
     sa.Column("risk", sa.Text),
     sa.Column("reason", sa.Text),
     sa.Column("alternative", sa.Text),
+    sa.Column("allowed_categories", _TEXT_LIST),  # X29: data the tool may receive once approved
 )
 tool_usage_daily = sa.Table(
     "tool_usage_daily",
@@ -172,27 +173,43 @@ doc_copies = sa.Table(
     ),
 )
 
-devices = sa.Table(
-    "devices",
+# X28: a miss someone chose to submit as a test case. The only place raw text is kept, and only
+# while it waits for review: approving blanks it (it moves to the eval file), rejecting deletes
+# the whole row.
+breakit_candidates = sa.Table(
+    "breakit_candidates",
     metadata,
     sa.Column("id", sa.Integer, primary_key=True),
-    sa.Column("token_hash", sa.Text, nullable=False, unique=True),
-    sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id")),
-    sa.Column("team", sa.Text),
-    sa.Column("label", sa.Text),
-    sa.Column("created_at", sa.DateTime(timezone=True)),
-)
-# What the browser extension reports: a visit to an AI site, never any page or prompt text.
-ext_events = sa.Table(
-    "ext_events",
-    metadata,
-    sa.Column("id", _ID, primary_key=True),
-    sa.Column("ts", sa.DateTime(timezone=True), nullable=False),
-    sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id")),
-    sa.Column("team", sa.Text),
-    sa.Column("tool_id", sa.Integer, sa.ForeignKey("ai_tools.id")),
-    sa.Column("tool", sa.Text),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("nickname", sa.Text),
     sa.Column("kind", sa.Text, nullable=False),
-    sa.Column("action", sa.Text),
-    sa.Column("expires_at", sa.DateTime(timezone=True)),
+    sa.Column("expected_decision", sa.Text, nullable=False),
+    sa.Column("got_decision", sa.Text, nullable=False),
+    sa.Column("text", sa.Text),
+    sa.Column("preview", sa.Text, nullable=False),
+    sa.Column("status", sa.Text, nullable=False, server_default="pending"),
+    sa.Column("reviewed_by", sa.Text),
+    sa.Column("reviewed_at", sa.DateTime(timezone=True)),
+    sa.Column("eval_id", sa.Text),
+)
+
+# X29: an employee asks for an AI tool; security approves or rejects. No prompt text is involved.
+tool_requests = sa.Table(
+    "tool_requests",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("requester", sa.Text, nullable=False),
+    sa.Column("team", sa.Text, nullable=False),
+    sa.Column("tool", sa.Text, nullable=False),
+    sa.Column("reason", sa.Text, nullable=False),
+    sa.Column("status", sa.Text, nullable=False, server_default="pending"),
+    sa.Column("decided_by", sa.Text),
+    sa.Column("decided_at", sa.DateTime(timezone=True)),
+    sa.Column("note", sa.Text),
+    sa.Column("risk", sa.Text),
+    sa.Column("allowed_categories", _TEXT_LIST),
+    sa.Column("alternative", sa.Text),
+    sa.Column("tool_id", sa.Integer),
+    sa.Column("seen", sa.Boolean, nullable=False, server_default=sa.false()),
 )

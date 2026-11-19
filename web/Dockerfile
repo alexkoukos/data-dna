@@ -16,7 +16,8 @@ RUN npm ci
 COPY web ./
 RUN npm run build
 
-FROM nginx:alpine
+# Pinned to the nginx stable line so a rebuild does not silently change versions.
+FROM nginx:1.30-alpine
 COPY web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=ext /extension.zip /usr/share/nginx/html/extension.zip

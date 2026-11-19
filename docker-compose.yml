@@ -18,15 +18,76 @@ services:
       timeout: 3s
       retries: 20
 
-  brain:
-    build: ./services/brain
+  # Split storage (services/brain/src/brain/splitstore). Two independent vaults: own credentials,
+  # own volume, own internal network. Only brain is on both networks; the vaults cannot reach
+  # each other, and `internal: true` also cuts them off from the internet.
+  vault-a:
+    image: postgres:16
+    command: ["postgres", "-c", "max_prepared_transactions=20"] # two-phase commit for split writes
     environment:
+      # Admin account: only used to create the schema and the app role at first start.
+      POSTGRES_USER: ${VAULT_A_ADMIN_USER:-vault_a_admin}
+      POSTGRES_PASSWORD: ${VAULT_A_ADMIN_PASSWORD:-change-me-a-admin}
+      POSTGRES_DB: vault
+      # The role the app connects as (not a superuser).
+      APP_USER: ${VAULT_A_USER:-vault_a}
+      APP_PASSWORD: ${VAULT_A_PASSWORD:-change-me-a}
+    volumes:
+      - vault-a-data:/var/lib/postgresql/data
+      - ./infra/vault/init.sql:/schema/init.sql:ro
+      - ./infra/vault/create-app-role.sh:/docker-entrypoint-initdb.d/01-create-app-role.sh:ro
+    networks: [vault-a-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${VAULT_A_ADMIN_USER:-vault_a_admin} -d vault"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  vault-b:
+    image: postgres:16
+    command: ["postgres", "-c", "max_prepared_transactions=20"] # two-phase commit for split writes
+    environment:
+      # Admin account: only used to create the schema and the app role at first start.
+      POSTGRES_USER: ${VAULT_B_ADMIN_USER:-vault_b_admin}
+      POSTGRES_PASSWORD: ${VAULT_B_ADMIN_PASSWORD:-change-me-b-admin}
+      POSTGRES_DB: vault
+      # The role the app connects as (not a superuser).
+      APP_USER: ${VAULT_B_USER:-vault_b}
+      APP_PASSWORD: ${VAULT_B_PASSWORD:-change-me-b}
+    volumes:
+      - vault-b-data:/var/lib/postgresql/data
+      - ./infra/vault/init.sql:/schema/init.sql:ro
+      - ./infra/vault/create-app-role.sh:/docker-entrypoint-initdb.d/01-create-app-role.sh:ro
+    networks: [vault-b-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${VAULT_B_ADMIN_USER:-vault_b_admin} -d vault"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  brain:
+    build:
+      context: ./services/brain
+      target: app
+    environment:
+      VAULT_A_URL: postgresql://${VAULT_A_USER:-vault_a}:${VAULT_A_PASSWORD:-change-me-a}@vault-a:5432/vault
+      VAULT_B_URL: postgresql://${VAULT_B_USER:-vault_b}:${VAULT_B_PASSWORD:-change-me-b}@vault-b:5432/vault
+      HMAC_KEY_FILE: /run/secrets/hmac_key
+      VAULT_API_TOKEN: ${VAULT_API_TOKEN:-}
       DATABASE_URL: postgresql+psycopg://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/${DB_NAME:-dna}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}
       GATEWAY_URL: http://gateway:4000
       DEMO_MODE: ${DEMO_MODE:-true}
       DATA_DIR: /data
+      EXTENSION_ID: ${EXTENSION_ID:-}
+      # X30: SIEM push. All off unless set in .env; see docs/siem/README.md.
+      SIEM_SYSLOG_HOST: ${SIEM_SYSLOG_HOST:-}
+      SIEM_SYSLOG_PORT: ${SIEM_SYSLOG_PORT:-514}
+      SIEM_SYSLOG_PROTO: ${SIEM_SYSLOG_PROTO:-udp}
+      SIEM_WEBHOOK_URL: ${SIEM_WEBHOOK_URL:-}
+      SIEM_WEBHOOK_SECRET: ${SIEM_WEBHOOK_SECRET:-}
+      SIEM_EXPORT_TOKEN: ${SIEM_EXPORT_TOKEN:-}
       RETENTION_DAYS: ${RETENTION_DAYS:-30}
       # Few threads per model: many small requests beat one wide one (see the load test).
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
@@ -34,11 +95,22 @@ services:
     volumes:
       - models:/models
       - ./data:/data:ro
+      # X28: approved break-it rows are appended here, so this one folder is writable
+      - ./data/eval:/data/eval
       - logs:/var/dna/logs
+      - keys:/var/dna/keys # app-only: fallback HMAC key when secrets/hmac_key is absent
+    # Published on localhost only: the brain admin API has no login and the gateway uses the
+    # master key. Other machines on the network cannot reach them.
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
+    networks: [default, vault-a-net, vault-b-net]
+    secrets: [hmac_key]
     depends_on:
       db:
+        condition: service_healthy
+      vault-a:
+        condition: service_healthy
+      vault-b:
         condition: service_healthy
 
   gateway:
@@ -51,7 +123,7 @@ services:
       BRAIN_URL: http://brain:8001
       LOCAL_LLM_URL: ${LOCAL_LLM_URL:-http://ollama:11434}
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     depends_on:
       db:
         condition: service_healthy
@@ -63,7 +135,7 @@ services:
       context: .
       dockerfile: web/Dockerfile
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       brain:
         condition: service_healthy
@@ -90,7 +162,7 @@ services:
       LOCAL_THREADS: ${LOCAL_THREADS:-4}
       OLLAMA_KEEP_ALIVE: 30m
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama:/root/.ollama
     healthcheck:
@@ -98,6 +170,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 90
+
+  # Split storage tests, run inside the containers: `docker compose run --rm splitstore-tests`.
+  # REQUIRE_VAULTS makes a missing vault a failure instead of a skip.
+  splitstore-tests:
+    profiles: ["test"]
+    build:
+      context: ./services/brain
+      target: test
+    entrypoint: ["pytest", "tests/test_splitstore.py", "--no-cov", "-p", "no:cacheprovider"]
+    environment:
+      VAULT_A_URL: postgresql://${VAULT_A_USER:-vault_a}:${VAULT_A_PASSWORD:-change-me-a}@vault-a:5432/vault
+      VAULT_B_URL: postgresql://${VAULT_B_USER:-vault_b}:${VAULT_B_PASSWORD:-change-me-b}@vault-b:5432/vault
+      REQUIRE_VAULTS: "1"
+    networks: [vault-a-net, vault-b-net]
+    depends_on:
+      vault-a:
+        condition: service_healthy
+      vault-b:
+        condition: service_healthy
+  # X30 demo SOC: a tiny syslog receiver that prints the incidents the brain pushes. Not started by
+  # `up`: set SIEM_SYSLOG_HOST=syslog-receiver in .env, then run `make siem`.
+  syslog-receiver:
+    profiles: ["siem"]
+    image: python:3.12-alpine
+    command: ["python", "-u", "/receiver.py"]
+    volumes:
+      - ./infra/siem/receiver.py:/receiver.py:ro
 
   # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
   sim:
@@ -116,8 +215,24 @@ services:
       brain:
         condition: service_healthy
 
+networks:
+  vault-a-net:
+    internal: true
+  vault-b-net:
+    internal: true
+
+# The HMAC key for the split store. Only brain gets it; the vaults never see it.
+# Create it with scripts/gen_hmac_key.sh (`make up` does that first). Without it the app generates
+# a key into the app-only `keys` volume, so a plain `docker compose up` still works.
+secrets:
+  hmac_key:
+    file: ./secrets/hmac_key
+
 volumes:
+  vault-a-data:
+  vault-b-data:
   dbdata:
   models:
   logs:
+  keys:
   ollama:
