@@ -2960,3 +2960,29 @@
 .tight .stats {
   margin-top: 0;
 }
+
+/* How it works: the dot grid behind the title, the checkpoint card in the security section */
+.hero-dots {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.hero-dots .wrap {
+  position: relative;
+  z-index: 1;
+}
+.kept-no.dark {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.kept-no.dark > div {
+  width: 100%;
+  min-height: 300px;
+  border-radius: var(--r-lg);
+}
+.stat strong * {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}

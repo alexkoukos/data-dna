@@ -10,7 +10,7 @@ import { SecurityCheckpoint } from "@/components/ui/security-checkpoint";
 import { fetchMetrics } from "@/lib/securityApi";
 
 /** True once the element has been on screen, so numbers roll when people reach them. */
-function useSeen<T extends Element>() {
+export function useSeen<T extends Element>() {
   const ref = useRef<T>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {

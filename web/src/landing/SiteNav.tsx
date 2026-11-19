@@ -33,6 +33,7 @@ export function SiteNav() {
               {l.label}
             </NavLink>
           ))}
+          <Link to="/how-it-works#security">Security</Link>
           {LANDING_ONLY ? null : (
             <>
               <NavLink to="/chat" className={({ isActive }) => (isActive ? "is-here" : undefined)}>

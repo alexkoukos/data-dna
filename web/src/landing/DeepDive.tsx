@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { TextureButton } from "@/components/ui/texture-button";
-import { PageHead, SiteShell } from "./SiteShell";
+import { CanvasFractalGrid } from "@/components/ui/canvas-fractal-grid";
+import { PixelHeading } from "@/components/ui/pixel-heading-character";
+import { RollingStat } from "@/components/ui/rolling-stat";
+import { SecurityCheckpoint } from "@/components/ui/security-checkpoint";
+import { useSeen } from "./Sections";
+import { SiteShell } from "./SiteShell";
 import { LANDING_ONLY } from "./mode";
 
 /** A real answer from the brain for this message (POST /v1/check, tool Claude.ai). */
@@ -70,20 +75,37 @@ const LIMITS = [
 
 export default function DeepDive() {
   const { hash } = useLocation();
+  const [seenRef, seen] = useSeen<HTMLDivElement>();
   useEffect(() => {
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
   }, [hash]);
   return (
     <SiteShell>
       <main id="main" className="tight">
-        <PageHead
-          title="How Sentry works."
-          lead="Every message is checked before it leaves. This is what you see."
-        />
+        <section className="page-head hero-dots" aria-labelledby="page-title">
+          <CanvasFractalGrid
+            contained
+            className="[mask-image:linear-gradient(to_bottom,black_60%,transparent)]"
+          />
+          <div className="wrap">
+            <PixelHeading
+              as="h1"
+              id="page-title"
+              mode="wave"
+              showLabel={false}
+              className="font-normal"
+            >
+              How Sentry works.
+            </PixelHeading>
+            <p className="lead">Every message is checked before it leaves. This is what you see.</p>
+          </div>
+        </section>
 
         <section className="section" aria-labelledby="steps-h">
           <div className="wrap">
-            <h2 id="steps-h">Three steps. A tenth of a second.</h2>
+            <PixelHeading as="h2" id="steps-h" mode="multi" className="font-normal">
+              Three steps. A tenth of a second.
+            </PixelHeading>
             <ol className="steps3">
               <li className="step3">
                 <span className="step3-n">1</span>
@@ -125,7 +147,9 @@ export default function DeepDive() {
 
         <section className="section section-white" aria-labelledby="out-title">
           <div className="wrap">
-            <h2 id="out-title">Five things can happen.</h2>
+            <PixelHeading as="h2" id="out-title" mode="multi" className="font-normal">
+              Five things can happen.
+            </PixelHeading>
             <ul className="oc-grid">
               {OUTCOMES.map(([k, name, text]) => (
                 <li key={k} className={`oc ${k}`}>
@@ -139,7 +163,9 @@ export default function DeepDive() {
 
         <section className="section" aria-labelledby="catch-h">
           <div className="wrap">
-            <h2 id="catch-h">What it catches.</h2>
+            <PixelHeading as="h2" id="catch-h" mode="multi" className="font-normal">
+              What it catches.
+            </PixelHeading>
             <ul className="catch-chips">
               {CATCHES.map(([t, e]) => (
                 <li key={t} title={e}>
@@ -152,13 +178,16 @@ export default function DeepDive() {
 
         <section id="security" className="section section-white" aria-labelledby="sec-h">
           <div className="wrap">
-            <h2 id="sec-h">Your data stays yours.</h2>
+            <PixelHeading as="h2" id="sec-h" mode="multi" className="font-normal">
+              Your data stays yours.
+            </PixelHeading>
             <div className="kept">
-              <div className="kept-no">
-                <h3>Never stored</h3>
-                <p className="ex-box kept-typed">
-                  Please wire 12,400 EUR to GR1601101250000000012300695 for Maria Papadopoulou
-                </p>
+              <div className="kept-no dark">
+                <SecurityCheckpoint
+                  title="Sentry"
+                  subtitle="Never stored"
+                  message="What you typed is checked, then forgotten. Only the record on the right is kept."
+                />
               </div>
               <div className="kept-yes">
                 <h3>The only record</h3>
@@ -188,7 +217,9 @@ export default function DeepDive() {
 
         <section id="developers" className="section" aria-labelledby="dev-h">
           <div className="wrap">
-            <h2 id="dev-h">Run it yourself.</h2>
+            <PixelHeading as="h2" id="dev-h" mode="multi" className="font-normal">
+              Run it yourself.
+            </PixelHeading>
             <div className="api-pair">
               <pre className="code" tabIndex={0} aria-label="Start">
                 {START}
@@ -215,23 +246,31 @@ export default function DeepDive() {
 
         <section className="section section-white" aria-labelledby="proof-title">
           <div className="wrap">
-            <h2 id="proof-title">Measured. Misses published.</h2>
-            <div className="stats">
+            <PixelHeading as="h2" id="proof-title" mode="multi" className="font-normal">
+              Measured. Misses published.
+            </PixelHeading>
+            <div className="stats" ref={seenRef}>
               <div className="stat">
-                <strong>100%</strong>
+                <strong>
+                  <RollingStat value={seen ? 100 : 0} suffix="%" />
+                </strong>
                 <span>reworded leaks found. Regex: 5%</span>
+              </div>
+              <div className="stat">
+                <strong>
+                  <RollingStat value={seen ? 80 : 0} suffix=" / 80" />
+                </strong>
+                <span>attacks handled</span>
+              </div>
+              <div className="stat">
+                <strong>
+                  <RollingStat value={seen ? 12 : 0} suffix=" ms" />
+                </strong>
+                <span>added by the server check</span>
               </div>
               <div className="stat">
                 <strong>2.1%</strong>
                 <span>false alarms</span>
-              </div>
-              <div className="stat">
-                <strong>12 ms</strong>
-                <span>added by the server check</span>
-              </div>
-              <div className="stat">
-                <strong>80 / 80</strong>
-                <span>attacks handled</span>
               </div>
             </div>
             <p className="prose">Invented data, tuned on that set. Read it as a ceiling.</p>
