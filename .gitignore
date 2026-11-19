@@ -20,3 +20,6 @@ eval/report.*
 eval/redteam/promptfoo.json
 eval/redteam/report.*
 eval/local_llm_bench.md.tmp
+
+# Local keys made by the stack (HMAC key for sealed identities). Never commit.
+secrets/
