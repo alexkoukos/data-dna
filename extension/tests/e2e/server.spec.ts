@@ -35,3 +35,15 @@ test("with the company server down, the browser still masks and says so", async 
   await page.locator("#prompt").press("Enter");
   await expect(page.locator(".note")).toContainText("company server not reached");
 });
+
+test("a fresh install connects by itself: no code, no settings", async ({ context, request }) => {
+  test.skip(!(await brainUp(request)), "needs the brain on :8001 (make up)");
+  let [worker] = context.serviceWorkers();
+  worker ??= await context.waitForEvent("serviceworker");
+  const id = new URL(worker.url()).host;
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${id}/popup.html`);
+  // The worker picks the default server and the first demo person on install.
+  await expect(page.getByText(/Connected as u-/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Not connected to a Sentry server.")).toHaveCount(0);
+});

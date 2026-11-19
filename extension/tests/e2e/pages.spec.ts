@@ -44,12 +44,3 @@ test("in the side panel Enter sends and Shift+Enter adds a line", async ({ conte
   await expect(box).toHaveValue("");
   await expect(page.getByText("first line")).toBeVisible();
 });
-
-test("a fresh install connects by itself: no code, no settings", async ({ context }) => {
-  const id = await extensionId(context);
-  const page = await context.newPage();
-  await page.goto(`chrome-extension://${id}/popup.html`);
-  // The worker picks the default server and the first demo person on install.
-  await expect(page.getByText(/Connected as u-/)).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("Not connected to a Sentry server.")).toHaveCount(0);
-});
