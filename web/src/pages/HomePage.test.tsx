@@ -4,17 +4,22 @@ import { describe, expect, it } from "vitest";
 import HomePage from "./HomePage";
 
 describe("HomePage", () => {
-  it("offers one clear start and the three demo steps", () => {
+  it("offers one clear start, lists every app tool", () => {
     render(
       <MemoryRouter>
         <HomePage />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("link", { name: "Start the demo" })).toHaveAttribute("href", "/chat");
-    expect(screen.getAllByRole("listitem")).toHaveLength(3);
-    expect(screen.getByRole("link", { name: "Open the security view" })).toHaveAttribute(
+    const start = screen.getAllByRole("link", { name: "Get the extension" });
+    expect(start.length).toBeGreaterThan(0);
+    for (const link of start) expect(link).toHaveAttribute("href", "/extension");
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
+    for (const name of ["Try to break it", "Company AI", "Security", "Connect a tool"]) {
+      expect(screen.getAllByRole("link", { name: new RegExp(name) }).length).toBeGreaterThan(0);
+    }
+    expect(screen.getByRole("link", { name: "Or jump to the security view" })).toHaveAttribute(
       "href",
-      "/security/incidents",
+      "/security",
     );
   });
 });

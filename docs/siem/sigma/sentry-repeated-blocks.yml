@@ -10,7 +10,11 @@ tags:
   - attack.exfiltration
   - attack.t1567
 logsource:
+<<<<<<<< HEAD:docs/siem/sigma/hive-repeated-blocks.yml
+  product: hive
+========
   product: sentry
+>>>>>>>> origin/main:docs/siem/sigma/sentry-repeated-blocks.yml
   service: gate
   category: dlp
 detection:

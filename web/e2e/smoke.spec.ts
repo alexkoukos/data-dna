@@ -1,14 +1,11 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-const BRAIN = process.env.BRAIN_URL ?? "http://localhost:8001";
-const GATEWAY = process.env.GATEWAY_URL ?? "http://localhost:4000";
-const WEB = process.env.BASE_URL ?? "http://localhost:3000";
-
 const ROUTES = [
   "/",
+  "/how-it-works",
   "/app",
-  "/chat",
+  "/extension",
   "/connect",
   "/break-it",
   "/security",
@@ -16,7 +13,6 @@ const ROUTES = [
   "/security/incidents",
   "/security/documents",
   "/security/policies",
-  "/security/digest",
   "/security/ask",
 ];
 const VIEWPORTS = [
@@ -71,31 +67,35 @@ test("AI tools lists unapproved tools first and can filter", async ({ page }) =>
   await expect(page.getByText("Unapproved", { exact: true })).toHaveCount(0);
 });
 
-test("chat masks a bank account number and still answers", async ({ page }) => {
-  await page.goto("/chat");
-  await page.getByRole("button", { name: "Try a bank account number" }).click();
-  await page.getByRole("button", { name: "Send" }).click();
-  const log = page.getByRole("log", { name: "Conversation" });
-  await expect(log.getByText("Masked")).toBeVisible();
-  // Thyro shows the matching pose next to the label (the label is what carries the meaning).
-  await expect(log.locator('img[src$="thyro-mask.svg"]')).toBeVisible();
-  await expect(log.getByText(/passed the safety check/)).toBeVisible();
+test("get the extension: download link, five samples and a pairing code", async ({ page }) => {
+  await page.goto("/extension");
+  await expect(page.getByRole("link", { name: /Download sentry-extension.zip/ })).toHaveAttribute(
+    "href",
+    "/extension.zip",
+  );
+  const zip = await page.request.get("/extension.zip");
+  expect(zip.ok()).toBe(true);
+  expect((await zip.body()).subarray(0, 2).toString()).toBe("PK");
+  const samples = page.getByRole("list", { name: "Sample texts" });
+  await expect(samples.getByRole("listitem")).toHaveCount(5);
+  // The sample text is folded under "Show the text"; the second sample (mask) holds the IBAN.
+  await samples.getByText("Show the text").nth(1).click();
+  await expect(samples.getByText(/IBAN GR16 0110 1250 0000 0001 2300 695/).first()).toBeVisible();
+  await page.getByLabel("Pair as this person").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "Show pairing code" }).click();
+  await expect(page.getByRole("status")).toContainText(/\d{6}/);
   const results = await new AxeBuilder({ page }).analyze();
   expect(
     results.violations.filter((v) => ["serious", "critical"].includes(v.impact ?? "")),
   ).toEqual([]);
 });
 
-test("chat holds a risky message and asks before sending", async ({ page }) => {
-  await page.goto("/chat");
-  await page
-    .getByLabel("Message")
-    .fill("AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695");
-  await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByText("Check before this goes out")).toBeVisible();
-  await page.getByLabel(/Say why/).fill("needed for an audit");
-  await page.getByRole("button", { name: "Send anyway" }).click();
-  await expect(page.getByText(/passed the safety check/)).toBeVisible();
+test("AI tools can be filtered by where they were seen", async ({ page }) => {
+  await page.goto("/security/tools");
+  await page.getByRole("button", { name: "Browser extension" }).click();
+  await expect(page.getByRole("heading", { level: 3 }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Network logs" }).click();
+  await expect(page.getByRole("heading", { level: 3 }).first()).toBeVisible();
 });
 
 test("policies: change one, see it saved, then put it back", async ({ page }) => {
@@ -110,7 +110,7 @@ test("policies: change one, see it saved, then put it back", async ({ page }) =>
     await page.reload();
     await expect(page.getByLabel("What happens to client names")).toHaveValue(other);
   } finally {
-    await page.request.put(`${BRAIN}/v1/policies`, {
+    await page.request.put("http://localhost:8001/v1/policies", {
       data: { scope: "category", key: "client_name", action: original, updated_by: "e2e" },
     });
   }
@@ -119,11 +119,17 @@ test("policies: change one, see it saved, then put it back", async ({ page }) =>
 test("connect page turns to Connected after a real request with the shown key", async ({
   page,
 }) => {
+  // The gateway is optional now (`make gateway`).
+  const up = await page.request
+    .get("http://localhost:4000/health/liveliness", { timeout: 1500 })
+    .then((r) => r.ok())
+    .catch(() => false);
+  test.skip(!up, "needs the optional gateway: make gateway");
   await page.goto("/connect");
   await expect(page.getByText(/Waiting for first request/)).toBeVisible();
   await page.getByRole("button", { name: "Show personal key" }).click();
   const key = await page.getByRole("textbox", { name: "Personal key" }).inputValue();
-  const res = await page.request.post(`${GATEWAY}/v1/chat/completions`, {
+  const res = await page.request.post("http://localhost:4000/v1/chat/completions", {
     headers: { Authorization: `Bearer ${key}` },
     data: { model: "demo-mock", messages: [{ role: "user", content: "Hello" }] },
   });
@@ -143,10 +149,14 @@ test("ask: a preset question shows a table and the SQL", async ({ page }) => {
 
 test("incident detail: the name stays sealed until a second person approves", async ({ page }) => {
   // Earlier runs leave reveal requests behind, so pick an incident that has none yet.
-  const list = await (await page.request.get(`${BRAIN}/v1/incidents?limit=100`)).json();
+  const list = await (
+    await page.request.get("http://localhost:8001/v1/incidents?limit=100")
+  ).json();
   let fresh: number | null = null;
   for (const item of list.items as { id: number }[]) {
-    const d = await (await page.request.get(`${BRAIN}/v1/incidents/${item.id}`)).json();
+    const d = await (
+      await page.request.get(`http://localhost:8001/v1/incidents/${item.id}`)
+    ).json();
     if (d.reveals.length === 0) {
       fresh = item.id;
       break;
@@ -179,7 +189,9 @@ test("incident detail: the name stays sealed until a second person approves", as
 });
 
 test("documents: add one, set up marks, issue a copy and open it", async ({ page }) => {
-  const people = await (await page.request.get(`${BRAIN}/v1/incidents?limit=5`)).json();
+  const people = await (
+    await page.request.get("http://localhost:8001/v1/incidents?limit=5")
+  ).json();
   const person = people.items[0].user as string;
   const title = `E2E memo ${Date.now()}`;
   const body = Array.from(
@@ -209,7 +221,7 @@ test("documents: add one, set up marks, issue a copy and open it", async ({ page
   const link = card.getByRole("link", { name: /Open copy/ });
   await expect(link).toBeVisible();
   const href = await link.getAttribute("href");
-  const copy = await page.request.get(`${WEB}${href}`);
+  const copy = await page.request.get(`http://localhost:3000${href}`);
   expect(copy.ok()).toBe(true);
   expect(await copy.text()).toContain("Item 1 says the supplier");
 });

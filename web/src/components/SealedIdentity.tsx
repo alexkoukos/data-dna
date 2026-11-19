@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { decideReveal, fetchIdentity, requestReveal, type Reveal } from "../lib/securityApi";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Eye, LockOpen, UserCheck, X } from "lucide-react";
 
 const field =
-  "mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900";
-const primary =
-  "min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60";
-const quiet = "min-h-11 rounded-md px-4 text-sm font-medium text-ink-700 hover:bg-ink-100";
+  "mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-surface px-3 text-sm text-ink-900";
 
 interface Props {
   incidentId: number;
@@ -50,7 +49,7 @@ export function SealedIdentity({ incidentId, pseudonym, latest, onChanged }: Pro
 
   const status = latest?.status;
   return (
-    <section aria-labelledby="who-h" className="rounded-lg border border-ink-200 bg-white p-4">
+    <section aria-labelledby="who-h" className="rounded-lg border border-ink-200 bg-surface p-4">
       <h2 id="who-h" className="text-lg font-semibold text-ink-900">
         Who
       </h2>
@@ -76,22 +75,24 @@ export function SealedIdentity({ incidentId, pseudonym, latest, onChanged }: Pro
             <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
           </label>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
+            <TextureButton
               type="button"
               disabled={busy || !name.trim()}
               onClick={() => run(() => decideReveal(latest.id, name, true))}
-              className={primary}
+              variant="primary"
             >
+              <UserCheck className="size-4" aria-hidden="true" />
               Approve the reveal
-            </button>
-            <button
+            </TextureButton>
+            <TextureButton
               type="button"
               disabled={busy || !name.trim()}
               onClick={() => run(() => decideReveal(latest.id, name, false))}
-              className={quiet}
+              variant="minimal"
             >
+              <X className="size-4" aria-hidden="true" />
               Deny
-            </button>
+            </TextureButton>
           </div>
         </div>
       ) : null}
@@ -105,14 +106,16 @@ export function SealedIdentity({ incidentId, pseudonym, latest, onChanged }: Pro
             Your name
             <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
           </label>
-          <button
+          <TextureButton
             type="button"
             disabled={busy || !name.trim()}
             onClick={() => show(latest)}
-            className={`${primary} mt-3`}
+            variant="primary"
+            className="mt-3"
           >
+            <Eye className="size-4" aria-hidden="true" />
             Show the real name
-          </button>
+          </TextureButton>
         </div>
       ) : null}
 
@@ -140,13 +143,15 @@ export function SealedIdentity({ incidentId, pseudonym, latest, onChanged }: Pro
               className={`${field} py-2`}
             />
           </label>
-          <button
+          <TextureButton
             type="submit"
             disabled={busy || !name.trim() || reason.trim().length < 10}
-            className={`${primary} mt-3`}
+            variant="primary"
+            className="mt-3"
           >
+            <LockOpen className="size-4" aria-hidden="true" />
             Request reveal
-          </button>
+          </TextureButton>
         </form>
       ) : null}
 

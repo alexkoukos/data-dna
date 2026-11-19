@@ -2,37 +2,27 @@ import "@fontsource/plus-jakarta-sans/400.css";
 import "@fontsource/plus-jakarta-sans/500.css";
 import "@fontsource/plus-jakarta-sans/700.css";
 import "@fontsource/plus-jakarta-sans/800.css";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./landing.css";
-import { HeroLoop } from "./HeroLoop";
-import { PHASE } from "./loop";
-import { Scaled } from "./Scaled";
-import { OverviewMock } from "./OverviewMock";
-import { Screen } from "./Screen";
-
-const GITHUB = "https://github.com/alexkoukos/data-dna";
-
-const STEPS = [
-  {
-    title: "Paste",
-    body: "Someone drops a table, a key or a document into an AI tool, the way people do every day.",
-    scene: 0,
-    phase: PHASE.paste,
-  },
-  {
-    title: "The bee checks",
-    body: "Before anything is sent, the guard bee looks at the text, masks or stops what belongs to the hive, and says why.",
-    scene: 1,
-    phase: PHASE.bee,
-  },
-  {
-    title: "You still get your answer",
-    body: "Every block names a safe way forward, like Company AI, which can read it on your own servers.",
-    scene: 3,
-    phase: PHASE.card,
-  },
-];
+import { LANDING_ONLY } from "./mode";
+import { SiteFooter } from "./SiteFooter";
+import { SiteNav } from "./SiteNav";
+import { LogoBar } from "./LogoBar";
+import { Checkpoint, HowItWorks, Solved } from "./Sections";
+import { TextureButton } from "@/components/ui/texture-button";
+import {
+  HeroDitheringActions,
+  HeroDitheringContainer,
+  HeroDitheringContent,
+  HeroDitheringDescription,
+  HeroDitheringHeading,
+  HeroDitheringMobileVisual,
+  HeroDitheringRoot,
+  HeroDitheringVisual,
+} from "@/components/ui/hero-dithering";
+import { CanvasFractalGrid } from "@/components/ui/canvas-fractal-grid";
+import { PixelHeading } from "@/components/ui/pixel-heading-character";
 
 type Kind = "mask" | "block" | "local" | "warn";
 const GLYPH: Record<Kind, string> = { mask: "◐", block: "■", local: "⌂", warn: "▲" };
@@ -43,7 +33,7 @@ const WORD: Record<Kind, string> = {
   warn: "Warned",
 };
 
-// What the bee does with each kind of data. All values are invented demo data.
+// What the sentinel does with each kind of data. All values are invented demo data.
 const CATCHES: {
   id: string;
   label: string;
@@ -66,7 +56,7 @@ const CATCHES: {
     kind: "block",
     raw: "Pay to GR16 0110 1250 0000 0001 2300 695",
     out: "Pay to [IBAN_1]",
-    say: "Bank details stay in the hive. Company AI can see them safely.",
+    say: "Bank details stay inside. Company AI can see them safely.",
   },
   {
     id: "afm",
@@ -82,7 +72,7 @@ const CATCHES: {
     kind: "block",
     raw: "Employee social security no. 01019012345",
     out: "Employee social security no. [AMKA_1]",
-    say: "Social security numbers stay in the hive.",
+    say: "Social security numbers stay inside.",
   },
   {
     id: "keys",
@@ -90,7 +80,7 @@ const CATCHES: {
     kind: "block",
     raw: "API_KEY=sk-demo-4f9aQ2bX7LmN8vT3",
     out: "API_KEY=[API_KEY_1]",
-    say: "Keys never leave the hive. I removed it; your question still goes through.",
+    say: "Keys never leave the company. I removed it; your question still goes through.",
   },
   {
     id: "clients",
@@ -126,27 +116,7 @@ const CATCHES: {
   },
 ];
 
-const WATCHER = [
-  ["Self-hosted.", "Runs in your own Docker setup, on your own servers."],
-  ["No raw prompts stored.", "The log keeps what was found and what was done, not the text."],
-  ["Masked previews only.", "Security teams see [SALARY_1], not the salary."],
-  ["Two-person reveal.", "Seeing an original value needs a second person to approve."],
-  ["An audit log.", "Every decision and every reveal is recorded."],
-];
-
-function Wordmark({ reverse = false, className = "" }: { reverse?: boolean; className?: string }) {
-  return (
-    <img
-      className={className}
-      src={reverse ? "/brand/hive-wordmark-reverse.svg" : "/brand/hive-wordmark.svg"}
-      alt="Hive"
-      width="173"
-      height="70"
-    />
-  );
-}
-
-function Catches() {
+export function Catches() {
   const [pick, setPick] = useState(0);
   const c = CATCHES[pick];
   return (
@@ -209,93 +179,127 @@ function Catches() {
   );
 }
 
+// Sections below the hero fade up once as they scroll into view. Nothing repeats, and with
+// reduced motion (or no IntersectionObserver) everything is simply visible.
+function useReveal(root: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = root.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const items = Array.from(el.querySelectorAll<HTMLElement>("[data-reveal]"));
+    el.classList.add("reveal-ready");
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-in");
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
+    );
+    items.forEach((i) => io.observe(i));
+    return () => io.disconnect();
+  }, [root]);
+}
+
 export default function Landing() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useReveal(rootRef);
+  const [reduceMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [playHeading, setPlayHeading] = useState(!reduceMotion);
+  useEffect(() => {
+    if (!playHeading) return;
+    const t = window.setTimeout(() => setPlayHeading(false), 3200);
+    return () => window.clearTimeout(t);
+  }, [playHeading]);
   return (
-    <div className="hive">
+    <div className="sentry dark" ref={rootRef}>
       <a className="skip" href="#main">
         Skip to content
       </a>
-      <header className="top">
-        <nav aria-label="Main" className="top-in">
-          <Link to="/" className="top-logo" aria-label="Hive home">
-            <Wordmark className="top-wordmark" />
-          </Link>
-          <div className="top-links">
-            <a href="#how">How it works</a>
-            <a href="#catches">What it catches</a>
-            <a href="#security">For security teams</a>
-            <Link to="/app" className="btn btn-primary btn-sm">
-              Live demo
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <SiteNav />
 
       <main id="main">
-        <section className="hero" aria-labelledby="hero-title">
-          <div className="hero-in">
-            <div className="hero-copy">
-              <h1 id="hero-title">Your data is the honey. We guard the gate.</h1>
-              <p className="lead">
-                Hive checks every prompt before it reaches an AI tool, masks or stops what belongs
-                to your company, and always shows a way to still get your answer.
-              </p>
-              <div className="cta">
-                <Link to="/app" className="btn btn-primary">
-                  See the live demo
-                </Link>
-                <a href="#how" className="btn btn-secondary">
-                  How it works
-                </a>
-              </div>
+        <HeroDitheringRoot
+          className="hero-dither"
+          srTitle="Your data stays yours. Sentry holds the gate."
+          description="Sentry checks every prompt before it reaches an AI tool, masks or stops what belongs to your company, and always shows a way to still get your answer."
+          renderCta={() => (
+            <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              {LANDING_ONLY ? null : (
+                <TextureButton asChild variant="primary" size="lg">
+                  <Link to="/app">See the live demo</Link>
+                </TextureButton>
+              )}
+              <TextureButton asChild variant={LANDING_ONLY ? "primary" : "secondary"} size="lg">
+                <Link to="/how-it-works">See how it works</Link>
+              </TextureButton>
             </div>
-            <HeroLoop />
-          </div>
-        </section>
+          )}
+          desktopShaderProps={{
+            colorFront: "#ffa60d",
+            colorBack: "#0a0908",
+            width: 800,
+            height: 800,
+            scale: 0.7,
+            speed: reduceMotion ? 0 : 0.9,
+          }}
+          mobileShaderProps={{ colorFront: "#ffa60d", speed: reduceMotion ? 0 : 0.7 }}
+        >
+          <CanvasFractalGrid
+            contained
+            className="[mask-image:linear-gradient(to_bottom,black_72%,transparent)]"
+          />
+          <HeroDitheringContainer>
+            <HeroDitheringContent>
+              <HeroDitheringHeading>
+                <PixelHeading
+                  as="h2"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  mode="wave"
+                  autoPlay={playHeading}
+                  cycleInterval={340}
+                  staggerDelay={60}
+                  showLabel={false}
+                  className="font-normal"
+                >
+                  Your data stays yours. Sentry holds the gate.
+                </PixelHeading>
+              </HeroDitheringHeading>
+              <HeroDitheringDescription />
+              <HeroDitheringActions />
+            </HeroDitheringContent>
+            <HeroDitheringVisual className="aspect-square w-full max-w-[520px] justify-self-center lg:h-auto xl:h-auto" />
+          </HeroDitheringContainer>
+          <HeroDitheringMobileVisual />
+        </HeroDitheringRoot>
 
-        <section id="how" className="section section-white" aria-labelledby="how-title">
-          <div className="wrap">
-            <h2 id="how-title">Every prompt passes the gate.</h2>
-            <ol className="steps">
-              {STEPS.map((s, i) => (
-                <li key={s.title} className="step">
-                  <div className="step-frame" aria-hidden="true">
-                    <Scaled width={720} height={450}>
-                      <Screen still scene={s.scene} phase={s.phase} />
-                    </Scaled>
-                  </div>
-                  <h3>
-                    <span className="step-n" aria-hidden="true">
-                      {i + 1}
-                    </span>
-                    {s.title}
-                  </h3>
-                  <p>{s.body}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
+        <LogoBar />
 
-        <section id="catches" className="section" aria-labelledby="catches-title">
-          <div className="wrap">
-            <h2 id="catches-title">The things people paste without thinking.</h2>
-            <p className="section-sub">Pick one to see what you paste and what leaves.</p>
-            <Catches />
-          </div>
-        </section>
+        <HowItWorks />
+        <Solved />
 
         <section id="security" className="section section-white" aria-labelledby="sec-title">
-          <div className="wrap sec-grid">
+          <div className="wrap sec-grid" data-reveal>
             <div>
               <h2 id="sec-title">One screen for the question you actually have.</h2>
               <p className="lead">
                 The Overview counts saves, not violations. It shows which tools your teams use, what
                 was kept in, and what needs a second look.
               </p>
-              <Link to="/security" className="btn btn-secondary">
-                Open the Overview
-              </Link>
+              <Checkpoint />
+              {LANDING_ONLY ? null : (
+                <TextureButton asChild variant="secondary" size="lg">
+                  <Link to="/security">Open the Overview</Link>
+                </TextureButton>
+              )}
             </div>
             <figure className="shot">
               <div className="shot-frame">
@@ -304,38 +308,20 @@ export default function Landing() {
                   <i />
                   <i />
                 </div>
-                <OverviewMock />
+                <img
+                  src="/landing/overview.webp"
+                  width="1560"
+                  height="1155"
+                  loading="lazy"
+                  alt="The Sentry Overview: trend charts for incidents and leaks stopped, and counts of prompts checked, share handled without an AI model, incidents and unapproved tools. Demo data."
+                />
               </div>
-              <figcaption>
-                Which teams sent client data to unapproved AI tools this week?
-              </figcaption>
+              <figcaption>The real Overview, running on invented demo data.</figcaption>
             </figure>
           </div>
         </section>
-
-        <section className="section" aria-labelledby="watch-title">
-          <div className="wrap">
-            <h2 id="watch-title">The gate is guarded too.</h2>
-            <ul className="watch">
-              {WATCHER.map(([title, text]) => (
-                <li key={title}>
-                  <strong>{title}</strong> {text}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
       </main>
-
-      <footer className="foot">
-        <div className="wrap foot-in">
-          <Wordmark className="foot-wordmark" />
-          <p>Built for the Netcompany Hackathon 2026</p>
-          <a href={GITHUB} className="foot-link">
-            GitHub
-          </a>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

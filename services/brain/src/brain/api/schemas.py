@@ -177,6 +177,8 @@ class ToolOut(BaseModel):
     requests: int
     trend: list[int]
     first_seen: str | None
+    # Where we saw it: the browser extension, network logs (Squid, Zeek, gateway), or both.
+    sources: list[str] = Field(default_factory=list)
     allowed_categories: list[str] = Field(default_factory=list)
 
 
@@ -396,6 +398,7 @@ class ExtensionInspect(BaseModel):
 
     text: str = Field(max_length=100_000)  # the same limit as MAX_INSPECT_CHARS in main.py
     model: str = Field(default="ChatGPT (personal)", max_length=80)
+    attachments: list[Attachment] = Field(default_factory=list, max_length=5)
 
 
 class ExtensionVerdict(BaseModel):

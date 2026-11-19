@@ -70,6 +70,17 @@ class GenIncident:
     reasons: list[str]
     masked_preview: str | None
     document_idx: int | None = None  # index into Org.documents
+    channel: str = "gateway"  # gateway, or extension for prompts checked in the browser
+
+
+@dataclass
+class GenExtEvent:
+    """A visit to an AI site seen by the browser extension (no text, only the tool and the time)."""
+
+    ts: datetime
+    user_idx: int
+    team: str
+    tool: str
 
 
 @dataclass
@@ -122,6 +133,17 @@ class Org:
     counters: list[GenCounter] = field(default_factory=list)
     gateway_usage: list[GenUsage] = field(default_factory=list)
     proxy_events: list[ProxyEvent] = field(default_factory=list)
+    ext_events: list[GenExtEvent] = field(default_factory=list)
+
+
+# The extension is installed on every team except Operations, which gets it next week. Their use of
+# an unapproved tool is therefore seen only in the network logs: the case the logs exist for.
+NO_EXTENSION_TEAMS = {"Operations"}
+BROWSER_CATEGORIES = {"chat", "search", "writing", "translation"}
+
+
+def is_browser_tool(tool: ToolSpec) -> bool:
+    return tool.category in BROWSER_CATEGORIES and not is_gateway_tool(tool)
 
 
 def is_gateway_tool(tool: ToolSpec) -> bool:
@@ -294,6 +316,20 @@ def generate(
                                 ts, user.idx, host, rng.random() > 0.15, rng.randrange(900, 90000)
                             )
                         )
+                        if is_browser_tool(tool) and user.team not in NO_EXTENSION_TEAMS:
+                            # The same visit, seen from the browser: the extension also checks
+                            # what the person pastes, so it can produce incidents.
+                            org.ext_events.append(GenExtEvent(ts, user.idx, user.team, tool_name))
+                            decision = _pick(rng, DECISION_WEIGHTS)
+                            if decision != "allow":
+                                inc = _incident_for(
+                                    rng, ts, user, tool_name, decision, spec.documents
+                                )
+                                inc.channel = "extension"
+                                org.incidents.append(inc)
+                            bucket = gw_requests.setdefault((day, user.team), _TeamDay())
+                            bucket.checked += 1
+                            bucket.allowed += decision == "allow"
             for _ in range(_poisson(rng, 10)):
                 org.proxy_events.append(
                     ProxyEvent(
@@ -356,12 +392,13 @@ def _add_storyline(
                     _at(rng, base),
                     who.idx,
                     team,
-                    "Claude Code (gateway)",
+                    "ChatGPT (personal)",
                     "mask",
                     ["secret"],
                     0.98,
                     ["Contains secret"],
                     PREVIEWS["secret"],
+                    channel="extension",
                 )
             )
         elif kind == "contract_paste":
@@ -370,13 +407,14 @@ def _add_storyline(
                     _at(rng, base),
                     who.idx,
                     team,
-                    "Company AI",
+                    "ChatGPT (personal)",
                     "local",
                     [],
                     0.93,
                     ["Matches a confidential document"],
                     None,
                     doc_index("confidential", team),
+                    channel="extension",
                 )
             )
         elif kind == "salary_questions":
@@ -387,13 +425,14 @@ def _add_storyline(
                         _at(rng, base),
                         person.idx,
                         team,
-                        "Company AI",
+                        "ChatGPT (personal)",
                         "local",
                         [],
                         0.88,
                         ["Matches a confidential document"],
                         None,
                         doc_index("confidential", team),
+                        channel="extension",
                     )
                 )
         elif kind == "memo_rebuild":
@@ -426,12 +465,13 @@ def _add_storyline(
                         _at(rng, d),
                         who.idx,
                         team,
-                        "Company AI",
+                        "Claude.ai",
                         decision,
                         [],
                         score,
                         ["Matches a restricted document", why],
                         None,
                         doc_index("restricted"),
+                        channel="extension",
                     )
                 )

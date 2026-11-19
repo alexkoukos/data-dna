@@ -128,3 +128,32 @@ def test_the_preview_refuses_unknown_actions_and_scopes(client: TestClient) -> N
     assert client.post("/v1/policies/preview", json=bad).status_code == 422
     bad = {"scope": "nothing", "key": "iban", "action": "block"}
     assert client.post("/v1/policies/preview", json=bad).status_code == 422
+
+
+def test_the_compliance_report_also_comes_as_a_branded_web_page(client: TestClient) -> None:
+    r = client.get("/v1/compliance-report.html")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert "script-src" not in r.headers["content-security-policy"]
+    assert "default-src 'none'" in r.headers["content-security-policy"]
+    for word in ("Sentry", "GDPR", "NIS2", "EU AI Act", "#F59E0B", "not legal advice"):
+        assert word in r.text
+
+
+def test_the_report_html_escapes_what_it_prints() -> None:
+    from datetime import UTC, datetime
+
+    from brain import compliance
+
+    ev = {k: 0 for k in compliance._EVIDENCE_TEXT} | {
+        "checked": 1,
+        "incidents": 0,
+        "blocked": 0,
+        "masked": 0,
+        "warned": 0,
+        "local": 0,
+    }
+    page = compliance.render_html(ev, datetime(2026, 11, 19, tzinfo=UTC))
+    assert "<script" not in page
+    pdf = compliance.render_pdf(ev, datetime(2026, 11, 19, tzinfo=UTC))
+    assert pdf.startswith(b"%PDF")

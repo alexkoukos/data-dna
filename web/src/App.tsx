@@ -1,14 +1,17 @@
 import { lazy, Suspense } from "react";
-import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { SiteFooter } from "./landing/SiteFooter";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { SiteNav } from "./landing/SiteNav";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
-import ChatPage from "./pages/ChatPage";
+import ExtensionPage from "./pages/ExtensionPage";
 import AskPage from "./pages/security/AskPage";
 import DocumentsPage from "./pages/security/DocumentsPage";
 import GroupsPage from "./pages/security/GroupsPage";
 import HistoryPage from "./pages/security/HistoryPage";
 import ImpactPage from "./pages/security/ImpactPage";
 
+import ChatPage from "./pages/ChatPage";
 import ConnectPage from "./pages/ConnectPage";
 import IncidentDetailPage from "./pages/security/IncidentDetailPage";
 import IncidentsPage from "./pages/security/IncidentsPage";
@@ -18,57 +21,56 @@ import ReviewPage from "./pages/security/ReviewPage";
 import DigestPage from "./pages/security/DigestPage";
 import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
-import { Companion } from "./components/Companion";
 
 const Landing = lazy(() => import("./landing/Landing"));
+const LandingV2 = lazy(() => import("./landing/LandingV2"));
+const DeepDive = lazy(() => import("./landing/DeepDive"));
 
-const links = [
-  { to: "/chat", label: "Company Chat" },
-  { to: "/break-it", label: "Try to break it" },
-  { to: "/security", label: "Security" },
-  { to: "/connect", label: "Connect a tool" },
-];
+const SITE_PAGES: Record<string, React.LazyExoticComponent<() => React.JSX.Element>> = {
+  "/": Landing,
+  "/v2": LandingV2,
+  "/how-it-works": DeepDive,
+};
+
+const NotFound = lazy(() => import("./landing/NotFound"));
+
+/** An unknown address inside the app: the same page, with the nav above it already shown. */
+function NotFoundInApp() {
+  return (
+    <div className="sentry dark">
+      <Suspense fallback={null}>
+        <NotFound />
+      </Suspense>
+    </div>
+  );
+}
 
 export default function App() {
   const { pathname } = useLocation();
-  // The landing page has its own header and no app chrome.
-  if (pathname === "/") {
+  // The public site has its own header and footer, and no app chrome.
+  const Page = SITE_PAGES[pathname];
+  // The Security page became a section of How it works.
+  if (pathname === "/trust") return <Navigate to="/how-it-works#security" replace />;
+  if (pathname === "/developers") return <Navigate to="/how-it-works#developers" replace />;
+  if (Page) {
     return (
       <Suspense fallback={null}>
-        <Landing />
+        <Page />
       </Suspense>
     );
   }
   return (
     <div className="min-h-screen">
-      <nav
-        aria-label="Main"
-        className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
-      >
-        <Link
-          to="/app"
-          aria-label="Pyli home"
-          className="mr-4 flex min-h-11 min-w-11 items-center self-center"
-        >
-          <img src="/pyli-logo.svg" alt="Pyli" className="h-8" />
-        </Link>
-        {links.map((l) => (
-          <NavLink
-            key={l.to}
-            to={l.to}
-            className={({ isActive }) =>
-              `min-h-11 rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`
-            }
-          >
-            {l.label}
-          </NavLink>
-        ))}
-      </nav>
+      <div className="sentry nav-shell">
+        <SiteNav />
+      </div>
       <Routes>
         <Route path="/app" element={<HomePage />} />
-        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/extension" element={<ExtensionPage />} />
         <Route path="/connect" element={<ConnectPage />} />
+        <Route path="/chat" element={<ChatPage />} />
         <Route path="/break-it" element={<BreakItPage />} />
+        <Route path="*" element={<NotFoundInApp />} />
         <Route path="/security" element={<SecurityLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />
@@ -84,7 +86,9 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
-      <Companion />
+      <div className="sentry dark">
+        <SiteFooter />
+      </div>
     </div>
   );
 }

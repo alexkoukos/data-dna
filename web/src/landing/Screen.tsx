@@ -8,7 +8,7 @@ import { OUTCOME_LABEL, SCENES, type Scene, type Seg } from "./scenes";
 type Props = {
   scene: number;
   phase: number;
-  /** Still frame: no cursor, no motion, the bee rests where it ended. */
+  /** Still frame: no cursor, no motion, the sentinel rests where it ended. */
   still?: boolean;
 };
 
@@ -49,21 +49,21 @@ function BeeCardView({
 }) {
   const c = scene.card;
   return (
-    <div className="bee-card">
-      <p className="bee-card-head">{c.headline}</p>
-      <p className="bee-card-body">{c.body}</p>
-      {c.rewrite ? <p className="bee-card-quote">{c.rewrite}</p> : null}
-      <div className="bee-card-meta">
+    <div className="sentinel-card">
+      <p className="sentinel-card-head">{c.headline}</p>
+      <p className="sentinel-card-body">{c.body}</p>
+      {c.rewrite ? <p className="sentinel-card-quote">{c.rewrite}</p> : null}
+      <div className="sentinel-card-meta">
         <span className={`chip chip-${outcomeKind}`}>
           <span className="chip-icon" aria-hidden="true">
             {outcomeKind === "mask" ? "◐" : outcomeKind === "block" ? "■" : "⌂"}
           </span>
           {OUTCOME_LABEL[scene.outcome]}
         </span>
-        <span className="bee-card-why">Why?</span>
+        <span className="sentinel-card-why">Why?</span>
       </div>
-      <p className="bee-card-tip">{c.tip}</p>
-      <div className="bee-card-actions">
+      <p className="sentinel-card-tip">{c.tip}</p>
+      <div className="sentinel-card-actions">
         <span className="bc-btn bc-primary">{c.primary}</span>
         <span className="bc-btn bc-secondary">{c.secondary}</span>
       </div>
@@ -76,7 +76,7 @@ export function Screen({ scene: sceneIndex, phase, still = false }: Props) {
   const id = PHASES[phase].id;
   const typed = phase >= PHASE.type;
   const pasted = phase >= PHASE.paste;
-  const flagged = phase >= PHASE.bee;
+  const flagged = phase >= PHASE.sentinel;
   const swapped = phase >= PHASE.card;
   const carded = phase >= PHASE.card;
   const pillKind = scene.outcome === "mask" ? "mask" : "block";
@@ -90,13 +90,13 @@ export function Screen({ scene: sceneIndex, phase, still = false }: Props) {
         ? scene.geo.cursorType
         : phase === PHASE.paste
           ? ([scene.geo.cursorType[0] + 40, scene.geo.cursorType[1] - 30] as [number, number])
-          : phase === PHASE.bee
-            ? ([scene.geo.bee[0] + 60, scene.geo.bee[1] + 70] as [number, number])
+          : phase === PHASE.sentinel
+            ? ([scene.geo.sentinel[0] + 60, scene.geo.sentinel[1] + 70] as [number, number])
             : scene.geo.cursorCard;
 
   const beeVars = {
-    "--bx": `${scene.geo.bee[0]}px`,
-    "--by": `${scene.geo.bee[1]}px`,
+    "--bx": `${scene.geo.sentinel[0]}px`,
+    "--by": `${scene.geo.sentinel[1]}px`,
     "--px": `${scene.geo.perch[0]}px`,
     "--py": `${scene.geo.perch[1]}px`,
   } as CSSProperties;
@@ -120,7 +120,7 @@ export function Screen({ scene: sceneIndex, phase, still = false }: Props) {
           {scene.site.host}/chat
         </span>
         <span className="tools">
-          <img className="ext-icon" src="/brand/hive-app-icon.svg" alt="" />
+          <img className="ext-icon" src="/brand/sentry-app-icon.svg" alt="" />
           <span className="badge" key={saves}>
             {saves} {saves === 1 ? "save" : "saves"} today
           </span>
@@ -170,15 +170,15 @@ export function Screen({ scene: sceneIndex, phase, still = false }: Props) {
                 {stopped ? "Stopped" : "Send"}
               </span>
             </div>
-            <div className={`bee-card-wrap${carded ? " is-in" : ""}`}>
+            <div className={`sentinel-card-wrap${carded ? " is-in" : ""}`}>
               <BeeCardView scene={scene} outcomeKind={scene.outcome} />
             </div>
           </div>
         </div>
       </div>
 
-      <span className="bee-path">
-        <img className="bee" src="/brand/hive-guard-bee.svg" alt="" />
+      <span className="sentinel-path">
+        <img className="sentinel" src="/brand/sentry-guard.svg" alt="" />
       </span>
       {still ? null : (
         <svg

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import App from "./App";
@@ -11,6 +11,9 @@ describe("App", () => {
       </MemoryRouter>,
     );
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Company Chat" })).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    for (const name of ["How it works", "Company AI", "Live demo"]) {
+      expect(within(nav).getByRole("link", { name })).toBeInTheDocument();
+    }
   });
 });

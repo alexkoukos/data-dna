@@ -51,6 +51,8 @@ export interface Tool {
   requests: number;
   trend: number[];
   first_seen: string | null;
+  /** Where we saw it: the browser extension, network logs, or both. */
+  sources: ("extension" | "logs")[];
   allowed_categories?: string[];
 }
 
@@ -67,6 +69,18 @@ export const fetchIncidents = (decision: Decision | "all", offset: number, limit
   if (decision !== "all") q.set("decision", decision);
   return get<IncidentPage>(`/v1/incidents?${q.toString()}`);
 };
+
+/** Newest incidents first, up to `max`, read in pages of 100 (the most the server returns at once). */
+export async function fetchRecentIncidents(max = 300): Promise<Incident[]> {
+  const first = await fetchIncidents("all", 0, 100);
+  const pages = Math.ceil(Math.min(first.total, max) / 100);
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, pages - 1) }, (_, i) =>
+      fetchIncidents("all", (i + 1) * 100, 100),
+    ),
+  );
+  return [first, ...rest].flatMap((p) => p.items);
+}
 
 export interface Policy {
   scope: "category" | "sensitivity";
@@ -298,6 +312,7 @@ export async function saveShadow(enabled: boolean): Promise<ShadowStatus> {
 }
 
 export const COMPLIANCE_REPORT_URL = "/api/v1/compliance-report.pdf";
+export const COMPLIANCE_REPORT_HTML_URL = "/api/v1/compliance-report.html";
 
 export interface PolicyPreview {
   days: number;

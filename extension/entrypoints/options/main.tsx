@@ -1,0 +1,156 @@
+import { useEffect, useState } from "react";
+import { createRoot } from "react-dom/client";
+import "@fontsource/poppins/400.css";
+import "@fontsource/poppins/700.css";
+import "@fontsource/poppins/600.css";
+import "@fontsource/space-grotesk/600.css";
+import "../../src/ui.css";
+import { Link2, Save } from "lucide-react";
+import { TextureStyles } from "../../src/TextureStyles";
+import { pair, refreshPolicy, safeBrainUrl } from "../../src/api";
+import { getSettings, saveSettings } from "../../src/storage";
+
+interface DemoUser {
+  user: string;
+  team: string;
+}
+
+function Options() {
+  const [brainUrl, setBrainUrl] = useState("");
+  const [code, setCode] = useState("");
+  const [demoUser, setDemoUser] = useState("");
+  const [paired, setPaired] = useState("");
+  const [users, setUsers] = useState<DemoUser[]>([]);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    void (async () => {
+      const s = await getSettings();
+      setBrainUrl(s.brainUrl);
+      setDemoUser(s.demoUser);
+      if (s.token) setPaired(s.userLabel || "this device");
+      loadUsers(s.brainUrl);
+    })();
+  }, []);
+
+  const loadUsers = (url: string) => {
+    fetch(`${url.replace(/\/$/, "")}/v1/demo-users`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((u: DemoUser[]) => setUsers(u))
+      .catch(() => setUsers([]));
+  };
+
+  const saveServer = async () => {
+    const safe = safeBrainUrl(brainUrl.trim());
+    if (!safe) {
+      setMsg("Use an https address, or http on this computer (localhost). Nothing was saved.");
+      return;
+    }
+    await saveSettings({ brainUrl: safe });
+    setBrainUrl(safe);
+    loadUsers(safe);
+    await refreshPolicy();
+    setMsg("Server address saved.");
+  };
+
+  const doPair = async () => {
+    const safe = safeBrainUrl(brainUrl.trim());
+    if (!safe) {
+      setMsg("Use an https address, or http on this computer (localhost). Nothing was saved.");
+      return;
+    }
+    await saveSettings({ brainUrl: safe });
+    const res = await pair(code.trim());
+    if (!res) {
+      setMsg(
+        "That code is wrong or has expired. Get a new one in the dashboard under Get the extension.",
+      );
+      return;
+    }
+    await saveSettings({ token: res.token, demoUser: "", userLabel: `${res.user} (${res.team})` });
+    setPaired(`${res.user} (${res.team})`);
+    setDemoUser("");
+    setCode("");
+    await refreshPolicy();
+    setMsg("Paired. This browser now reports as that person.");
+  };
+
+  const pickDemo = async (user: string) => {
+    setDemoUser(user);
+    await saveSettings({ demoUser: user, token: "", userLabel: "" });
+    setPaired("");
+    await refreshPolicy();
+    setMsg(user ? `Now acting as ${user}.` : "Demo user cleared.");
+  };
+
+  return (
+    <>
+      <TextureStyles />
+      <div className="wrap" style={{ maxWidth: 640, margin: "0 auto" }}>
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
+          <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={120} />
+        </picture>
+        <h1 style={{ fontSize: 22, margin: "12px 0 4px" }}>Settings</h1>
+        <p className="muted">
+          In a company, IT sets this for you with a browser policy. These fields are for the demo.
+        </p>
+
+        <label htmlFor="server">Company server address</label>
+        <div className="row">
+          <input id="server" value={brainUrl} onChange={(e) => setBrainUrl(e.target.value)} />
+          <button onClick={saveServer}>
+            <Save size={16} aria-hidden="true" />
+            Save
+          </button>
+        </div>
+
+        <h2>Pair with the dashboard</h2>
+        <p className="muted">
+          Open the dashboard, go to Get the extension, and type the 6-digit code here.
+        </p>
+        <label htmlFor="code">Pairing code</label>
+        <div className="row">
+          <input
+            id="code"
+            inputMode="numeric"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <button className="primary" onClick={doPair} disabled={code.trim().length !== 6}>
+            <Link2 size={16} aria-hidden="true" />
+            Pair
+          </button>
+        </div>
+        {paired && <p className="status">Paired as {paired}.</p>}
+
+        <h2>Or pick a demo user</h2>
+        <label htmlFor="demo">Act as</label>
+        <select id="demo" value={demoUser} onChange={(e) => void pickDemo(e.target.value)}>
+          <option value="">Nobody in particular</option>
+          {users.map((u) => (
+            <option key={u.user} value={u.user}>
+              {u.user} ({u.team})
+            </option>
+          ))}
+        </select>
+        {msg && (
+          <p role="status" className="status">
+            {msg}
+          </p>
+        )}
+
+        <h2>What we check and keep</h2>
+        <p className="muted">
+          Only the text you paste or send in an AI chat, checked in your browser and on your company
+          server, never by an outside service. A record is kept only when something was found: the
+          kind of data, a masked preview and the decision, never the full message. The dashboard
+          shows a pseudonym, and revealing a name needs two people and is logged.
+        </p>
+      </div>
+    </>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(<Options />);

@@ -35,6 +35,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from brain import (
@@ -140,6 +141,7 @@ from brain.dna.marks import Mark, propose_marks
 from brain.documents.embeddings import E5Embedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
+from brain.documents.marking import find_marking
 from brain.documents.registry import (
     DocMatch,
     DocumentIndex,
@@ -147,6 +149,7 @@ from brain.documents.registry import (
     register_document,
 )
 from brain.documents.session import update_coverage
+from brain.extension import router as extension_router
 from brain.honeytokens import (
     Honeytoken,
     HoneytokenStore,
@@ -444,7 +447,7 @@ async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> R
     the person's key and have their own CORS rules.
     """
     path = request.url.path
-    if path == "/healthz" or path.startswith("/v1/extension/"):
+    if path == "/healthz" or path.startswith("/v1/extension/") or path in _EXTENSION_PATHS:
         return await call_next(request)  # type: ignore[no-any-return]
     if _request_host(request) not in _known_hosts():
         return _refuse(
@@ -469,6 +472,34 @@ async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> R
     return await call_next(request)  # type: ignore[no-any-return]
 
 
+app.include_router(extension_router)
+
+
+# The routes the browser extension calls from its own origin (/v1/check and friends).
+_EXTENSION_PATHS = {getattr(r, "path", "") for r in extension_router.routes}
+
+
+class _OpenCors(CORSMiddleware):
+    """Open CORS for the extension's own routes only. No cookies are used, so any origin is safe
+    there; who is asking comes from the device token. Every other route (and the X27
+    /v1/extension/ endpoints, which have their own stricter CORS) gets no CORS headers."""
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] == "http" and scope["path"] in _EXTENSION_PATHS:
+            await super().__call__(scope, receive, send)
+        else:
+            await self.app(scope, receive, send)
+
+
+app.add_middleware(
+    _OpenCors,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["ETag"],
+)
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     """Always 200 while the app runs (compose health). `database` says whether it is reachable."""
@@ -491,13 +522,16 @@ def _too_long() -> HTTPException:
     )
 
 
-def _attachment_text(req: InspectRequest, budget: int = MAX_INSPECT_CHARS) -> str:
+def _attachment_text(req: InspectRequest, budget: int = MAX_INSPECT_CHARS) -> tuple[str, list[str]]:
     """Text of every attached file, appended to the message so one pipeline checks both.
 
     `budget` is what is left of the new-content limit. A file whose size already shows it cannot
     fit is refused before it is decoded, and no more files are opened once the budget is used.
+    Also returns a reason for every file that carries a classification stamp (RESTRICTED,
+    CONFIDENTIAL...): a stamped file stays inside the company whether or not it was registered.
     """
     parts: list[str] = []
+    stamped: list[str] = []
     for a in req.attachments:
         if budget <= 0:
             raise _too_long()
@@ -511,6 +545,11 @@ def _attachment_text(req: InspectRequest, budget: int = MAX_INSPECT_CHARS) -> st
             data = base64.b64decode(a.content_base64, validate=True)
             parts.append(extract_text(a.filename, data))
             budget -= len(parts[-1])
+            stamp = find_marking(parts[-1])
+            if stamp:
+                stamped.append(
+                    f"The file {a.filename} is marked {stamp}; marked files stay inside the company"
+                )
         except (binascii.Error, ValueError) as err:
             raise HTTPException(
                 status_code=422,
@@ -521,7 +560,7 @@ def _attachment_text(req: InspectRequest, budget: int = MAX_INSPECT_CHARS) -> st
                     else "the file could not be decoded. Attach the file again."
                 ),
             ) from err
-    return "\n\n" + "\n\n".join(parts) if parts else ""
+    return ("\n\n" + "\n\n".join(parts) if parts else ""), stamped
 
 
 def _attribute_copy(result: InspectResult, text: str) -> str | None:
@@ -952,7 +991,7 @@ def inspect(
     new_chars = sum(len(msgs[i].content) for i in new_idx)
     if new_chars > MAX_INSPECT_CHARS:
         raise _too_long()
-    attached = _attachment_text(req, MAX_INSPECT_CHARS - new_chars)
+    attached, stamped = _attachment_text(req, MAX_INSPECT_CHARS - new_chars)
     if new_chars + len(attached) > MAX_INSPECT_CHARS:
         raise _too_long()
     if sum(len(m.content) for m in msgs) + len(attached) > MAX_CONVERSATION_CHARS:
@@ -1063,6 +1102,11 @@ def inspect(
         f"marks;dur={(t_marks - t_memory) * 1000:.1f}"
     )
     would_have_decision, combined_reasons = _combine_decisions(passes)
+    if stamped:
+        # A stamped file never goes out. Keep "local" when the policy already chose it.
+        if would_have_decision != Decision.LOCAL:
+            would_have_decision = Decision.BLOCK
+        combined_reasons = [*combined_reasons, *stamped]
     masked: list[Message] | None = None
     session_id = None
     extra_reasons: list[str] = []
@@ -1148,7 +1192,7 @@ def inspect(
             copy_code=leaked_copy,
             trace=steps,
             shadow=shadow,
-            tool=req.tool,
+            tool=req.tool or "Company AI",
             channel=req.channel,
         )
     for owner in decoys:
@@ -1232,6 +1276,7 @@ def extension_inspect(
             tool=body.model,
             channel="browser",
             messages=[Message(role="user", content=body.text)],
+            attachments=body.attachments,
         ),
         background,
         response,
@@ -1820,6 +1865,23 @@ def compliance_report() -> Response:
         content=compliance.render_pdf(evidence),
         media_type="application/pdf",
         headers={"Content-Disposition": 'attachment; filename="sentry-compliance-report.pdf"'},
+    )
+
+
+@app.get("/v1/compliance-report.html")
+def compliance_report_html() -> Response:
+    """The same report as a branded web page, to read, print or save as PDF."""
+    evidence = _read(lambda c: compliance.gather_evidence(c, settings.demo_mode))
+    return Response(
+        content=compliance.render_html(evidence),
+        media_type="text/html; charset=utf-8",
+        headers={
+            # A static page: no script, nothing loaded from elsewhere, only its own inline style.
+            "Content-Security-Policy": (
+                "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+            ),
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

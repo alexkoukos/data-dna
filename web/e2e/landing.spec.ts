@@ -1,107 +1,29 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const loop = (page: import("@playwright/test").Page) => page.getByTestId("hero-loop");
-
 test("the landing page loads at / with the headline and both calls to action", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Your data is the honey. We guard the gate." }),
+    page.getByRole("heading", { level: 1, name: "Your data stays yours. Sentry holds the gate." }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "See the live demo" })).toHaveAttribute(
     "href",
     "/app",
   );
-  await expect(page.getByRole("link", { name: "How it works" }).first()).toBeVisible();
-  await expect(loop(page)).toBeVisible();
-});
-
-test("the old home page still works at /app", async ({ page }) => {
-  await page.goto("/app");
-  await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Company Chat" }),
-  ).toBeVisible();
-});
-
-test("picking a kind of data shows what is pasted and what leaves", async ({ page }) => {
-  await page.goto("/");
-  const section = page.locator("#catches");
-  await section.getByRole("button", { name: "IBAN" }).click();
-  await expect(section.getByRole("button", { name: "IBAN" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
+  await expect(page.getByRole("link", { name: "See how it works" })).toHaveAttribute(
+    "href",
+    "/how-it-works",
   );
-  await expect(section.getByText("[IBAN_1]")).toBeVisible();
-  await expect(section.locator(".catch-foot .chip")).toContainText("Blocked");
-  await section.getByRole("button", { name: "Source code" }).click();
-  await expect(section.locator(".catch-foot .chip")).toContainText("Warned");
 });
 
-test.describe("with motion", () => {
-  test.use({ reducedMotion: "no-preference" });
-
-  test("the loop advances through all four scenes and starts over", async ({ page }) => {
-    await page.clock.install();
-    await page.goto("/");
-    await expect(loop(page)).toHaveAttribute("data-mode", "loop");
-    const seen: string[] = [];
-    for (let ms = 0; ms <= 25_000; ms += 100) {
-      const scene = await loop(page).getAttribute("data-scene");
-      if (scene !== null && seen.at(-1) !== scene) seen.push(scene);
-      await page.clock.runFor(100);
-      await page.waitForTimeout(5);
-    }
-    expect(seen.slice(0, 5)).toEqual(["0", "1", "2", "3", "0"]);
-  });
-
-  test("the bee card appears in every scene", async ({ page }) => {
-    await page.clock.install();
-    await page.goto("/");
-    const cards: string[] = [];
-    for (let ms = 0; ms < 24_000; ms += 100) {
-      const card = loop(page).locator(".bee-card-wrap.is-in .bee-card-head");
-      if (await card.count()) {
-        const text = (await card.first().textContent()) ?? "";
-        if (cards.at(-1) !== text) cards.push(text);
-      }
-      await page.clock.runFor(100);
-      await page.waitForTimeout(5);
-    }
-    expect(cards).toEqual([
-      "That's hive honey. I kept it in.",
-      "Bank details stay in the hive.",
-      "Keys never leave the hive.",
-      "Answered by Company AI.",
-    ]);
-  });
-
-  test("the loop stops when the pause button is pressed", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Pause" }).click();
-    await expect(loop(page)).toHaveAttribute("data-playing", "false");
-  });
-});
-
-test.describe("reduced motion", () => {
-  test.use({ reducedMotion: "reduce" });
-
-  test("shows the scenes as still frames with a Next button, and nothing moves on its own", async ({
-    page,
-  }) => {
-    await page.goto("/");
-    await expect(loop(page)).toHaveAttribute("data-mode", "static");
-    await expect(page.getByRole("button", { name: "Pause" })).toHaveCount(0);
-    const captions = [];
-    for (let i = 0; i < 4; i++) {
-      captions.push(await page.getByTestId("loop-caption").textContent());
-      await expect(loop(page).locator(".bee-card-wrap.is-in")).toHaveCount(1);
-      await page.getByRole("button", { name: "Next" }).click();
-    }
-    expect(new Set(captions).size).toBe(4);
-    await page.waitForTimeout(1500);
-    await expect(loop(page)).toHaveAttribute("data-scene", "0");
-  });
+test("the app home keeps the same navigation and lists every tool", async ({ page }) => {
+  await page.goto("/app");
+  const nav = page.getByRole("navigation", { name: "Main" });
+  await expect(nav).toBeVisible();
+  for (const name of ["How it works", "Company AI"]) {
+    await expect(nav.getByRole("link", { name })).toBeVisible();
+  }
+  await expect(page.getByRole("heading", { name: "Everything in the app" })).toBeVisible();
 });
 
 for (const vp of [
@@ -119,5 +41,18 @@ for (const vp of [
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);
+  });
+}
+
+for (const [path, h1] of [["/how-it-works", "How Sentry works."]] as const) {
+  test(`${path} shows its headline, is reachable from the nav and has no axe violations`, async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByRole("navigation", { name: "Main" }).locator(`a[href="${path}"]`).click();
+    await expect(page).toHaveURL(path);
+    await expect(page.getByRole("heading", { level: 1, name: h1 })).toBeVisible();
+    const r = await new AxeBuilder({ page }).analyze();
+    expect(r.violations).toEqual([]);
   });
 }

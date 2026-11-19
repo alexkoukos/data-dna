@@ -1,10 +1,10 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { SecurityTrends } from "../../components/SecurityTrends";
 
 const tabs = [
   { to: "/security", label: "Overview", end: true },
   { to: "/security/tools", label: "AI tools", end: false },
   { to: "/security/incidents", label: "Incidents", end: false },
-  { to: "/security/documents", label: "Documents", end: false },
   { to: "/security/policies", label: "Policies", end: false },
   { to: "/security/groups", label: "Teams and roles", end: false },
   { to: "/security/history", label: "History", end: false },
@@ -19,7 +19,6 @@ export default function SecurityLayout() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-6">
       <header>
-        <p className="eyebrow">Pyli</p>
         <h1 className="text-2xl font-semibold text-ink-900">Security</h1>
         <nav
           aria-label="Security sections"
@@ -40,6 +39,7 @@ export default function SecurityLayout() {
         </nav>
       </header>
       <div className="mt-6">
+        <SecurityTrends />
         <Outlet />
       </div>
     </main>

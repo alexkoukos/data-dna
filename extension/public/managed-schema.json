@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "brainUrl": {
+      "title": "Company server address",
+      "description": "Where Sentry sends text to be checked, for example https://sentry.example.com",
+      "type": "string"
+    },
+    "token": {
+      "title": "Device token",
+      "description": "Identifies this browser to the company server. Created in the dashboard.",
+      "type": "string"
+    },
+    "userLabel": {
+      "title": "Person and team",
+      "description": "Shown in the popup, for example anna.k@example.com (Sales). The server decides who the token belongs to.",
+      "type": "string"
+    }
+  }
+}

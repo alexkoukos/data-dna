@@ -9,4 +9,6 @@ paths = [
   '''data/documents/.*\.md''',
   '''data/eval/attacks.*\.csv''',
   '''services/brain/tests/.*''',
+  # Invented secrets that the extension's offline detector is tested against (the brain reads the same file).
+  '''shared/fixtures/l1\.json''',
 ]

@@ -50,7 +50,7 @@ export function MissForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-4 min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700"
+        className="mt-4 min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700"
       >
         It got through
       </button>
@@ -59,7 +59,7 @@ export function MissForm({
   return (
     <form
       aria-label="Send as a test case"
-      className="mt-4 rounded-2xl border border-ink-200 bg-white p-4"
+      className="mt-4 rounded-2xl border border-ink-200 bg-surface p-4"
       onSubmit={(e) => {
         e.preventDefault();
         void send();
@@ -92,7 +92,7 @@ export function MissForm({
         id="miss-kind"
         value={kind}
         onChange={(e) => setKind(e.target.value)}
-        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-ink-900 sm:w-auto"
+        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3 text-ink-900 sm:w-auto"
       >
         {KIND_IDS.map((k) => (
           <option key={k} value={k}>
@@ -115,7 +115,7 @@ export function MissForm({
           type="submit"
           disabled={state === "busy"}
           aria-busy={state === "busy"}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700 disabled:opacity-60"
         >
           {state === "busy" ? "Sending…" : "Send this text as a test case"}
         </button>

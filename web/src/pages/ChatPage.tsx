@@ -1,232 +1,391 @@
-import { announce } from "../lib/companion";
-import { Thyro } from "../components/Thyro";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ChatSkeleton } from "../components/ChatSkeleton";
-import { Composer } from "../components/Composer";
-import { MessageBubble, type ChatMessage } from "../components/MessageBubble";
-import { NextStep } from "../components/NextStep";
-import { RequestToolForm } from "../components/RequestToolForm";
-import { StarterPrompts } from "../components/StarterPrompts";
-import { WarnCard } from "../components/WarnCard";
+import { useEffect, useRef, useState } from "react";
 import {
-  countCoachingAccepted,
-  ensureIdentity,
-  sendChat,
-  type ChatTurn,
-  type Identity,
-} from "../lib/chatApi";
+  BrainIcon,
+  CheckIcon as Check,
+  CopyIcon,
+  PanelLeft,
+  Pencil,
+  RefreshCcwIcon,
+  ShareIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
+  Trash,
+} from "lucide-react";
+import { ChatSidebar } from "../components/chat/ChatSidebar";
+import { PromptBox } from "../components/chat/PromptBox";
+import {
+  ChatContainerContent,
+  ChatContainerRoot,
+  ChatContainerScrollAnchor,
+} from "@/components/ui/chat-container";
+import { FeedbackBar } from "@/components/ui/feedback-bar";
+import { Loader } from "@/components/ui/loader";
+import {
+  Message,
+  MessageAction,
+  MessageActions,
+  MessageAvatar,
+  MessageContent,
+} from "@/components/ui/message";
+import { PromptSuggestion } from "@/components/ui/prompt-suggestion";
+import { ScrollButton } from "@/components/ui/scroll-button";
+import { SystemMessage } from "@/components/ui/system-message";
+import { TextureButton } from "@/components/ui/texture-button";
+import { ThinkingBar } from "@/components/ui/thinking-bar";
+import { Tool } from "@/components/ui/tool";
+import { cn } from "@/lib/utils";
+import { Sentinel } from "../components/Sentinel";
+import { RequestToolForm } from "../components/RequestToolForm";
+import { OutcomeChip } from "../components/OutcomeChip";
+import { WarnCard } from "../components/WarnCard";
+import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
+import { PROMPT_GROUPS } from "../lib/chatPrompts";
+import {
+  loadChats,
+  newChat,
+  saveChats,
+  titleFrom,
+  type Chat,
+  type StoredTurn,
+} from "../lib/chatStore";
+import { explainReason } from "../lib/explain";
 import { collectOutcomes, outcomeText } from "../lib/toolRequestsApi";
 
-type Setup = { status: "loading" } | { status: "ready"; identity: Identity } | { status: "failed" };
+/** Stock portrait for the person (Unsplash). If it cannot load, the initials show instead. */
+const USER_AVATAR =
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&q=80";
+/** The company AI's avatar is the Sentry sentinel, drawn inline so it works offline. */
+const BEE_AVATAR =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="16" fill="#fffbeb"/><ellipse cx="16" cy="18" rx="8" ry="6" fill="#f59e0b"/><path d="M13 13v10M18 13v10" stroke="#262626" stroke-width="2" stroke-linecap="round"/><circle cx="24" cy="18" r="2.5" fill="#262626"/><ellipse cx="13" cy="11" rx="3.5" ry="2.5" fill="#fff" stroke="#262626" stroke-width="1"/><ellipse cx="19" cy="11" rx="3.5" ry="2.5" fill="#fff" stroke="#262626" stroke-width="1"/></svg>',
+  );
 
-let counter = 0;
-const nextId = () => `m${++counter}`;
+interface Pending {
+  text: string;
+  reasons: string[];
+  suggestion?: string;
+}
 
-/** Container: owns the conversation, the personal key and every call to the gateway. */
+const ico = "size-4";
+const iconBtn = "rounded-full";
+
+function ActionButton({
+  label,
+  onClick,
+  disabled,
+  pressed,
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  pressed?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <MessageAction tooltip={label} delayDuration={100}>
+      <TextureButton
+        variant="minimal"
+        size="icon"
+        className={iconBtn}
+        aria-label={label}
+        aria-pressed={pressed}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        {children}
+      </TextureButton>
+    </MessageAction>
+  );
+}
+
+function AnswerActions({
+  text,
+  onRetry,
+  canRetry,
+  last,
+}: {
+  text: string;
+  onRetry: () => void;
+  canRetry: boolean;
+  last: boolean;
+}) {
+  const [vote, setVote] = useState<"up" | "down" | null>(null);
+  const [done, setDone] = useState<"copy" | "share" | null>(null);
+  const timer = useRef(0);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const flash = (what: "copy" | "share") => {
+    setDone(what);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setDone(null), 1600);
+  };
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      flash("copy");
+    } catch {
+      /* the text stays selectable */
+    }
+  };
+  const share = async () => {
+    try {
+      if (navigator.share) await navigator.share({ text });
+      else {
+        await navigator.clipboard.writeText(text);
+        flash("share");
+      }
+    } catch {
+      /* the person closed the share sheet */
+    }
+  };
+  return (
+    <MessageActions
+      className={cn(
+        "-ml-2.5 flex gap-0 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100",
+        last && "opacity-100",
+      )}
+    >
+      <ActionButton label="Retry" onClick={onRetry} disabled={!canRetry}>
+        <RefreshCcwIcon className={ico} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton
+        label="Like"
+        pressed={vote === "up"}
+        onClick={() => setVote(vote === "up" ? null : "up")}
+      >
+        <ThumbsUpIcon className={ico} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton
+        label="Dislike"
+        pressed={vote === "down"}
+        onClick={() => setVote(vote === "down" ? null : "down")}
+      >
+        <ThumbsDownIcon className={ico} aria-hidden="true" />
+      </ActionButton>
+      <ActionButton label={done === "copy" ? "Copied" : "Copy"} onClick={copy}>
+        {done === "copy" ? (
+          <Check className={ico} aria-hidden="true" />
+        ) : (
+          <CopyIcon className={ico} aria-hidden="true" />
+        )}
+      </ActionButton>
+      <ActionButton label={done === "share" ? "Copied to share" : "Share"} onClick={share}>
+        {done === "share" ? (
+          <Check className={ico} aria-hidden="true" />
+        ) : (
+          <ShareIcon className={ico} aria-hidden="true" />
+        )}
+      </ActionButton>
+      <span className="sr-only" role="status">
+        {done === "copy"
+          ? "Answer copied"
+          : done === "share"
+            ? "Answer copied so you can share it"
+            : ""}
+      </span>
+    </MessageActions>
+  );
+}
+
+/** The company chat, built from the prompt-kit chat UI: history sidebar, conversation, prompt input. */
 export default function ChatPage() {
-  const [setup, setSetup] = useState<Setup>({ status: "loading" });
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chats, setChats] = useState<Chat[]>(loadChats);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [held, setHeld] = useState<{
-    id: string;
-    text: string;
-    reasons: string[];
-    suggestion?: string;
-  } | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [rated, setRated] = useState<number | null>(null);
+  const [category, setCategory] = useState("");
+  const [sidebar, setSidebar] = useState(
+    () => typeof matchMedia === "function" && matchMedia("(min-width: 768px)").matches,
+  );
+  const [who, setWho] = useState<Identity | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
-  // X29: answers to tool requests, shown on the next message. Kept apart from `messages`, which
-  // are paired question and answer.
+  // X29: answers to tool requests, shown on the next message.
   const [notices, setNotices] = useState<string[]>([]);
+  const identity = useRef<Identity | null>(null);
+  const chatsRef = useRef(chats);
+  chatsRef.current = chats;
+  const counter = useRef(0);
 
-  const connect = useCallback(() => {
+  useEffect(() => saveChats(chats), [chats]);
+  useEffect(() => {
     ensureIdentity().then(
-      (identity) => setSetup({ status: "ready", identity }),
-      () => setSetup({ status: "failed" }),
+      (i) => {
+        identity.current ??= i;
+        setWho(i);
+      },
+      () => undefined, // send() reports the failure when the person tries
     );
   }, []);
-  const retry = () => {
-    setSetup({ status: "loading" });
-    connect();
-  };
 
-  useEffect(() => {
-    connect();
-  }, [connect]);
-  useEffect(() => {
-    endRef.current?.scrollIntoView?.({ block: "end" });
-  }, [messages, held, busy]);
+  const active = chats.find((c) => c.id === activeId) ?? null;
+  const turns = active?.turns ?? [];
+  const makeId = () => Date.now() * 100 + (counter.current++ % 100);
+  const turnsOf = (id: string) => chatsRef.current.find((c) => c.id === id)?.turns ?? [];
 
-  /** Earlier turns that passed untouched. Turns that were masked or held are not sent again. */
-  const cleanHistory = (): ChatTurn[] => {
-    const turns: ChatTurn[] = [];
-    for (let i = 0; i + 1 < messages.length; i += 2) {
-      const [q, a] = [messages[i], messages[i + 1]];
-      if (q?.role === "user" && a?.role === "assistant" && q.outcome === undefined) {
-        turns.push({ role: "user", content: q.text }, { role: "assistant", content: a.text });
-      }
-    }
-    return turns;
-  };
-
-  const deliver = async (text: string, userId: string, ack?: string, reroute = false) => {
-    if (setup.status !== "ready") return;
-    setBusy(true);
-    setError(null);
-    const result = await sendChat(
-      setup.identity,
-      [...cleanHistory(), { role: "user", content: text }],
-      ack,
-      reroute,
+  const update = (id: string, change: (c: Chat) => Partial<Chat>) =>
+    setChats((all) =>
+      all.map((c) => (c.id === id ? { ...c, ...change(c), updated: Date.now() } : c)),
     );
-    setBusy(false);
+  const append = (id: string, t: Omit<StoredTurn, "id">) =>
+    update(id, (c) => ({ turns: [...c.turns, { ...t, id: makeId() }] }));
 
-    if (result.kind === "warn") {
-      announce("warn");
-      setMessages((m) =>
-        m.map((x) => (x.id === userId ? { ...x, outcome: "warn", reasons: result.reasons } : x)),
-      );
-      setHeld({ id: userId, text, reasons: result.reasons, suggestion: result.suggestion });
-      return;
+  /** Sends `text` as a new turn, or retries the last question when `retry` is set. */
+  const send = async (
+    text: string,
+    opts: { ack?: string; retry?: boolean; reroute?: boolean } = {},
+  ) => {
+    const clean = text.trim();
+    if (!clean || busy) return;
+    let id = activeId;
+    if (!id) {
+      const c = newChat();
+      id = c.id;
+      setChats((all) => [c, ...all]);
+      setActiveId(id);
     }
-    if (result.kind === "block") {
-      announce("block");
-      setHeld(null);
-      setMessages((m) =>
-        m.map((x) =>
-          x.id === userId
-            ? { ...x, outcome: "block", reasons: result.reasons, alternative: result.alternative }
-            : x,
-        ),
-      );
-      return;
+    setPending(null);
+    setBusy(true);
+    const before = id === activeId ? turnsOf(id) : [];
+    const base: StoredTurn[] = opts.retry
+      ? before.slice(0, before.findLastIndex((t) => t.from === "user") + 1)
+      : [...before, { id: makeId(), from: "user", text: clean }];
+    const first = before.length === 0;
+    update(id, (c) => ({ turns: base, title: first && !opts.retry ? titleFrom(clean) : c.title }));
+    if (!opts.retry) setDraft("");
+    // Earlier turns that passed untouched. A masked, held or rerouted turn is not sent again, so the
+    // gateway never sees the original text twice.
+    const untouched: StoredTurn[] = [];
+    for (let i = 0; i + 2 < base.length; i += 2) {
+      const [q, a] = [base[i], base[i + 1]];
+      if (q?.from === "user" && a?.from === "assistant" && (!a.outcome || a.outcome === "allow"))
+        untouched.push(q, a);
     }
-    if (result.kind === "error") {
-      setHeld(null);
-      setMessages((m) => m.filter((x) => x.id !== userId));
-      setDraft(text);
-      setError(result.message);
-      return;
-    }
-    setHeld(null);
-    announce(result.outcome);
-    setMessages((m) => [
-      ...m.map((x) =>
-        x.id === userId && result.outcome !== "allow"
-          ? { ...x, outcome: result.outcome, reasons: result.reasons }
-          : x,
-      ),
-      {
-        id: nextId(),
-        role: "assistant",
-        text: result.text,
-        outcome:
-          result.outcome === "local" || result.outcome === "rerouted" ? result.outcome : "allow",
-        answeredBy: result.outcome === "rerouted" ? "Company AI" : undefined,
-      },
-    ]);
-  };
-
-  const send = () => {
-    const text = draft.trim();
-    if (!text || busy) return;
-    const id = nextId();
-    setMessages((m) => [...m, { id, role: "user", text }]);
-    setDraft("");
-    void deliver(text, id);
-    if (setup.status === "ready") {
-      void collectOutcomes(setup.identity.userId).then((rs) => {
-        if (rs.length > 0) setNotices((n) => [...n, ...rs.map(outcomeText)]);
+    const asked = base[base.length - 1];
+    const history: ChatTurn[] = [...untouched, ...(asked ? [asked] : [])].map((t) => ({
+      role: t.from,
+      content: t.text,
+    }));
+    try {
+      identity.current ??= await ensureIdentity();
+      const who = identity.current;
+      if (!opts.retry)
+        void collectOutcomes(who.userId).then((rs) => {
+          if (rs.length > 0) setNotices((n) => [...n, ...rs.map(outcomeText)]);
+        });
+      const res = await sendChat(who, history, opts.ack, opts.reroute);
+      if (res.kind === "answer")
+        append(id, {
+          from: "assistant",
+          text: res.text,
+          outcome: res.outcome,
+          reasons: res.reasons,
+        });
+      else if (res.kind === "warn")
+        setPending({ text: clean, reasons: res.reasons, suggestion: res.suggestion });
+      else if (res.kind === "block")
+        append(id, {
+          from: "assistant",
+          text: `I did not send that. ${res.alternative}`,
+          outcome: "block",
+          reasons: res.reasons,
+        });
+      else append(id, { from: "assistant", text: res.message, failed: true });
+    } catch {
+      append(id, {
+        from: "assistant",
+        text: "I could not reach the company AI. Check your connection and try again.",
+        failed: true,
       });
+    } finally {
+      setBusy(false);
     }
   };
 
-  /** X31: send the held or blocked message to Company AI instead. The gate masks it first. */
-  const reroute = (id: string, text: string) => {
-    setHeld(null);
-    void deliver(text, id, undefined, true);
+  /** X31: send the held or blocked question to Company AI instead. The gate masks it first. */
+  const reroute = () => {
+    const q = pending?.text ?? lastUser?.text;
+    if (q) void send(q, { retry: true, reroute: true });
   };
 
-  const sendAnyway = (reason: string) => {
-    if (!held) return;
-    void deliver(held.text, held.id, reason);
-  };
+  const lastUser = [...turns].reverse().find((t) => t.from === "user");
+  const lastAnswer = [...turns].reverse().find((t) => t.from === "assistant" && !t.failed);
+  const empty = turns.length === 0 && !pending && !busy;
+  const group = PROMPT_GROUPS.find((g) => g.label === category);
+  const closeOnMobile = () => matchMedia("(max-width: 767px)").matches && setSidebar(false);
 
-  /** X19: send the masked rewrite instead, and count that the person took it. */
-  const useSuggestion = () => {
-    if (!held?.suggestion) return;
-    const safe = held.suggestion;
-    void countCoachingAccepted();
-    setMessages((m) => m.map((x) => (x.id === held.id ? { ...x, text: safe } : x)));
-    void deliver(safe, held.id);
+  const removeTurn = (t: StoredTurn) => {
+    if (!active) return;
+    const i = active.turns.findIndex((x) => x.id === t.id);
+    const next = active.turns[i + 1];
+    const drop = new Set([t.id, ...(next?.from === "assistant" ? [next.id] : [])]);
+    update(active.id, (c) => ({ turns: c.turns.filter((x) => !drop.has(x.id)) }));
   };
-
-  const editHeld = () => {
-    if (!held) return;
-    setDraft(held.text);
-    setMessages((m) => m.filter((x) => x.id !== held.id));
-    setHeld(null);
-  };
-
-  const cancelHeld = () => {
-    if (!held) return;
-    setMessages((m) => m.filter((x) => x.id !== held.id));
-    setHeld(null);
+  const editTurn = (t: StoredTurn) => {
+    if (!active) return;
+    const i = active.turns.findIndex((x) => x.id === t.id);
+    update(active.id, (c) => ({ turns: c.turns.slice(0, i) }));
+    setDraft(t.text);
   };
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl flex-col px-4 py-6">
-      <header className="mb-4">
-        <p className="eyebrow">Pyli</p>
-        <h1 className="text-2xl font-semibold text-ink-900">Company Chat</h1>
-        <p className="mt-1 text-ink-600">
-          Your questions stay inside. We check each message first.
-        </p>
-      </header>
+    <div className="bg-[#0a0908]">
+      <div className="mx-auto flex h-[calc(100dvh-76px)] min-h-[32rem] w-full max-w-[1264px] overflow-hidden px-0 sm:px-4">
+        <ChatSidebar
+          chats={chats}
+          activeId={activeId}
+          open={sidebar}
+          onSelect={(id) => {
+            setActiveId(id);
+            setPending(null);
+            closeOnMobile();
+          }}
+          onNew={() => {
+            setActiveId(null);
+            setDraft("");
+            setPending(null);
+            closeOnMobile();
+          }}
+          onRename={(id, title) => update(id, () => ({ title }))}
+          onDelete={(id) => {
+            setChats((all) => all.filter((c) => c.id !== id));
+            if (id === activeId) setActiveId(null);
+          }}
+          onClose={() => setSidebar(false)}
+        />
 
-      {notices.length > 0 ? (
-        <div role="status" className="mb-4 space-y-2">
-          {notices.map((n) => (
-            <p
-              key={n}
-              className="rounded-lg border border-brand-600/30 bg-brand-50 p-3 text-sm text-ink-900"
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="z-10 flex h-14 w-full shrink-0 items-center gap-2 border-b border-ink-200 bg-[#0a0908] px-4">
+            <TextureButton
+              variant="minimal"
+              size="icon"
+              aria-label={sidebar ? "Hide chat history" : "Show chat history"}
+              aria-expanded={sidebar}
+              onClick={() => setSidebar((s) => !s)}
             >
-              {n}
-            </p>
-          ))}
-        </div>
-      ) : null}
+              <PanelLeft className="size-4" aria-hidden="true" />
+            </TextureButton>
+            <h1 className="min-w-0 truncate text-lg text-ink-900">
+              {active?.title ?? "Company AI"}
+            </h1>
+            <span className="ml-auto hidden shrink-0 text-xs text-ink-600 sm:inline">
+              Messages are checked first. Answers come from the company&apos;s own model.
+            </span>
+          </header>
 
-      {setup.status === "loading" ? <ChatSkeleton /> : null}
-
-      {setup.status === "failed" ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
-        >
-          <div className="flex flex-wrap items-center gap-4">
-            <Thyro pose="error" size={176} />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">We could not start your chat.</p>
-              <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
-              <button
-                type="button"
-                onClick={retry}
-                className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-              >
-                Try again
-              </button>
+          {notices.length > 0 ? (
+            <div role="status" className="space-y-2 border-b border-ink-200 bg-brand-50 px-4 py-2">
+              {notices.map((n) => (
+                <p key={n} className="text-sm text-ink-900">
+                  {n}
+                </p>
+              ))}
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {setup.status === "ready" ? (
-        <>
-          {!requestOpen ? (
-            <p className="mb-3 text-sm text-ink-600">
+          ) : null}
+          {who && !requestOpen ? (
+            <p className="border-b border-ink-200 px-4 py-1 text-sm text-ink-600">
               Need another AI tool?{" "}
               <button
                 type="button"
@@ -237,94 +396,247 @@ export default function ChatPage() {
               </button>
             </p>
           ) : null}
-          <div className="flex-1">
-            {messages.length === 0 ? (
-              <StarterPrompts onPick={setDraft} />
-            ) : (
-              <div role="log" aria-label="Conversation" aria-live="polite">
-                <ol className="space-y-4">
-                  {messages.map((m) => (
-                    <MessageBubble key={m.id} message={m} />
-                  ))}
-                </ol>
-              </div>
-            )}
-            {busy ? (
-              <div role="status" className="mt-4 flex items-center gap-3 text-sm text-ink-600">
-                <Thyro pose="thinking" size={160} />
-                Checking and answering…
-              </div>
-            ) : null}
-            {held ? (
-              <div className="mt-4">
-                <WarnCard
-                  reasons={held.reasons}
-                  suggestion={held.suggestion}
-                  onUseSuggestion={useSuggestion}
+
+          {empty ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-10">
+              <div className="w-full max-w-3xl">
+                <div className="mb-6 flex flex-col items-center gap-3 text-center">
+                  <Sentinel size={72} />
+                  <h2 className="text-3xl text-ink-900">What can I help with?</h2>
+                </div>
+                <PromptBox
+                  value={draft}
+                  onChange={setDraft}
+                  onSend={() => void send(draft)}
                   busy={busy}
-                  onEdit={editHeld}
-                  onSendAnyway={sendAnyway}
-                  onCancel={cancelHeld}
-                  onReroute={() => reroute(held.id, held.text)}
                 />
+                {requestOpen && who ? (
+                  <div className="mt-4">
+                    <RequestToolForm
+                      userId={who.userId}
+                      team={who.team}
+                      onClose={() => setRequestOpen(false)}
+                    />
+                  </div>
+                ) : null}
+                <div className="mt-4 min-h-24">
+                  {group ? (
+                    <div className="flex w-full flex-col space-y-1">
+                      {group.items.map((s) => (
+                        <PromptSuggestion
+                          key={s}
+                          highlight={group.highlight}
+                          className="flex h-auto flex-wrap text-left"
+                          onClick={() => setDraft(s)}
+                        >
+                          {s}
+                        </PromptSuggestion>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
+                      {PROMPT_GROUPS.map((g) => (
+                        <PromptSuggestion key={g.label} onClick={() => setCategory(g.label)}>
+                          <BrainIcon className="mr-2 size-4" aria-hidden="true" />
+                          {g.label}
+                        </PromptSuggestion>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : null}
-            {!held &&
-            !busy &&
-            messages.some((m) => m.role === "user" && m.outcome && m.outcome !== "allow") ? (
-              <NextStep />
-            ) : null}
-            {!held &&
-            !busy &&
-            messages.some((m) => m.role === "user" && m.outcome === "block") &&
-            !requestOpen ? (
-              <button
-                type="button"
-                onClick={() => setRequestOpen(true)}
-                className="mt-3 min-h-11 rounded-md border border-ink-300 bg-white px-4 text-sm font-medium text-ink-900 hover:bg-ink-100"
-              >
-                Request approval for the tool you wanted
-              </button>
-            ) : null}
-            {requestOpen && setup.status === "ready" ? (
-              <div className="mt-4">
-                <RequestToolForm
-                  userId={setup.identity.userId}
-                  team={setup.identity.team}
-                  onClose={() => setRequestOpen(false)}
-                />
-              </div>
-            ) : null}
-            {(() => {
-              const blocked = [...messages].reverse().find((m) => m.role === "user");
-              return !held && !busy && blocked?.outcome === "block" ? (
-                <button
-                  type="button"
-                  onClick={() => reroute(blocked.id, blocked.text)}
-                  className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-                >
-                  Send it to Company AI instead
-                </button>
-              ) : null;
-            })()}
-            {error ? (
-              <div
-                role="alert"
-                className="mt-4 flex items-center gap-3 rounded-lg bg-block-bg p-3 text-sm text-block-fg"
-              >
-                <Thyro pose="error" size={128} />
-                <p>{error} Your message is back in the box.</p>
-              </div>
-            ) : null}
-            <div ref={endRef} />
-          </div>
-          {held === null ? (
-            <div className="sticky bottom-0 mt-6 bg-ink-50 pb-2 pt-2">
-              <Composer value={draft} onChange={setDraft} onSend={send} disabled={busy} />
             </div>
-          ) : null}
-        </>
-      ) : null}
-    </main>
+          ) : (
+            <>
+              <div className="relative min-h-0 flex-1">
+                <ChatContainerRoot className="h-full">
+                  <ChatContainerContent className="space-y-6 px-2 py-8 sm:px-5">
+                    {turns.map((t, i) => {
+                      const last = i === turns.length - 1;
+                      if (t.from === "user")
+                        return (
+                          <Message
+                            key={t.id}
+                            className="mx-auto flex w-full max-w-3xl items-start justify-end gap-3 px-2"
+                          >
+                            <div className="group flex min-w-0 flex-col items-end gap-1">
+                              <MessageContent className="max-w-[85%] whitespace-pre-wrap rounded-3xl bg-brand-100 px-5 py-2.5 text-ink-900 sm:max-w-[75%]">
+                                {t.text}
+                              </MessageContent>
+                              <MessageActions className="flex gap-0 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+                                <ActionButton
+                                  label="Edit"
+                                  onClick={() => editTurn(t)}
+                                  disabled={busy}
+                                >
+                                  <Pencil className={ico} aria-hidden="true" />
+                                </ActionButton>
+                                <ActionButton
+                                  label="Delete"
+                                  onClick={() => removeTurn(t)}
+                                  disabled={busy}
+                                >
+                                  <Trash className={ico} aria-hidden="true" />
+                                </ActionButton>
+                                <ActionButton
+                                  label="Copy"
+                                  onClick={() => void navigator.clipboard?.writeText(t.text)}
+                                >
+                                  <CopyIcon className={ico} aria-hidden="true" />
+                                </ActionButton>
+                              </MessageActions>
+                            </div>
+                            <MessageAvatar src={USER_AVATAR} alt="You" fallback="You" />
+                          </Message>
+                        );
+                      const asked = turns[i - 1];
+                      return (
+                        <Message
+                          key={t.id}
+                          className="mx-auto flex w-full max-w-3xl items-start gap-3 px-2"
+                        >
+                          <MessageAvatar src={BEE_AVATAR} alt="Company AI" fallback="AI" />
+                          <div className="group flex min-w-0 flex-1 flex-col gap-2">
+                            {t.failed ? (
+                              <SystemMessage variant="error" fill>
+                                {t.text}
+                              </SystemMessage>
+                            ) : (
+                              <MessageContent
+                                markdown
+                                className="flex-1 rounded-lg bg-transparent p-0 text-ink-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+                              >
+                                {t.text}
+                              </MessageContent>
+                            )}
+                            {!t.failed && t.outcome ? (
+                              <div className="flex flex-col items-start gap-2">
+                                <OutcomeChip outcome={t.outcome} />
+                                {t.outcome === "rerouted" ? (
+                                  <p className="text-sm text-ink-600">Answered by Company AI</p>
+                                ) : null}
+                                {t.reasons?.length ? (
+                                  <Tool
+                                    className="w-full max-w-md"
+                                    toolPart={{
+                                      type: "sentry_check",
+                                      state: "output-available",
+                                      input: { message: `${asked?.text.length ?? 0} characters` },
+                                      output: {
+                                        decision: t.outcome,
+                                        why: t.reasons.map(explainReason).join("; "),
+                                      },
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {last && t.outcome === "block" && !busy ? (
+                              <div className="flex flex-wrap gap-2">
+                                <TextureButton variant="primary" onClick={reroute}>
+                                  Send it to Company AI instead
+                                </TextureButton>
+                                {!requestOpen ? (
+                                  <TextureButton
+                                    variant="secondary"
+                                    onClick={() => setRequestOpen(true)}
+                                  >
+                                    Request approval for the tool you wanted
+                                  </TextureButton>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {!t.failed ? (
+                              <AnswerActions
+                                text={t.text}
+                                last={last}
+                                canRetry={!busy && last && !!lastUser}
+                                onRetry={() =>
+                                  lastUser && void send(lastUser.text, { retry: true })
+                                }
+                              />
+                            ) : null}
+                            {!t.failed && lastAnswer?.id === t.id && !busy ? (
+                              rated === t.id ? (
+                                <p className="text-sm text-ink-600">
+                                  Thanks. That helps me answer better.
+                                </p>
+                              ) : (
+                                <FeedbackBar
+                                  className="w-fit"
+                                  title="Was this response helpful?"
+                                  onHelpful={() => setRated(t.id)}
+                                  onNotHelpful={() => setRated(t.id)}
+                                  onClose={() => setRated(t.id)}
+                                />
+                              )
+                            ) : null}
+                          </div>
+                        </Message>
+                      );
+                    })}
+
+                    {busy ? (
+                      <div
+                        className="mx-auto flex w-full max-w-3xl items-center gap-3 px-2 text-sm text-ink-600"
+                        role="status"
+                      >
+                        <Loader variant="dots" size="sm" />
+                        <ThinkingBar text="Thinking on the company server" />
+                      </div>
+                    ) : null}
+
+                    {pending ? (
+                      <div className="mx-auto w-full max-w-3xl px-2">
+                        <WarnCard
+                          reasons={pending.reasons}
+                          suggestion={pending.suggestion}
+                          busy={busy}
+                          onUseSuggestion={
+                            pending.suggestion
+                              ? () => void send(pending.suggestion ?? "")
+                              : undefined
+                          }
+                          onEdit={() => {
+                            setDraft(pending.text);
+                            setPending(null);
+                          }}
+                          onSendAnyway={(reason) => void send(pending.text, { ack: reason })}
+                          onCancel={() => setPending(null)}
+                          onReroute={reroute}
+                        />
+                      </div>
+                    ) : null}
+                    {requestOpen && who ? (
+                      <div className="mx-auto w-full max-w-3xl px-2">
+                        <RequestToolForm
+                          userId={who.userId}
+                          team={who.team}
+                          onClose={() => setRequestOpen(false)}
+                        />
+                      </div>
+                    ) : null}
+                    <ChatContainerScrollAnchor />
+                  </ChatContainerContent>
+                  <div className="absolute bottom-4 left-1/2 flex w-full max-w-3xl -translate-x-1/2 justify-end px-5">
+                    <ScrollButton aria-label="Scroll to the newest message" className="shadow-sm" />
+                  </div>
+                </ChatContainerRoot>
+              </div>
+              <div className="z-10 shrink-0 bg-[#0a0908] px-3 pb-3 md:px-5 md:pb-5">
+                <div className="mx-auto max-w-3xl">
+                  <PromptBox
+                    value={draft}
+                    onChange={setDraft}
+                    onSend={() => void send(draft)}
+                    busy={busy}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+      </div>
+    </div>
   );
 }

@@ -49,6 +49,24 @@ Open http://localhost:3000 (app) and http://localhost:8001/docs (API). Without a
 
 The gateway fails closed: if the brain is down, nothing passes. Full design, the detection pipeline and the privacy claims: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Browser extension
+
+The extension (`extension/`, Chrome, Edge or Brave, Manifest V3, WXT + React + TypeScript) checks paste, send and file attach on ChatGPT, Claude and Gemini against the gate before anything leaves the page.
+
+**Build and load it**
+```bash
+make extension-zip          # builds extension/.output/chrome-mv3 and sentry-extension.zip
+```
+1. Open `chrome://extensions`, turn on *Developer mode*, press *Load unpacked* and choose `extension/.output/chrome-mv3` (or unzip `sentry-extension.zip` and choose that folder).
+2. That is all. On install the extension connects to `http://localhost:8001` by itself, picks the first demo person, and switches on in AI tabs that are already open. The popup says *Connected as …*. If the server is not up yet it says so and offers *Connect*. To act as someone else, use Settings (a pairing code from the dashboard, or pick a demo user); the address must be https, or http on localhost.
+3. With `make up` running, paste a prompt holding an IBAN on any of the three sites.
+
+**What it does.** Allow: sent as written. Mask: the composer text is replaced and the real values come back in the answer, on that page only. Warn: a card asks first. Block and local: the send is stopped and the card points to Company AI (side panel, or a tab if the browser has no side panel). A file stamped RESTRICTED or CONFIDENTIAL is blocked. If the server cannot be reached the browser's own checks still run; if the server refuses to read the text (too long, malformed) it fails closed.
+
+**Hardening.** The server address must be https (or localhost); the token is never readable by a page script; only the AI sites' content scripts may message the worker; page URLs are sent without query or fragment; text over 100,000 characters and files over about 20 MB are refused; extension pages run under a strict content security policy.
+
+**Tests.** `cd extension && npm test` (unit), `npm run e2e` (real Chromium with the built extension against the mock AI page, incl. axe accessibility; needs `make up`).
+
 ## Results
 
 Measured on 19 Nov 2026 on synthetic data. Method, the full table and the misses: [docs/EVALUATION.md](docs/EVALUATION.md).

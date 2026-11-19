@@ -14,3 +14,4 @@ DeepL,DeepL,deepl.com;api.deepl.com,translation,tolerated,medium,"Free tier keep
 Midjourney,Midjourney,midjourney.com,image,tolerated,low,"Images only, no company data expected",
 Canva,Canva,canva.com,design,tolerated,low,"Design tool with AI features",
 Character.AI,Character Technologies,character.ai,entertainment,unapproved,medium,"No business use",
+Mock AI (demo),Hive demo,localhost,chat,unapproved,high,"Offline stand-in for an outside chat tool, used for the demo","Company AI"

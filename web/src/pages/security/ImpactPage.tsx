@@ -17,7 +17,7 @@ const eur = new Intl.NumberFormat("en", {
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-lg border border-ink-200 bg-white p-4">
+    <div className="rounded-lg border border-ink-200 bg-surface p-4">
       <dt className="text-sm text-ink-600">{label}</dt>
       <dd className="mt-1 text-2xl font-semibold text-ink-900">{value}</dd>
       {note ? <p className="mt-1 text-xs text-ink-600">{note}</p> : null}
@@ -27,7 +27,7 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 
 function Weekly({ data }: { data: WeeklySummary }) {
   return (
-    <section aria-labelledby="weekly-h" className="rounded-lg border border-ink-200 bg-white p-4">
+    <section aria-labelledby="weekly-h" className="rounded-lg border border-ink-200 bg-surface p-4">
       <h2 id="weekly-h" className="text-lg font-semibold text-ink-900">
         This week for the CISO
       </h2>
@@ -85,7 +85,7 @@ function RoiView({ roi, coaching }: { roi: Roi; coaching: CoachingStats }) {
         <h2 id="risk-h" className="text-lg font-semibold text-ink-900">
           Risk per tool
         </h2>
-        <div className="mt-2 overflow-x-auto rounded-lg border border-ink-200 bg-white">
+        <div className="mt-2 overflow-x-auto rounded-lg border border-ink-200 bg-surface">
           <table className="w-full text-left text-sm">
             <thead className="bg-ink-50 text-ink-700">
               <tr>
@@ -127,7 +127,7 @@ function RoiView({ roi, coaching }: { roi: Roi; coaching: CoachingStats }) {
         </p>
       </section>
 
-      <details className="rounded-lg border border-ink-200 bg-white p-4">
+      <details className="rounded-lg border border-ink-200 bg-surface p-4">
         <summary className="cursor-pointer text-sm font-semibold text-ink-900">
           How the estimate is made
         </summary>

@@ -116,7 +116,7 @@ describe("Outcome on the next message", () => {
         <ChatPage />
       </MemoryRouter>,
     );
-    await user.type(await screen.findByLabelText("Message"), "hello");
+    await user.type(await screen.findByLabelText("Your question"), "hello");
     await user.click(screen.getByRole("button", { name: /send/i }));
     expect(await screen.findByText(/Perplexity was approved \(risk: low\)/)).toBeInTheDocument();
   });

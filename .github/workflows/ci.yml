@@ -30,8 +30,34 @@ jobs:
       - run: npm run build
       - run: node --test ../extension/test/logic.test.mjs
 
+  extension:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: extension } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: extension/package-lock.json }
+      - run: npm ci
+      - run: npm run lint && npm run format:check
+      - run: npm run typecheck
+      # The brain and the extension read the same fixtures (shared/fixtures/l1.json).
+      - run: npm test
+      - run: npx wxt build
+      - run: npx playwright install --with-deps chromium && npm run e2e
+      - run: npm audit --omit=dev --audit-level=high
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uvx --python 3.12 pip-audit -r <(cd services/brain && uv export --frozen --no-dev --no-hashes --no-emit-project)
+        shell: bash
+      - run: cd web && npm ci && npm audit --omit=dev --audit-level=high
+
   smoke:
-    needs: [brain, web]
+    needs: [brain, web, extension]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -41,6 +67,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22 }
       - run: cd web && npm ci && npx playwright install --with-deps chromium && npm run e2e
+      # The extension against the real stack: the brain on :8001 and mock-ai on :3100 are up.
+      - run: cd extension && npm ci && npx wxt build && npx playwright install --with-deps chromium && npm run e2e
       - if: failure()
         run: docker compose logs
 
@@ -53,9 +81,10 @@ jobs:
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - run: docker buildx build --platform linux/arm64 services/brain
-      - run: docker buildx build --platform linux/arm64 web
+      - run: docker buildx build --platform linux/arm64 -f web/Dockerfile .
       - run: docker buildx build --platform linux/arm64 infra/db
       - run: docker buildx build --platform linux/arm64 infra/gateway
+      - run: docker buildx build --platform linux/arm64 mock-ai
 
   secrets:
     runs-on: ubuntu-latest

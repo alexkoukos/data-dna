@@ -1,4 +1,4 @@
-import { Thyro } from "../components/Thyro";
+import { Sentinel } from "../components/Sentinel";
 import { useEffect, useState } from "react";
 import { CopyField } from "../components/CopyField";
 import { CheckIcon } from "../components/icons";
@@ -6,6 +6,8 @@ import { ErrorPanel, Skeleton } from "../components/ui";
 import { ensureIdentity, type Identity } from "../lib/chatApi";
 import { buildSnippets, gatewayUrl } from "../lib/snippets";
 import { useFetch } from "../lib/useFetch";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Check, Copy } from "lucide-react";
 
 const POLL_MS = 3000;
 
@@ -33,7 +35,7 @@ function LiveStatus({ userId }: { userId: string }) {
 
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <Thyro pose={seen ? "allow" : "empty"} size={224} />
+      <Sentinel size={96} />
       <p
         role="status"
         className={`inline-flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-semibold ${seen ? "bg-allow-bg text-allow-fg" : "bg-ink-100 text-ink-700"}`}
@@ -80,7 +82,7 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
       </h2>
       <div role="tablist" aria-label="Ways to connect" className="mt-3 flex flex-wrap gap-2">
         {snippets.map((s) => (
-          <button
+          <TextureButton
             key={s.id}
             role="tab"
             type="button"
@@ -88,17 +90,17 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
             aria-selected={s.id === active}
             aria-controls="snippet-panel"
             onClick={() => setActive(s.id)}
-            className={`min-h-11 rounded-md px-3 text-sm font-medium ${s.id === active ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100"}`}
+            variant={s.id === active ? "primary" : "minimal"}
           >
             {s.label}
-          </button>
+          </TextureButton>
         ))}
       </div>
       <div
         role="tabpanel"
         id="snippet-panel"
         aria-labelledby={`tab-${current.id}`}
-        className="mt-3 rounded-lg border border-ink-200 bg-white p-4"
+        className="mt-3 rounded-lg border border-ink-200 bg-surface p-4"
       >
         <p className="text-ink-700">{current.note}</p>
         {current.code && (
@@ -106,17 +108,18 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
             <pre
               tabIndex={0}
               aria-label={`${current.label} code`}
-              className="mt-3 overflow-x-auto rounded-lg bg-ink-900 p-4 text-sm text-ink-50"
+              className="mt-3 overflow-x-auto rounded-lg border border-ink-300 bg-ink-100 p-4 text-sm text-ink-900"
             >
               <code>{current.code}</code>
             </pre>
-            <button
-              type="button"
-              onClick={copy}
-              className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-            >
+            <TextureButton type="button" onClick={copy} variant="primary" className="mt-3">
+              {copied ? (
+                <Check className="size-4" aria-hidden="true" />
+              ) : (
+                <Copy className="size-4" aria-hidden="true" />
+              )}
               {copied ? "Copied" : "Copy this code"}
-            </button>
+            </TextureButton>
           </>
         )}
       </div>
@@ -130,11 +133,16 @@ export default function ConnectPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
-      <p className="eyebrow">Pyli</p>
       <h1 className="text-2xl font-semibold text-ink-900">Connect a tool</h1>
       <p className="mt-1 max-w-prose text-ink-600">
         Point any tool that speaks the OpenAI format at the address below, with your personal key.
         Every request is then checked before it leaves the company.
+      </p>
+      <p className="mt-2 max-w-prose rounded-md bg-ink-100 p-3 text-sm text-ink-700">
+        This is the other way in, for scripts and coding tools that do not run in a browser. It
+        needs the optional gateway: run{" "}
+        <code className="rounded bg-surface px-1">make gateway</code>. For people at their browser,
+        use the extension.
       </p>
 
       {state.status === "loading" && (

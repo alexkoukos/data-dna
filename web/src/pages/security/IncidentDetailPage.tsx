@@ -1,6 +1,5 @@
 import { Link, useParams } from "react-router-dom";
 import { OutcomeChip } from "../../components/OutcomeChip";
-import { Thyro } from "../../components/Thyro";
 import { WhyPanel } from "../../components/WhyPanel";
 import { SealedIdentity } from "../../components/SealedIdentity";
 import { ErrorPanel, Skeleton } from "../../components/ui";
@@ -8,6 +7,7 @@ import { explainReason } from "../../lib/explain";
 import { formatDateTime } from "../../lib/format";
 import { fetchIncidentDetail } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
+import { Sentinel } from "../../components/Sentinel";
 
 const WHAT_WE_DID = {
   allow: "The message went through unchanged.",
@@ -38,9 +38,9 @@ function Detail({ id }: { id: string }) {
     <div className="space-y-6">
       <section
         aria-labelledby="what-h"
-        className="flex flex-wrap gap-6 rounded-lg border border-ink-200 bg-white p-4"
+        className="flex flex-wrap gap-6 rounded-lg border border-ink-200 bg-surface p-4"
       >
-        <Thyro pose={incident.decision} size={240} />
+        <Sentinel size={96} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <OutcomeChip outcome={incident.decision} />
@@ -76,14 +76,14 @@ function Detail({ id }: { id: string }) {
         </div>
       </section>
 
-      <section aria-labelledby="why-h" className="rounded-lg border border-ink-200 bg-white p-4">
+      <section aria-labelledby="why-h" className="rounded-lg border border-ink-200 bg-surface p-4">
         <h2 id="why-h" className="text-lg font-semibold text-ink-900">
           Why this decision
         </h2>
         <WhyPanel trace={incident.trace ?? []} shadow={incident.shadow} />
       </section>
 
-      <section aria-labelledby="doc-h" className="rounded-lg border border-ink-200 bg-white p-4">
+      <section aria-labelledby="doc-h" className="rounded-lg border border-ink-200 bg-surface p-4">
         <h2 id="doc-h" className="text-lg font-semibold text-ink-900">
           Document match
         </h2>
@@ -127,7 +127,7 @@ function Detail({ id }: { id: string }) {
             {timeline.map((t) => (
               <li
                 key={t.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-ink-200 bg-white p-3"
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-ink-200 bg-surface p-3"
               >
                 <OutcomeChip outcome={t.decision} />
                 <time dateTime={t.ts} className="text-sm text-ink-600">

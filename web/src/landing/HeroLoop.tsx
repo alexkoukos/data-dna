@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from "react";
-import { Laptop } from "./Laptop";
+import { AppWindow } from "./AppWindow";
 import { PHASE, PHASES, SCENE_COUNT, initialLoop, loopReducer } from "./loop";
+import { TextureButton } from "@/components/ui/texture-button";
 import { Screen } from "./Screen";
 import { SCENES } from "./scenes";
 
@@ -49,11 +50,10 @@ export function HeroLoop() {
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef);
   const pageVisible = usePageVisible();
-  const [wantsPlay, setWantsPlay] = useState(true);
   const [state, dispatch] = useReducer(loopReducer, initialLoop);
 
-  const playing = !reduced && wantsPlay && inView && pageVisible;
-  // Reduced motion: show each scene as a finished frame (the bee card is up) and let people step through.
+  const playing = !reduced && inView && pageVisible;
+  // Reduced motion: show each scene as a finished frame (the sentinel card is up) and let people step through.
   const phase = reduced ? PHASE.card : state.phase;
 
   useEffect(() => {
@@ -73,53 +73,23 @@ export function HeroLoop() {
       data-mode={reduced ? "static" : "loop"}
       data-playing={playing}
     >
-      <Laptop>
+      <AppWindow>
         <Screen scene={state.scene} phase={phase} />
-      </Laptop>
+      </AppWindow>
 
-      <p className="loop-caption" aria-live="polite" data-testid="loop-caption">
-        <span className="loop-step">
-          {state.scene + 1} / {SCENE_COUNT}
-        </span>
-        {scene.caption}
+      {/* Spoken captions for screen readers; the demo itself carries the story visually. */}
+      <p className="sr-only" aria-live="polite" data-testid="loop-caption">
+        {state.scene + 1} / {SCENE_COUNT} {scene.caption}
       </p>
       <p className="sr-only">{scene.demoNote}</p>
 
-      <div className="loop-controls">
-        {reduced ? null : (
-          <button
-            type="button"
-            className="btn btn-quiet"
-            aria-pressed={!wantsPlay}
-            onClick={() => setWantsPlay((v) => !v)}
-          >
-            {wantsPlay ? "Pause" : "Play"}
-          </button>
-        )}
-        <div className="loop-dots" role="group" aria-label="Choose a scene">
-          {SCENES.map((s, i) => (
-            <button
-              key={s.id}
-              type="button"
-              className="dot"
-              aria-label={`Scene ${i + 1}: ${s.caption}`}
-              aria-current={i === state.scene ? "true" : undefined}
-              onClick={() => dispatch({ type: "goto", scene: i })}
-            >
-              <span />
-            </button>
-          ))}
-        </div>
-        {reduced ? (
-          <button
-            type="button"
-            className="btn btn-quiet"
-            onClick={() => dispatch({ type: "next" })}
-          >
+      {reduced ? (
+        <div className="loop-controls">
+          <TextureButton variant="secondary" onClick={() => dispatch({ type: "next" })}>
             Next
-          </button>
-        ) : null}
-      </div>
+          </TextureButton>
+        </div>
+      ) : null}
     </div>
   );
 }

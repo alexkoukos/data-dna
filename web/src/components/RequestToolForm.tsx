@@ -43,7 +43,7 @@ export function RequestToolForm({
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 min-h-11 rounded-md border border-ink-300 bg-white px-4 text-sm font-medium text-ink-900"
+          className="mt-3 min-h-11 rounded-md border border-ink-300 bg-surface px-4 text-sm font-medium text-ink-900"
         >
           Close
         </button>
@@ -53,7 +53,7 @@ export function RequestToolForm({
   return (
     <form
       aria-label="Request an AI tool"
-      className="rounded-lg border border-ink-200 bg-white p-4"
+      className="rounded-lg border border-ink-200 bg-surface p-4"
       onSubmit={(e) => {
         e.preventDefault();
         void send();
@@ -68,7 +68,7 @@ export function RequestToolForm({
         value={tool}
         maxLength={80}
         onChange={(e) => setTool(e.target.value)}
-        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-ink-900"
+        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3 text-ink-900"
       />
       <label htmlFor="req-reason" className="mt-3 block text-sm font-semibold text-ink-900">
         Why do you need it?
@@ -79,7 +79,7 @@ export function RequestToolForm({
         maxLength={500}
         rows={3}
         onChange={(e) => setReason(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-ink-300 bg-white p-3 text-ink-900"
+        className="mt-1 w-full rounded-lg border border-ink-300 bg-surface p-3 text-ink-900"
       />
       <p className="mt-2 text-sm text-ink-600">
         For team: <span className="font-medium text-ink-900">{team}</span>. Do not put sensitive
@@ -95,7 +95,7 @@ export function RequestToolForm({
           type="submit"
           disabled={state === "busy" || !tool.trim() || !reason.trim()}
           aria-busy={state === "busy"}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700 disabled:opacity-60"
         >
           {state === "busy" ? "Sending…" : "Send request"}
         </button>

@@ -12,10 +12,12 @@ import {
   type TryExample,
   type TryResult,
 } from "../lib/breakItApi";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Eraser, ScanSearch } from "lucide-react";
 
 function savedNick(): string {
   try {
-    return localStorage.getItem("pyli.nick") ?? "";
+    return localStorage.getItem("sentry.nick") ?? "";
   } catch {
     return "";
   }
@@ -71,14 +73,14 @@ function Verdict({
           <pre
             tabIndex={0}
             aria-label="Masked text"
-            className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-lg bg-ink-900 p-4 text-sm text-ink-50"
+            className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-lg border border-ink-300 bg-ink-100 p-4 text-sm text-ink-900"
           >
             {result.masked_text}
           </pre>
         </div>
       ) : null}
       <h3 className="mt-6 text-sm font-semibold text-ink-900">What each level saw</h3>
-      <ol className="mt-2 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white">
+      <ol className="mt-2 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-surface">
         {result.layers.map((l) => (
           <li key={l.id} className="flex items-start gap-3 px-4 py-3">
             <span className="w-6 shrink-0 pt-0.5 text-sm text-ink-600">{l.level}</span>
@@ -140,7 +142,7 @@ export default function BreakItPage() {
     setError(null);
     try {
       try {
-        localStorage.setItem("pyli.nick", nickname.trim());
+        localStorage.setItem("sentry.nick", nickname.trim());
       } catch {
         // a private window: the nickname just is not remembered
       }
@@ -179,7 +181,7 @@ export default function BreakItPage() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
-          className="mt-1 w-full rounded-lg border border-ink-300 bg-white p-3 text-ink-900"
+          className="mt-1 w-full rounded-lg border border-ink-300 bg-surface p-3 text-ink-900"
         />
         <label htmlFor="nick" className="mt-3 block text-sm font-semibold text-ink-900">
           Nickname (optional)
@@ -190,22 +192,23 @@ export default function BreakItPage() {
           maxLength={24}
           onChange={(e) => setNickname(e.target.value)}
           autoComplete="off"
-          className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-ink-900 sm:w-72"
+          className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3 text-ink-900 sm:w-72"
         />
         <p className="mt-1 text-sm text-ink-600">
           Shown on the top breakers list. Use a made-up name, not your own.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button
+          <TextureButton
             type="submit"
             disabled={busy || text.trim().length === 0}
             aria-busy={busy}
-            className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+            variant="primary"
           >
+            <ScanSearch className="size-4" aria-hidden="true" />
             {busy ? "Checking…" : "Check it"}
-          </button>
+          </TextureButton>
           {text ? (
-            <button
+            <TextureButton
               type="button"
               onClick={() => {
                 setText("");
@@ -213,10 +216,11 @@ export default function BreakItPage() {
                 setResult(null);
                 setError(null);
               }}
-              className="min-h-11 rounded-lg px-3 text-sm font-medium text-ink-600 hover:bg-ink-100"
+              variant="minimal"
             >
+              <Eraser className="size-4" aria-hidden="true" />
               Clear
-            </button>
+            </TextureButton>
           ) : null}
         </div>
       </form>
@@ -226,7 +230,8 @@ export default function BreakItPage() {
           <ul className="mt-2 flex flex-wrap gap-2">
             {examples.map((x) => (
               <li key={x.category}>
-                <button
+                <TextureButton
+                  variant="secondary"
                   type="button"
                   onClick={() => {
                     setText(x.text);
@@ -234,10 +239,9 @@ export default function BreakItPage() {
                     setResult(null);
                     setError(null);
                   }}
-                  className="min-h-11 rounded-full border border-ink-300 bg-white px-4 text-sm font-medium text-ink-900 hover:bg-ink-100"
                 >
                   {kindLabel(x.category)}
-                </button>
+                </TextureButton>
               </li>
             ))}
           </ul>

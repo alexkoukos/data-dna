@@ -2,6 +2,8 @@ import { useState } from "react";
 import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
 import { askFree, askPreset, fetchPresets, type Answer } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
+import { TextureButton } from "@/components/ui/texture-button";
+import { SendHorizontal } from "lucide-react";
 
 const HEADINGS: Record<string, string> = {
   team: "Team",
@@ -31,7 +33,7 @@ function AnswerView({ answer }: { answer: Answer }) {
           </EmptyPanel>
         </div>
       ) : (
-        <div className="mt-3 overflow-x-auto rounded-lg border border-ink-200 bg-white">
+        <div className="mt-3 overflow-x-auto rounded-lg border border-ink-200 bg-surface">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-ink-200 text-ink-600">
               <tr>
@@ -56,14 +58,14 @@ function AnswerView({ answer }: { answer: Answer }) {
           </table>
         </div>
       )}
-      <details className="mt-4 rounded-lg border border-ink-200 bg-white p-4">
+      <details className="mt-4 rounded-lg border border-ink-200 bg-surface p-4">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-ink-900">
           Show the SQL behind this answer
         </summary>
         <pre
           tabIndex={0}
           aria-label="SQL for this answer"
-          className="mt-2 overflow-x-auto rounded-lg bg-ink-900 p-4 text-sm text-ink-50"
+          className="mt-2 overflow-x-auto rounded-lg border border-ink-300 bg-ink-100 p-4 text-sm text-ink-900"
         >
           <code>{answer.sql}</code>
         </pre>
@@ -121,15 +123,16 @@ export default function AskPage() {
       <ul className="mt-4 grid gap-2 sm:grid-cols-2">
         {presets.data.map((p) => (
           <li key={p.id}>
-            <button
+            <TextureButton
               type="button"
               aria-pressed={active === p.id}
               disabled={busy}
               onClick={() => ask(p.id)}
-              className={`min-h-11 w-full rounded-md border px-4 py-3 text-left text-sm font-medium ${active === p.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-900 hover:bg-ink-100"}`}
+              variant={active === p.id ? "primary" : "secondary"}
+              className="w-full text-left"
             >
               {p.question}
-            </button>
+            </TextureButton>
           </li>
         ))}
       </ul>
@@ -152,15 +155,12 @@ export default function AskPage() {
             id="free-q"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
-            className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
+            className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-surface px-3 text-sm text-ink-900"
           />
-          <button
-            type="submit"
-            disabled={busy || typed.trim().length < 3}
-            className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
-          >
+          <TextureButton type="submit" disabled={busy || typed.trim().length < 3} variant="primary">
+            <SendHorizontal className="size-4" aria-hidden="true" />
             Ask
-          </button>
+          </TextureButton>
         </div>
       </form>
       {busy ? (

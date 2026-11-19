@@ -1,6 +1,6 @@
-// A static picture of the security Overview, drawn in Hive colours. Demo data only.
+// A static picture of the security Overview, drawn in Sentry colours. Demo data only.
 const KPIS = [
-  { label: "Saves this week", value: "1,284", note: "Nothing of the hive left" },
+  { label: "Saves this week", value: "1,284", note: "Nothing of the sentry left" },
   { label: "Handled without an AI model", value: "90%", note: "Fast checks, no tokens spent" },
   { label: "Unapproved AI tools in use", value: "5", note: "See which" },
 ];

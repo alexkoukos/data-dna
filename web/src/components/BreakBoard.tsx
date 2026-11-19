@@ -15,7 +15,7 @@ export function BreakBoard({ board }: { board: Board }) {
       <h2 className="text-lg font-semibold text-ink-900">Today's leaderboard</h2>
       <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-2xl border border-ink-200 bg-white p-4">
+          <div key={s.label} className="rounded-2xl border border-ink-200 bg-surface p-4">
             <dt className="text-sm text-ink-600">{s.label}</dt>
             <dd className="mt-1 text-2xl font-semibold text-ink-900">{s.value}</dd>
           </div>
@@ -29,7 +29,7 @@ export function BreakBoard({ board }: { board: Board }) {
               Nothing has got through today. Try to be the first.
             </p>
           ) : (
-            <ul className="mt-2 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-white">
+            <ul className="mt-2 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-surface">
               {board.misses.map((m) => (
                 <li key={m.id} className="px-4 py-3 text-sm">
                   <p className="font-medium text-ink-900">{kindLabel(m.kind)}</p>
@@ -46,7 +46,7 @@ export function BreakBoard({ board }: { board: Board }) {
               Add a nickname and send a real miss to the review queue to appear here.
             </p>
           ) : (
-            <ol className="mt-2 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-white">
+            <ol className="mt-2 divide-y divide-ink-100 rounded-2xl border border-ink-200 bg-surface">
               {board.top_breakers.map((b) => (
                 <li key={b.nickname} className="flex justify-between gap-3 px-4 py-3 text-sm">
                   <span className="break-words font-medium text-ink-900">{b.nickname}</span>

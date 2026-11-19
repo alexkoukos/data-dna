@@ -10,6 +10,8 @@ import {
   type GroupPolicy,
 } from "../../lib/securityApi";
 import { useFetch } from "../../lib/useFetch";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Plus, Trash2 } from "lucide-react";
 
 const CATEGORIES = [
   "greek_id",
@@ -62,7 +64,7 @@ export default function GroupsPage() {
     void run(() => saveGroupPolicy({ ...draft, group: draft.group.trim() }));
   }
   const keys = draft.scope === "category" ? CATEGORIES : SENSITIVITIES;
-  const field = "mt-1 min-h-11 rounded-md border border-ink-300 bg-white px-3 text-sm";
+  const field = "mt-1 min-h-11 rounded-md border border-ink-300 bg-surface px-3 text-sm";
   return (
     <>
       <p className="max-w-prose text-ink-600">
@@ -150,12 +152,10 @@ export default function GroupsPage() {
             ))}
           </select>
         </div>
-        <button
-          type="submit"
-          className="min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-        >
+        <TextureButton type="submit" variant="primary">
+          <Plus className="size-4" aria-hidden="true" />
           Add exception
-        </button>
+        </TextureButton>
       </form>
       {error ? (
         <p role="alert" className="mt-3 text-sm font-semibold text-block-fg">
@@ -172,21 +172,22 @@ export default function GroupsPage() {
             {list.map((o) => (
               <li
                 key={`${o.kind}-${o.group}-${o.scope}-${o.key}`}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-200 bg-white p-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-200 bg-surface p-3"
               >
                 <span className="text-sm text-ink-900">
                   {o.kind} <strong>{o.group}</strong>: {o.key.replace("_", " ")}
                 </span>
                 <span className="flex items-center gap-3">
                   <OutcomeChip outcome={o.action} />
-                  <button
+                  <TextureButton
                     type="button"
                     aria-label={`Remove ${o.kind} ${o.group} ${o.key}`}
                     onClick={() => void run(() => deleteGroupPolicy(o))}
-                    className="min-h-11 rounded-md px-3 text-sm font-medium text-ink-700 hover:bg-ink-100"
+                    variant="minimal"
                   >
+                    <Trash2 className="size-4" aria-hidden="true" />
                     Remove
-                  </button>
+                  </TextureButton>
                 </span>
               </li>
             ))}

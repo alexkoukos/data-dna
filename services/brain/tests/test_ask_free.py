@@ -148,12 +148,13 @@ def test_the_brief_question_is_the_first_preset_and_returns_the_expected_teams(
     teams = [r[0] for r in out["rows"]]
     # Operations and HR tie on client-data incidents, so their order is not fixed.
     # The data is generated relative to today, so which smaller teams fall in the 7-day window
-    # moves with the weekday: the top three are stable, Legal and Marketing come and go.
+    # moves with the weekday: the top three are stable, Legal, Marketing and Sales (extension
+    # telemetry in the seed) come and go.
     assert teams[0] == "Engineering"
     assert (
         {"Engineering", "Operations", "HR"}
         <= set(teams)
-        <= {"Engineering", "Operations", "HR", "Legal", "Marketing"}
+        <= {"Engineering", "Operations", "HR", "Legal", "Marketing", "Sales"}
     )
     # Every team listed really has client data caught and unapproved-tool requests.
     engine = main.policy_store.engine

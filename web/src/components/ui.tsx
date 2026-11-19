@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { AlertIcon, BanIcon, CheckIcon } from "./icons";
-import { Thyro } from "./Thyro";
+import { TextureButton } from "@/components/ui/texture-button";
+import { Sentinel } from "./Sentinel";
+import { RotateCw } from "lucide-react";
 
 /** Presentational building blocks shared by the security screens. */
 
 export function DemoBadge() {
   return (
-    <span className="inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-sm border border-ink-300 bg-white px-3 text-xs font-semibold text-ink-700">
+    <span className="inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-sm border border-ink-300 bg-surface px-3 text-xs font-semibold text-ink-700">
       Demo data
     </span>
   );
@@ -23,17 +25,14 @@ export function ErrorPanel({ what, onRetry }: { what: string; onRetry: () => voi
       className="rounded-lg border border-block-fg/30 bg-block-bg p-4 text-block-fg"
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Thyro pose="error" size={176} />
+        <Sentinel size={70} />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">We could not load {what}.</p>
           <p className="mt-1 text-sm">The server did not answer. Try again in a moment.</p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-3 min-h-11 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-          >
+          <TextureButton type="button" onClick={onRetry} variant="primary" className="mt-3">
+            <RotateCw className="size-4" aria-hidden="true" />
             Try again
-          </button>
+          </TextureButton>
         </div>
       </div>
     </div>
@@ -42,8 +41,8 @@ export function ErrorPanel({ what, onRetry }: { what: string; onRetry: () => voi
 
 export function EmptyPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-6 rounded-lg border border-dashed border-ink-300 bg-white p-6">
-      <Thyro pose="empty" size={208} />
+    <div className="flex flex-wrap items-center gap-6 rounded-lg border border-dashed border-ink-300 bg-surface p-6">
+      <Sentinel size={83} />
       <div className="min-w-0 flex-1">
         <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
         <div className="mt-1 max-w-prose text-ink-600">{children}</div>

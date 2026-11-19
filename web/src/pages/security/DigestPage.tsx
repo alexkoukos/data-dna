@@ -54,7 +54,7 @@ function DigestView({ team }: { team: string }) {
           {Object.keys(d.outcomes).length === 0 ? (
             <p className="mt-1 text-sm text-ink-600">Nothing was stopped this week.</p>
           ) : (
-            <ul className="mt-1 divide-y divide-ink-100 rounded-lg border border-ink-200 bg-white">
+            <ul className="mt-1 divide-y divide-ink-100 rounded-lg border border-ink-200 bg-surface">
               {Object.entries(d.outcomes).map(([k, n]) => (
                 <li key={k} className="flex justify-between px-3 py-2 text-sm">
                   <span>{LABEL[k] ?? k}</span>
@@ -69,7 +69,7 @@ function DigestView({ team }: { team: string }) {
           {d.categories.length === 0 ? (
             <p className="mt-1 text-sm text-ink-600">No sensitive data was found.</p>
           ) : (
-            <ul className="mt-1 divide-y divide-ink-100 rounded-lg border border-ink-200 bg-white">
+            <ul className="mt-1 divide-y divide-ink-100 rounded-lg border border-ink-200 bg-surface">
               {d.categories.map((c) => (
                 <li key={c.category} className="flex justify-between px-3 py-2 text-sm">
                   <span>{c.category.replace(/_/g, " ")}</span>
@@ -86,7 +86,7 @@ function DigestView({ team }: { team: string }) {
         {d.tools.length === 0 ? (
           <p className="mt-1 text-sm text-ink-600">No tool was involved in an incident.</p>
         ) : (
-          <ul className="mt-1 divide-y divide-ink-100 rounded-lg border border-ink-200 bg-white">
+          <ul className="mt-1 divide-y divide-ink-100 rounded-lg border border-ink-200 bg-surface">
             {d.tools.map((t) => (
               <li key={t.name} className="flex flex-wrap justify-between gap-2 px-3 py-2 text-sm">
                 <span>
@@ -112,14 +112,14 @@ function DigestView({ team }: { team: string }) {
         <button
           type="button"
           onClick={() => void copy()}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700"
         >
           Copy as email
         </button>
         <a
           href={markdownUrl(d.team)}
           download
-          className="inline-flex min-h-11 items-center rounded-lg border border-ink-300 bg-white px-5 text-sm font-semibold text-ink-900 hover:bg-ink-100"
+          className="inline-flex min-h-11 items-center rounded-lg border border-ink-300 bg-surface px-5 text-sm font-semibold text-ink-900 hover:bg-ink-100"
         >
           Download Markdown
         </a>
@@ -139,7 +139,7 @@ function DigestView({ team }: { team: string }) {
             readOnly
             rows={10}
             value={`Subject: ${d.email.subject}\n\n${d.email.body}`}
-            className="mt-1 w-full rounded-lg border border-ink-300 bg-white p-3 text-sm"
+            className="mt-1 w-full rounded-lg border border-ink-300 bg-surface p-3 text-sm"
           />
         </div>
       ) : null}
@@ -183,7 +183,7 @@ export default function DigestPage() {
             id="digest-team"
             value={team}
             onChange={(e) => setPicked(e.target.value)}
-            className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 sm:w-72"
+            className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3 sm:w-72"
           >
             {state.data.map((t) => (
               <option key={t}>{t}</option>
