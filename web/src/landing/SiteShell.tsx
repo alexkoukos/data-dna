@@ -3,6 +3,7 @@ import "@fontsource/plus-jakarta-sans/500.css";
 import "@fontsource/plus-jakarta-sans/700.css";
 import "@fontsource/plus-jakarta-sans/800.css";
 import type { ReactNode } from "react";
+import { SiteFooter } from "./SiteFooter";
 import { SiteNav } from "./SiteNav";
 import "./landing.css";
 
@@ -15,6 +16,7 @@ export function SiteShell({ children }: { children: ReactNode; home?: boolean })
       </a>
       <SiteNav />
       {children}
+      <SiteFooter />
     </div>
   );
 }

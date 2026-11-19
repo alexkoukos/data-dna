@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./landing.css";
 import { LANDING_ONLY } from "./mode";
+import { SiteFooter } from "./SiteFooter";
 import { SiteNav } from "./SiteNav";
 import { LogoBar } from "./LogoBar";
 import { Checkpoint, HowItWorks, Solved } from "./Sections";
@@ -320,6 +321,7 @@ export default function Landing() {
           </div>
         </section>
       </main>
+      <SiteFooter />
     </div>
   );
 }

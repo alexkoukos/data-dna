@@ -3016,3 +3016,290 @@
   color: var(--ink-muted);
   font-size: 15px;
 }
+
+/* ---------- Footer ---------- */
+.sfoot {
+  border-top: 1px solid var(--border);
+  background: var(--tint);
+}
+.sfoot-in {
+  display: grid;
+  align-items: start;
+  gap: 32px;
+  max-width: calc(var(--page-w, 1200px) + 2 * var(--page-pad, 32px));
+  margin: 0 auto;
+  padding: 40px var(--page-pad, 32px);
+}
+@media (min-width: 800px) {
+  .sfoot-in {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+.sfoot-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-family: var(--font-pixel-square);
+  font-size: 24px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.sfoot-brand p {
+  margin: 4px 0 0;
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+.sfoot-cols {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.sfoot-cols h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.sfoot-cols ul {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sfoot-cols a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 15px;
+}
+.sfoot-cols a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Best used as an extension: a looping demo and three reasons ---------- */
+.best {
+  display: grid;
+  gap: 32px;
+  margin-top: 24px;
+  align-items: center;
+}
+@media (min-width: 900px) {
+  .best {
+    grid-template-columns: 1.3fr 1fr;
+  }
+}
+.best-why ul {
+  display: grid;
+  gap: 20px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.best-why li {
+  display: grid;
+  gap: 4px;
+  padding-left: 16px;
+  border-left: 3px solid var(--accent);
+}
+.best-why b {
+  font-size: 18px;
+}
+.best-why span {
+  color: var(--ink-muted);
+}
+.xd {
+  overflow: hidden;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+.xd-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #ececec;
+  border-bottom: 1px solid #d8d8d8;
+}
+.xd-dots {
+  display: flex;
+  gap: 6px;
+}
+.xd-dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #bdbdbd;
+}
+.xd-url {
+  flex: 1;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  color: #555;
+}
+.xd-ext {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #1a1000;
+}
+.xd-body {
+  position: relative;
+  display: grid;
+  align-content: end;
+  gap: 14px;
+  min-height: 300px;
+  padding: 18px;
+  background: #faf9f7;
+}
+.xd-sent {
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  animation: xd-sent 9s infinite;
+}
+.xd-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: #e8a58c;
+  color: #1a1000;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.xd-bubble mark {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(26, 16, 0, 0.14);
+  color: #1a1000;
+}
+.xd-card {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 84px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #0f0d0a;
+  color: #f5f1ea;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  font-size: 14px;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: xd-card 9s infinite;
+}
+.xd-composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border: 1px solid #d6d2cb;
+  border-radius: 14px;
+  background: #fff;
+  font-size: 15px;
+}
+.xd-typed {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.xd-t1 {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  border-right: 2px solid #1a1a1a;
+  animation: xd-type 9s steps(44, end) infinite;
+}
+.xd-send {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #e8a58c;
+  color: #1a1000;
+  font-weight: 600;
+  font-size: 14px;
+}
+@keyframes xd-type {
+  0% {
+    width: 0;
+    opacity: 1;
+  }
+  30% {
+    width: 100%;
+    opacity: 1;
+  }
+  52% {
+    width: 100%;
+    opacity: 1;
+  }
+  56%,
+  100% {
+    width: 0;
+    opacity: 0;
+  }
+}
+@keyframes xd-card {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  40%,
+  62% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  68%,
+  100% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes xd-sent {
+  0%,
+  62% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  70%,
+  94% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xd-t1,
+  .xd-card,
+  .xd-sent {
+    animation: none;
+  }
+  .xd-t1 {
+    width: 0;
+    opacity: 0;
+  }
+  .xd-card,
+  .xd-sent {
+    opacity: 1;
+    transform: none;
+  }
+}

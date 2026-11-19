@@ -78,6 +78,8 @@ test("get the extension: download link, five samples and a pairing code", async 
   expect((await zip.body()).subarray(0, 2).toString()).toBe("PK");
   const samples = page.getByRole("list", { name: "Sample texts" });
   await expect(samples.getByRole("listitem")).toHaveCount(5);
+  // The sample text is folded under "Show the text"; the second sample (mask) holds the IBAN.
+  await samples.getByText("Show the text").nth(1).click();
   await expect(samples.getByText(/IBAN GR16 0110 1250 0000 0001 2300 695/).first()).toBeVisible();
   await page.getByLabel("Pair as this person").selectOption({ index: 1 });
   await page.getByRole("button", { name: "Show pairing code" }).click();

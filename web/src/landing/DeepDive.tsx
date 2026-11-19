@@ -5,6 +5,7 @@ import { CanvasFractalGrid } from "@/components/ui/canvas-fractal-grid";
 import { PixelHeading } from "@/components/ui/pixel-heading-character";
 import { RollingStat } from "@/components/ui/rolling-stat";
 import { SecurityCheckpoint } from "@/components/ui/security-checkpoint";
+import { ExtensionDemo } from "./ExtensionDemo";
 import { useSeen } from "./Sections";
 import { SiteShell } from "./SiteShell";
 import { LANDING_ONLY } from "./mode";
@@ -101,6 +102,42 @@ export default function DeepDive() {
           </div>
         </section>
 
+        <section className="section" aria-labelledby="best-h">
+          <div className="wrap">
+            <PixelHeading as="h2" id="best-h" mode="multi" className="font-normal">
+              Best used as an extension.
+            </PixelHeading>
+            <div className="best">
+              <ExtensionDemo />
+              <div className="best-why">
+                <ul>
+                  <li>
+                    <b>It checks before you press Send.</b>
+                    <span>On ChatGPT, Claude and Gemini, where people already work.</span>
+                  </li>
+                  <li>
+                    <b>Nobody changes how they work.</b>
+                    <span>No new app to learn. The card only appears when it matters.</span>
+                  </li>
+                  <li>
+                    <b>Everything else supports it.</b>
+                    <span>
+                      The dashboard shows what it caught. Company AI is the safe place to ask.
+                    </span>
+                  </li>
+                </ul>
+                {LANDING_ONLY ? null : (
+                  <div className="cta-row">
+                    <TextureButton asChild variant="primary" size="lg">
+                      <Link to="/extension">Get the extension</Link>
+                    </TextureButton>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="section" aria-labelledby="steps-h">
           <div className="wrap">
             <PixelHeading as="h2" id="steps-h" mode="multi" className="font-normal">
@@ -164,11 +201,9 @@ export default function DeepDive() {
         <section className="section" aria-labelledby="ext-h">
           <div className="wrap">
             <PixelHeading as="h2" id="ext-h" mode="multi" className="font-normal">
-              The extension.
+              What a person sees.
             </PixelHeading>
-            <p className="section-sub">
-              It sits in the browser, on ChatGPT, Claude and Gemini. This is what a person sees.
-            </p>
+            <p className="section-sub">The real cards and popup.</p>
             <div className="ext-shots">
               <figure>
                 <img
@@ -200,13 +235,6 @@ export default function DeepDive() {
                 <figcaption>The popup: what was checked today, and the last events.</figcaption>
               </figure>
             </div>
-            {LANDING_ONLY ? null : (
-              <div className="cta-row">
-                <TextureButton asChild variant="primary" size="lg">
-                  <Link to="/extension">Get the extension</Link>
-                </TextureButton>
-              </div>
-            )}
           </div>
         </section>
 

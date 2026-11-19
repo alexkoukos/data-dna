@@ -5,6 +5,7 @@ import "@fontsource/poppins/700.css";
 import "@fontsource/poppins/600.css";
 import "@fontsource/space-grotesk/600.css";
 import "../../src/ui.css";
+import { Logo } from "../../src/Logo";
 import { ExternalLink, House, SendHorizontal, X } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
 import {
@@ -98,10 +99,7 @@ function Panel() {
         style={{ display: "flex", flexDirection: "column", height: "100vh" }}
       >
         <header className="sp-top">
-          <picture>
-            <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
-            <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={120} />
-          </picture>
+          <Logo />
           {!IN_TAB && (
             <div className="sp-tools">
               <button type="button" className="sp-tool" onClick={openTab}>

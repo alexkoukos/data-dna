@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { SiteFooter } from "./landing/SiteFooter";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SiteNav } from "./landing/SiteNav";
 import BreakItPage from "./pages/BreakItPage";
@@ -85,6 +86,9 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
+      <div className="sentry dark">
+        <SiteFooter />
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import "@fontsource/poppins/700.css";
 import "@fontsource/poppins/600.css";
 import "@fontsource/space-grotesk/600.css";
 import "../../src/ui.css";
+import { Logo } from "../../src/Logo";
 import { ActionIcon } from "../../src/ActionIcon";
 import { ExternalLink, MessageSquareText, Settings } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
@@ -90,10 +91,7 @@ function Popup() {
       <div className="wrap" style={{ width: 380, background: "var(--tint)" }}>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h1 className="sr-only">Sentry</h1>
-          <picture>
-            <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
-            <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={110} />
-          </picture>
+          <Logo />
           <span className="muted status">{who ? `Signed in as ${who}` : "Not signed in"}</span>
         </div>
         <div className="shield-strip" role="status">
@@ -130,15 +128,19 @@ function Popup() {
           </ul>
         )}
         <div className="row actions-row" style={{ marginTop: 12 }}>
-          <button className="primary" onClick={openPanel} style={{ flex: 1 }}>
+          <button className="primary glow" onClick={openPanel}>
             <MessageSquareText size={16} aria-hidden="true" />
             Company AI
           </button>
-          <button onClick={() => void openDashboard()}>
+          <button className="glow soft" onClick={() => void openDashboard()}>
             <ExternalLink size={16} aria-hidden="true" />
             Dashboard
           </button>
-          <button onClick={() => chrome.runtime.openOptionsPage()} aria-label="Settings">
+          <button
+            className="glow soft icon-only"
+            onClick={() => chrome.runtime.openOptionsPage()}
+            aria-label="Settings"
+          >
             <Settings size={16} aria-hidden="true" />
           </button>
         </div>

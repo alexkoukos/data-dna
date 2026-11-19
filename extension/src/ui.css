@@ -736,3 +736,158 @@ button.sp-starter {
   font: inherit;
   font-size: 11px;
 }
+
+/* ---- Logo: the eye looks around ---- */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-word {
+  font-family: "Space Grotesk", "Poppins", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--fg);
+}
+.logo-eye {
+  animation: look 7s ease-in-out infinite;
+}
+@keyframes look {
+  0%,
+  12%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20%,
+  30% {
+    transform: translate(-5px, 0);
+  }
+  38%,
+  46% {
+    transform: translate(-3px, -4px);
+  }
+  54%,
+  62% {
+    transform: translate(4px, -4px);
+  }
+  70%,
+  78% {
+    transform: translate(5px, 1px);
+  }
+  86%,
+  92% {
+    transform: translate(0, 4px);
+  }
+}
+
+/* ---- Event rows: avatar, name, then time and outcome on the right, all centred on one line ---- */
+.ev {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: 14px;
+}
+.ev-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name time" "name tag";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 6px;
+  justify-items: stretch;
+}
+.ev-head {
+  display: contents;
+}
+.ev-head b {
+  grid-area: name;
+  align-self: center;
+}
+.ev-head .muted {
+  grid-area: time;
+  justify-self: end;
+}
+.ev-body > .tag {
+  grid-area: tag;
+  justify-self: end;
+}
+
+/* ---- Popup buttons: two that share the row, a settings icon that is a square ---- */
+.actions-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+  gap: 8px;
+}
+.actions-row button {
+  min-width: 0;
+  padding: 0 10px;
+  justify-content: center;
+  font-size: 14px;
+}
+.actions-row button.icon-only {
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  padding: 0;
+}
+
+/* ---- A glow that travels around the button's edge ---- */
+@property --glow-a {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+button.glow {
+  position: relative;
+  isolation: isolate;
+}
+button.glow::before,
+button.glow::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--glow-a),
+    transparent 0 62%,
+    rgba(251, 191, 36, 0.95) 82%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: glow-spin 3.2s linear infinite;
+}
+button.glow::before {
+  z-index: -1;
+  padding: 2px;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+button.glow::after {
+  z-index: -2;
+  filter: blur(9px);
+  opacity: 0.55;
+}
+button.glow.soft::before {
+  opacity: 0.55;
+}
+button.glow.soft::after {
+  opacity: 0.22;
+}
+@keyframes glow-spin {
+  to {
+    --glow-a: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo-eye,
+  button.glow::before,
+  button.glow::after {
+    animation: none;
+  }
+}

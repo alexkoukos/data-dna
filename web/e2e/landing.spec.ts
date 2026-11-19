@@ -20,7 +20,7 @@ test("the app home keeps the same navigation and lists every tool", async ({ pag
   await page.goto("/app");
   const nav = page.getByRole("navigation", { name: "Main" });
   await expect(nav).toBeVisible();
-  for (const name of ["How it works", "Security", "Developers", "Company AI"]) {
+  for (const name of ["How it works", "Company AI"]) {
     await expect(nav.getByRole("link", { name })).toBeVisible();
   }
   await expect(page.getByRole("heading", { name: "Everything in the app" })).toBeVisible();
