@@ -2986,3 +2986,33 @@
   font-weight: inherit;
   line-height: inherit;
 }
+
+/* the extension, shown as it really looks */
+.ext-shots {
+  display: grid;
+  gap: 24px;
+  margin-top: 24px;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .ext-shots {
+    grid-template-columns: 1.35fr 1.35fr 1fr;
+  }
+}
+.ext-shots figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ext-shots img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.ext-shots figcaption {
+  color: var(--ink-muted);
+  font-size: 15px;
+}

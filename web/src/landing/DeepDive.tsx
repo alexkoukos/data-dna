@@ -161,6 +161,55 @@ export default function DeepDive() {
           </div>
         </section>
 
+        <section className="section" aria-labelledby="ext-h">
+          <div className="wrap">
+            <PixelHeading as="h2" id="ext-h" mode="multi" className="font-normal">
+              The extension.
+            </PixelHeading>
+            <p className="section-sub">
+              It sits in the browser, on ChatGPT, Claude and Gemini. This is what a person sees.
+            </p>
+            <div className="ext-shots">
+              <figure>
+                <img
+                  src="/extension/card-block.png"
+                  width="405"
+                  height="416"
+                  alt="The extension's card on an AI site: Blocked. This stays inside the company. Edit message or Open company AI."
+                />
+                <figcaption>
+                  When something must stay inside: stopped, with a reason and a way on.
+                </figcaption>
+              </figure>
+              <figure>
+                <img
+                  src="/extension/card-warn.png"
+                  width="405"
+                  height="518"
+                  alt="The extension's card: Warned. Send anyway or Edit message."
+                />
+                <figcaption>When you should check first: you choose.</figcaption>
+              </figure>
+              <figure className="ext-popup">
+                <img
+                  src="/extension/popup.png"
+                  width="285"
+                  height="315"
+                  alt="The extension popup: Protection is on, 14 checked today, and the last events by tool."
+                />
+                <figcaption>The popup: what was checked today, and the last events.</figcaption>
+              </figure>
+            </div>
+            {LANDING_ONLY ? null : (
+              <div className="cta-row">
+                <TextureButton asChild variant="primary" size="lg">
+                  <Link to="/extension">Get the extension</Link>
+                </TextureButton>
+              </div>
+            )}
+          </div>
+        </section>
+
         <section className="section" aria-labelledby="catch-h">
           <div className="wrap">
             <PixelHeading as="h2" id="catch-h" mode="multi" className="font-normal">
