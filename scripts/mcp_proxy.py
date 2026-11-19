@@ -103,8 +103,9 @@ _MIME = re.compile(
 _TEXT_MIME = re.compile(r"^(text/|application/(json|xml|yaml|x-yaml|.*\+(json|xml)))", re.I)
 # Values the server picks that name things. They are never rewritten, so a finding of any kind
 # in one withholds the whole message.
-_VERSION_KEYS = {"protocolVersion", "version"}
-_VERSION = re.compile(r"^(\d{4}-\d{2}-\d{2}|\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)$")
+_VERSION = re.compile(
+    r"\A(\d{4}-\d{2}-\d{2}|\d{1,6}\.\d{1,6}\.\d{1,6}(-[0-9A-Za-z]{1,16}(\.[0-9A-Za-z]{1,16}){0,3})?)\Z"
+)
 _STRUCTURAL = {"uri", "name", "cursor", "nextCursor", "protocolVersion", "version", "id"}
 # Field names of the protocol. Any other key is checked too.
 _PROTOCOL_KEYS = _STRUCTURAL | {
@@ -167,9 +168,7 @@ def _walk(node: Any, inspect: Inspect, item: bool = False) -> Any:
             # Never rewritten (a changed uri or name would point somewhere else), so a value the
             # brain would mask or block would reach the model as it is: any finding withholds the
             # message. Only a version number of a strict shape is let through unchecked.
-            if not (key in _VERSION_KEYS and _VERSION.match(value)) and (
-                _check(value, inspect) != value
-            ):
+            if _check(value, inspect) != value:
                 raise _Withhold(key)
             out[key] = value
         elif is_item and (
@@ -253,6 +252,31 @@ def _memoised(inspect: Inspect) -> Inspect:
     return cached
 
 
+def _is_version(value: Any) -> bool:
+    return isinstance(value, str) and len(value) <= 32 and bool(_VERSION.fullmatch(value))
+
+
+def _take_versions(result: Any) -> dict[str, str]:
+    """Lift the two version numbers of an initialize reply out before checking: they have a strict
+    shape and a server cannot hide anything else there. No other `version` key is exempt."""
+    kept: dict[str, str] = {}
+    if isinstance(result, dict):
+        if _is_version(result.get("protocolVersion")):
+            kept["protocolVersion"] = result.pop("protocolVersion")
+        info = result.get("serverInfo")
+        if isinstance(info, dict) and _is_version(info.get("version")):
+            kept["serverInfo.version"] = info.pop("version")
+    return kept
+
+
+def _put_versions(result: Any, kept: dict[str, str]) -> None:
+    if isinstance(result, dict):
+        if "protocolVersion" in kept:
+            result["protocolVersion"] = kept["protocolVersion"]
+        if "serverInfo.version" in kept:
+            result.setdefault("serverInfo", {})["version"] = kept["serverInfo.version"]
+
+
 def filter_message(msg: Any, inspect: Inspect) -> Any:
     """The same JSON-RPC message (or batch) with everything the model will read checked: tool
     results (text, structured content, resources), tool definitions, prompts, error text, and the
@@ -266,12 +290,14 @@ def filter_message(msg: Any, inspect: Inspect) -> Any:
     try:
         if isinstance(msg.get("id"), str) and _check(msg["id"], inspect) != msg["id"]:
             raise _Withhold("id")
+        kept = _take_versions(msg.get("result"))
         for part in ("result", "params", "error"):
             if isinstance(msg.get(part), (dict, list)):
                 whole = _stopped(json.dumps(_readable(msg[part]), ensure_ascii=False), inspect)
                 msg[part] = _walk(msg[part], inspect)
                 if whole and not _has_notice(msg[part]):
                     raise _Withhold  # blocked only as a whole (split across fields)
+        _put_versions(msg.get("result"), kept)
     except _Withhold as stop:
         error = _error_for(msg, stop.field)
         return json.loads(error) if error else None

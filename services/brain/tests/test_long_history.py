@@ -240,7 +240,7 @@ def test_one_users_remembered_results_never_serve_another_user(
 
 
 def test_a_busy_user_cannot_push_other_users_out_of_the_memory() -> None:
-    mem: main._Remembered[int] = main._Remembered(size=10, ttl_seconds=60, per_user=8)
+    mem: main._Remembered[int] = main._Remembered(size=10, ttl_seconds=60, per_user=6)
     for n in range(4):
         mem.put("quiet", n, n)
     for n in range(50):
@@ -248,3 +248,16 @@ def test_a_busy_user_cannot_push_other_users_out_of_the_memory() -> None:
     assert all(mem.get("quiet", n) == n for n in range(4))
     assert len(mem) <= 10 and mem.get("busy", 49) == 49
     assert mem.get("other", 0) is None
+
+
+def test_twenty_thousand_inserts_take_well_under_a_second() -> None:
+    import time
+
+    mem: main._Remembered[int] = main._Remembered(size=20_000, ttl_seconds=60, per_user=2_000)
+    start = time.perf_counter()
+    for n in range(20_000):
+        mem.put(f"user{n % 50}", n, n)
+    for n in range(20_000):
+        mem.put(f"user{n % 7}", -n, n)  # forces evictions at both limits
+    assert time.perf_counter() - start < 1.0
+    assert len(mem) <= 20_000

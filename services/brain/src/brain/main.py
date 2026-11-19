@@ -763,13 +763,13 @@ class _Remembered[V]:
     Every entry belongs to one user. Whether a text is remembered is visible as speed (and as a
     refusal when a request has to work too much out), so one person's entries must never serve
     another: a hit counts only for the user who put it there. One user holds at most `per_user`
-    entries, and when the whole memory is full the user with the most entries gives one up first,
-    so nobody can push other people's entries out by sending a lot.
+    entries (the oldest of theirs goes first), so nobody can fill the whole memory; when it is
+    full the oldest entry overall goes. All of this is constant time per call.
     """
 
     def __init__(self, size: int, ttl_seconds: float, per_user: int) -> None:
         self._items: OrderedDict[tuple[str, Any], tuple[float, V]] = OrderedDict()
-        self._count: dict[str, int] = {}
+        self._by_user: dict[str, OrderedDict[Any, None]] = {}
         self._size = size
         self._per_user = per_user
         self._ttl = ttl_seconds
@@ -781,33 +781,34 @@ class _Remembered[V]:
             if hit is None or time.monotonic() - hit[0] >= self._ttl:
                 return None
             self._items.move_to_end((user, key))
+            self._by_user[user].move_to_end(key)
             return hit[1]
 
     def put(self, user: str, key: Any, value: V) -> None:
         with self._lock:
-            full = (user, key)
-            if full not in self._items:
-                self._count[user] = self._count.get(user, 0) + 1
-            self._items[full] = (time.monotonic(), value)
-            self._items.move_to_end(full)
-            while self._count[user] > self._per_user:
-                self._drop_oldest_of(user)
+            mine = self._by_user.setdefault(user, OrderedDict())
+            self._items[(user, key)] = (time.monotonic(), value)
+            self._items.move_to_end((user, key))
+            mine[key] = None
+            mine.move_to_end(key)
+            while len(mine) > self._per_user:
+                self._drop(user, next(iter(mine)))
             while len(self._items) > self._size:
-                self._drop_oldest_of(max(self._count, key=lambda u: self._count[u]))
+                oldest_user, oldest_key = next(iter(self._items))
+                self._drop(oldest_user, oldest_key)
 
-    def _drop_oldest_of(self, user: str) -> None:
-        for k in self._items:
-            if k[0] == user:
-                del self._items[k]
-                self._count[user] -= 1
-                if not self._count[user]:
-                    del self._count[user]
-                return
+    def _drop(self, user: str, key: Any) -> None:
+        self._items.pop((user, key), None)
+        mine = self._by_user.get(user)
+        if mine is not None:
+            mine.pop(key, None)
+            if not mine:
+                del self._by_user[user]
 
     def clear(self) -> None:
         with self._lock:
             self._items.clear()
-            self._count.clear()
+            self._by_user.clear()
 
     def __len__(self) -> int:
         return len(self._items)
