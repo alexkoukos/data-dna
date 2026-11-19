@@ -24,3 +24,4 @@ eval/redteam/report.*
 eval/local_llm_bench.md.tmp
 secrets/*
 !secrets/.gitkeep
+sentry-extension.zip

@@ -10,8 +10,40 @@ async function headers(): Promise<Record<string, string>> {
   return h;
 }
 
+/** Same limit as the brain (MAX_INSPECT_CHARS). Longer text is refused here, never sent. */
+export const MAX_CHARS = 100_000;
+const MAX_ATTACHMENT_B64 = 20_000_000;
+
+/**
+ * The server address must be https, or http on this machine only. The token is a bearer token:
+ * it never travels over plain http to another host, and a malformed address is refused.
+ */
+export function safeBrainUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+    if (u.protocol !== "https:" && !(u.protocol === "http:" && local)) return null;
+    if (u.username || u.password) return null;
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
+
+/** Only the page and its path leave the browser: no query string, no fragment, no login part. */
+export function cleanPageUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return "";
+  }
+}
+
 async function url(path: string): Promise<string> {
-  return `${(await getSettings()).brainUrl.replace(/\/$/, "")}${path}`;
+  const base = safeBrainUrl((await getSettings()).brainUrl);
+  if (!base) throw new Error("brain url refused");
+  return `${base}${path}`;
 }
 
 interface CheckOut {
@@ -33,11 +65,14 @@ export async function checkRemote(
   pageUrl: string,
   attachments: { filename: string; content_base64: string }[] = [],
 ): Promise<Partial<CheckResult> | null> {
+  // Too long or too big to read: not sent. The caller treats null as "could not check" and fails closed.
+  if (text.length > MAX_CHARS) return null;
+  if (attachments.some((a) => a.content_base64.length > MAX_ATTACHMENT_B64)) return null;
   try {
     const res = await fetch(await url("/v1/check"), {
       method: "POST",
       headers: await headers(),
-      body: JSON.stringify({ text, tool, url: pageUrl, attachments }),
+      body: JSON.stringify({ text, tool, url: cleanPageUrl(pageUrl), attachments }),
     });
     if (!res.ok) return null;
     const d = (await res.json()) as CheckOut;

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
-const L = createRequire(import.meta.url)("../logic.js");
+const L = createRequire(import.meta.url)("../logic.cjs");
 
 test("a gate that cannot be reached lets the text through with a badge", () => {
   for (const s of [0, 429, 502, 503, 504]) assert.equal(L.failMode(s), "open");

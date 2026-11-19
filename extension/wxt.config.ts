@@ -7,6 +7,9 @@ export default defineConfig({
     description: "Checks what you paste into AI chats and keeps company data inside.",
     // IT sets the server and the identity with a Chrome policy (deploy/chrome-policy.json).
     storage: { managed_schema: "managed-schema.json" },
+    content_security_policy: {
+      extension_pages: "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'",
+    },
     permissions: ["storage", "sidePanel", "alarms"],
     web_accessible_resources: [
       {

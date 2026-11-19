@@ -30,3 +30,17 @@ test("the side panel says so when the company AI cannot be reached", async ({ co
     page.getByText(/could not be reached|Answered locally|Stand-in answer/).first(),
   ).toBeVisible();
 });
+
+test("in the side panel Enter sends and Shift+Enter adds a line", async ({ context }) => {
+  const id = await extensionId(context);
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${id}/sidepanel.html`);
+  const box = page.getByLabel("Your question");
+  await box.fill("first line");
+  await box.press("Shift+Enter");
+  await expect(box).toHaveValue("first line\n");
+  await box.type("second line");
+  await box.press("Enter");
+  await expect(box).toHaveValue("");
+  await expect(page.getByText("first line")).toBeVisible();
+});

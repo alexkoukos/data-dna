@@ -32,7 +32,7 @@ reset: ## Stop and delete the database (fresh seed next time)
 test: ## Unit tests (brain + web + extension)
 	cd services/brain && uv run pytest
 	cd web && npm test
-	node --test extension/test/logic.test.mjs
+	cd extension && npm test && node --test test/logic.test.mjs
 
 lint: ## Linters and formatters in check mode
 	cd services/brain && uv run ruff check . && uv run ruff format --check .
@@ -77,6 +77,13 @@ split-demo: ## Split storage demo: seed salaries, dump vault-a, aggregate, tampe
 	@sh scripts/prepare_dirs.sh
 	docker compose run --rm brain python -m brain.splitstore.demo
 
+extension-zip: ## Build the browser extension and pack it as sentry-extension.zip
+	cd extension && npm ci && npm run build && cd .output/chrome-mv3 && rm -f ../../../sentry-extension.zip && zip -qr ../../../sentry-extension.zip .
+	@echo "Load extension/.output/chrome-mv3 in chrome://extensions (Developer mode), or unzip sentry-extension.zip"
+
+test-extension: ## Extension unit tests
+	cd extension && npm test && node --test test/logic.test.mjs
+
 e2e: ## End-to-end + accessibility (needs `make up` first)
 	cd web && npx playwright install chromium && npm run e2e
 
@@ -100,4 +107,4 @@ judge-ollama: ## Start the judge's own Ollama on port 11435 (separate from `make
 judge-eval: ## Compare plain gemma3:1b (dna-local) with the tuned judge on the test set (needs `make judge-ollama` and the dna-judge model, see docs/JUDGE_FINETUNE.md)
 	python3 scripts/eval_judge.py dna-judge dna-local --url http://localhost:11435 --out eval/judge_eval.md
 
-.PHONY: siem judge-data judge-ollama judge-eval split-test split-demo calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval
+.PHONY: extension-zip test-extension siem judge-data judge-ollama judge-eval split-test split-demo calibrate injection-model redteam local loadtest simulate test-gateway help doctor setup up down logs reset test lint typecheck fmt validate check e2e eval

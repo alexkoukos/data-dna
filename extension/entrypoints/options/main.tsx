@@ -7,7 +7,7 @@ import "@fontsource/space-grotesk/600.css";
 import "../../src/ui.css";
 import { Link2, Save } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
-import { pair, refreshPolicy } from "../../src/api";
+import { pair, refreshPolicy, safeBrainUrl } from "../../src/api";
 import { getSettings, saveSettings } from "../../src/storage";
 
 interface DemoUser {
@@ -41,14 +41,25 @@ function Options() {
   };
 
   const saveServer = async () => {
-    await saveSettings({ brainUrl: brainUrl.trim() });
-    loadUsers(brainUrl);
+    const safe = safeBrainUrl(brainUrl.trim());
+    if (!safe) {
+      setMsg("Use an https address, or http on this computer (localhost). Nothing was saved.");
+      return;
+    }
+    await saveSettings({ brainUrl: safe });
+    setBrainUrl(safe);
+    loadUsers(safe);
     await refreshPolicy();
     setMsg("Server address saved.");
   };
 
   const doPair = async () => {
-    await saveSettings({ brainUrl: brainUrl.trim() });
+    const safe = safeBrainUrl(brainUrl.trim());
+    if (!safe) {
+      setMsg("Use an https address, or http on this computer (localhost). Nothing was saved.");
+      return;
+    }
+    await saveSettings({ brainUrl: safe });
     const res = await pair(code.trim());
     if (!res) {
       setMsg(

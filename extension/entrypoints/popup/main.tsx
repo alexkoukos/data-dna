@@ -8,7 +8,8 @@ import "../../src/ui.css";
 import { ActionIcon } from "../../src/ActionIcon";
 import { ExternalLink, MessageSquareText, Settings } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
-import { getSettings, type RecentEvent } from "../../src/storage";
+import { getSettings, type DayStats, type RecentEvent } from "../../src/storage";
+import { ShieldCheck } from "lucide-react";
 
 const WORD: Record<string, string> = {
   allow: "Allowed",
@@ -44,7 +45,6 @@ function ago(ts: number): string {
   return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
 }
 
-/** One ring, split by what happened to everything checked today. The centre says how many saves. */
 /** The dashboard is on the same machine as the brain, one port over. */
 async function dashboardUrl(): Promise<string> {
   try {
@@ -61,11 +61,14 @@ async function dashboardUrl(): Promise<string> {
 function Popup() {
   const [recent, setRecent] = useState<RecentEvent[]>([]);
   const [who, setWho] = useState("");
+  const [stats, setStats] = useState<DayStats | null>(null);
 
   useEffect(() => {
     void (async () => {
-      const { recent: r } = await chrome.storage.local.get(["recent"]);
+      const { recent: r, stats: d } = await chrome.storage.local.get(["recent", "stats"]);
       setRecent((r as RecentEvent[]) ?? []);
+      const day = d as DayStats | undefined;
+      if (day && day.day === new Date().toISOString().slice(0, 10)) setStats(day);
       const st = await getSettings();
       setWho(st.demoUser || (st.token ? "paired device" : ""));
     })();
@@ -91,7 +94,18 @@ function Popup() {
             <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
             <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={110} />
           </picture>
-          <span className="muted status">{who ? `Signed in as ${who}` : "Not paired yet"}</span>
+          <span className="muted status">{who ? `Signed in as ${who}` : "Not signed in"}</span>
+        </div>
+        <div className="shield-strip" role="status">
+          <ShieldCheck size={20} aria-hidden="true" />
+          <div>
+            <b>Protection is on</b>
+            <span className="muted">
+              {stats && stats.checked > 0
+                ? `${stats.checked} checked today, ${stats.masked + stats.blocked + stats.local} kept inside`
+                : "Checking what you send to AI tools"}
+            </span>
+          </div>
         </div>
         <h2>Last events</h2>
         {recent.length === 0 ? (

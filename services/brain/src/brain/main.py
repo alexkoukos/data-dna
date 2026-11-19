@@ -1868,6 +1868,23 @@ def compliance_report() -> Response:
     )
 
 
+@app.get("/v1/compliance-report.html")
+def compliance_report_html() -> Response:
+    """The same report as a branded web page, to read, print or save as PDF."""
+    evidence = _read(lambda c: compliance.gather_evidence(c, settings.demo_mode))
+    return Response(
+        content=compliance.render_html(evidence),
+        media_type="text/html; charset=utf-8",
+        headers={
+            # A static page: no script, nothing loaded from elsewhere, only its own inline style.
+            "Content-Security-Policy": (
+                "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+            ),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @app.get("/v1/shadow-mode", response_model=ShadowOut)
 def get_shadow() -> ShadowOut:
     counts = _read(queries.shadow_counts)

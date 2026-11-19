@@ -29,27 +29,17 @@ const STYLE = `
   border: 1px solid #e5e7eb; border-radius: 22px; overflow: hidden; pointer-events: auto;
   box-shadow: 0 24px 60px rgba(38,38,38,.22), 0 4px 14px rgba(38,38,38,.1);
 }
-/* Slow ribbons drift behind the content; they carry the outcome colour and stay subtle */
-.ribbons { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
-.rib { position: absolute; left: 0; width: 200%; height: 120px; fill: none; stroke-width: 26; stroke-linecap: round; filter: blur(6px); }
-.rib1 { top: -4%; stroke: var(--solid); opacity: .2; animation: flow 18s linear infinite; }
-.rib2 { top: 34%; stroke: #f59e0b; opacity: .24; animation: flow 26s linear infinite reverse; }
-.rib3 { top: 66%; stroke: #fbbf24; opacity: .3; animation: flow 32s linear infinite; }
-@keyframes flow { to { transform: translateX(-50%); } }
-@media (prefers-reduced-motion: reduce) { .rib { animation: none; } }
-/* A second, smaller sentinel patrols the card's edge while the one in the header hovers and scans */
-.patrol { position: absolute; inset: -22px; pointer-events: none; }
-.psentinel { position: absolute; width: 30px; offset-path: inset(0 round 34px); offset-rotate: 0deg; offset-anchor: 50% 50%; animation: orbit 11s linear infinite; }
-.psentinel span { display: block; animation: face 11s steps(1) infinite, bob .5s ease-in-out infinite alternate; }
-@keyframes orbit { from { offset-distance: 0%; } to { offset-distance: 100%; } }
-@keyframes face { 0% { transform: scaleX(1); } 50% { transform: scaleX(-1); } }
-@keyframes bob { from { translate: 0 -2px; } to { translate: 0 2px; } }
+/* The landing page's dot grid: amber dots that fade out toward the bottom right */
+.card::after { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(245,158,11,.42) 1px, transparent 1.4px); background-size: 16px 16px;
+  -webkit-mask-image: linear-gradient(160deg, #000 0%, rgba(0,0,0,.25) 70%, transparent 100%);
+  mask-image: linear-gradient(160deg, #000 0%, rgba(0,0,0,.25) 70%, transparent 100%); }
 /* The eye scans side to side while the body floats */
 .sentinel .sentinel-eye { animation: scan 2.4s ease-in-out infinite; }
 @keyframes scan { 0%,100% { transform: translateX(-5px); } 50% { transform: translateX(5px); } }
 .head .sentinel { animation: hover 3.6s ease-in-out infinite; }
 @keyframes hover { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-@media (prefers-reduced-motion: reduce) { .head .sentinel, .psentinel, .psentinel span, .sentinel .sentinel-eye { animation: none; } .patrol { display: none; } }
+@media (prefers-reduced-motion: reduce) { .head .sentinel, .sentinel .sentinel-eye { animation: none; } }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .cardwrap { animation: none; } }
 /* Header band takes the outcome's colour, so the verdict is the first thing seen */
@@ -183,15 +173,6 @@ const BUTTON_ICON: Record<string, IconNode> = {
   rewrite: ShieldCheck,
   send: SendHorizontal,
 };
-
-/** Three wavy ribbons; each path repeats every 600 units, so sliding the svg by half its width loops seamlessly. */
-const WAVE = "M0 60 C100 0 200 0 300 60 S500 120 600 60 S800 0 900 60 S1100 120 1200 60";
-const RIBBONS = ["rib1", "rib2", "rib3"]
-  .map(
-    (c) =>
-      `<svg class="rib ${c}" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="${WAVE}"/></svg>`,
-  )
-  .join("");
 
 /** The sentinel, inline so a site's content security policy cannot block it. */
 const SENTINEL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 74" role="img" aria-hidden="true" focusable="false"><path d="M32 4 L58 14 V36 C58 52 46 63 32 69 C18 63 6 52 6 36 V14 Z" fill="#f59e0b"/><path d="M32 22 C41 22 47 30 47 36 C47 42 41 50 32 50 C23 50 17 42 17 36 C17 30 23 22 32 22 Z" fill="none" stroke="#1a1000" stroke-width="3.5"/><circle class="sentinel-eye" cx="32" cy="36" r="6" fill="#1a1000"/></svg>`;
@@ -401,11 +382,7 @@ export class Overlay {
       tip.textContent = rest.join(" ");
       main.append(tip);
     }
-    const rib = document.createElement("div");
-    rib.className = "ribbons";
-    rib.setAttribute("aria-hidden", "true");
-    rib.innerHTML = RIBBONS;
-    el.append(rib, head, main);
+    el.append(head, main);
     let reasonBox: HTMLTextAreaElement | null = null;
     if (opts.askReason) {
       const lab = document.createElement("label");
@@ -423,17 +400,7 @@ export class Overlay {
     main.append(actions);
     const wrap = document.createElement("div");
     wrap.className = "cardwrap";
-    const patrol = document.createElement("div");
-    patrol.className = "patrol";
-    patrol.setAttribute("aria-hidden", "true");
-    const psentinel = document.createElement("div");
-    psentinel.className = "psentinel";
-    const pin = document.createElement("span");
-    pin.className = "sentinel";
-    pin.innerHTML = SENTINEL;
-    psentinel.append(pin);
-    patrol.append(psentinel);
-    wrap.append(el, patrol);
+    wrap.append(el);
     this.layer.append(wrap);
     this.announce(`${opts.title}. ${opts.reasons.join(" ")}`);
 

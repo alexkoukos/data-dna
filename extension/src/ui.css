@@ -578,3 +578,161 @@ body.fit .wrap {
   padding: 0 14px;
   white-space: nowrap;
 }
+
+.shield-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--subtle);
+  color: var(--accent-text);
+}
+.shield-strip > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.shield-strip b {
+  color: var(--fg);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+}
+.shield-strip .muted {
+  font-size: 13px;
+  line-height: 18px;
+}
+.shield-strip + h2 {
+  margin-top: 20px;
+}
+
+/* Rows of "field + button": every button is the same width, so the right edges line up */
+.row > input {
+  flex: 1;
+  min-width: 0;
+}
+.row > button:not(.act) {
+  flex: none;
+  min-width: 112px;
+  justify-content: center;
+}
+/* A disabled button stays readable: muted text on a flat surface, not a dimmed amber */
+button:disabled,
+button.primary:disabled {
+  opacity: 1 !important;
+  background: var(--muted-bg) !important;
+  color: var(--subtle-fg) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+/* The page title sits clear of the logo above it */
+h1 + h2,
+.wrap > .row + h2 {
+  margin-top: 24px;
+}
+
+/* The landing page's dot grid behind every extension page and card */
+body {
+  background-image: radial-gradient(rgba(245, 158, 11, 0.28) 1px, transparent 1.4px);
+  background-size: 18px 18px;
+}
+.shield-strip,
+.ev,
+.events li {
+  background-image: radial-gradient(rgba(245, 158, 11, 0.32) 1px, transparent 1.4px);
+  background-size: 14px 14px;
+}
+
+/* Side panel: header, title, empty state and composer */
+.sp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sp-tools {
+  display: flex;
+  gap: 8px;
+}
+button.sp-tool {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  gap: 6px;
+}
+.sp-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.sp-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background-color: var(--subtle);
+  background-image: radial-gradient(rgba(245, 158, 11, 0.3) 1px, transparent 1.4px);
+  background-size: 14px 14px;
+}
+.sp-empty p {
+  margin: 0;
+}
+.sp-starters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+button.sp-starter {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+  font-weight: 500;
+  font-size: 14px;
+}
+.sp-composer {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--subtle);
+}
+.sp-composer textarea {
+  min-height: 56px;
+  border: 0;
+  background: transparent;
+  padding: 6px 4px;
+  resize: none;
+}
+.sp-composer textarea:focus-visible {
+  outline-offset: 4px;
+}
+.sp-composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.sp-hint {
+  font-size: 12px;
+  line-height: 18px;
+}
+.sp-hint kbd {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--muted-bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11px;
+}

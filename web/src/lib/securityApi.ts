@@ -312,6 +312,7 @@ export async function saveShadow(enabled: boolean): Promise<ShadowStatus> {
 }
 
 export const COMPLIANCE_REPORT_URL = "/api/v1/compliance-report.pdf";
+export const COMPLIANCE_REPORT_HTML_URL = "/api/v1/compliance-report.html";
 
 export interface PolicyPreview {
   days: number;

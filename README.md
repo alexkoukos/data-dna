@@ -99,16 +99,21 @@ Full design: `docs/PRD.md` section 7. Threats and honest limits: `docs/THREAT_MO
 
 ## Browser extension
 
-Personal ChatGPT in the browser bypasses the gate, so the extension (`extension/`, Chrome or Edge, Manifest V3, plain JavaScript, no build step) checks paste and send on `chatgpt.com` against the gate's own checks through its three extension endpoints, `POST /v1/extension/inspect`, `POST /v1/extension/ack` and `GET /v1/extension/me`, before the text leaves the page.
+The extension (`extension/`, Chrome, Edge or Brave, Manifest V3, WXT + React + TypeScript) checks paste, send and file attach on ChatGPT, Claude and Gemini against the gate before anything leaves the page.
 
-**Load it (3 clicks)**
-1. Open `chrome://extensions`, turn on *Developer mode*, press *Load unpacked* and choose the `extension/` folder.
-2. Copy the extension ID shown on its card (or on the Settings page), put it in `.env` as `EXTENSION_ID=...` and run `make up` again. The brain allows browser calls only from `chrome-extension://<that ID>`.
-3. Open the extension's Settings, paste your personal key from the **Connect** page and press Save. The gate address defaults to `http://localhost:8001`.
+**Build and load it**
+```bash
+make extension-zip          # builds extension/.output/chrome-mv3 and sentry-extension.zip
+```
+1. Open `chrome://extensions`, turn on *Developer mode*, press *Load unpacked* and choose `extension/.output/chrome-mv3` (or unzip `sentry-extension.zip` and choose that folder).
+2. Open the extension's Settings. The server address defaults to `http://localhost:8001` (it must be https, or http on localhost). Pair with the 6-digit code from the dashboard (*Get the extension*), or pick a demo user.
+3. With `make up` running, paste a prompt holding an IBAN on any of the three sites.
 
-**What it does.** Allow: nothing. Mask: the composer text is replaced with the masked text and a note names the entity types and the "Why?" reasons. Warn: a card with the reasons and *Send anyway*, which is recorded on the incident like the gate's `X-DNA-Ack`. Block and local: the send is stopped and the card offers *Use Company AI*. Every non-allow decision is an incident with the tool "ChatGPT (personal)" and channel `browser`, so the Shadow AI view shows it was intercepted. In shadow mode (X11) nothing is changed or stopped; it is only recorded. The user is the owner of the key, resolved by the brain through the gateway; the extension never sends a user or team. The extension stores only the key, the gate address and a daily counter for its popup, and makes no network calls except to the gate address.
+**What it does.** Allow: sent as written. Mask: the composer text is replaced and the real values come back in the answer, on that page only. Warn: a card asks first. Block and local: the send is stopped and the card points to Company AI (side panel, or a tab if the browser has no side panel). A file stamped RESTRICTED or CONFIDENTIAL is blocked. If the server cannot be reached the browser's own checks still run; if the server refuses to read the text (too long, malformed) it fails closed.
 
-**Limits.** One site (`chatgpt.com`); other sites and the ChatGPT desktop or phone apps are not covered, and a person can disable or remove the extension (the Squid and Zeek logs still see that). Only text is checked: pasted images and file uploads are not. If the gate cannot be reached (offline, 502, 503, 504, 429) the extension **fails open**: nothing is blocked and a small badge says so, and nothing is recorded. If the gate answers but refuses to read the text (too long, over 100,000 characters, or malformed) it **fails closed**: the card says "Too long: shorten it or use Company AI". ChatGPT changes its page often, so the composer and send-button selectors in `extension/content.js` may need an update. The test (`web/e2e/extension.spec.ts`) runs against a saved composer page, `extension/test/fixture.html`, not the live site.
+**Hardening.** The server address must be https (or localhost); the token is never readable by a page script; only the AI sites' content scripts may message the worker; page URLs are sent without query or fragment; text over 100,000 characters and files over about 20 MB are refused; extension pages run under a strict content security policy.
+
+**Tests.** `cd extension && npm test` (unit), `npm run e2e` (real Chromium with the built extension against the mock AI page, incl. axe accessibility; needs `make up`).
 
 ## Evaluation
 How accuracy is measured: a labelled synthetic set of 195 prompts (`data/eval/prompts.csv`: copies, edits, paraphrases, patterns, split leaks and clean prompts, in Greek and English), scored against a regex-and-keyword baseline, plus two attack sets of 80 each (`data/eval/attacks.csv`, `attacks_scripts.csv`) and a red-team run. The expected answer is written before the result is looked at, so known gaps stay in the files. All data is invented.

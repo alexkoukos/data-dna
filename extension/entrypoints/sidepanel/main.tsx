@@ -16,6 +16,12 @@ import {
   MessageContent,
 } from "../../src/chat";
 
+const STARTERS = [
+  "Summarise this report",
+  "Draft a reply to a customer",
+  "Explain this contract clause",
+];
+
 interface Turn {
   role: "me" | "ai";
   text: string;
@@ -32,6 +38,7 @@ function Panel() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
 
   const ask = async (prompt: string) => {
     if (!prompt.trim()) return;
@@ -90,49 +97,61 @@ function Panel() {
         className={`wrap${IN_TAB ? " in-tab" : ""}`}
         style={{ display: "flex", flexDirection: "column", height: "100vh" }}
       >
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
-          <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={120} />
-        </picture>
-        <div
-          className="row"
-          style={{ justifyContent: "space-between", marginTop: 12, flexWrap: "wrap" }}
-        >
+        <header className="sp-top">
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
+            <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={120} />
+          </picture>
+          {!IN_TAB && (
+            <div className="sp-tools">
+              <button type="button" className="sp-tool" onClick={openTab}>
+                <ExternalLink size={14} aria-hidden="true" />
+                Open in a tab
+              </button>
+              <button
+                type="button"
+                className="sp-tool"
+                onClick={() => window.close()}
+                aria-label="Close Company AI"
+              >
+                <X size={14} aria-hidden="true" />
+                Close
+              </button>
+            </div>
+          )}
+        </header>
+        <div className="sp-title">
           <h1>Company AI</h1>
           <span className="badge">
             <House size={12} aria-hidden="true" />
             Stays inside the company
           </span>
-          {!IN_TAB && (
-            <button
-              type="button"
-              onClick={() => window.close()}
-              aria-label="Close Company AI"
-              style={{ minHeight: 36, padding: "0 12px", fontSize: 13 }}
-            >
-              <X size={14} aria-hidden="true" />
-              Close
-            </button>
-          )}
-          {!IN_TAB && (
-            <button
-              type="button"
-              onClick={openTab}
-              style={{ minHeight: 36, padding: "0 12px", fontSize: 13 }}
-            >
-              <ExternalLink size={14} aria-hidden="true" />
-              Open in a tab
-            </button>
-          )}
         </div>
         <div className="chat-scroll">
           <Conversation>
             <ConversationContent>
               {turns.length === 0 && (
-                <p className="muted">
-                  Ask here instead of an outside AI tool. Your text is answered by the
-                  company&apos;s own model and never leaves the company.
-                </p>
+                <div className="sp-empty">
+                  <p className="muted">
+                    Ask here instead of an outside AI tool. Your text is answered by the
+                    company&apos;s own model and never leaves the company.
+                  </p>
+                  <div className="sp-starters" role="group" aria-label="Ideas to start with">
+                    {STARTERS.map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        className="sp-starter"
+                        onClick={() => {
+                          setDraft(q);
+                          input.current?.focus();
+                        }}
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
               {turns.map((t, i) => {
                 const from = t.role === "me" ? "user" : "assistant";
@@ -164,17 +183,42 @@ function Panel() {
           </Conversation>
         </div>
         <form
+          className="sp-composer"
           onSubmit={(e) => {
             e.preventDefault();
-            void ask(draft);
+            if (!busy) void ask(draft);
           }}
         >
-          <label htmlFor="q">Your question</label>
-          <textarea id="q" value={draft} onChange={(e) => setDraft(e.target.value)} />
-          <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
-            <button className="primary" type="submit" disabled={busy || !draft.trim()}>
+          <label htmlFor="q" className="sr-only">
+            Your question
+          </label>
+          <textarea
+            id="q"
+            ref={input}
+            rows={2}
+            value={draft}
+            placeholder="Ask anything, for example: summarise this report"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter sends; Shift+Enter adds a line. Never send while an input method is composing.
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                if (!busy && draft.trim()) void ask(draft);
+              }
+            }}
+          />
+          <div className="sp-composer-row">
+            <span className="muted sp-hint">
+              <kbd>Enter</kbd> to send, <kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line
+            </span>
+            <button
+              className="primary"
+              type="submit"
+              aria-label="Ask company AI"
+              disabled={busy || !draft.trim()}
+            >
               <SendHorizontal size={16} aria-hidden="true" />
-              Ask company AI
+              Ask
             </button>
           </div>
         </form>

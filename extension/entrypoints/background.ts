@@ -2,6 +2,37 @@ import { askLocal, checkRemote, postEvents, refreshPolicy } from "../src/api";
 import { bumpStats, getPolicy } from "../src/storage";
 import type { Msg } from "../src/types";
 
+/** Pages the content script runs on. A message from anywhere else is ignored. */
+const AI_HOSTS = new Set([
+  "chatgpt.com",
+  "chat.openai.com",
+  "claude.ai",
+  "gemini.google.com",
+  "localhost",
+]);
+
+/** Messages a web page's content script may send. The rest come from Sentry's own pages only. */
+const PAGE_MESSAGES = new Set<Msg["type"]>([
+  "l2",
+  "policy",
+  "visit",
+  "event",
+  "override",
+  "askLocal",
+  "openPanel",
+]);
+
+function allowedSender(sender: chrome.runtime.MessageSender, type: Msg["type"]): boolean {
+  if (sender.id !== chrome.runtime.id) return false;
+  if (!sender.tab) return true; // popup, side panel, options: our own pages
+  if (!PAGE_MESSAGES.has(type)) return false;
+  try {
+    return AI_HOSTS.has(new URL(sender.url ?? sender.tab.url ?? "").hostname);
+  } catch {
+    return false;
+  }
+}
+
 interface QueuedEvent {
   ts: number;
   tool: string;
@@ -41,6 +72,9 @@ export default defineBackground(() => {
   void chrome.alarms.get("flush").then((a) => {
     if (!a) void chrome.alarms.create("flush", { periodInMinutes: 0.5 });
   });
+  // The token and the policy are for Sentry's own pages and service worker, never for a page script.
+  void chrome.storage.local.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" });
+  void chrome.storage.session.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" });
   void refreshPolicy();
   chrome.runtime.onInstalled.addListener(() => {
     void refreshPolicy();
@@ -54,6 +88,10 @@ export default defineBackground(() => {
 
   chrome.runtime.onMessage.addListener((raw: Msg, sender, reply) => {
     const msg = raw;
+    if (!msg || typeof msg.type !== "string" || !allowedSender(sender, msg.type)) {
+      reply(null);
+      return false;
+    }
     (async () => {
       switch (msg.type) {
         case "l2":
@@ -61,7 +99,8 @@ export default defineBackground(() => {
           return;
         case "policy": {
           // `force` is the popup's "Refresh now": wait for the server's answer instead of the cache.
-          reply(msg.force ? await refreshPolicy() : await getPolicy());
+          // A page script cannot force it, so a page cannot make the worker call the server in a loop.
+          reply(msg.force && !sender.tab ? await refreshPolicy() : await getPolicy());
           if (!msg.force) void refreshPolicy();
           return;
         }
@@ -96,8 +135,19 @@ export default defineBackground(() => {
           reply(await askLocal(msg.prompt));
           return;
         case "openPanel": {
+          // Open first, in the same breath as the click (Chrome only allows it right after a user
+          // action), then hand over the prompt. If the browser has no side panel, use a tab.
+          const tabId = sender.tab?.id;
+          const opening =
+            tabId !== undefined && chrome.sidePanel?.open
+              ? chrome.sidePanel.open({ tabId }).then(
+                  () => true,
+                  () => false,
+                )
+              : Promise.resolve(false);
           await chrome.storage.session.set({ pendingPrompt: msg.prompt });
-          if (sender.tab?.id !== undefined) await chrome.sidePanel.open({ tabId: sender.tab.id });
+          if (!(await opening))
+            await chrome.tabs.create({ url: chrome.runtime.getURL("/sidepanel.html?tab=1") });
           reply({ ok: true });
           return;
         }

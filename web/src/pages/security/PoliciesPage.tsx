@@ -5,6 +5,7 @@ import { OutcomeChip } from "../../components/OutcomeChip";
 import { EmptyPanel, ErrorPanel, Skeleton } from "../../components/ui";
 import { ACTIONS, EFFECT, textFor } from "../../lib/policyText";
 import {
+  COMPLIANCE_REPORT_HTML_URL,
   COMPLIANCE_REPORT_URL,
   fetchPolicies,
   fetchShadow,
@@ -184,13 +185,23 @@ function ReportCard() {
         A PDF that maps what the gate does to GDPR, NIS2 and the EU AI Act, with the live numbers.
         It supports your own review; it is not legal advice.
       </p>
-      <a
-        href={COMPLIANCE_REPORT_URL}
-        download
-        className="mt-3 inline-flex min-h-11 items-center rounded-md border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
-      >
-        Download the PDF report
-      </a>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <a
+          href={COMPLIANCE_REPORT_URL}
+          download
+          className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-4 text-sm font-semibold text-[#1a1000] hover:bg-brand-500"
+        >
+          Download the PDF report
+        </a>
+        <a
+          href={COMPLIANCE_REPORT_HTML_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center rounded-md border border-ink-300 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-100"
+        >
+          View as a web page
+        </a>
+      </div>
     </section>
   );
 }

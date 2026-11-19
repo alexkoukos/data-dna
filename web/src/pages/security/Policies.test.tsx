@@ -65,6 +65,10 @@ describe("Policies", () => {
       "href",
       "/api/v1/compliance-report.pdf",
     );
+    expect(screen.getByRole("link", { name: "View as a web page" })).toHaveAttribute(
+      "href",
+      "/api/v1/compliance-report.html",
+    );
   });
 
   it("tries a change on the last 14 days before saving", async () => {
