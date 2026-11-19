@@ -11,16 +11,6 @@ const STEPS = [
   { t: "Still get an answer", d: "Company AI answers locally, so there is always a way out." },
 ];
 
-const CATCHES = [
-  "Salaries",
-  "IBAN",
-  "AFM",
-  "AMKA",
-  "Secrets and keys",
-  "Source code",
-  "Client names",
-];
-
 /** Scaffold of the new landing page: Apple Glass nav (SiteShell), ribbon hero with only the screen on the right. */
 export default function LandingV2() {
   return (
