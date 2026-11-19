@@ -52,7 +52,7 @@ async function sendRisky() {
       <ChatPage />
     </MemoryRouter>,
   );
-  await user.type(await screen.findByLabelText("Message"), "Pay GR1601101250000000012300695");
+  await user.type(await screen.findByLabelText("Your question"), "Pay GR1601101250000000012300695");
   await user.click(screen.getByRole("button", { name: /send/i }));
   return user;
 }
@@ -95,7 +95,7 @@ describe("Send it to Company AI instead", () => {
         <ChatPage />
       </MemoryRouter>,
     );
-    await user.type(await screen.findByLabelText("Message"), "hello");
+    await user.type(await screen.findByLabelText("Your question"), "hello");
     await user.click(screen.getByRole("button", { name: /send/i }));
     await screen.findByText("Hi");
     expect(screen.queryByRole("button", { name: "Send it to Company AI instead" })).toBeNull();

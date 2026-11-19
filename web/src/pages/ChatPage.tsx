@@ -35,6 +35,7 @@ import { ThinkingBar } from "@/components/ui/thinking-bar";
 import { Tool } from "@/components/ui/tool";
 import { cn } from "@/lib/utils";
 import { Bee } from "../components/Bee";
+import { RequestToolForm } from "../components/RequestToolForm";
 import { OutcomeChip } from "../components/OutcomeChip";
 import { WarnCard } from "../components/WarnCard";
 import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
@@ -48,6 +49,7 @@ import {
   type StoredTurn,
 } from "../lib/chatStore";
 import { explainReason } from "../lib/explain";
+import { collectOutcomes, outcomeText } from "../lib/toolRequestsApi";
 
 /** Stock portrait for the person (Unsplash). If it cannot load, the initials show instead. */
 const USER_AVATAR =
@@ -198,12 +200,25 @@ export default function ChatPage() {
   const [sidebar, setSidebar] = useState(
     () => typeof matchMedia === "function" && matchMedia("(min-width: 768px)").matches,
   );
+  const [who, setWho] = useState<Identity | null>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
+  // X29: answers to tool requests, shown on the next message.
+  const [notices, setNotices] = useState<string[]>([]);
   const identity = useRef<Identity | null>(null);
   const chatsRef = useRef(chats);
   chatsRef.current = chats;
   const counter = useRef(0);
 
   useEffect(() => saveChats(chats), [chats]);
+  useEffect(() => {
+    ensureIdentity().then(
+      (i) => {
+        identity.current ??= i;
+        setWho(i);
+      },
+      () => undefined, // send() reports the failure when the person tries
+    );
+  }, []);
 
   const active = chats.find((c) => c.id === activeId) ?? null;
   const turns = active?.turns ?? [];
@@ -218,7 +233,10 @@ export default function ChatPage() {
     update(id, (c) => ({ turns: [...c.turns, { ...t, id: makeId() }] }));
 
   /** Sends `text` as a new turn, or retries the last question when `retry` is set. */
-  const send = async (text: string, opts: { ack?: string; retry?: boolean } = {}) => {
+  const send = async (
+    text: string,
+    opts: { ack?: string; retry?: boolean; reroute?: boolean } = {},
+  ) => {
     const clean = text.trim();
     if (!clean || busy) return;
     let id = activeId;
@@ -240,7 +258,12 @@ export default function ChatPage() {
     const history: ChatTurn[] = base.map((t) => ({ role: t.from, content: t.text }));
     try {
       identity.current ??= await ensureIdentity();
-      const res = await sendChat(identity.current, history, opts.ack);
+      const who = identity.current;
+      if (!opts.retry)
+        void collectOutcomes(who.userId).then((rs) => {
+          if (rs.length > 0) setNotices((n) => [...n, ...rs.map(outcomeText)]);
+        });
+      const res = await sendChat(who, history, opts.ack, opts.reroute);
       if (res.kind === "answer")
         append(id, {
           from: "assistant",
@@ -267,6 +290,12 @@ export default function ChatPage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  /** X31: send the held or blocked question to Company AI instead. The gate masks it first. */
+  const reroute = () => {
+    const q = pending?.text ?? lastUser?.text;
+    if (q) void send(q, { retry: true, reroute: true });
   };
 
   const lastUser = [...turns].reverse().find((t) => t.from === "user");
@@ -331,6 +360,28 @@ export default function ChatPage() {
           </span>
         </header>
 
+        {notices.length > 0 ? (
+          <div role="status" className="space-y-2 border-b border-ink-200 bg-brand-50 px-4 py-2">
+            {notices.map((n) => (
+              <p key={n} className="text-sm text-ink-900">
+                {n}
+              </p>
+            ))}
+          </div>
+        ) : null}
+        {who && !requestOpen ? (
+          <p className="border-b border-ink-200 px-4 py-1 text-sm text-ink-600">
+            Need another AI tool?{" "}
+            <button
+              type="button"
+              onClick={() => setRequestOpen(true)}
+              className="min-h-11 font-medium text-brand-700 underline underline-offset-2"
+            >
+              Request approval
+            </button>
+          </p>
+        ) : null}
+
         {empty ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-10">
             <div className="w-full max-w-3xl">
@@ -344,6 +395,15 @@ export default function ChatPage() {
                 onSend={() => void send(draft)}
                 busy={busy}
               />
+              {requestOpen && who ? (
+                <div className="mt-4">
+                  <RequestToolForm
+                    userId={who.userId}
+                    team={who.team}
+                    onClose={() => setRequestOpen(false)}
+                  />
+                </div>
+              ) : null}
               <div className="mt-4 min-h-24">
                 {group ? (
                   <div className="flex w-full flex-col space-y-1">
@@ -437,6 +497,9 @@ export default function ChatPage() {
                           {!t.failed && t.outcome ? (
                             <div className="flex flex-col items-start gap-2">
                               <OutcomeChip outcome={t.outcome} />
+                              {t.outcome === "rerouted" ? (
+                                <p className="text-sm text-ink-600">Answered by Company AI</p>
+                              ) : null}
                               {t.reasons?.length ? (
                                 <Tool
                                   className="w-full max-w-md"
@@ -450,6 +513,21 @@ export default function ChatPage() {
                                     },
                                   }}
                                 />
+                              ) : null}
+                            </div>
+                          ) : null}
+                          {last && t.outcome === "block" && !busy ? (
+                            <div className="flex flex-wrap gap-2">
+                              <TextureButton variant="primary" onClick={reroute}>
+                                Send it to Company AI instead
+                              </TextureButton>
+                              {!requestOpen ? (
+                                <TextureButton
+                                  variant="secondary"
+                                  onClick={() => setRequestOpen(true)}
+                                >
+                                  Request approval for the tool you wanted
+                                </TextureButton>
                               ) : null}
                             </div>
                           ) : null}
@@ -506,6 +584,16 @@ export default function ChatPage() {
                         }}
                         onSendAnyway={(reason) => void send(pending.text, { ack: reason })}
                         onCancel={() => setPending(null)}
+                        onReroute={reroute}
+                      />
+                    </div>
+                  ) : null}
+                  {requestOpen && who ? (
+                    <div className="mx-auto w-full max-w-3xl px-2">
+                      <RequestToolForm
+                        userId={who.userId}
+                        team={who.team}
+                        onClose={() => setRequestOpen(false)}
                       />
                     </div>
                   ) : null}

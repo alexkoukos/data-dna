@@ -13,6 +13,8 @@ interface Props {
   onEdit: () => void;
   onSendAnyway: (reason: string) => void;
   onCancel: () => void;
+  /** X31: send the message to Company AI instead. The gate masks it first. */
+  onReroute?: () => void;
   busy?: boolean;
 }
 
@@ -24,6 +26,7 @@ export function WarnCard({
   onEdit,
   onSendAnyway,
   onCancel,
+  onReroute,
   busy,
 }: Props) {
   const [reason, setReason] = useState("");
@@ -91,6 +94,12 @@ export function WarnCard({
           <SendHorizontal className="size-4" aria-hidden="true" />
           Send anyway
         </TextureButton>
+        {onReroute ? (
+          <TextureButton type="button" onClick={onReroute} disabled={busy} variant="secondary">
+            <ShieldCheck className="size-4" aria-hidden="true" />
+            Send it to Company AI instead
+          </TextureButton>
+        ) : null}
         <TextureButton type="button" onClick={onCancel} disabled={busy} variant="minimal">
           <X className="size-4" aria-hidden="true" />
           Cancel
