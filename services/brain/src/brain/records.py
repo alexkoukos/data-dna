@@ -68,7 +68,6 @@ def record_decision(
     reasons: list[str],
     masked_preview: str | None,
     tool: str = "Company AI",
-    channel: str = "gateway",
     document_id: int | None = None,
     score: float | None = None,
     copy_code: str | None = None,

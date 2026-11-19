@@ -133,7 +133,8 @@ def test_the_brief_question_is_the_first_preset_and_returns_the_expected_teams(
     teams = [r[0] for r in out["rows"]]
     # Operations and HR tie on client-data incidents, so their order is not fixed.
     assert teams[0] == "Engineering" and teams[-1] == "Legal"
-    assert set(teams) == {"Engineering", "Operations", "HR", "Legal"}
+    # The extension telemetry in the seed adds a few client-data incidents for Sales and Marketing.
+    assert set(teams) == {"Engineering", "Operations", "HR", "Legal", "Sales", "Marketing"}
     # Every team listed really has client data caught and unapproved-tool requests.
     engine = main.policy_store.engine
     assert engine is not None

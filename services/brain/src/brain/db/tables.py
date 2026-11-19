@@ -173,6 +173,31 @@ doc_copies = sa.Table(
     ),
 )
 
+devices = sa.Table(
+    "devices",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("token_hash", sa.Text, nullable=False, unique=True),
+    sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id")),
+    sa.Column("team", sa.Text),
+    sa.Column("label", sa.Text),
+    sa.Column("created_at", sa.DateTime(timezone=True)),
+)
+# What the browser extension reports: a visit to an AI site, never any page or prompt text.
+ext_events = sa.Table(
+    "ext_events",
+    metadata,
+    sa.Column("id", _ID, primary_key=True),
+    sa.Column("ts", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id")),
+    sa.Column("team", sa.Text),
+    sa.Column("tool_id", sa.Integer, sa.ForeignKey("ai_tools.id")),
+    sa.Column("tool", sa.Text),
+    sa.Column("kind", sa.Text, nullable=False),
+    sa.Column("action", sa.Text),
+    sa.Column("expires_at", sa.DateTime(timezone=True)),
+)
+
 # X28: a miss someone chose to submit as a test case. The only place raw text is kept, and only
 # while it waits for review: approving blanks it (it moves to the eval file), rejecting deletes
 # the whole row.

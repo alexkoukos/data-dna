@@ -23,6 +23,8 @@ class InspectRequest(BaseModel):
     reroute: bool = False  # X31: the person chose "send it to Company AI instead"
     messages: list[Message]
     attachments: list[Attachment] = Field(default_factory=list)
+    tool: str | None = None
+    channel: str = "gateway"
 
 
 class FindingOut(BaseModel):
@@ -168,6 +170,8 @@ class ToolOut(BaseModel):
     requests: int
     trend: list[int]
     first_seen: str | None
+    # Where we saw it: the browser extension, network logs (Squid, Zeek, gateway), or both.
+    sources: list[str] = Field(default_factory=list)
     allowed_categories: list[str] = Field(default_factory=list)
 
 

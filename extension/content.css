@@ -1,8 +1,0 @@
-/* Only the host element lives in the page; the card itself is inside a shadow root. */
-hive-host {
-  display: block;
-  box-sizing: border-box;
-  max-width: 100%;
-  margin: 8px 0;
-  padding: 0 4px;
-}

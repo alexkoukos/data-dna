@@ -134,6 +134,7 @@ from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.registry import DocumentIndex, register_document
 from brain.documents.session import update_coverage
+from brain.extension import router as extension_router
 from brain.honeytokens import (
     Honeytoken,
     HoneytokenStore,
@@ -320,6 +321,9 @@ async def extension_cors(request: Request, call_next: Callable[[Request], Any]) 
         resp.headers["Access-Control-Max-Age"] = "600"
         resp.headers["Vary"] = "Origin"
     return resp
+
+
+app.include_router(extension_router)
 
 
 @app.get("/healthz")
