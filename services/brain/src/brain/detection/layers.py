@@ -1,6 +1,6 @@
 """Which level of the pipeline caught what, in the order the pipeline runs them (X1).
 
-Cheapest first (PRD section 9). Every level is listed, fired or not, so a person trying to break
+Cheapest first. Every level is listed, fired or not, so a person trying to break
 the gateway can see which ones their text got past.
 """
 

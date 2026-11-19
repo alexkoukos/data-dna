@@ -1,6 +1,6 @@
 """Write the synthetic proxy and DNS logs in the real formats, plus the DHCP lease table.
 
-Squid `access.log` in native format and Zeek `dns.log` as TSV (PRD section 11). The lease table
+Squid `access.log` in native format and Zeek `dns.log` as TSV. The lease table
 maps an address to a user, like a DHCP export would, so the ingest never guesses.
 """
 

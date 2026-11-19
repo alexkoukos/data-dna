@@ -1,4 +1,4 @@
-"""Prompt-injection classifier (PRD 9.5): protectai/deberta-v3-base-prompt-injection-v2 on ONNX.
+"""Prompt-injection classifier: protectai/deberta-v3-base-prompt-injection-v2 on ONNX.
 
 Optional: the model is about 740 MB, so it is not baked into the image. `make injection-model`
 downloads it into the `models` volume. Without it the phrase heuristics still run. It reads long

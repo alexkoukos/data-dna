@@ -1,4 +1,4 @@
-# Threat model (X26)
+# Threat model
 
 What Sentry stops, what it does not, and how sure we are. Written for the judges and for the first customer's security team, so it says the uncomfortable parts too. Numbers come from `make eval`, `make calibrate` and the attack file `data/eval/attacks.csv`; all test data is invented.
 
@@ -27,10 +27,10 @@ Cheapest first: normalisation, patterns with checksums, YARA and code fingerprin
 - **Detection is probabilistic.** Expect false alarms (a question about a similar topic goes local) and misses. Shadow mode measures them before enforcement.
 - **People data.** Names are found by language models, which miss rare names and flag some common words.
 - **Honeytokens only catch what was planted.** They prove a specific document leaked; they do not detect other leaks.
-- **Our own surface.** The demo has no login, a default master key and open ports. The identity of an employee behind a pseudonym needs two people to approve (N2), but the brain API itself is unauthenticated in demo mode.
+- **Our own surface.** The demo has no login, a default master key and open ports. The identity of an employee behind a pseudonym needs two people to approve, but the brain API itself is unauthenticated in demo mode.
 
 ## Privacy by design
-Raw prompts are not stored: incidents keep a masked preview, categories and reasons, deleted after `RETENTION_DAYS`. Names are pseudonyms until a two-person reveal, which is audited. The paste guard and the gateway send text only to the company's own brain.
+Raw prompts are not stored: incidents keep a masked preview, categories and reasons, deleted after `RETENTION_DAYS`. Names are pseudonyms until a two-person reveal, which is audited. The paste guard, the browser extension and the gateway send text only to the company's own brain.
 
 ## What would change the picture
-A login and roles for the web and the brain API, TLS everywhere, a managed key store, and per-tenant data separation. They are listed in the roadmap, not claimed as done.
+A login and roles for the web and the brain API, TLS everywhere, a managed key store, and per-tenant data separation. None of these exist yet, and we do not claim them.

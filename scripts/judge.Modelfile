@@ -1,4 +1,4 @@
-# Ollama Modelfile for the tuned D7 judge (see docs/JUDGE_FINETUNE.md).
+# Ollama Modelfile for the tuned D7 judge (see docs/experiments/judge-finetune.md).
 # Build:  ollama create dna-judge -f judge.Modelfile      (the GGUF file must sit next to this file)
 FROM ./dna-judge.gguf
 TEMPLATE """{{- range $i, $_ := .Messages }}

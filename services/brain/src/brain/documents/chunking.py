@@ -1,6 +1,6 @@
-"""Split text into overlapping word windows with 50% overlap (PRD 9.3).
+"""Split text into overlapping word windows with 50% overlap.
 
-The PRD said about 60 words. On the paraphrase sets (tests/data/paraphrases.json and
+The original design said about 60 words. On the paraphrase sets (tests/data/paraphrases.json and
 data/eval/prompts.csv) 60-word windows missed most rewrites of a single sentence, because a short
 rewrite is diluted by the rest of the window. 16-word windows moving 8 words at a time found the
 most rewrites for the least false alarms.

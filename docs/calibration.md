@@ -1,4 +1,4 @@
-# Calibration of the paraphrase cutoff (X25)
+# Calibration of the paraphrase cutoff
 
 No training is involved. `scripts/calibrate.py` replays 29 labelled rewrites and 22 ordinary
 questions through the real pipeline and measures what each cutoff would do.
@@ -29,7 +29,7 @@ questions through the real pipeline and measures what each cutoff would do.
 25%. The code uses `PARAPHRASE_COSINE` in
 `services/brain/src/brain/documents/registry.py`; change it only after re-running `make calibrate`.
 
-A false alarm sends the message to the local model; below 0.91 it never blocks, and 0.91 or above on a restricted document blocks (PRD 9.3). That is why a
+A false alarm sends the message to the local model; below 0.91 it never blocks, and 0.91 or above on a restricted document blocks. That is why a
 budget of 25% is acceptable. All data is invented. Re-run after changing the
 embedding model, the chunking or the document set.
 

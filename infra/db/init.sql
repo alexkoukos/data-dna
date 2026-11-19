@@ -1,4 +1,4 @@
--- Schema from PRD section 14. Change it with a new numbered file, never edit applied files.
+-- Base schema. Change it with a new numbered file, never edit applied files.
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE users (id SERIAL PRIMARY KEY, pseudonym TEXT UNIQUE NOT NULL, display_name TEXT,
@@ -36,6 +36,6 @@ CREATE TABLE audit_log (id BIGSERIAL PRIMARY KEY, ts TIMESTAMPTZ DEFAULT now(), 
 CREATE TABLE counters_daily (day DATE, team TEXT, allowed INT DEFAULT 0, checked INT DEFAULT 0,
   zero_llm INT DEFAULT 0, llm_tokens INT DEFAULT 0, PRIMARY KEY (day, team));
 
--- Read-only role for analyst questions (PRD section 13). Views are added with the feature.
+-- Read-only role for analyst questions. Views are added with the feature.
 CREATE ROLE analyst_ro NOLOGIN;
 -- audit_log is append-only for the app role: grant INSERT/SELECT only when the app role is created.

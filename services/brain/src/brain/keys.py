@@ -1,4 +1,4 @@
-"""Create a personal gateway key for a user (PRD section 8, step 1)."""
+"""Create a personal gateway key for a user."""
 
 import httpx
 
