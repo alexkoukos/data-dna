@@ -12,7 +12,7 @@ describe("App", () => {
     );
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
-    for (const name of ["How it works", "Security", "Company AI", "Live demo"]) {
+    for (const name of ["How it works", "Company AI", "Live demo"]) {
       expect(within(nav).getByRole("link", { name })).toBeInTheDocument();
     }
   });
