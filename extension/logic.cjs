@@ -17,8 +17,7 @@
   }
 
   function failReasons(status) {
-    if (status === 413 || status === 422)
-      return ["Too long: shorten it or use Company AI"];
+    if (status === 413 || status === 422) return ["Too long: shorten it or use Company AI"];
     return ["Sentry could not check this. Try again, or use Company AI."];
   }
 
