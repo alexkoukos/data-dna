@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { TextureButton } from "@/components/ui/texture-button";
 import { HeroLoop } from "./HeroLoop";
 import { Catches } from "./Landing";
-import { RibbonField } from "./RibbonField";
+import { HeroBackdrop } from "./HeroBackdrop";
 import { SiteShell } from "./SiteShell";
 
 const STEPS = [
@@ -11,18 +11,18 @@ const STEPS = [
   { t: "Still get an answer", d: "Company AI answers locally, so there is always a way out." },
 ];
 
-/** Scaffold of the new landing page: Apple Glass nav (SiteShell), ribbon hero with only the screen on the right. */
+/** Scaffold of the new landing page: Apple Glass nav (SiteShell), dot-field hero with only the screen on the right. */
 export default function LandingV2() {
   return (
     <SiteShell home>
       <main id="main">
         <section className="hero" aria-labelledby="v2-title">
-          <RibbonField className="hero-ribbon" />
+          <HeroBackdrop className="hero-ribbon" />
           <div className="hero-in">
             <div className="hero-copy">
-              <h1 id="v2-title">Your data is the honey. We guard the gate.</h1>
+              <h1 id="v2-title">Your data stays yours. Sentry holds the gate.</h1>
               <p className="lead">
-                Hive checks every prompt before it reaches an AI tool, masks or stops what belongs
+                Sentry checks every prompt before it reaches an AI tool, masks or stops what belongs
                 to your company, and always shows a way to still get your answer.
               </p>
               <div className="cta">
@@ -65,7 +65,7 @@ export default function LandingV2() {
           <div className="wrap">
             <h2 id="sec-title">For security teams</h2>
             <p className="lead">
-              Incidents, policies, a review queue and an audit trail. Hive names data types, never
+              Incidents, policies, a review queue and an audit trail. Sentry names data types, never
               values.
             </p>
             <TextureButton asChild variant="secondary">
@@ -77,7 +77,7 @@ export default function LandingV2() {
         <section id="extension" className="section section-white" aria-labelledby="ext-title">
           <div className="wrap">
             <h2 id="ext-title">The browser extension</h2>
-            <p className="lead">The guard bee sits on ChatGPT and checks before you send.</p>
+            <p className="lead">The sentinel sits on ChatGPT and checks before you send.</p>
             <TextureButton asChild variant="secondary">
               <Link to="/extension">Get the extension</Link>
             </TextureButton>

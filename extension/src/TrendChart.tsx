@@ -61,7 +61,7 @@ function curve(xs: number[], ys: number[]) {
 export function TrendChart({
   data,
   labels,
-  accent = "#f59e0b",
+  accent = "#22c5e8",
   height = 150,
   summary,
   unit = "",
@@ -186,7 +186,7 @@ export function TrendChart({
               textAnchor="middle"
               fontSize="11"
               fontWeight="700"
-              fill="var(--tc-fg, #262626)"
+              fill="var(--tc-fg, #eaf0f7)"
             >
               {at0(data, peak)}
             </text>
@@ -199,7 +199,7 @@ export function TrendChart({
               x2={at0(xs, shown)}
               y1={PAD.top}
               y2={base}
-              stroke="var(--tc-fg, #262626)"
+              stroke="var(--tc-fg, #eaf0f7)"
               strokeOpacity="0.25"
             />
             <circle
@@ -213,7 +213,7 @@ export function TrendChart({
             <g
               transform={`translate(${Math.min(Math.max(at0(xs, shown), 56), width - 56)} ${Math.max(at0(ys, shown) - 14, 16)})`}
             >
-              <rect x="-52" y="-30" width="104" height="38" rx="9" fill="var(--tc-fg, #262626)" />
+              <rect x="-52" y="-30" width="104" height="38" rx="9" fill="var(--tc-fg, #eaf0f7)" />
               <text
                 x="0"
                 y="-15"

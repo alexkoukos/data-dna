@@ -16,7 +16,7 @@ export interface Chat {
   turns: StoredTurn[];
 }
 
-const KEY = "hive.chats";
+const KEY = "sentry.chats";
 const MAX_CHATS = 50;
 
 /** Chats live in this browser only (the company AI keeps no history of its own). */

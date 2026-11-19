@@ -1,62 +1,34 @@
-/* Hive brand kit v1. Amber is a fill, never text: ink goes on amber, amber-text when amber must be read. */
+/* Sentry brand kit v1, night palette. Cyan is a fill (night ink on it); accent-text is the cyan that must be read. */
 :root {
-  color-scheme: light dark;
-  --tint: #fffbeb;
-  --bg: #ffffff;
-  --subtle: #f9fafb;
-  --muted-bg: #f3f4f6;
-  --line: #e5e7eb;
-  --fg: #262626;
-  --muted: #525252;
-  --subtle-fg: #6b7280;
-  --amber: #f59e0b;
-  --amber-bee: #e9a516;
-  --amber-text: #b45309;
-  --on-amber: #262626;
+  color-scheme: dark;
+  --tint: #080c11;
+  --bg: #0e141c;
+  --subtle: #111823;
+  --muted-bg: #1b2330;
+  --line: #2f3a4a;
+  --fg: #eaf0f7;
+  --muted: #b9c4d2;
+  --subtle-fg: #9eabbc;
+  --accent: #22c5e8;
+  --accent-fill: #1fb0d0;
+  --accent-text: #67dbf5;
+  --on-accent: #04141a;
 
-  --mask-bg: #f4ecff;
-  --mask-fg: #553674;
-  --mask-solid: #764aa2;
-  --block-bg: #ffebe9;
-  --block-fg: #7e2122;
-  --block-solid: #b02a2d;
-  --warn-bg: #f9efda;
-  --warn-fg: #704500;
-  --warn-solid: #915b00;
-  --local-bg: #e5f2ff;
-  --local-fg: #154a7a;
-  --local-solid: #1666aa;
-  --allow-bg: #e5f6e3;
-  --allow-fg: #245420;
-  --allow-solid: #30752a;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --tint: #262626;
-    --bg: #1f1f1f;
-    --subtle: #2b2b2b;
-    --muted-bg: #333333;
-    --line: #404040;
-    --fg: #fafaf9;
-    --muted: #d4d4d4;
-    --subtle-fg: #a3a3a3;
-    --amber-text: #fbbf24;
-    --mask-bg: #2e2340;
-    --mask-fg: #dcc8f5;
-    --mask-solid: #a67fd6;
-    --block-bg: #45201f;
-    --block-fg: #ffb4ad;
-    --block-solid: #e0605f;
-    --warn-bg: #3d2f10;
-    --warn-fg: #f3d28a;
-    --warn-solid: #d9a03a;
-    --local-bg: #12304a;
-    --local-fg: #a9d3f7;
-    --local-solid: #4f9be0;
-    --allow-bg: #1c3a1a;
-    --allow-fg: #a6dca0;
-    --allow-solid: #5bb353;
-  }
+  --mask-bg: #24163a;
+  --mask-fg: #d1b3ff;
+  --mask-solid: #9b6bea;
+  --block-bg: #331216;
+  --block-fg: #ffa3a3;
+  --block-solid: #ef5b5b;
+  --warn-bg: #2e2208;
+  --warn-fg: #f5c56b;
+  --warn-solid: #e0a020;
+  --local-bg: #0e2438;
+  --local-fg: #8fc8ff;
+  --local-solid: #3b8eea;
+  --allow-bg: #0f2a1a;
+  --allow-fg: #8fe3a0;
+  --allow-solid: #34c759;
 }
 * {
   box-sizing: border-box;
@@ -73,14 +45,14 @@ body {
   color: var(--fg);
 }
 h1 {
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Space Grotesk", "Poppins", system-ui, sans-serif;
   font-size: 22px;
   line-height: 28px;
   font-weight: 600;
   margin: 0;
 }
 h2 {
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: "Space Grotesk", "Poppins", system-ui, sans-serif;
   font-size: 18px;
   line-height: 24px;
   font-weight: 600;
@@ -152,7 +124,7 @@ p {
   border-top-color: var(--block-solid);
 }
 .stat.checked {
-  border-top-color: var(--amber);
+  border-top-color: var(--accent);
 }
 .stat span {
   font-size: 12px;
@@ -253,9 +225,9 @@ label {
   margin-bottom: 10px;
 }
 .bubble.me {
-  background: var(--amber);
-  border-color: var(--amber);
-  color: var(--on-amber);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
   font-weight: 500;
   margin-left: 24px;
 }
@@ -528,13 +500,13 @@ ul.events li.ev .tag {
   font-size: 11px;
   font-weight: 700;
 }
-.bee-avatar {
+.sentinel-avatar {
   background: var(--bg);
   border: 1px solid var(--line);
 }
 .me-avatar {
-  background: var(--amber);
-  color: var(--on-amber);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 .msg-bubble {
   max-width: 92%;
@@ -550,8 +522,8 @@ ul.events li.ev .tag {
   border-top-left-radius: 6px;
 }
 .msg.user .msg-bubble {
-  background: var(--amber);
-  color: var(--on-amber);
+  background: var(--accent);
+  color: var(--on-accent);
   border-top-right-radius: 6px;
 }
 .msg-note {
@@ -578,8 +550,8 @@ button.act:hover:not(:disabled) {
 }
 button.act[aria-pressed="true"] {
   background: var(--tint);
-  border-color: var(--amber);
-  color: var(--amber-text);
+  border-color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* As a full tab the chat keeps a readable width */

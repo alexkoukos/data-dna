@@ -51,7 +51,7 @@ export function ChatSidebar({
       <aside
         aria-label="Chat history"
         className={cn(
-          "z-30 flex w-72 shrink-0 flex-col border-r border-ink-200 bg-white transition-[margin,transform] duration-200",
+          "z-30 flex w-72 shrink-0 flex-col border-r border-ink-200 bg-surface transition-[margin,transform] duration-200",
           "max-md:fixed max-md:inset-y-16 max-md:left-0",
           open
             ? "translate-x-0"
@@ -94,7 +94,7 @@ export function ChatSidebar({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search chats"
-                className="mb-3 min-h-11 w-full rounded-[10px] border border-ink-300 bg-white px-3 text-sm"
+                className="mb-3 min-h-11 w-full rounded-[10px] border border-ink-300 bg-surface px-3 text-sm"
               />
             </>
           ) : null}
@@ -133,7 +133,7 @@ export function ChatSidebar({
                           onChange={(e) => setDraftTitle(e.target.value)}
                           onBlur={() => setRenaming(null)}
                           onKeyDown={(e) => e.key === "Escape" && setRenaming(null)}
-                          className="min-h-11 w-full rounded-[10px] border border-brand-700 bg-white px-3 text-sm"
+                          className="min-h-11 w-full rounded-[10px] border border-brand-700 bg-surface px-3 text-sm"
                         />
                       </form>
                     ) : (
@@ -165,7 +165,7 @@ export function ChatSidebar({
                     {menuFor === c.id ? (
                       <div
                         role="menu"
-                        className="absolute right-2 top-11 z-10 w-40 rounded-[12px] border border-ink-200 bg-white p-1 shadow-md"
+                        className="absolute right-2 top-11 z-10 w-40 rounded-[12px] border border-ink-200 bg-surface p-1 shadow-md"
                       >
                         <button
                           type="button"

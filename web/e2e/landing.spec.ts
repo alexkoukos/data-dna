@@ -6,7 +6,7 @@ const loop = (page: import("@playwright/test").Page) => page.getByTestId("hero-l
 test("the landing page loads at / with the headline and both calls to action", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Your data is the honey. We guard the gate." }),
+    page.getByRole("heading", { level: 1, name: "Your data stays yours. Sentry holds the gate." }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "See the live demo" })).toHaveAttribute(
     "href",
@@ -58,12 +58,12 @@ test.describe("with motion", () => {
     expect(seen.slice(0, 5)).toEqual(["0", "1", "2", "3", "0"]);
   });
 
-  test("the bee card appears in every scene", async ({ page }) => {
+  test("the sentinel card appears in every scene", async ({ page }) => {
     await page.clock.install();
     await page.goto("/");
     const cards: string[] = [];
     for (let ms = 0; ms < 24_000; ms += 100) {
-      const card = loop(page).locator(".bee-card-wrap.is-in .bee-card-head");
+      const card = loop(page).locator(".sentinel-card-wrap.is-in .sentinel-card-head");
       if (await card.count()) {
         const text = (await card.first().textContent()) ?? "";
         if (cards.at(-1) !== text) cards.push(text);
@@ -72,9 +72,9 @@ test.describe("with motion", () => {
       await page.waitForTimeout(5);
     }
     expect(cards).toEqual([
-      "That's hive honey. I kept it in.",
-      "Bank details stay in the hive.",
-      "Keys never leave the hive.",
+      "That's company data. I kept it in.",
+      "Bank details stay inside.",
+      "Keys never leave the company.",
       "Answered by Company AI.",
     ]);
   });
@@ -92,7 +92,7 @@ test.describe("reduced motion", () => {
     const captions = [];
     for (let i = 0; i < 4; i++) {
       captions.push(await page.getByTestId("loop-caption").textContent());
-      await expect(loop(page).locator(".bee-card-wrap.is-in")).toHaveCount(1);
+      await expect(loop(page).locator(".sentinel-card-wrap.is-in")).toHaveCount(1);
       await page.getByRole("button", { name: "Next" }).click();
     }
     expect(new Set(captions).size).toBe(4);

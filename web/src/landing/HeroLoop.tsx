@@ -53,7 +53,7 @@ export function HeroLoop() {
   const [state, dispatch] = useReducer(loopReducer, initialLoop);
 
   const playing = !reduced && inView && pageVisible;
-  // Reduced motion: show each scene as a finished frame (the bee card is up) and let people step through.
+  // Reduced motion: show each scene as a finished frame (the sentinel card is up) and let people step through.
   const phase = reduced ? PHASE.card : state.phase;
 
   useEffect(() => {

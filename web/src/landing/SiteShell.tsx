@@ -18,8 +18,8 @@ export function Wordmark({
   return (
     <img
       className={className}
-      src={reverse ? "/brand/hive-wordmark-reverse.svg" : "/brand/hive-wordmark.svg"}
-      alt="Hive"
+      src={reverse ? "/brand/sentry-wordmark-reverse.svg" : "/brand/sentry-wordmark.svg"}
+      alt="Sentry"
       width="173"
       height="70"
     />
@@ -35,13 +35,13 @@ const LINKS = [
 /** Header and footer shared by every public page. The app has its own chrome. */
 export function SiteShell({ children, home = false }: { children: ReactNode; home?: boolean }) {
   return (
-    <div className="hive">
+    <div className="sentry">
       <a className="skip" href="#main">
         Skip to content
       </a>
       <header className="top">
         <nav aria-label="Main" className="top-in">
-          <Link to="/" className="top-logo" aria-label="Hive home">
+          <Link to="/" className="top-logo" aria-label="Sentry home">
             <Wordmark reverse className="top-wordmark" />
           </Link>
           {home ? (

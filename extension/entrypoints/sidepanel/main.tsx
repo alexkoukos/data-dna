@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource/poppins/400.css";
 import "@fontsource/poppins/700.css";
 import "@fontsource/poppins/600.css";
-import "@fontsource/playfair-display/600.css";
+import "@fontsource/space-grotesk/600.css";
 import "../../src/ui.css";
 import { ExternalLink, House, SendHorizontal } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
@@ -82,8 +82,8 @@ function Panel() {
         style={{ display: "flex", flexDirection: "column", height: "100vh" }}
       >
         <picture>
-          <source media="(prefers-color-scheme: dark)" srcSet="/brand/hive-wordmark-dark.svg" />
-          <img className="wordmark" src="/brand/hive-wordmark.svg" alt="Hive" width={120} />
+          <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
+          <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={120} />
         </picture>
         <div
           className="row"

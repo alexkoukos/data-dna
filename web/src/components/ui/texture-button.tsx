@@ -7,8 +7,8 @@ import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * The Hive button. Simple on purpose: a flat fill, one border, a clear hover, a visible focus ring,
- * 44 px high. `primary` is Hive amber with ink text (one per screen), `secondary` is the neutral
+ * The Sentry button. Simple on purpose: a flat fill, one border, a clear hover, a visible focus ring,
+ * 44 px high. `primary` is Sentry amber with ink text (one per screen), `secondary` is the neutral
  * default, `minimal` is quiet, `destructive` is red, `accent` is ink, `icon` is a round icon button.
  * (Kept under the TextureButton name so every screen keeps its import.)
  */
@@ -19,13 +19,13 @@ const buttonVariants = cva(
       variant: {
         primary:
           "border-brand-700/50 bg-brand-600 text-ink-900 hover:bg-brand-500 active:bg-brand-700/40",
-        accent: "border-ink-900 bg-ink-900 text-white hover:bg-ink-700 active:bg-ink-800",
+        accent: "border-brand-600 bg-brand-600 text-primary-foreground hover:bg-brand-500 active:bg-brand-400",
         destructive:
           "border-block-solid bg-block-solid text-white hover:bg-block-fg active:bg-block-fg",
-        secondary: "border-ink-300 bg-white text-ink-900 hover:bg-ink-50 active:bg-ink-100",
+        secondary: "border-ink-300 bg-surface text-ink-900 hover:bg-ink-50 active:bg-ink-100",
         minimal:
           "border-transparent bg-transparent text-ink-900 hover:bg-ink-100 active:bg-ink-200",
-        icon: "min-w-11 rounded-full border-ink-300 bg-white px-0 text-ink-900 hover:bg-ink-50 active:bg-ink-100",
+        icon: "min-w-11 rounded-full border-ink-300 bg-surface px-0 text-ink-900 hover:bg-ink-50 active:bg-ink-100",
       },
       size: {
         sm: "px-4 text-xs",

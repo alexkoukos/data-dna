@@ -3,14 +3,14 @@ import { explainReason } from "../lib/explain";
 import { formatDateTime } from "../lib/format";
 import type { Incident } from "../lib/securityApi";
 import { OutcomeChip } from "./OutcomeChip";
-import { Bee } from "./Bee";
+import { Sentinel } from "./Sentinel";
 
 /** Presentational: one incident. No raw prompt is ever shown, only the masked preview. */
 export function IncidentRow({ incident }: { incident: Incident }) {
   return (
-    <li className="flex gap-4 rounded-lg border border-ink-200 bg-white p-4">
+    <li className="flex gap-4 rounded-lg border border-ink-200 bg-surface p-4">
       <div className="hidden sm:block">
-        <Bee size={74} />
+        <Sentinel size={74} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

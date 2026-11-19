@@ -2,7 +2,7 @@ import { useState } from "react";
 import { explainReason } from "../lib/explain";
 import { AlertIcon } from "./icons";
 import { TextureButton } from "@/components/ui/texture-button";
-import { Bee } from "./Bee";
+import { Sentinel } from "./Sentinel";
 import { Pencil, SendHorizontal, ShieldCheck, X } from "lucide-react";
 
 interface Props {
@@ -36,7 +36,7 @@ export function WarnCard({
       className="rounded-lg border border-warn-fg/30 bg-warn-bg p-4 text-warn-fg"
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Bee size={80} />
+        <Sentinel size={80} />
         <div className="min-w-0 flex-1">
           <h2 id="warn-title" className="flex items-center gap-2 text-base font-semibold">
             <AlertIcon />
@@ -54,7 +54,7 @@ export function WarnCard({
           <p className="text-sm font-medium">A safer version of your message:</p>
           <p
             aria-label="Safer version"
-            className="mt-1 whitespace-pre-wrap rounded-md border border-ink-200 bg-white p-3 text-sm text-ink-900"
+            className="mt-1 whitespace-pre-wrap rounded-md border border-ink-200 bg-surface p-3 text-sm text-ink-900"
           >
             {suggestion}
           </p>
@@ -67,7 +67,7 @@ export function WarnCard({
         id="warn-reason"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        className="mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-base text-ink-900"
+        className="mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-surface px-3 text-base text-ink-900"
       />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {suggestion && onUseSuggestion ? (

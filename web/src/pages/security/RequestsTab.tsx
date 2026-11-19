@@ -46,7 +46,7 @@ function PendingCard({
     setAllowed((a) => (a.includes(c) ? a.filter((x) => x !== c) : [...a, c]));
 
   return (
-    <li className="rounded-lg border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-surface p-4">
       <h3 className="text-base font-semibold text-ink-900">{r.tool}</h3>
       <p className="text-sm text-ink-600">
         Asked by {r.requester} ({r.team})
@@ -61,7 +61,7 @@ function PendingCard({
             id={`risk-${r.id}`}
             value={risk}
             onChange={(e) => setRisk(e.target.value)}
-            className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3"
+            className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3"
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -76,7 +76,7 @@ function PendingCard({
             id={`alt-${r.id}`}
             value={alternative}
             onChange={(e) => setAlternative(e.target.value)}
-            className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3"
+            className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3"
           />
         </div>
       </div>
@@ -102,7 +102,7 @@ function PendingCard({
         value={note}
         maxLength={300}
         onChange={(e) => setNote(e.target.value)}
-        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3"
+        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3"
       />
       {error ? (
         <p role="alert" className="mt-2 text-sm font-medium text-block-fg">
@@ -114,7 +114,7 @@ function PendingCard({
           type="button"
           disabled={busy || !reviewer.trim()}
           onClick={() => void decide(true)}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#04141a] hover:bg-brand-700 disabled:opacity-60"
         >
           Approve
         </button>
@@ -122,7 +122,7 @@ function PendingCard({
           type="button"
           disabled={busy || !reviewer.trim()}
           onClick={() => void decide(false)}
-          className="min-h-11 rounded-lg border border-ink-300 bg-white px-5 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
+          className="min-h-11 rounded-lg border border-ink-300 bg-surface px-5 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
         >
           Reject
         </button>
@@ -156,7 +156,7 @@ export default function RequestsTab({ onChanged }: { onChanged: () => void }) {
         value={reviewer}
         onChange={(e) => setReviewer(e.target.value)}
         autoComplete="off"
-        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 sm:w-72"
+        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3 sm:w-72"
       />
       {note ? (
         <p role="status" className="mt-4 rounded-lg bg-allow-bg p-3 text-allow-fg">
@@ -189,7 +189,7 @@ export default function RequestsTab({ onChanged }: { onChanged: () => void }) {
       {decided.length > 0 ? (
         <>
           <h2 className="mt-8 text-lg font-semibold text-ink-900">Decided</h2>
-          <ul className="mt-2 divide-y divide-ink-100 rounded-lg border border-ink-200 bg-white">
+          <ul className="mt-2 divide-y divide-ink-100 rounded-lg border border-ink-200 bg-surface">
             {decided.map((r) => (
               <li key={r.id} className="px-4 py-3 text-sm">
                 <span className="font-medium text-ink-900">{r.tool}</span>{" "}

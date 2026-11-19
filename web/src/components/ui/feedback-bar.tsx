@@ -21,7 +21,7 @@ export function FeedbackBar({
   return (
     <div
       className={cn(
-        "bg-white border-ink-200 inline-flex rounded-[12px] border text-sm ",
+        "bg-surface border-ink-200 inline-flex rounded-[12px] border text-sm ",
         className,
       )}
     >

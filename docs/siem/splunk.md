@@ -12,7 +12,7 @@ index = ai_dlp
 `props.conf`
 ```
 [hive:cef]
-EXTRACT-cef = CEF:0\|Hive\|Gate\|[^|]*\|(?<decision>[^|]*)\|[^|]*\|(?<severity>\d+)\|
+EXTRACT-cef = CEF:0\|Sentry\|Gate\|[^|]*\|(?<decision>[^|]*)\|[^|]*\|(?<severity>\d+)\|
 EXTRACT-user = suser=(?<user_key_id>\S+)
 EXTRACT-team = cs1=(?<team>.+?) cs2Label=
 EXTRACT-tool = cs2=(?<tool>.+?) cs3Label=

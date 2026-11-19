@@ -21,7 +21,7 @@ test("an IBAN is masked before sending and restored in the answer", async ({
   // The AI server only ever saw the placeholder.
   expect(await received(request)).toEqual(["Please pay [IBAN_1] by Friday"]);
   // The page shows the real value again, marked as restored locally.
-  await expect(page.locator(".msg.assistant .hive-restored")).toHaveText(IBAN);
+  await expect(page.locator(".msg.assistant .sentry-restored")).toHaveText(IBAN);
 });
 
 test("clean text passes through untouched", async ({ context, request }) => {

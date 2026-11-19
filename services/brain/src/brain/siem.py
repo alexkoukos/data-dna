@@ -111,9 +111,9 @@ def to_cef(ev: dict[str, Any]) -> str:
         if parts[k] != ""
         and not (k.endswith("Label") and parts[keys[n + 1]] == "")  # no label for an empty value
     )
-    name = f"Hive {ev['decision']}: {ev['tool'] or 'AI tool'}"
+    name = f"Sentry {ev['decision']}: {ev['tool'] or 'AI tool'}"
     sev = SEVERITY.get(ev["decision"], 1)
-    return f"CEF:0|Hive|Gate|1.0|{_hdr(ev['decision'])}|{_hdr(name)}|{sev}|{ext}"
+    return f"CEF:0|Sentry|Gate|1.0|{_hdr(ev['decision'])}|{_hdr(name)}|{sev}|{ext}"
 
 
 def sign(body: bytes, secret: str) -> str:
@@ -145,7 +145,7 @@ def send_webhook(ev: dict[str, Any], url: str, secret: str) -> None:
     body = json.dumps(ev, separators=(",", ":"), sort_keys=True).encode()
     headers = {"Content-Type": "application/json"}
     if secret:
-        headers["X-Hive-Signature"] = "sha256=" + sign(body, secret)
+        headers["X-Sentry-Signature"] = "sha256=" + sign(body, secret)
     httpx.post(url, content=body, headers=headers, timeout=5.0).raise_for_status()
 
 

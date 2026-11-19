@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import "./landing.css";
 import { TextureButton } from "@/components/ui/texture-button";
 import { HeroLoop } from "./HeroLoop";
-import { RibbonField } from "./RibbonField";
+import { HeroBackdrop } from "./HeroBackdrop";
 
 const GITHUB = "https://github.com/alexkoukos/data-dna";
 
@@ -20,7 +20,7 @@ const WORD: Record<Kind, string> = {
   warn: "Warned",
 };
 
-// What the bee does with each kind of data. All values are invented demo data.
+// What the sentinel does with each kind of data. All values are invented demo data.
 const CATCHES: {
   id: string;
   label: string;
@@ -43,7 +43,7 @@ const CATCHES: {
     kind: "block",
     raw: "Pay to GR16 0110 1250 0000 0001 2300 695",
     out: "Pay to [IBAN_1]",
-    say: "Bank details stay in the hive. Company AI can see them safely.",
+    say: "Bank details stay inside. Company AI can see them safely.",
   },
   {
     id: "afm",
@@ -59,7 +59,7 @@ const CATCHES: {
     kind: "block",
     raw: "Employee social security no. 01019012345",
     out: "Employee social security no. [AMKA_1]",
-    say: "Social security numbers stay in the hive.",
+    say: "Social security numbers stay inside.",
   },
   {
     id: "keys",
@@ -67,7 +67,7 @@ const CATCHES: {
     kind: "block",
     raw: "API_KEY=sk-demo-4f9aQ2bX7LmN8vT3",
     out: "API_KEY=[API_KEY_1]",
-    say: "Keys never leave the hive. I removed it; your question still goes through.",
+    say: "Keys never leave the company. I removed it; your question still goes through.",
   },
   {
     id: "clients",
@@ -115,8 +115,8 @@ function Wordmark({ reverse = false, className = "" }: { reverse?: boolean; clas
   return (
     <img
       className={className}
-      src={reverse ? "/brand/hive-wordmark-reverse.svg" : "/brand/hive-wordmark.svg"}
-      alt="Hive"
+      src={reverse ? "/brand/sentry-wordmark-reverse.svg" : "/brand/sentry-wordmark.svg"}
+      alt="Sentry"
       width="173"
       height="70"
     />
@@ -215,13 +215,13 @@ export default function Landing() {
   const rootRef = useRef<HTMLDivElement>(null);
   useReveal(rootRef);
   return (
-    <div className="hive" ref={rootRef}>
+    <div className="sentry" ref={rootRef}>
       <a className="skip" href="#main">
         Skip to content
       </a>
       <header className="top">
         <nav aria-label="Main" className="top-in">
-          <Link to="/" className="top-logo" aria-label="Hive home">
+          <Link to="/" className="top-logo" aria-label="Sentry home">
             <Wordmark reverse className="top-wordmark" />
           </Link>
           <div className="top-links">
@@ -236,12 +236,12 @@ export default function Landing() {
 
       <main id="main">
         <section className="hero" aria-labelledby="hero-title">
-          <RibbonField className="hero-ribbon" />
+          <HeroBackdrop className="hero-ribbon" />
           <div className="hero-in">
             <div className="hero-copy">
-              <h1 id="hero-title">Your data is the honey. We guard the gate.</h1>
+              <h1 id="hero-title">Your data stays yours. Sentry holds the gate.</h1>
               <p className="lead">
-                Hive checks every prompt before it reaches an AI tool, masks or stops what belongs
+                Sentry checks every prompt before it reaches an AI tool, masks or stops what belongs
                 to your company, and always shows a way to still get your answer.
               </p>
               <div className="cta">
@@ -289,7 +289,7 @@ export default function Landing() {
                   width="1560"
                   height="1155"
                   loading="lazy"
-                  alt="The Hive Overview: trend charts for incidents and leaks stopped, and counts of prompts checked, share handled without an AI model, incidents and unapproved tools. Demo data."
+                  alt="The Sentry Overview: trend charts for incidents and leaks stopped, and counts of prompts checked, share handled without an AI model, incidents and unapproved tools. Demo data."
                 />
               </div>
               <figcaption>The real Overview, running on invented demo data.</figcaption>

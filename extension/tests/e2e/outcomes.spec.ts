@@ -57,7 +57,7 @@ for (const lang of ["en", "el"]) {
       expect(sent).toContain("[AFM_1]");
       expect(sent).not.toContain("123456783");
       expect(sent).not.toContain("0110");
-      await expect(page.locator(".msg.assistant .hive-restored").first()).toBeVisible();
+      await expect(page.locator(".msg.assistant .sentry-restored").first()).toBeVisible();
       await expect(page.locator(".msg.assistant")).toContainText("123456783");
       await expect(page.locator(".note")).toContainText("masked");
     });
@@ -102,7 +102,7 @@ for (const lang of ["en", "el"]) {
       await page.locator("#prompt").fill(sample(lang, "5-block"));
       await page.locator("#prompt").press("Enter");
       const card = page.getByRole("alertdialog");
-      await expect(card).toContainText("This stays in the hive.");
+      await expect(card).toContainText("This stays inside the company.");
       await expect(card).toContainText("Board memo");
       await expect(card).toContainText(/I stopped this send/);
       expect(await received(request)).toEqual([]);

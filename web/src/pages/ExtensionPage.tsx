@@ -16,7 +16,7 @@ import { Check, Copy, ExternalLink, KeyRound } from "lucide-react";
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <li className="rounded-lg border border-ink-200 bg-white p-5">
+    <li className="rounded-lg border border-ink-200 bg-surface p-5">
       <h2 className="flex items-center gap-3 text-lg font-semibold text-ink-900">
         <span
           aria-hidden="true"
@@ -75,7 +75,7 @@ function Pairing() {
             setUser(e.target.value);
             setCode(null);
           }}
-          className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-white px-3"
+          className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-surface px-3"
         >
           <option value="">Choose someone</option>
           {users.map((u) => (
@@ -136,7 +136,7 @@ function SampleCard({ id, lang }: { id: string; lang: Lang }) {
   }
 
   return (
-    <li className="rounded-lg border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold text-ink-900">{meta.title}</h3>
         <OutcomeChip outcome={meta.outcome} />
@@ -175,7 +175,7 @@ export default function ExtensionPage() {
   const [lang, setLang] = useState<Lang>("en");
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <p className="eyebrow">Hive</p>
+      <p className="eyebrow">Sentry</p>
       <h1 className="text-3xl font-semibold text-ink-900">Get the extension</h1>
       <p className="mt-2 max-w-prose text-ink-600">
         The extension sits in Chrome, right where people paste into ChatGPT, Claude or Gemini. It
@@ -186,10 +186,10 @@ export default function ExtensionPage() {
         <Step n={1} title="Download it">
           <a
             href="/extension.zip"
-            download="hive-extension.zip"
+            download="sentry-extension.zip"
             className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-5 text-base font-semibold text-ink-900 hover:bg-brand-500"
           >
-            Download hive-extension.zip
+            Download sentry-extension.zip
           </a>
         </Step>
 

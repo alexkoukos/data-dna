@@ -26,11 +26,11 @@ export function MessageContent({ children }: { children: ReactNode }) {
   return <div className="msg-bubble">{children}</div>;
 }
 
-/** Who is speaking: the bee for the company AI, a monogram for the person. */
+/** Who is speaking: the sentinel for the company AI, a monogram for the person. */
 export function Avatar({ from }: { from: "user" | "assistant" }) {
   return from === "assistant" ? (
-    <span className="avatar-chat bee-avatar" aria-hidden="true">
-      <img src="/brand/hive-guard-bee.svg" alt="" width={22} />
+    <span className="avatar-chat sentinel-avatar" aria-hidden="true">
+      <img src="/brand/sentry-guard.svg" alt="" width={22} />
     </span>
   ) : (
     <span className="avatar-chat me-avatar" aria-hidden="true">

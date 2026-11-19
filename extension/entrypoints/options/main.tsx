@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource/poppins/400.css";
 import "@fontsource/poppins/700.css";
 import "@fontsource/poppins/600.css";
-import "@fontsource/playfair-display/600.css";
+import "@fontsource/space-grotesk/600.css";
 import "../../src/ui.css";
 import { Link2, Save } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
@@ -77,8 +77,8 @@ function Options() {
       <TextureStyles />
       <div className="wrap" style={{ maxWidth: 640, margin: "0 auto" }}>
         <picture>
-          <source media="(prefers-color-scheme: dark)" srcSet="/brand/hive-wordmark-dark.svg" />
-          <img className="wordmark" src="/brand/hive-wordmark.svg" alt="Hive" width={120} />
+          <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
+          <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={120} />
         </picture>
         <h1 style={{ fontSize: 22, margin: "12px 0 4px" }}>Settings</h1>
         <p className="muted">
@@ -134,7 +134,7 @@ function Options() {
         <div className="bubble">
           <p>
             <b>Checked:</b> the text you paste or send in an AI chat, before it is sent. First in
-            your browser, then on your company&apos;s own server. It is never sent to Hive&apos;s
+            your browser, then on your company&apos;s own server. It is never sent to Sentry&apos;s
             makers or to any outside service.
           </p>
           <p>

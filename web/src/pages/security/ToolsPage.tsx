@@ -31,7 +31,7 @@ const ORDER = { unapproved: 0, tolerated: 1, approved: 2 } as const;
 
 function ToolCard({ tool }: { tool: Tool }) {
   return (
-    <li className="rounded-lg border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-base font-semibold text-ink-900">{tool.name}</h3>
@@ -116,7 +116,7 @@ export default function ToolsPage() {
             role="tab"
             aria-selected={tab === id}
             onClick={() => setTab(id)}
-            className={`min-h-11 rounded-md border px-4 text-sm font-medium ${tab === id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-white text-ink-700 hover:bg-ink-100"}`}
+            className={`min-h-11 rounded-md border px-4 text-sm font-medium ${tab === id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-ink-300 bg-surface text-ink-700 hover:bg-ink-100"}`}
           >
             {label}
           </button>

@@ -1,32 +1,35 @@
-/* Hive landing page. Scoped to .hive so the app's own tokens are untouched.
-   Tokens are the Hive brand kit v1 (Nov 2026). Amber is a fill, never text. */
+/* Sentry landing page. Scoped to .sentry so the app's own tokens are untouched.
+   Tokens are the Sentry brand kit v1 (Nov 2026). Cyan is a fill, never text. */
 
-.hive {
-  --tint: #fffbeb;
-  --surface: #ffffff;
-  --subtle: #f9fafb;
-  --muted: #f3f4f6;
-  --border: #e5e7eb;
-  --ink: #262626;
-  --ink-muted: #525252;
-  --ink-subtle: #6b7280;
-  --amber: #f59e0b;
-  --amber-bee: #e9a516;
-  --amber-text: #b45309;
+.sentry {
+  --tint: #080c11;
+  --surface: #0e141c;
+  --subtle: #111823;
+  --muted: #1b2330;
+  --border: #2f3a4a;
+  --ink: #eaf0f7;
+  --ink-muted: #b9c4d2;
+  --ink-subtle: #9eabbc;
+  --accent: #22c5e8;
+  --accent-fill: #1fb0d0;
+  --accent-text: #67dbf5;
+  --on-accent: #04141a;
 
-  --mask-bg: #f4ecff;
-  --mask-fg: #553674;
-  --mask-solid: #764aa2;
-  --block-bg: #ffebe9;
-  --block-fg: #7e2122;
-  --block-solid: #b02a2d;
-  --warn-bg: #f9efda;
-  --warn-fg: #704500;
-  --warn-solid: #915b00;
-  --local-bg: #e5f2ff;
-  --local-fg: #154a7a;
-  --local-solid: #1666aa;
-  --allow-bg: #e5f6e3;
+  --mask-bg: #24163a;
+  --mask-fg: #d1b3ff;
+  --mask-solid: #9b6bea;
+  --block-bg: #331216;
+  --block-fg: #ffa3a3;
+  --block-solid: #ef5b5b;
+  --warn-bg: #2e2208;
+  --warn-fg: #f5c56b;
+  --warn-solid: #e0a020;
+  --local-bg: #0e2438;
+  --local-fg: #8fc8ff;
+  --local-solid: #3b8eea;
+  --allow-bg: #0f2a1a;
+  --allow-fg: #8fe3a0;
+  --allow-solid: #34c759;
 
   --r-sm: 6px;
   --r-md: 10px;
@@ -34,7 +37,7 @@
   --r-xl: 20px;
 
   font-family:
-    "Plus Jakarta Sans",
+    "Poppins",
     system-ui,
     -apple-system,
     "Segoe UI",
@@ -46,28 +49,28 @@
   min-height: 100vh;
   overflow-x: clip;
 }
-.hive *,
-.hive *::before,
-.hive *::after {
+.sentry *,
+.sentry *::before,
+.sentry *::after {
   box-sizing: border-box;
 }
-.hive h1,
-.hive h2,
-.hive h3,
-.hive p,
-.hive ul,
-.hive ol,
-.hive figure {
+.sentry h1,
+.sentry h2,
+.sentry h3,
+.sentry p,
+.sentry ul,
+.sentry ol,
+.sentry figure {
   margin: 0;
   padding: 0;
   font-variation-settings: normal;
   letter-spacing: normal;
 }
-.hive ul,
-.hive ol {
+.sentry ul,
+.sentry ol {
   list-style: none;
 }
-.hive img {
+.sentry img {
   display: block;
   max-width: 100%;
 }
@@ -80,12 +83,11 @@
   white-space: nowrap;
 }
 
-/* Focus: ink ring with an amber halo, 3:1 on every ground */
-.hive a:focus-visible,
-.hive button:focus-visible {
-  outline: 2px solid var(--ink);
+/* Focus: ink ring with a cyan halo, 3:1 on every ground */
+.sentry a:focus-visible,
+.sentry button:focus-visible {
+  outline: 2px solid var(--accent-text);
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px var(--amber);
 }
 .skip {
   position: absolute;
@@ -149,19 +151,19 @@
 }
 
 /* Type */
-.hive h1 {
+.sentry h1 {
   font-size: 56px;
   line-height: 60px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
-.hive h2 {
+.sentry h2 {
   font-size: 36px;
   line-height: 44px;
   font-weight: 800;
   letter-spacing: -0.015em;
 }
-.hive h3 {
+.sentry h3 {
   font-size: 18px;
   line-height: 24px;
   font-weight: 700;
@@ -349,7 +351,7 @@
   align-items: center;
   min-height: 44px;
   padding: 0 4px;
-  color: var(--amber-text);
+  color: var(--accent-text);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -416,7 +418,7 @@
   border: 1px solid #9ca3af;
 }
 .dot[aria-current="true"] span {
-  background: var(--amber);
+  background: var(--accent);
   border-color: var(--ink);
   transform: scale(1.3);
 }
@@ -427,7 +429,7 @@
   width: 720px;
   height: 450px;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface);
   border-radius: 6px;
   font-size: 12px;
   line-height: 17px;
@@ -465,7 +467,7 @@
   width: 120px;
   padding: 5px 10px;
   border-radius: 8px 8px 0 0;
-  background: #fff;
+  background: var(--surface);
   font-size: 11px;
   font-weight: 500;
 }
@@ -478,7 +480,7 @@
   align-items: center;
   gap: 6px;
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   font-size: 11px;
   color: var(--ink-subtle);
   white-space: nowrap;
@@ -499,7 +501,7 @@
 .badge {
   padding: 2px 8px;
   border-radius: 9999px;
-  background: var(--amber);
+  background: var(--accent);
   color: var(--ink);
   font-size: 10px;
   line-height: 14px;
@@ -557,7 +559,7 @@
   padding: 12px 14px 8px;
   border: 1px solid #d1d5db;
   border-radius: 14px;
-  background: #fff;
+  background: var(--surface);
 }
 .composer.is-stopped {
   border-color: var(--block-solid);
@@ -685,8 +687,8 @@
   opacity: 1;
 }
 .value.is-flagged:not(.is-swapped) .value-raw {
-  background: #fde68a;
-  box-shadow: 0 0 0 2px #fde68a;
+  background: #67dbf5;
+  box-shadow: 0 0 0 2px #67dbf5;
   border-radius: 3px;
 }
 .pill {
@@ -707,8 +709,8 @@
   color: var(--block-fg);
 }
 
-/* Bee card: sits above the composer, where the mistake happened */
-.bee-card-wrap {
+/* Sentinel card: sits above the composer, where the mistake happened */
+.sentinel-card-wrap {
   position: absolute;
   left: 0;
   bottom: 100%;
@@ -721,29 +723,29 @@
     transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
   pointer-events: none;
 }
-.bee-card-wrap.is-in {
+.sentinel-card-wrap.is-in {
   opacity: 1;
   transform: none;
 }
-.bee-card {
+.sentinel-card {
   padding: 14px 16px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
-.bee-card-head {
+.sentinel-card-head {
   font-size: 15px;
   line-height: 20px;
   font-weight: 800;
   margin-bottom: 4px;
 }
-.bee-card-body {
+.sentinel-card-body {
   font-size: 12px;
   line-height: 17px;
   color: var(--ink-muted);
 }
-.bee-card-quote {
+.sentinel-card-quote {
   margin-top: 6px;
   padding: 4px 8px;
   border-radius: 6px;
@@ -753,19 +755,19 @@
   line-height: 16px;
   color: var(--ink);
 }
-.bee-card-meta {
+.sentinel-card-meta {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 8px 0;
 }
-.bee-card-why {
+.sentinel-card-why {
   font-size: 12px;
   font-weight: 700;
-  color: var(--amber-text);
+  color: var(--accent-text);
   text-decoration: underline;
 }
-.bee-card-tip {
+.sentinel-card-tip {
   padding: 6px 10px;
   border-radius: 8px;
   background: var(--tint);
@@ -773,7 +775,7 @@
   line-height: 16px;
   color: var(--ink-muted);
 }
-.bee-card-actions {
+.sentinel-card-actions {
   display: flex;
   gap: 8px;
   margin-top: 10px;
@@ -786,18 +788,18 @@
   font-weight: 700;
 }
 .bc-primary {
-  background: var(--amber);
+  background: var(--accent);
   color: var(--ink);
 }
 .bc-secondary {
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
 }
 
-/* Bee and cursor. Only transform and opacity ever animate.
-   The bee is two layers: .bee-path moves sideways, .bee moves up and down with different easing,
+/* Sentinel and cursor. Only transform and opacity ever animate.
+   The sentinel is two layers: .sentinel-path moves sideways, .sentinel moves up and down with different easing,
    so the flight bends into a swoop instead of a straight line. */
-.bee-path {
+.sentinel-path {
   position: absolute;
   left: 555px;
   top: 5px;
@@ -810,30 +812,30 @@
   z-index: 5;
   pointer-events: none;
 }
-.bee {
+.sentinel {
   display: block;
   width: 36px;
   height: auto;
   transform: translateY(0);
   transition: transform 0.6s cubic-bezier(0.1, 0.75, 0.3, 1);
 }
-.screen[data-phase="bee"] .bee-path {
+.screen[data-phase="sentinel"] .sentinel-path {
   opacity: 1;
   transform: translateX(calc(var(--bx) - 555px));
 }
-.screen[data-phase="bee"] .bee {
+.screen[data-phase="sentinel"] .sentinel {
   transform: translateY(calc(var(--by) - 5px));
   animation: waggle 0.7s ease-in-out 0.5s 1 both;
 }
 /* Leaving the dance: rise first, then slide across, so the path bends the other way */
-.screen[data-phase="card"] .bee-path,
-.screen[data-phase="hold"] .bee-path {
+.screen[data-phase="card"] .sentinel-path,
+.screen[data-phase="hold"] .sentinel-path {
   opacity: 1;
   transform: translateX(calc(var(--px) - 555px));
   transition-timing-function: cubic-bezier(0.1, 0.75, 0.3, 1);
 }
-.screen[data-phase="card"] .bee,
-.screen[data-phase="hold"] .bee {
+.screen[data-phase="card"] .sentinel,
+.screen[data-phase="hold"] .sentinel {
   transform: translateY(calc(var(--py) - 5px));
   transition-timing-function: cubic-bezier(0.55, 0, 0.35, 1);
   animation: bob 1.6s ease-in-out infinite;
@@ -853,12 +855,12 @@
   transition: none !important;
   animation: none !important;
 }
-.screen.is-still .bee-path {
+.screen.is-still .sentinel-path {
   opacity: 1;
 }
-.screen[data-phase="idle"].is-still .bee-path,
-.screen[data-phase="type"].is-still .bee-path,
-.screen[data-phase="paste"].is-still .bee-path {
+.screen[data-phase="idle"].is-still .sentinel-path,
+.screen[data-phase="type"].is-still .sentinel-path,
+.screen[data-phase="paste"].is-still .sentinel-path {
   opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -942,11 +944,11 @@
   }
 }
 @media (max-width: 600px) {
-  .hive h1 {
+  .sentry h1 {
     font-size: 36px;
     line-height: 40px;
   }
-  .hive h2 {
+  .sentry h2 {
     font-size: 28px;
     line-height: 34px;
   }
@@ -1053,8 +1055,8 @@
   }
 }
 
-/* What the bee catches: pick a data type, see what leaves */
-.hive .section-sub {
+/* What the sentinel catches: pick a data type, see what leaves */
+.sentry .section-sub {
   margin: -16px 0 32px;
   color: var(--ink-muted);
 }
@@ -1081,7 +1083,7 @@
   background: transparent;
   color: var(--ink-muted);
   font:
-    500 15px/1.3 "Plus Jakarta Sans",
+    500 15px/1.3 "Poppins",
     system-ui,
     sans-serif;
   cursor: pointer;
@@ -1095,7 +1097,7 @@
   border-color: var(--border);
   color: var(--ink);
   font-weight: 700;
-  box-shadow: inset 3px 0 0 var(--amber);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 .catch-panel {
   padding: 28px;
@@ -1120,14 +1122,14 @@
 .catch-side-out {
   background: var(--tint);
 }
-.hive .catch-cap {
+.sentry .catch-cap {
   margin-bottom: 6px;
   font-size: 13px;
   line-height: 20px;
   font-weight: 700;
   color: var(--ink-subtle);
 }
-.hive .catch-text {
+.sentry .catch-text {
   font-size: 17px;
   line-height: 28px;
   overflow-wrap: anywhere;
@@ -1243,7 +1245,7 @@
   border-color: #737373;
 }
 .hero .dot[aria-current="true"] span {
-  background: var(--amber);
+  background: var(--accent);
   border-color: #fff;
 }
 
@@ -1267,36 +1269,23 @@
   }
 }
 
-/* ---------- Hero background: the Ribbon Field gradient, tinted dark so the white text reads ---------- */
+/* ---------- Hero background: a dot field on night, with a cyan beacon glow behind the screen ---------- */
 .hero {
-  background: #161616;
+  background: #080c11;
 }
 .hero .hero-ribbon {
   position: absolute;
   inset: 0;
   z-index: -1;
 }
-/* the black tint, heavier at the top and bottom edges so the bar and the next section meet it softly */
+/* a beacon glow behind the screen, and a fade at the top and bottom edges */
 .hero .hero-ribbon::after {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(
-      180deg,
-      rgba(10, 10, 10, 0.5) 0%,
-      rgba(10, 10, 10, 0) 22%,
-      rgba(10, 10, 10, 0) 78%,
-      rgba(10, 10, 10, 0.5) 100%
-    ),
-    linear-gradient(
-      90deg,
-      rgba(10, 10, 10, 0.6) 0%,
-      rgba(10, 10, 10, 0.35) 45%,
-      rgba(10, 10, 10, 0) 70%
-    ),
-    rgba(14, 14, 14, 0.66);
-  pointer-events: none;
+    radial-gradient(60% 55% at 68% 48%, rgba(34, 197, 232, 0.16), rgba(34, 197, 232, 0) 70%),
+    linear-gradient(180deg, rgba(8, 12, 17, 0.6) 0%, rgba(8, 12, 17, 0) 24%, rgba(8, 12, 17, 0) 76%, #080c11 100%);
 }
 
 /* ---------- Hero: text on the left, a smaller app window on the right ---------- */
@@ -1340,7 +1329,7 @@
   position: relative;
   border-radius: 14px;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1),
     0 40px 90px rgba(0, 0, 0, 0.55);
@@ -1435,7 +1424,7 @@
   }
 }
 
-/* ---------- The top bar (Hive logo and links) stays at the top while scrolling ---------- */
+/* ---------- The top bar (Sentry logo and links) stays at the top while scrolling ---------- */
 .top {
   position: sticky;
   top: 0;
@@ -1445,12 +1434,12 @@
   backdrop-filter: blur(10px);
 }
 /* so "How it works" and the other links do not land under the bar */
-.hive [id] {
+.sentry [id] {
   scroll-margin-top: 80px;
 }
 
-/* ---------- Liquid glass buttons: the Hive amber one gets a slow sweep of light ---------- */
-.hive .lg-hive::after {
+/* ---------- Liquid glass buttons: the Sentry cyan one gets a slow sweep of light ---------- */
+.sentry .lg-sentry::after {
   content: "";
   position: absolute;
   top: 0;
@@ -1478,7 +1467,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hive .lg-hive::after {
+  .sentry .lg-sentry::after {
     animation: none;
     display: none;
   }
@@ -1498,7 +1487,7 @@
 .ribbon {
   position: relative;
   overflow: hidden;
-  background: #fff1cf;
+  background: #0f4a5f;
 }
 .ribbon-canvas {
   position: absolute;
@@ -1560,7 +1549,7 @@
 /* Text pages: deep dive, trust, developers */
 .top-links a.is-here {
   color: #fff;
-  box-shadow: inset 0 -2px 0 var(--amber);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 .page-head {
   padding: 72px 24px 40px;
@@ -1578,7 +1567,7 @@
   margin-bottom: 12px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--amber-text);
+  color: var(--accent-text);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -1610,7 +1599,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--amber);
+  background: var(--accent);
   font-weight: 700;
 }
 .layer h3 {
@@ -1762,7 +1751,7 @@
   height: 30px;
   margin-bottom: 10px;
   border-radius: 50%;
-  background: var(--amber);
+  background: var(--accent);
   font-weight: 700;
   font-size: 14px;
 }
@@ -1818,7 +1807,7 @@
 }
 
 /* The public site keeps its own typeface; the app's heading font stays in the app. */
-.hive :where(h1, h2, h3) {
+.sentry :where(h1, h2, h3) {
   font-family: inherit;
   font-weight: 700;
 }
@@ -1897,15 +1886,15 @@
   padding: 0 22px;
   border: 0;
   border-radius: 9999px;
-  background: rgba(255, 251, 235, 0.92);
-  color: #262626;
+  background: rgba(34, 197, 232, 0.95);
+  color: #04141a;
   font-weight: 600;
   font-size: 14px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
   transition: background-color 0.15s ease;
 }
 .top .top-links .btn:hover {
-  background: #fde68a;
+  background: #67dbf5;
   color: #262626;
 }
 @media (max-width: 760px) {

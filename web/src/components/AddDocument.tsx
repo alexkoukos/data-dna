@@ -4,7 +4,7 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { FilePlus } from "lucide-react";
 
 const field =
-  "mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900";
+  "mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-surface px-3 text-sm text-ink-900";
 
 /** Register a document by pasting its text or choosing a PDF, DOCX or text file. */
 export function AddDocument({ onAdded }: { onAdded: () => void }) {
@@ -39,7 +39,7 @@ export function AddDocument({ onAdded }: { onAdded: () => void }) {
   }
 
   return (
-    <details className="mb-4 rounded-lg border border-ink-200 bg-white p-4">
+    <details className="mb-4 rounded-lg border border-ink-200 bg-surface p-4">
       <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-ink-900">
         Add a document
       </summary>

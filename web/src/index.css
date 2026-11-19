@@ -2,72 +2,77 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Hive brand tokens (Hive brand kit v1). Pick only from these scales (see CLAUDE.md, frontend rules). */
+/* Sentry brand tokens (Sentry brand kit v1, night palette). Pick only from these scales (see CLAUDE.md, frontend rules).
+   The ink scale runs dark to light on purpose: ink-50 is the page, ink-900 is the text. */
 @theme static {
-  /* Brand: Hive amber. Amber is a fill (ink text on it); brand-700 is the amber that must be read. */
-  --color-brand-50: #fffbeb;
-  --color-brand-100: #fef3c7;
-  --color-brand-200: #fde68a;
-  --color-brand-300: #fcd34d;
-  --color-brand-400: #fbbf24;
-  --color-brand-500: #e9a516;
-  --color-brand-600: #f59e0b;
-  --color-brand-700: #b45309;
-  --color-brand-800: #92400e;
-  --color-brand-900: #451a03;
+  /* Brand: Beacon cyan. Cyan is a fill (night text on it); brand-700 is the cyan that must be read on dark. */
+  --color-brand-50: #06202a;
+  --color-brand-100: #0a3140;
+  --color-brand-200: #0f4a5f;
+  --color-brand-300: #17687f;
+  --color-brand-400: #1e8ca8;
+  --color-brand-500: #1fb0d0;
+  --color-brand-600: #22c5e8;
+  --color-brand-700: #67dbf5;
+  --color-brand-800: #a5ecfb;
+  --color-brand-900: #ddf8fd;
 
-  /* Ink: warm marble greys */
-  --color-ink-50: #faf7f4;
-  --color-ink-100: #f1efec;
-  --color-ink-200: #e3dfd9;
-  --color-ink-300: #ccc8c3;
-  --color-ink-400: #a5a19b;
-  --color-ink-500: #74706b;
-  --color-ink-600: #5f5c57;
-  --color-ink-700: #47433e;
-  --color-ink-800: #312d29;
-  --color-ink-900: #1a1713;
+  /* Ink: night slate, dark to light */
+  --color-ink-50: #080c11;
+  --color-ink-100: #111823;
+  --color-ink-200: #1b2330;
+  --color-ink-300: #2f3a4a;
+  --color-ink-400: #6f7e91;
+  --color-ink-500: #8795a8;
+  --color-ink-600: #9eabbc;
+  --color-ink-700: #b9c4d2;
+  --color-ink-800: #d3dce7;
+  --color-ink-900: #eaf0f7;
+  /* Raised surface: cards, panels, popovers */
+  --color-surface: #0e141c;
+  /* Text that sits on a solid outcome or destructive fill */
+  --color-on-solid: #ffffff;
 
   /* Outcomes. Always paired with a text label. */
-  --color-allow-bg: #e5f6e3;
-  --color-allow-fg: #245420;
-  --color-allow-solid: #30752a;
-  --color-warn-bg: #f9efda;
-  --color-warn-fg: #704500;
-  --color-warn-solid: #915b00;
-  --color-mask-bg: #f4ecff;
-  --color-mask-fg: #553674;
-  --color-mask-solid: #764aa2;
-  --color-local-bg: #e5f2ff;
-  --color-local-fg: #154a7a;
-  --color-local-solid: #1666aa;
-  --color-block-bg: #ffebe9;
-  --color-block-fg: #7e2122;
-  --color-block-solid: #b02a2d;
+  --color-allow-bg: #0f2a1a;
+  --color-allow-fg: #8fe3a0;
+  --color-allow-solid: #1f7a3a;
+  --color-warn-bg: #2e2208;
+  --color-warn-fg: #f5c56b;
+  --color-warn-solid: #9a5b00;
+  --color-mask-bg: #24163a;
+  --color-mask-fg: #d1b3ff;
+  --color-mask-solid: #7b4cd1;
+  --color-local-bg: #0e2438;
+  --color-local-fg: #8fc8ff;
+  --color-local-solid: #1e6fd0;
+  --color-block-bg: #331216;
+  --color-block-fg: #ffa3a3;
+  --color-block-solid: #c2272d;
 
-  /* shadcn aliases, so ui components resolve to Hive tokens. Do not use these in screens. */
+  /* shadcn aliases, so ui components resolve to Sentry tokens. Do not use these in screens. */
   --color-primary: var(--color-brand-600);
-  --color-primary-foreground: #262626;
+  --color-primary-foreground: #04141a;
   --color-secondary: var(--color-ink-100);
   --color-secondary-foreground: var(--color-ink-900);
   --color-destructive: var(--color-block-solid);
   --color-accent: var(--color-ink-100);
   --color-accent-foreground: var(--color-ink-900);
-  --color-background: #ffffff;
+  --color-background: var(--color-ink-50);
   --color-input: var(--color-ink-300);
   --color-ring: var(--color-brand-600);
   --color-muted-foreground: var(--color-ink-600);
   --color-foreground: var(--color-ink-900);
   --color-muted: var(--color-ink-100);
-  --color-popover: #ffffff;
+  --color-popover: var(--color-surface);
   --color-popover-foreground: var(--color-ink-900);
-  --color-card: #ffffff;
+  --color-card: var(--color-surface);
   --color-card-foreground: var(--color-ink-900);
   --color-border: var(--color-ink-200);
 
   /* Type */
   --font-sans: "Poppins", system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif;
-  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-display: "Space Grotesk", "Poppins", system-ui, sans-serif;
   --font-mono:
     "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --text-xs: 0.75rem;
@@ -102,6 +107,7 @@
 
 @layer base {
   html {
+    color-scheme: dark;
     font-family: var(--font-sans);
     color: var(--color-ink-900);
     background: var(--color-ink-50);
@@ -113,7 +119,7 @@
   }
 }
 
-/* Display voice: Playfair Display semibold for titles. Kept outside any layer so it also beats the
+/* Display voice: Space Grotesk semibold for titles. Kept outside any layer so it also beats the
    font-semibold utilities on h1 and h2. */
 .font-display,
 h1,
@@ -128,9 +134,8 @@ body {
 
 /* Visible keyboard focus everywhere (WCAG 2.4.7). */
 :focus-visible {
-  outline: 2px solid var(--color-ink-900);
+  outline: 2px solid var(--color-brand-700);
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px var(--color-brand-600);
 }
 
 /* Eyebrow: 12 px caps, +8% tracking, brand-700. */
@@ -266,36 +271,29 @@ details[open] > :not(summary) {
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
 }
-/* The guard bee hovers and its wings beat */
-.bee svg path:nth-child(-n + 2) {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  animation: bee-flap 0.09s ease-in-out infinite alternate;
+/* The sentinel hovers and its eye scans */
+.sentinel .sentinel-eye {
+  animation: sentinel-scan 2.4s ease-in-out infinite;
 }
-.bee {
-  animation: bee-hover 3.6s ease-in-out infinite;
+.sentinel {
+  animation: sentinel-hover 3.6s ease-in-out infinite;
 }
-@keyframes bee-flap {
-  from {
-    transform: rotate(-9deg) scaleY(1);
-  }
-  to {
-    transform: rotate(9deg) scaleY(0.4);
-  }
-}
-@keyframes bee-hover {
+@keyframes sentinel-scan {
   0%,
   100% {
-    transform: translate(0, 0) rotate(-4deg);
-  }
-  25% {
-    transform: translate(6px, -5px) rotate(5deg);
+    transform: translateX(-5px);
   }
   50% {
-    transform: translate(0, -1px) rotate(-3deg);
+    transform: translateX(5px);
   }
-  75% {
-    transform: translate(-6px, -6px) rotate(4deg);
+}
+@keyframes sentinel-hover {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
   }
 }
 

@@ -33,12 +33,12 @@ export type Scene = {
     tip: string;
     primary: string;
     secondary: string;
-    /** The cleaned question, shown when the bee removed a secret and rewrote the message. */
+    /** The cleaned question, shown when the sentinel removed a secret and rewrote the message. */
     rewrite?: string;
   };
   /** Positions inside the 720 x 450 screen, tuned by eye. */
   geo: {
-    bee: [number, number];
+    sentinel: [number, number];
     perch: [number, number];
     cursorType: [number, number];
     cursorCard: [number, number];
@@ -72,13 +72,13 @@ export const SCENES: Scene[] = [
     ],
     outcome: "mask",
     card: {
-      headline: "That's hive honey. I kept it in.",
+      headline: "That's company data. I kept it in.",
       body: "Salaries and names were replaced before anything was sent.",
       tip: "Next time: Company AI can read this table safely.",
       primary: "Send to Company AI",
       secondary: "Send masked version",
     },
-    geo: { bee: [330, 262], perch: [388, 42], cursorType: [210, 388], cursorCard: [166, 204] },
+    geo: { sentinel: [330, 262], perch: [388, 42], cursorType: [210, 388], cursorCard: [166, 204] },
   },
   {
     id: "bank",
@@ -93,13 +93,13 @@ export const SCENES: Scene[] = [
     ],
     outcome: "block",
     card: {
-      headline: "Bank details stay in the hive.",
+      headline: "Bank details stay inside.",
       body: "I stopped this send. An IBAN and a tax ID don't go to public AI tools.",
       tip: "Use Company AI, it can see this safely.",
       primary: "Open Company AI",
       secondary: "Edit message",
     },
-    geo: { bee: [330, 290], perch: [388, 66], cursorType: [200, 392], cursorCard: [158, 228] },
+    geo: { sentinel: [330, 290], perch: [388, 66], cursorType: [200, 392], cursorCard: [158, 228] },
   },
   {
     id: "key",
@@ -115,14 +115,14 @@ export const SCENES: Scene[] = [
     mono: true,
     outcome: "block",
     card: {
-      headline: "Keys never leave the hive.",
+      headline: "Keys never leave the company.",
       body: "I removed it. Here's your question without it:",
       rewrite: "why does this return 401? … API_KEY=[API_KEY_1]",
       tip: "Rotate the key if it was ever shared before.",
       primary: "Send without the key",
       secondary: "Edit message",
     },
-    geo: { bee: [330, 290], perch: [388, 62], cursorType: [220, 392], cursorCard: [172, 234] },
+    geo: { sentinel: [330, 290], perch: [388, 62], cursorType: [220, 392], cursorCard: [172, 234] },
   },
   {
     id: "memo",
@@ -140,6 +140,6 @@ export const SCENES: Scene[] = [
       primary: "Read the answer",
       secondary: "Why?",
     },
-    geo: { bee: [330, 300], perch: [388, 82], cursorType: [200, 394], cursorCard: [146, 224] },
+    geo: { sentinel: [330, 300], perch: [388, 82], cursorType: [200, 394], cursorCard: [146, 224] },
   },
 ];

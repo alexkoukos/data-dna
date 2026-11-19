@@ -55,7 +55,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
   }
 
   return (
-    <li className="rounded-lg border border-ink-200 bg-white p-4">
+    <li className="rounded-lg border border-ink-200 bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-ink-900">{text.label}</h3>
@@ -71,7 +71,7 @@ function PolicyRow({ policy, onSaved }: { policy: Policy; onSaved: (p: Policy) =
           id={id}
           value={draft}
           onChange={(e) => setDraft(e.target.value as Decision)}
-          className="mt-1 min-h-11 w-full max-w-xs rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
+          className="mt-1 min-h-11 w-full max-w-xs rounded-md border border-ink-300 bg-surface px-3 text-sm text-ink-900"
         >
           {ACTIONS.map((a) => (
             <option key={a.id} value={a.id}>
@@ -175,7 +175,7 @@ function ReportCard() {
   return (
     <section
       aria-labelledby="report-h"
-      className="mt-4 rounded-lg border border-ink-200 bg-white p-4"
+      className="mt-4 rounded-lg border border-ink-200 bg-surface p-4"
     >
       <h2 id="report-h" className="text-lg font-semibold text-ink-900">
         Compliance report

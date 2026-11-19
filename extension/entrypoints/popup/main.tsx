@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource/poppins/400.css";
 import "@fontsource/poppins/700.css";
 import "@fontsource/poppins/600.css";
-import "@fontsource/playfair-display/600.css";
+import "@fontsource/space-grotesk/600.css";
 import "../../src/ui.css";
 import { ActionIcon } from "../../src/ActionIcon";
 import { MessageSquareText, RefreshCw, Settings } from "lucide-react";
@@ -174,10 +174,10 @@ function Popup() {
       <TextureStyles />
       <div className="wrap" style={{ width: 440, background: "var(--tint)" }}>
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <h1 className="sr-only">Hive</h1>
+          <h1 className="sr-only">Sentry</h1>
           <picture>
-            <source media="(prefers-color-scheme: dark)" srcSet="/brand/hive-wordmark-dark.svg" />
-            <img className="wordmark" src="/brand/hive-wordmark.svg" alt="Hive" width={120} />
+            <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
+            <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={120} />
           </picture>
           <span className="muted status">{who ? `Signed in as ${who}` : "Not paired yet"}</span>
         </div>
@@ -205,7 +205,7 @@ function Popup() {
               title="Checked"
               counts={checks}
               days={span}
-              accent="#f59e0b"
+              accent="#22c5e8"
               unit="checked"
               empty="This fills in as I check what you paste."
             />

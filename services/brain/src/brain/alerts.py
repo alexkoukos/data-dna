@@ -21,7 +21,7 @@ def is_critical(decision: str, categories: list[str]) -> bool:
 def message(decision: str, categories: list[str], user: str, team: str) -> dict[str, str]:
     what = ", ".join(c.replace("_", " ") for c in sorted(set(categories))) or "policy"
     # "text" works for Slack incoming webhooks and for Teams workflow webhooks.
-    return {"text": f"Hive alert: {decision} for {user} ({team}). Detected: {what}."}
+    return {"text": f"Sentry alert: {decision} for {user} ({team}). Detected: {what}."}
 
 
 def notify(

@@ -56,7 +56,7 @@ function TrendCard({
       ? `Busiest ${SPAN[period].unit}: ${labels[peak]}, ${data[peak]}`
       : "Nothing in this period yet";
   return (
-    <article className="min-w-0 rounded-lg border border-ink-200 bg-white p-5">
+    <article className="min-w-0 rounded-lg border border-ink-200 bg-surface p-5">
       <h3 className="text-sm font-medium text-ink-600">{title}</h3>
       <p className="mt-1 flex flex-wrap items-baseline gap-x-2">
         <span className="text-4xl font-semibold tabular-nums text-ink-900">{total}</span>
@@ -118,7 +118,7 @@ function Loaded({ period }: { period: Period }) {
     return (
       <div
         role="status"
-        className="rounded-lg border border-ink-200 bg-white p-5 text-sm text-ink-700"
+        className="rounded-lg border border-ink-200 bg-surface p-5 text-sm text-ink-700"
       >
         <p>I could not load the trends. Your other numbers are fine.</p>
         <TextureButton variant="secondary" type="button" onClick={reload} className="mt-3">
@@ -129,7 +129,7 @@ function Loaded({ period }: { period: Period }) {
     );
   if (state.data.length === 0)
     return (
-      <p className="rounded-lg border border-ink-200 bg-white p-5 text-sm text-ink-700">
+      <p className="rounded-lg border border-ink-200 bg-surface p-5 text-sm text-ink-700">
         No incidents yet. The trends appear after the first check.
       </p>
     );

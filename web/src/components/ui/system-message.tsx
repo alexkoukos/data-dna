@@ -14,7 +14,7 @@ const systemMessageVariants = cva(
         warning: "text-amber-700 ",
       },
       fill: {
-        true: "bg-white ",
+        true: "bg-surface ",
         false: "",
       },
     },

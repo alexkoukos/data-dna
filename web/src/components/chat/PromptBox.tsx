@@ -67,7 +67,7 @@ export function PromptBox({
         value={value}
         onValueChange={onChange}
         onSubmit={onSend}
-        className="relative z-10 w-full rounded-3xl border border-ink-300 bg-white p-0 pt-1 shadow-xs focus-within:border-ink-900"
+        className="relative z-10 w-full rounded-3xl border border-ink-300 bg-surface p-0 pt-1 shadow-xs focus-within:border-ink-900"
       >
         <div className="flex flex-col">
           {files.length ? (

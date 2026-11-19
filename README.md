@@ -1,8 +1,8 @@
-# Hive, the gate
+# Sentry, the gate
 
 > Video: [link, added Thu 19 Nov]
 
-Hive is a browser extension and a dashboard. The extension sits in Chrome, right where people paste into ChatGPT, Claude or Gemini. It checks the text before it is sent, even when the text was rewritten, and decides on the spot: allow, warn, mask, answer with the company's own AI, or block. It always says why. The dashboard shows the security team which AI tools are really used and what was caught.
+Sentry is a browser extension and a dashboard. The extension sits in Chrome, right where people paste into ChatGPT, Claude or Gemini. It checks the text before it is sent, even when the text was rewritten, and decides on the spot: allow, warn, mask, answer with the company's own AI, or block. It always says why. The dashboard shows the security team which AI tools are really used and what was caught.
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 
@@ -19,7 +19,7 @@ Needs Docker with Compose v2 and free ports 3000 (dashboard), 3100 (demo chat) a
 ## Try it in 2 minutes
 
 1. Open the dashboard at http://localhost:3000. It is full of seeded demo data, so every page already has something to look at.
-2. Go to **Get the extension** and download `hive-extension.zip`. Unzip it.
+2. Go to **Get the extension** and download `sentry-extension.zip`. Unzip it.
 3. In Chrome open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and select the unzipped folder.
 4. Open the demo chat at http://localhost:3100. It stands in for ChatGPT, so it works offline.
 5. Paste the texts from the [`samples/`](samples/README.md) folder (English in `samples/en`, Greek in `samples/el`, or use the copy buttons on the dashboard's Get the extension page). You will see each outcome:
@@ -37,7 +37,7 @@ Needs Docker with Compose v2 and free ports 3000 (dashboard), 3100 (demo chat) a
 
 ## Concept
 
-Banning AI at work does not work: people use their personal accounts instead, and the company loses sight of it. Tools that match patterns miss data that was rewritten. Hive takes a third way. It sits in the browser, where the paste happens, understands what is confidential, and lets people keep working: it masks, redirects or explains instead of just saying no.
+Banning AI at work does not work: people use their personal accounts instead, and the company loses sight of it. Tools that match patterns miss data that was rewritten. Sentry takes a third way. It sits in the browser, where the paste happens, understands what is confidential, and lets people keep working: it masks, redirects or explains instead of just saying no.
 
 Two sources feed one inventory of AI tools. The extension reports which AI sites people visit (the site and the time, never the page). Network logs (Squid and Zeek) catch AI use from browsers without the extension, desktop apps and scripts.
 
@@ -145,7 +145,7 @@ On the same machine every Playwright test passes against this stack: 20 of 21 ex
 
 ## Evaluation
 
-`make eval` compares Hive with a regex-and-keyword baseline on 195 labelled prompts and 160 attack prompts, and writes `eval/report.md`. Targets were fixed before building. Run on 17 Nov 2026:
+`make eval` compares Sentry with a regex-and-keyword baseline on 195 labelled prompts and 160 attack prompts, and writes `eval/report.md`. Targets were fixed before building. Run on 17 Nov 2026:
 
 | Metric | Target | Result |
 | --- | --- | --- |

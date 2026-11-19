@@ -1,4 +1,4 @@
-# Hive site scaffold
+# Sentry site scaffold
 
 Plain HTML, no styling, no build. Open `index.html` in a browser.
 

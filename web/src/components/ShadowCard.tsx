@@ -24,7 +24,7 @@ export function ShadowCard({
   return (
     <section
       aria-labelledby="shadow-h"
-      className="mt-4 rounded-lg border border-ink-200 bg-white p-4"
+      className="mt-4 rounded-lg border border-ink-200 bg-surface p-4"
     >
       <h2 id="shadow-h" className="text-lg font-semibold text-ink-900">
         Shadow mode

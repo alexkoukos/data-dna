@@ -5,7 +5,7 @@ export const PHASES = [
   { id: "idle", ms: 500 },
   { id: "type", ms: 1000 },
   { id: "paste", ms: 900 },
-  { id: "bee", ms: 1200 },
+  { id: "sentinel", ms: 1200 },
   { id: "card", ms: 1500 },
   { id: "hold", ms: 900 },
 ] as const;
@@ -16,7 +16,7 @@ export const PHASE = {
   idle: 0,
   type: 1,
   paste: 2,
-  bee: 3,
+  sentinel: 3,
   card: 4,
   hold: 5,
 } as const satisfies Record<PhaseId, number>;

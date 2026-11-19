@@ -57,14 +57,14 @@ export default function App() {
     <div className="min-h-screen">
       <nav
         aria-label="Main"
-        className="flex flex-wrap gap-2 border-b border-ink-200 bg-white px-4 py-2"
+        className="flex flex-wrap gap-2 border-b border-ink-200 bg-surface px-4 py-2"
       >
         <Link
           to="/app"
-          aria-label="Hive home"
+          aria-label="Sentry home"
           className="mr-4 flex min-h-11 min-w-11 items-center self-center"
         >
-          <img src="/brand/hive-wordmark.svg" alt="Hive" className="h-8" />
+          <img src="/brand/sentry-wordmark.svg" alt="Sentry" className="h-8" />
         </Link>
         {links.map((l) => (
           <NavLink

@@ -33,7 +33,7 @@ describe("chatStore", () => {
   it("saves and loads, and survives broken storage", () => {
     saveChats([chat("x", 1)]);
     expect(loadChats().map((c) => c.id)).toEqual(["x"]);
-    localStorage.setItem("hive.chats", "{nope");
+    localStorage.setItem("sentry.chats", "{nope");
     expect(loadChats()).toEqual([]);
   });
 });

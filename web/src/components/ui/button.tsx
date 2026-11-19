@@ -5,7 +5,7 @@ import { Slot } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 /**
- * The shadcn Button that the prompt-kit components import, in the Hive button style (the same flat
+ * The shadcn Button that the prompt-kit components import, in the Sentry button style (the same flat
  * look as TextureButton): amber `default`, neutral `outline` and `secondary`, quiet `ghost`, red
  * `destructive`. Every size keeps a 44 px touch target.
  */
@@ -17,7 +17,7 @@ const buttonVariants = cva(
         default:
           "border-brand-700/50 bg-brand-600 text-ink-900 hover:bg-brand-500 active:bg-brand-700/40",
         destructive: "border-block-solid bg-block-solid text-white hover:bg-block-fg",
-        outline: "border-ink-300 bg-white text-ink-900 hover:bg-ink-50 active:bg-ink-100",
+        outline: "border-ink-300 bg-surface text-ink-900 hover:bg-ink-50 active:bg-ink-100",
         secondary: "border-ink-200 bg-ink-100 text-ink-900 hover:bg-ink-200",
         ghost: "border-transparent bg-transparent text-ink-900 hover:bg-ink-100 active:bg-ink-200",
         link: "border-transparent bg-transparent text-brand-700 underline-offset-4 hover:underline",

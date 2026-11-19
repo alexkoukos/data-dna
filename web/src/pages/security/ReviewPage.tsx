@@ -34,7 +34,7 @@ function Row({
   }
 
   return (
-    <li className="rounded-2xl border border-ink-200 bg-white p-4">
+    <li className="rounded-2xl border border-ink-200 bg-surface p-4">
       <p className="text-sm text-ink-600">
         {kindLabel(c.kind)} · should {EXPECTED[c.expected_decision] ?? c.expected_decision} · the
         gate said {c.got_decision}
@@ -57,7 +57,7 @@ function Row({
           type="button"
           disabled={busy || !reviewer.trim()}
           onClick={() => void act("approve")}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#04141a] hover:bg-brand-700 disabled:opacity-60"
         >
           Approve
         </button>
@@ -65,7 +65,7 @@ function Row({
           type="button"
           disabled={busy || !reviewer.trim()}
           onClick={() => void act("reject")}
-          className="min-h-11 rounded-lg border border-ink-300 bg-white px-5 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
+          className="min-h-11 rounded-lg border border-ink-300 bg-surface px-5 text-sm font-semibold text-ink-900 hover:bg-ink-100 disabled:opacity-60"
         >
           Reject and delete
         </button>
@@ -96,7 +96,7 @@ export default function ReviewPage() {
         value={reviewer}
         onChange={(e) => setReviewer(e.target.value)}
         autoComplete="off"
-        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-ink-900 sm:w-72"
+        className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3 text-ink-900 sm:w-72"
       />
       {note ? (
         <p role="status" className="mt-4 rounded-2xl bg-allow-bg p-3 text-allow-fg">

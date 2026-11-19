@@ -33,7 +33,7 @@ function AnswerView({ answer }: { answer: Answer }) {
           </EmptyPanel>
         </div>
       ) : (
-        <div className="mt-3 overflow-x-auto rounded-lg border border-ink-200 bg-white">
+        <div className="mt-3 overflow-x-auto rounded-lg border border-ink-200 bg-surface">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-ink-200 text-ink-600">
               <tr>
@@ -58,7 +58,7 @@ function AnswerView({ answer }: { answer: Answer }) {
           </table>
         </div>
       )}
-      <details className="mt-4 rounded-lg border border-ink-200 bg-white p-4">
+      <details className="mt-4 rounded-lg border border-ink-200 bg-surface p-4">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-ink-900">
           Show the SQL behind this answer
         </summary>
@@ -155,7 +155,7 @@ export default function AskPage() {
             id="free-q"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
-            className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
+            className="min-h-11 min-w-0 flex-1 rounded-md border border-ink-300 bg-surface px-3 text-sm text-ink-900"
           />
           <TextureButton type="submit" disabled={busy || typed.trim().length < 3} variant="primary">
             <SendHorizontal className="size-4" aria-hidden="true" />

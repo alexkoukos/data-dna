@@ -84,7 +84,7 @@ export default function HistoryPage() {
               id="h-user"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              className="min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
+              className="min-h-11 w-full rounded-md border border-ink-300 bg-surface px-3 text-sm text-ink-900"
             />
             <TextureButton type="submit" variant="primary">
               <Search className="size-4" aria-hidden="true" />
@@ -100,7 +100,7 @@ export default function HistoryPage() {
             id="h-doc"
             value={doc ?? ""}
             onChange={(e) => e.target.value && setParams({ document: e.target.value })}
-            className="mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-white px-3 text-sm text-ink-900"
+            className="mt-1 min-h-11 w-full rounded-md border border-ink-300 bg-surface px-3 text-sm text-ink-900"
           >
             <option value="">Choose a document</option>
             {docs.status === "ready"

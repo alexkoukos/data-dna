@@ -80,7 +80,7 @@ function Verdict({
         </div>
       ) : null}
       <h3 className="mt-6 text-sm font-semibold text-ink-900">What each level saw</h3>
-      <ol className="mt-2 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-white">
+      <ol className="mt-2 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200 bg-surface">
         {result.layers.map((l) => (
           <li key={l.id} className="flex items-start gap-3 px-4 py-3">
             <span className="w-6 shrink-0 pt-0.5 text-sm text-ink-600">{l.level}</span>
@@ -181,7 +181,7 @@ export default function BreakItPage() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
-          className="mt-1 w-full rounded-lg border border-ink-300 bg-white p-3 text-ink-900"
+          className="mt-1 w-full rounded-lg border border-ink-300 bg-surface p-3 text-ink-900"
         />
         <label htmlFor="nick" className="mt-3 block text-sm font-semibold text-ink-900">
           Nickname (optional)
@@ -192,7 +192,7 @@ export default function BreakItPage() {
           maxLength={24}
           onChange={(e) => setNickname(e.target.value)}
           autoComplete="off"
-          className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-white px-3 text-ink-900 sm:w-72"
+          className="mt-1 min-h-11 w-full rounded-lg border border-ink-300 bg-surface px-3 text-ink-900 sm:w-72"
         />
         <p className="mt-1 text-sm text-ink-600">
           Shown on the top breakers list. Use a made-up name, not your own.

@@ -20,10 +20,10 @@ export function label(category: string): string {
 export function titleFor(action: Action): string {
   return {
     allow: "Looks fine",
-    mask: "That's hive honey. I kept it in.",
+    mask: "That's company data. I kept it in.",
     warn: "Let's check this before it leaves.",
     local: "Company AI can answer this safely.",
-    block: "This stays in the hive.",
+    block: "This stays inside the company.",
   }[action];
 }
 

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Bee } from "../components/Bee";
+import { Sentinel } from "../components/Sentinel";
 
 const STEPS = [
   {
@@ -11,7 +11,7 @@ const STEPS = [
   },
   {
     n: 2,
-    title: "Hive catches it before it is sent",
+    title: "Sentry catches it before it is sent",
     body: "Each message is checked before it leaves the browser. It is allowed, masked, held for a second look, answered by the company AI or blocked, with the reason in plain words.",
     to: "/break-it",
     cta: "Try to break it",
@@ -31,12 +31,12 @@ export default function HomePage() {
     <main className="mx-auto max-w-5xl px-4 py-10">
       <section className="flex flex-wrap items-center gap-8">
         <div className="min-w-0 flex-1 basis-80">
-          <p className="eyebrow">Hive, the gate</p>
+          <p className="eyebrow">Sentry, the gate</p>
           <h1 className="mt-2 text-4xl font-semibold text-ink-900 sm:text-5xl">
             Use AI at work without leaking company data.
           </h1>
           <p className="mt-4 max-w-prose text-lg text-ink-600">
-            Hive is a browser extension and a dashboard. It checks what people paste into AI chats,
+            Sentry is a browser extension and a dashboard. It checks what people paste into AI chats,
             masks or stops private data, and shows your security team which AI tools are really
             used.
           </p>
@@ -56,7 +56,7 @@ export default function HomePage() {
           </div>
         </div>
         <div className="mx-auto">
-          <Bee size={112} />
+          <Sentinel size={112} />
         </div>
       </section>
 
@@ -66,7 +66,7 @@ export default function HomePage() {
         </h2>
         <ol className="mt-4 grid gap-4 md:grid-cols-3">
           {STEPS.map((s) => (
-            <li key={s.n} className="flex flex-col rounded-lg border border-ink-200 bg-white p-5">
+            <li key={s.n} className="flex flex-col rounded-lg border border-ink-200 bg-surface p-5">
               <span
                 aria-hidden="true"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-ink-900"

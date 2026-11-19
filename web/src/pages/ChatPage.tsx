@@ -34,7 +34,7 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { ThinkingBar } from "@/components/ui/thinking-bar";
 import { Tool } from "@/components/ui/tool";
 import { cn } from "@/lib/utils";
-import { Bee } from "../components/Bee";
+import { Sentinel } from "../components/Sentinel";
 import { RequestToolForm } from "../components/RequestToolForm";
 import { OutcomeChip } from "../components/OutcomeChip";
 import { WarnCard } from "../components/WarnCard";
@@ -54,7 +54,7 @@ import { collectOutcomes, outcomeText } from "../lib/toolRequestsApi";
 /** Stock portrait for the person (Unsplash). If it cannot load, the initials show instead. */
 const USER_AVATAR =
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&q=80";
-/** The company AI's avatar is the Hive bee, drawn inline so it works offline. */
+/** The company AI's avatar is the Sentry sentinel, drawn inline so it works offline. */
 const BEE_AVATAR =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(
@@ -319,7 +319,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-61px)] min-h-[32rem] overflow-hidden bg-white">
+    <div className="flex h-[calc(100dvh-61px)] min-h-[32rem] overflow-hidden bg-surface">
       <ChatSidebar
         chats={chats}
         activeId={activeId}
@@ -344,7 +344,7 @@ export default function ChatPage() {
       />
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="z-10 flex h-14 w-full shrink-0 items-center gap-2 border-b border-ink-200 bg-white px-4">
+        <header className="z-10 flex h-14 w-full shrink-0 items-center gap-2 border-b border-ink-200 bg-surface px-4">
           <TextureButton
             variant="minimal"
             size="icon"
@@ -386,7 +386,7 @@ export default function ChatPage() {
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-10">
             <div className="w-full max-w-3xl">
               <div className="mb-6 flex flex-col items-center gap-3 text-center">
-                <Bee size={72} />
+                <Sentinel size={72} />
                 <h2 className="text-3xl text-ink-900">What can I help with?</h2>
               </div>
               <PromptBox
@@ -604,7 +604,7 @@ export default function ChatPage() {
                 </div>
               </ChatContainerRoot>
             </div>
-            <div className="z-10 shrink-0 bg-white px-3 pb-3 md:px-5 md:pb-5">
+            <div className="z-10 shrink-0 bg-surface px-3 pb-3 md:px-5 md:pb-5">
               <div className="mx-auto max-w-3xl">
                 <PromptBox
                   value={draft}

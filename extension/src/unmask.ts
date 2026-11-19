@@ -39,7 +39,7 @@ export class Unmasker {
       return;
     }
     if (!(node instanceof HTMLElement)) return;
-    if (node.closest('hive-overlay, textarea, [contenteditable="true"], .hive-restored')) return;
+    if (node.closest('hive-overlay, textarea, [contenteditable="true"], .sentry-restored')) return;
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
     const texts: Text[] = [];
     while (walker.nextNode()) texts.push(walker.currentNode as Text);
@@ -50,7 +50,7 @@ export class Unmasker {
     const parent = text.parentElement;
     if (
       !parent ||
-      parent.closest('.hive-restored, textarea, [contenteditable="true"], hive-overlay')
+      parent.closest('.sentry-restored, textarea, [contenteditable="true"], hive-overlay')
     )
       return;
     const value = text.data;
