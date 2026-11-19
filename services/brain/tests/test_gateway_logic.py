@@ -2500,3 +2500,16 @@ def test_a_whole_check_that_withholds_withholds_the_call() -> None:
 
     cleaned, notice = asyncio.run(dna.clean_arguments('{"a": "memo text"}', leaf, whole))
     assert cleaned == "{}" and notice and notice.startswith("[Removed")
+
+
+def test_a_masked_field_does_not_excuse_a_value_split_across_other_fields() -> None:
+    async def leaf(text: str) -> str:
+        return text.replace("SECRET", "[S]")
+
+    async def whole(text: str) -> str:
+        return text.replace('"AL", "b": "PHA"', "[X]")
+
+    cleaned, notice = asyncio.run(
+        dna.clean_arguments('{"k": "SECRET", "a": "AL", "b": "PHA"}', leaf, whole)
+    )
+    assert cleaned == "{}" and notice == dna.WITHHELD_ARGUMENTS

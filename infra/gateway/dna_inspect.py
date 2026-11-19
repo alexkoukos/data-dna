@@ -1432,7 +1432,6 @@ async def clean_arguments(
     withheld, a notice (the arguments are then `{}` and the caller shows the notice instead)."""
     seen: dict[str, str] = {}
     notice: list[str] = []
-    changed: list[bool] = []
 
     async def leaf(value: str) -> str:
         if not value.strip():
@@ -1441,8 +1440,6 @@ async def clean_arguments(
             seen[value] = await transform(value)
             if seen[value].startswith(WITHHELD_MARK):
                 notice.append(seen[value])
-            if seen[value] != value:
-                changed.append(True)
         return seen[value]
 
     async def walk(node: Any) -> Any:
@@ -1464,15 +1461,17 @@ async def clean_arguments(
     except ValueError:
         out = await leaf(text)
         return ("{}", notice[0]) if notice else (out, None)
-    cleaned = json.dumps(await walk(parsed), ensure_ascii=False)
+    walked = await walk(parsed)
+    cleaned = json.dumps(walked, ensure_ascii=False)
     if notice:
         return "{}", notice[0]
     if whole_check is not None:
-        serialized = json.dumps(parsed, ensure_ascii=False)
-        whole = await whole_check(serialized)
+        # The cleaned result is looked at as one text: anything still found or changed in it
+        # (a value split across fields) withholds the call, even if single fields were masked.
+        whole = await whole_check(cleaned)
         if whole.startswith(WITHHELD_MARK):
             return "{}", whole
-        if whole != serialized and not changed:
+        if whole != cleaned:
             return "{}", WITHHELD_ARGUMENTS
     return cleaned, None
 
