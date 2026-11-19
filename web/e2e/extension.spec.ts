@@ -186,7 +186,7 @@ test("when the brain is down it fails open and shows the offline badge", async (
   await page.keyboard.type("SECRET but offline");
   await page.keyboard.press("Enter");
   await expect(sent()).toHaveText("SECRET but offline");
-  await expect(page.getByText("Pyli offline")).toBeVisible();
+  await expect(page.getByText("Sentry offline")).toBeVisible();
   await startBrain(); // so afterEach can close it
 });
 
