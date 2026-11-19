@@ -516,7 +516,7 @@ def inspect(
             copy_code=leaked_copy,
             trace=steps,
             shadow=shadow,
-            tool=req.tool,
+            tool=req.tool or "Company AI",
             channel=req.channel,
         )
     for owner in decoys:

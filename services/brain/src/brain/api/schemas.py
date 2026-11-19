@@ -18,8 +18,6 @@ class InspectRequest(BaseModel):
     user_id: str = "anonymous"
     team: str = "unknown"
     model: str = "default"
-    tool: str = "Company AI"
-    channel: str = "gateway"
     reroute: bool = False  # X31: the person chose "send it to Company AI instead"
     messages: list[Message]
     attachments: list[Attachment] = Field(default_factory=list)
