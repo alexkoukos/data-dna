@@ -1,4 +1,4 @@
-# Sending Sentry incidents to the SOC (X30)
+# Sending Sentry incidents to the SOC
 
 "How does this reach our SOC?" Three ways, all optional, none sends prompt text.
 

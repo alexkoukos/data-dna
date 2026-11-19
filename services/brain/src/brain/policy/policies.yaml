@@ -1,4 +1,4 @@
-# Seed for the policy table (PRD section 10). Used only when the table is empty;
+# Seed for the policy table. Used only when the table is empty;
 # after that the database is the source of truth and the dashboard edits it.
 defaults:
 categories:

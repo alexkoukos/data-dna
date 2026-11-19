@@ -1,4 +1,4 @@
-"""Match proxy and DNS logs against the AI tool catalogue and aggregate usage (PRD section 11).
+"""Match proxy and DNS logs against the AI tool catalogue and aggregate usage.
 
 `aggregate` is pure (lines in, rows out). Tools served through the gateway never appear in these
 logs; their usage comes from the gateway counters instead.

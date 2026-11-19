@@ -1,4 +1,4 @@
-"""Prompt-injection heuristics (PRD 9.5): the "ignore previous instructions" family, English and Greek.
+"""Prompt-injection heuristics: the "ignore previous instructions" family, English and Greek.
 
 Cheap and always on. The classifier model (D6, second part) catches what these phrases miss.
 """

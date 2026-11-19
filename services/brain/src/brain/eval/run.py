@@ -1,8 +1,8 @@
-"""`make eval`: score the detection pipeline against a labelled prompt set (PRD 17 and 18).
+"""`make eval`: score the detection pipeline against a labelled prompt set.
 
 Reads data/eval/prompts.csv (the team's set). Until that file has enough rows it uses
 prompts.sample.csv (invented) and says so at the top of the report. Compares with a baseline that
-only has regex checks and a keyword list, and checks the targets from PRD section 17.
+only has regex checks and a keyword list, and checks the targets listed in docs/EVALUATION.md.
 Writes eval/report.md and eval/report.json at the repo root.
 """
 
@@ -221,7 +221,7 @@ def percentile(values: list[float], q: float) -> float:
 
 def attribution_accuracy(data: Path, copies: int = 8, trials: int = 40) -> float | None:
     """Issue copies of each document, "leak" random excerpts of them, and check the right copy is
-    named. Only excerpts that still carry at least 3 marks count (PRD 17). Excerpts are shouted
+    named. Only excerpts that still carry at least 3 marks count. Excerpts are shouted
     or stripped of punctuation first, the way a careless leaker might."""
     rng = random.Random(7)
     hits = total = 0
@@ -514,7 +514,7 @@ def to_markdown(rep: dict[str, Any]) -> str:
             else ""
         ),
         "",
-        "## Targets (PRD section 17)",
+        "## Targets",
         "",
         "| Metric | Target | Result | Status |",
         "| --- | --- | --- | --- |",

@@ -4,7 +4,7 @@ Run (stack up):  make loadtest          or   cd services/brain && uv run python 
 Options: --users 3 --seconds 15 --url http://localhost:8001 (try --users 10 to see where it saturates)
 --history N puts N earlier user and assistant turns before each prompt, like a long chat.
 Sends the prompts of data/eval (clean and risky mixed) as concurrent people and prints requests per
-second, error rate and latency p50, p95 and p99. Target (PRD 17): p95 under 100 ms without the LLM
+second, error rate and latency p50, p95 and p99. Target: p95 under 100 ms without the LLM
 judge. Exit code 1 when the target is missed or any request failed.
 """
 

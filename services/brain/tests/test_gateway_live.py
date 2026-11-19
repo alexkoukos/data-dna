@@ -104,7 +104,7 @@ def test_streamed_answer_is_filtered(client: OpenAI) -> None:
     assert "AKIAIOSFODNN7EXAMPLE" not in answer
 
 
-# --- E4: all five outcomes with the decision header (PRD section 19) -------------------------
+# --- E4: all five outcomes with the decision header -------------------------
 # Local comes from a pasted line of a registered confidential document, block from an injection.
 
 CARD = "Please check card 4111 1111 1111 1111"

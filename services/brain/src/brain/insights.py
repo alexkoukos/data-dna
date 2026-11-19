@@ -14,7 +14,7 @@ from brain.db import tables as t
 from brain.queries import _aware, _incident_out, reference_time
 
 # X18 assumptions. Illustrative euro figures per stopped leak, written down in
-# docs/business/roi-assumptions.md. "likelihood" is the share of stopped leaks assumed to have
+# docs/business/business-case.md. "likelihood" is the share of stopped leaks assumed to have
 # become a real incident had nothing stopped them. Change them there and here together.
 LIKELIHOOD = 0.10
 UNIT_COST_EUR: dict[str, int] = {
@@ -150,7 +150,7 @@ def roi(conn: sa.Connection, days: int = 30) -> dict[str, Any]:
             "likelihood": LIKELIHOOD,
             "unit_cost_eur": UNIT_COST_EUR,
             "document_cost_eur": DOC_COST_EUR,
-            "note": "Illustrative estimates, see docs/business/roi-assumptions.md.",
+            "note": "Illustrative estimates, see docs/business/business-case.md.",
         },
         "tools": tools[:10],
     }

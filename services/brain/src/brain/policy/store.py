@@ -1,4 +1,4 @@
-"""Policies in the database, seeded from policies.yaml, editable at runtime (PRD section 10).
+"""Policies in the database, seeded from policies.yaml, editable at runtime.
 
 If the database cannot be reached the engine falls back to the seed file, so detection keeps
 working. Every change is written to audit_log.

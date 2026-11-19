@@ -1,4 +1,4 @@
-"""Preset analyst questions (PRD section 13): fixed, parameterised SQL that always works.
+"""Preset analyst questions: fixed, parameterised SQL that always works.
 
 The SQL is shown beside every answer so the analyst can check it. Each query only reads, and
 uses only portable SQL so it runs on Postgres and on the SQLite used in tests. `:since` is

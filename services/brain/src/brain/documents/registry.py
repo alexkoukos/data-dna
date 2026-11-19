@@ -1,4 +1,4 @@
-"""Document registry and matching (PRD 9.3).
+"""Document registry and matching.
 
 Register: split into chunks, store a MinHash signature and an embedding per chunk. The text is kept
 only when `keep_text` is on (demo mode, for the puzzle view). Match: chunk the prompt the same way;

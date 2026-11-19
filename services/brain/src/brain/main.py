@@ -1367,7 +1367,7 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
 @app.post("/v1/inspect-tool-result", response_model=ToolResultResponse)
 def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> ToolResultResponse:
     """Text coming back from a tool (MCP server, web page, file) is untrusted: it may carry
-    instructions for the model. Injection blocks it; secrets are masked (PRD 9.5)."""
+    instructions for the model. Injection blocks it; secrets are masked."""
     result = inspect_text(
         req.text,
         policy_store.current(),

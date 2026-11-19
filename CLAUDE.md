@@ -3,9 +3,7 @@
 This repo is shared by four people who hand work to each other, often mid-feature, when someone runs out of tokens. Your job is to keep the repo in a state where anyone can pick it up in five minutes.
 
 ## What we are building
-Sentry (πύλη, "the gate"; the repo and some code still say Sentry), an AI gate for Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection and Data Protection). The full spec is `docs/PRD.md`. The plain-language version for the whole team is `docs/IDEA_AND_TEAM.md`. Read the PRD section you need before writing code; do not guess the design.
-
-The owner's full plan (day-by-day calendar, browser extension X21, mascot X27, notifications X15, MCP server X28, OCR and voice, cut list, and ready-made prompts A to E) is in `docs/SENTRY_PLAN.md`. Prompt D there is the brief for task X21. In that file the product is called "Sentry"; it is the same project as Sentry.
+Sentry (πύλη, "the gate"), an AI gate for Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection and Data Protection). The design is in `docs/ARCHITECTURE.md`, the measurements in `docs/EVALUATION.md`. The code is the source of truth: if a doc and the code disagree, fix the doc. Read the part you need before writing code; do not guess the design.
 
 Deadline: Friday 20 Nov 2026, judged from the repo alone. If `docker compose up --build` fails on a judge's machine, the submission is void.
 
@@ -41,7 +39,7 @@ The next person must be able to continue from the PROGRESS entry alone.
 
 ## Code conventions
 - Brain: Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2. `ruff` and `mypy --strict` must pass. Tests in `services/brain/tests`, coverage at least 80%.
-- Detection order is cheapest first (PRD section 9). Keep functions pure where possible; I/O at the edges.
+- Detection order is cheapest first (`docs/ARCHITECTURE.md` section 3). Keep functions pure where possible; I/O at the edges.
 - Web: React + TypeScript + Tailwind v4. Tokens are in `web/src/index.css` `@theme`; use only those. Presentational components in `src/components`, screens and data fetching in `src/pages`. Tests next to components (`*.test.tsx`).
 - Every user-facing message says what happened and what to do next, in plain words.
 

@@ -130,7 +130,7 @@ questions through the real pipeline and measures what each cutoff would do.
 {FALSE_ALARM_BUDGET:.0%}. The code uses `PARAPHRASE_COSINE` in
 `services/brain/src/brain/documents/registry.py`; change it only after re-running `make calibrate`.
 
-A false alarm sends the message to the local model; it never blocks (PRD 9.3). That is why a
+A false alarm sends the message to the local model; it never blocks. That is why a
 budget of {FALSE_ALARM_BUDGET:.0%} is acceptable. All data is invented. Re-run after changing the
 embedding model, the chunking or the document set.
 """

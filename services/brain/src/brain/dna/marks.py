@@ -1,4 +1,4 @@
-"""DNA marks (PRD 12): small decoy details that differ per recipient, so a leak names its copy.
+"""DNA marks: small decoy details that differ per recipient, so a leak names its copy.
 
 Pure functions. A mark sits at a sentence of the document and has 4 variants (a project
 codename, an internal reference, or an example name). Each copy takes one variant per mark.

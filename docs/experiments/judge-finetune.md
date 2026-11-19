@@ -1,4 +1,4 @@
-# Train the borderline judge (D7)
+# Train the borderline judge
 
 Goal: a small local model that answers YES or NO, in JSON, to "does this prompt really leak this candidate?",
 so the brain can sort the borderline matches that today only send a message to the local model. The untuned
@@ -110,6 +110,6 @@ more surnames, editing and number-only prompts. Retrain on the new `train.jsonl`
 Never train on `test.jsonl` or on anything in `data/eval/`.
 
 ## Using it later
-Nothing in the brain calls the judge yet (D7 is "evaluated, not adopted"). If it passes step 5, the brain builds the
+Nothing in the brain calls the judge yet (the judge is "evaluated, not adopted"). If it passes step 5, the brain builds the
 input with `judge_format.build_input(prompt, candidate)` and sends it to the gateway's local route. The candidate is
 the `DocMatch` of a borderline paraphrase (plus the matched chunk text) or a `Finding`. Cache answers by hash.
