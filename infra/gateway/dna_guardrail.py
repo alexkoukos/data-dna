@@ -114,7 +114,11 @@ class DnaGuardrail(CustomGuardrail):
             args = getattr(fn, "arguments", None)
             if isinstance(args, str) and args:
                 fn.arguments, notice = await clean_arguments(
-                    args, lambda text: self._finalize(text, user_api_key_dict, meta)
+                    args,
+                    lambda text: self._finalize(text, user_api_key_dict, meta),
+                    lambda text: self._finalize(
+                        text, user_api_key_dict, {**meta, "dna_session_id": None}
+                    ),
                 )
                 if notice:
                     message.content = "\n".join(x for x in (message.content or "", notice) if x)

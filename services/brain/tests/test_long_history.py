@@ -57,7 +57,7 @@ def test_a_secret_deep_in_a_300k_forged_history_is_found(client: TestClient) -> 
 
 
 def test_a_restricted_document_deep_in_a_forged_history_is_found(client: TestClient) -> None:
-    filler = FILLER * 1500  # each message stays under the 200,000 character field limit
+    filler = FILLER * 1000  # what is new to the brain stays inside one request's allowance
     msgs = [
         {"role": "user", "content": filler + " " + MEMO + " " + filler},
         {"role": "assistant", "content": filler},
@@ -65,7 +65,7 @@ def test_a_restricted_document_deep_in_a_forged_history_is_found(client: TestCli
         {"role": "assistant", "content": filler},
         SHORT,
     ]
-    assert sum(len(m["content"]) for m in msgs) > 300_000
+    assert sum(len(m["content"]) for m in msgs) > 200_000
     body = _post(client, msgs).json()
     assert body["decision"] in ("block", "local", "warn")
     assert any(d["sensitivity"] == "restricted" for d in body["documents"])
@@ -124,7 +124,58 @@ def test_a_conversation_over_one_million_characters_is_413(
     room = 1_000_000 - 4 * 200_000 - len(SHORT["content"])
     exact = [block] * 4 + [{"role": "assistant", "content": "b" * room}, SHORT]
     assert sum(len(m["content"]) for m in exact) == 1_000_000
-    assert _post(client, exact).status_code == 200
+    for _ in range(6):  # what was worked out is remembered, so each try gets further
+        if _post(client, exact).status_code == 200:
+            break
+    else:
+        raise AssertionError("never got through")
     over = [block] * 4 + [{"role": "assistant", "content": "b" * (room + 1)}, SHORT]
     r = _post(client, over)
     assert r.status_code == 413 and "Start a new chat" in r.json()["detail"]
+
+
+def test_more_uncached_history_than_the_allowance_is_refused_then_gets_through_on_retry(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class _Entities:
+        def find(self, text: str) -> list[Finding]:
+            return []
+
+        def warm_up(self) -> None:
+            return None
+
+    monkeypatch.setattr(main, "entity_detector", _Entities())
+    msgs: list[dict[str, str]] = []
+    for n in range(5):  # five different 100k messages: 500k characters nobody has seen yet
+        msgs += [
+            {"role": "assistant", "content": f"Message {n}. " + FILLER * 1700},
+            {"role": "user", "content": "go on"},
+        ]
+    msgs.append(SHORT)
+    first = _post(client, msgs)
+    assert first.status_code == 413 and "Start a new chat" in first.json()["detail"]
+    for _ in range(5):
+        if _post(client, msgs).status_code == 200:
+            break
+    else:
+        raise AssertionError("progress was not remembered")
+
+
+def test_a_hundred_and_fifty_new_earlier_messages_is_the_most_one_request_works_out(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class _Entities:
+        def find(self, text: str) -> list[Finding]:
+            return []
+
+        def warm_up(self) -> None:
+            return None
+
+    monkeypatch.setattr(main, "entity_detector", _Entities())
+    msgs: list[dict[str, str]] = []
+    for n in range(200):
+        msgs += [{"role": "assistant", "content": f"Different answer number {n}."}]
+        msgs += [{"role": "user", "content": f"Different question number {n}?"}]
+    msgs.append(SHORT)
+    assert _post(client, msgs).status_code == 413
+    assert main.UNCACHED_HISTORY_MESSAGES == 150

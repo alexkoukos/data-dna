@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import binascii
+import contextvars
 import csv
 import hashlib
 import hmac
@@ -787,6 +788,30 @@ _match_memory: _Remembered[tuple[DocumentIndex, int, str, tuple[str, ...]], list
 )
 _entity_memory: _Remembered[str, list[Finding]] = _Remembered(512, 600.0)
 MAX_CONVERSATION_CHARS = 1_000_000
+# What one request may work out from scratch across earlier turns (messages already seen cost
+# nothing). About 3 s per 100,000 characters on a laptop, so this keeps a request near 8 s. When
+# it runs out the request is refused (never partly checked); what was worked out is remembered, so
+# sending the same request again gets further.
+UNCACHED_HISTORY_CHARS = 240_000
+UNCACHED_HISTORY_MESSAGES = 150
+_uncached: contextvars.ContextVar[dict[str, int] | None] = contextvars.ContextVar(
+    "uncached_history", default=None
+)
+
+
+def _spend_uncached(kind: str, text: str) -> None:
+    """Count one earlier message worked out from scratch against this request's allowance."""
+    left = _uncached.get()
+    if left is None:
+        return
+    left[kind + "_chars"] -= len(text)
+    left[kind + "_messages"] -= 1
+    if left[kind + "_chars"] < 0 or left[kind + "_messages"] < 0:
+        raise HTTPException(
+            status_code=413,
+            detail="This conversation is too long to check. Start a new chat and paste only "
+            "what you need.",
+        )
 
 
 def _digest(text: str) -> str:
@@ -803,6 +828,7 @@ def _history_matches(
         key = (index, version, _digest(segment), tuple(relaxed_for))
         found = _match_memory.get(key)
         if found is None:
+            _spend_uncached("matches", segment)
             found = index.match(segment, relaxed_for=relaxed_for, max_embedded=HISTORY_MAX_EMBEDDED)
             _match_memory.put(key, found)
         for m in found:
@@ -825,6 +851,7 @@ def _history_entities(text: str) -> list[Finding]:
         key = _digest(segment)
         found = _entity_memory.get(key)
         if found is None:
+            _spend_uncached("entities", segment)
             found = entity_detector.find(segment)
             _entity_memory.put(key, found)
         out.extend(replace(f, start=f.start + offset, end=f.end + offset) for f in found)
@@ -899,6 +926,14 @@ def inspect(
         )
     if not new_idx and not history_idx and not trusted_idx and not attached:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
+    _uncached.set(
+        {
+            "matches_chars": UNCACHED_HISTORY_CHARS,
+            "matches_messages": UNCACHED_HISTORY_MESSAGES,
+            "entities_chars": UNCACHED_HISTORY_CHARS,
+            "entities_messages": UNCACHED_HISTORY_MESSAGES,
+        }
+    )
     clock = time.perf_counter()
     policies = groups.effective(policy_store.engine, policy_store.current(), req.user_id, req.team)
     finders = _finders()
@@ -1379,6 +1414,9 @@ def try_attempts() -> list[Attempt]:
     return _attempts.recent(50)
 
 
+BREAKIT_FALLBACK = Path("/var/dna/breakit/attacks_scripts.csv")
+
+
 def _eval_file() -> Path:
     if not settings.data_dir:
         raise HTTPException(status_code=503, detail="The attack file is not available here.")
@@ -1435,15 +1473,26 @@ def breakit_queue() -> list[CandidateOut]:
 @app.post("/v1/breakit/candidates/{candidate_id}/approve", response_model=ReviewOut)
 def breakit_approve(candidate_id: int, req: ReviewIn) -> ReviewOut:
     path = _eval_file()
+    note = None
     try:
-        eval_id = _write(lambda c: breakit.approve(c, candidate_id, req.reviewer, path))
+        try:
+            eval_id = _write(lambda c: breakit.approve(c, candidate_id, req.reviewer, path))
+        except OSError:
+            # data/eval is read-only here (no host folder permissions): keep the row inside the
+            # brain's own volume and say how to copy it out.
+            path = BREAKIT_FALLBACK
+            eval_id = _write(lambda c: breakit.approve(c, candidate_id, req.reviewer, path))
+            note = (
+                "Saved inside the brain (data/eval is read-only here). Copy it out with: "
+                "docker compose cp brain:/var/dna/breakit/attacks_scripts.csv data/eval/"
+            )
     except breakit.BreakitError as err:
         raise HTTPException(status_code=err.status, detail=str(err)) from err
     except OSError as err:
         raise HTTPException(
             status_code=503, detail="The attack file could not be written. Nothing was approved."
         ) from err
-    return ReviewOut(status="approved", eval_id=eval_id)
+    return ReviewOut(status="approved", eval_id=eval_id, note=note)
 
 
 @app.post("/v1/breakit/candidates/{candidate_id}/reject", response_model=ReviewOut)

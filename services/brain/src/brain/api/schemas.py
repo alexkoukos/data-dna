@@ -394,7 +394,7 @@ class Attempt(BaseModel):
 class ExtensionInspect(BaseModel):
     """What the browser extension sends. Who the user is comes from the key, never from here."""
 
-    text: str = Field(max_length=200_000)
+    text: str = Field(max_length=100_000)  # the same limit as MAX_INSPECT_CHARS in main.py
     model: str = Field(default="ChatGPT (personal)", max_length=80)
 
 
@@ -448,6 +448,7 @@ class ReviewIn(BaseModel):
 class ReviewOut(BaseModel):
     status: str
     eval_id: str | None = None
+    note: str | None = None
 
 
 class BreakerOut(BaseModel):

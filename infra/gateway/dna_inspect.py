@@ -1414,15 +1414,25 @@ async def _rewrite_anthropic_sse(
 WITHHELD_MARK = "[Removed"
 
 
+WITHHELD_ARGUMENTS = "[Removed: a tool call was withheld because its arguments held sensitive data.]"
+
+
 async def clean_arguments(
-    text: str, transform: Callable[[str], Awaitable[str]]
+    text: str,
+    transform: Callable[[str], Awaitable[str]],
+    whole_check: Callable[[str], Awaitable[str]] | None = None,
 ) -> tuple[str, str | None]:
     """Clean tool-call arguments. Valid JSON is cleaned string by string (values and keys), so a
-    value that holds a quote, a backslash or a newline stays valid JSON; anything else is cleaned
-    as plain text. Returns the arguments and, if the answer filter withheld something, its notice
-    (the arguments are then `{}` and the caller shows the notice instead)."""
+    value that holds a quote, a backslash or a newline stays valid JSON; numbers are checked as
+    text too (a card number can be a JSON number); anything else is cleaned as plain text.
+
+    `whole_check` (the answer filter without unmasking) also looks at the arguments as one text, so
+    a value split across several fields is not missed: if it finds something that no single
+    field accounts for, the call is withheld. Returns the arguments and, if something had to be
+    withheld, a notice (the arguments are then `{}` and the caller shows the notice instead)."""
     seen: dict[str, str] = {}
     notice: list[str] = []
+    changed: list[bool] = []
 
     async def leaf(value: str) -> str:
         if not value.strip():
@@ -1431,9 +1441,16 @@ async def clean_arguments(
             seen[value] = await transform(value)
             if seen[value].startswith(WITHHELD_MARK):
                 notice.append(seen[value])
+            if seen[value] != value:
+                changed.append(True)
         return seen[value]
 
     async def walk(node: Any) -> Any:
+        if isinstance(node, bool) or node is None:
+            return node
+        if isinstance(node, (int, float)):
+            out = await leaf(json.dumps(node))
+            return node if out == json.dumps(node) else out
         if isinstance(node, str):
             return await leaf(node)
         if isinstance(node, dict):
@@ -1448,7 +1465,16 @@ async def clean_arguments(
         out = await leaf(text)
         return ("{}", notice[0]) if notice else (out, None)
     cleaned = json.dumps(await walk(parsed), ensure_ascii=False)
-    return ("{}", notice[0]) if notice else (cleaned, None)
+    if notice:
+        return "{}", notice[0]
+    if whole_check is not None:
+        serialized = json.dumps(parsed, ensure_ascii=False)
+        whole = await whole_check(serialized)
+        if whole.startswith(WITHHELD_MARK):
+            return "{}", whole
+        if whole != serialized and not changed:
+            return "{}", WITHHELD_ARGUMENTS
+    return cleaned, None
 
 
 async def _clean_side_channels(
@@ -1483,7 +1509,7 @@ async def _clean_side_channels(
     for (kind, _), holders in slots.items():
         joined = "".join(str(_get(h, a)) for h, a in holders)
         if kind == "tool":
-            cleaned, notice = await clean_arguments(joined, transform)
+            cleaned, notice = await clean_arguments(joined, transform, filter_only)
             if notice:
                 notices.append(notice)
         else:

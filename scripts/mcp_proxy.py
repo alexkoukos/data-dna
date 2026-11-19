@@ -48,6 +48,7 @@ def brain_inspect(text: str) -> dict[str, Any]:
 
 
 CHUNK = 100_000  # the brain checks at most this much text at once
+OVERLAP = 4_000  # chunks overlap, so a phrase on a boundary is whole in one of them
 
 
 class _Withhold(Exception):
@@ -58,11 +59,16 @@ def _check(text: str, inspect: Inspect) -> str:
     if not text.strip():
         return text
     if len(text) > CHUNK:
-        parts = [_check(text[n : n + CHUNK], inspect) for n in range(0, len(text), CHUNK)]
-        bad = next(
-            (x for x in parts if x in (UNAVAILABLE,) or x.startswith("[Data DNA blocked")), None
-        )
-        return bad if bad is not None else "".join(parts)
+        # Stitching masked chunks back together across the overlap is error-prone, so a long text
+        # in which any chunk needs a change is withheld whole.
+        for n in range(0, len(text), CHUNK - OVERLAP):
+            part = text[n : n + CHUNK]
+            checked = _check(part, inspect)
+            if checked != part:
+                return checked if checked.startswith("[Data DNA blocked") else UNAVAILABLE
+            if n + CHUNK >= len(text):
+                break
+        return text
     try:
         verdict = inspect(text)
         decision = verdict.get("decision")
@@ -94,7 +100,7 @@ _TEXT_MIME = re.compile(r"^(text/|application/(json|xml|yaml|x-yaml|.*\+(json|xm
 # Values the server picks that name things. They are checked, but never rewritten: a block
 # withholds the message, anything else is left exactly as it was.
 _STRUCTURAL = {"uri", "name", "cursor", "nextCursor", "protocolVersion", "version", "id"}
-# Field names of the protocol. Any other key is checked too, unless it is a plain identifier.
+# Field names of the protocol. Any other key is checked too.
 _PROTOCOL_KEYS = _STRUCTURAL | {
     "jsonrpc", "method", "params", "result", "error", "code", "message", "data", "content",
     "contents", "text", "type", "mimeType", "title", "description", "inputSchema",
@@ -107,7 +113,6 @@ _PROTOCOL_KEYS = _STRUCTURAL | {
     "modelPreferences", "metadata", "ref", "argument", "completion", "values", "total",
     "hasMore", "level", "logger", "progress", "progressToken", "reason", "requestId",
 }  # fmt: skip
-_IDENTIFIER = re.compile(r"^[A-Za-z0-9_.\-]{1,40}$")
 
 
 def _check_blob(value: str, mime: str, inspect: Inspect) -> str:
@@ -141,8 +146,8 @@ def _walk(node: Any, inspect: Inspect, item: bool = False) -> Any:
     media = is_item and node.get("type") in ("image", "audio")
     out: dict[str, Any] = {}
     for key, value in node.items():
-        if key not in _PROTOCOL_KEYS and not _IDENTIFIER.match(key):
-            key = _check(key, inspect)
+        if key not in _PROTOCOL_KEYS and _check(key, inspect) != key:
+            raise _Withhold  # a key is never rewritten: a finding in it withholds the message
         if key == "tools" and isinstance(value, list):
             out[key] = _safe_tools(value, inspect)
         elif key == "blob" and isinstance(value, str):
@@ -153,8 +158,8 @@ def _walk(node: Any, inspect: Inspect, item: bool = False) -> Any:
             whole = json.dumps(value, ensure_ascii=False)
             out[key] = UNAVAILABLE if _stopped(whole, inspect) else _walk(value, inspect)
         elif key in _STRUCTURAL and isinstance(value, str):
-            if _stopped(value, inspect):
-                raise _Withhold
+            if _check(value, inspect) != value:
+                raise _Withhold  # never rewritten, so any finding withholds the message
             out[key] = value
         elif is_item and (
             (key == "type" and value in _CONTENT_TYPES)
@@ -225,6 +230,18 @@ def _safe_tools(tools: list[Any], inspect: Inspect) -> list[Any]:
     return safe
 
 
+def _memoised(inspect: Inspect) -> Inspect:
+    """One brain call per distinct string in a message: keys and labels repeat a lot."""
+    seen: dict[str, dict[str, Any]] = {}
+
+    def cached(text: str) -> dict[str, Any]:
+        if text not in seen:
+            seen[text] = inspect(text)
+        return seen[text]
+
+    return cached
+
+
 def filter_message(msg: Any, inspect: Inspect) -> Any:
     """The same JSON-RPC message (or batch) with everything the model will read checked: tool
     results (text, structured content, resources), tool definitions, prompts, error text, and the
@@ -234,8 +251,9 @@ def filter_message(msg: Any, inspect: Inspect) -> Any:
         return [x for x in (filter_message(m, inspect) for m in msg) if x is not None]
     if not isinstance(msg, dict):
         return msg
+    inspect = _memoised(inspect)
     try:
-        if isinstance(msg.get("id"), str) and _stopped(msg["id"], inspect):
+        if isinstance(msg.get("id"), str) and _check(msg["id"], inspect) != msg["id"]:
             raise _Withhold
         for part in ("result", "params", "error"):
             if isinstance(msg.get(part), (dict, list)):

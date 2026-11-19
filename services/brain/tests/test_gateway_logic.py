@@ -2465,3 +2465,38 @@ def test_streamed_tool_arguments_with_quotes_stay_valid_and_a_withheld_one_shows
     assert out[0].choices[0].delta.tool_calls[0].function.arguments == "{}"
     contents = [c.choices[0].delta.content for c in out]
     assert any(x and x.startswith("[Removed") for x in contents)
+
+
+def test_numeric_tool_arguments_are_checked_as_text_and_replaced_when_masked() -> None:
+    async def mask_card(text: str) -> str:
+        return text.replace("4111111111111111", "[CARD_OUT_1]")
+
+    cleaned, notice = asyncio.run(
+        dna.clean_arguments('{"card": 4111111111111111, "n": 7, "ok": true}', mask_card)
+    )
+    assert notice is None
+    assert json.loads(cleaned) == {"card": "[CARD_OUT_1]", "n": 7, "ok": True}
+
+
+def test_a_value_split_across_fields_is_found_by_the_whole_check_and_the_call_is_withheld() -> None:
+    async def leaf(text: str) -> str:
+        return text  # nothing in any single field
+
+    async def whole(text: str) -> str:
+        return text.replace('"AL", "b": "PHA"', "[X]")
+
+    cleaned, notice = asyncio.run(dna.clean_arguments('{"a": "AL", "b": "PHA"}', leaf, whole))
+    assert cleaned == "{}" and notice == dna.WITHHELD_ARGUMENTS
+    clean_args, none = asyncio.run(dna.clean_arguments('{"a": "AL", "b": "XY"}', leaf, whole))
+    assert none is None and json.loads(clean_args) == {"a": "AL", "b": "XY"}
+
+
+def test_a_whole_check_that_withholds_withholds_the_call() -> None:
+    async def leaf(text: str) -> str:
+        return text
+
+    async def whole(text: str) -> str:
+        return "[Removed: this answer repeated text from a protected company document.]"
+
+    cleaned, notice = asyncio.run(dna.clean_arguments('{"a": "memo text"}', leaf, whole))
+    assert cleaned == "{}" and notice and notice.startswith("[Removed")

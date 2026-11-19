@@ -273,7 +273,7 @@ def test_the_pass_through_door_is_not_a_way_around_the_check(client: OpenAI) -> 
         },
         timeout=60,
     )
-    assert not r.is_success
+    assert r.status_code == 403
 
 
 def test_responses_masked_round_trip_restores_the_value(client: OpenAI) -> None:
@@ -768,7 +768,7 @@ def test_a_long_history_through_the_gateway_is_answered_masked_and_faster_the_se
 ) -> None:
     import time
 
-    filler = f"Gardening notes {uuid.uuid4().hex[:6]}: tomatoes like sunlight and water. " * 2200
+    filler = f"Gardening notes {uuid.uuid4().hex[:6]}: tomatoes like sunlight and water. " * 1000
     messages: list[dict[str, str]] = [
         {"role": "user", "content": "key AKIAIOSFODNN7EXAMPLE " + filler}
     ]
