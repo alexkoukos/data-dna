@@ -68,6 +68,40 @@ def test_load_key_prefers_secret_and_falls_back_when_missing(tmp_path) -> None: 
     assert len(k1) == 64 and k1 == ig.load_key(str(secret), str(tmp_path / "fb"))  # stable
 
 
+def test_load_key_generates_once_in_the_volume_path_and_reuses_it(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "keys" / "hmac_key"
+    k1 = ig.load_key(str(path), str(path))
+    assert len(k1) == 64
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert ig.load_key(str(path), str(path)) == k1
+
+
+def test_an_empty_or_short_key_file_is_replaced_not_fatal(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "hmac_key"
+    for broken in ("", "short"):
+        path.write_text(broken)
+        key = ig.load_key(str(path), str(path))
+        assert len(key) == 64 and path.read_text() == key.decode()
+        assert path.stat().st_mode & 0o777 == 0o600
+        path.unlink()
+
+
+def test_an_existing_key_is_never_overwritten_by_the_create_step(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "hmac_key"
+    path.write_text("b" * 64)
+    ig._create_key(path)
+    assert path.read_text() == "b" * 64
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file permissions")
+def test_unreadable_key_file_is_a_plain_error(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "hmac_key"
+    path.write_text("a" * 64)
+    path.chmod(0)
+    with pytest.raises(ValueError, match="cannot be read"):
+        ig.load_key(str(path), str(path))
+
+
 # ---- against the vaults ---------------------------------------------------------------------
 URL_A, URL_B = os.environ.get("VAULT_A_URL", ""), os.environ.get("VAULT_B_URL", "")
 
@@ -399,3 +433,19 @@ def test_app_role_is_not_a_superuser(store: SplitStore) -> None:
         assert not (sup or create_role or create_db)
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             _exec(url, "CREATE TABLE evil (x int)")
+
+
+def test_unreadable_key_is_503_not_500(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi.testclient import TestClient
+
+    import brain.main as main_mod
+    import brain.splitstore.routes as routes
+
+    monkeypatch.setattr(main_mod.settings, "vault_api_token", "tok")
+    monkeypatch.setattr(
+        routes, "get_store", lambda: (_ for _ in ()).throw(PermissionError("key unreadable"))
+    )
+    r = TestClient(main_mod.app).post(
+        "/v1/vault/aggregate", headers={"Authorization": "Bearer tok"}, json={"field": "salary"}
+    )
+    assert r.status_code == 503

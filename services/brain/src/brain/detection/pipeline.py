@@ -1,12 +1,12 @@
 """Run all checks on one prompt, cheapest first. Document checks plug in here later."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 
 from brain.detection.normalize import normalise
 from brain.detection.patterns import Finding, find_patterns, mask
 from brain.documents.registry import DocMatch
-from brain.policy.engine import Decision, Verdict, decide
+from brain.policy.engine import PRECEDENCE, Decision, Verdict, decide
 from brain.policy.store import PolicySet
 
 
@@ -18,6 +18,8 @@ class InspectResult:
     placeholders: dict[str, str]
     evasion_signals: list[str]
     doc_matches: list[DocMatch]
+    text: str = ""
+    stopped_early: bool = False  # the language models were skipped: the cheap checks blocked
 
 
 Finder = Callable[[str], list[Finding]]
@@ -53,7 +55,19 @@ def inspect_text(
     doc_matcher: Callable[..., list[DocMatch]] | None = None,
     priority_finder: Finder | None = None,
     view_finders: Sequence[Finder] = (),
+    placeholders: Mapping[str, str] | None = None,
+    mask_injection: bool = True,
+    expensive: Collection[Finder] = (),
+    early_stop: bool = False,
 ) -> InspectResult:
+    """Run every check on one text.
+
+    With `early_stop`, the cheap finders run first and the `expensive` ones (models) only run if
+    the cheap ones did not already decide to block. The document matcher always runs, because
+    session memory, copy attribution and the incident record depend on it. Findings are always
+    merged in the order of `finders`, so when nothing blocks the result is exactly the same as
+    without `early_stop`.
+    """
     norm = normalise(text)
     findings = find_patterns(norm.text)
     if priority_finder is not None:
@@ -61,8 +75,35 @@ def inspect_text(
         # ordinary secret finding, so the alarm names a leaked document, not just "a key".
         decoys = priority_finder(norm.text)
         findings = _add_without_overlap(decoys, findings)
-    for finder in finders:
-        findings = _add_without_overlap(findings, finder(norm.text))
+    stopped = False
+    if early_stop and expensive:
+        found: dict[int, list[Finding]] = {
+            n: f(norm.text) for n, f in enumerate(finders) if f not in expensive
+        }
+
+        def merged(base: list[Finding]) -> list[Finding]:
+            for n in sorted(found):
+                base = _add_without_overlap(base, found[n])
+            return base
+
+        quick = merged(findings)
+        stopped = (
+            decide(
+                [f.category for f in quick],
+                evasion_signals=norm.evasion_signals,
+                category_actions=policies.categories if policies else None,
+                sensitivity_actions=policies.sensitivity if policies else None,
+            ).decision
+            == Decision.BLOCK
+        )
+        if not stopped:
+            for n, f in enumerate(finders):
+                if n not in found:
+                    found[n] = f(norm.text)
+        findings = merged(findings)
+    else:
+        for finder in finders:
+            findings = _add_without_overlap(findings, finder(norm.text))
     hidden: list[Finding] = []
     for view in norm.extra_views:
         hidden.extend(find_patterns(view))
@@ -88,7 +129,47 @@ def inspect_text(
     # Evasion that hides an identifier cannot be masked in place: escalate to warn.
     if hidden and verdict.decision == Decision.MASK:
         verdict.decision = Decision.WARN
-    masked, placeholders = mask(norm.text, findings)
+    to_mask = findings if mask_injection else [f for f in findings if f.category != "injection"]
+    masked, placeholders = mask(norm.text, to_mask, placeholders)
     return InspectResult(
-        verdict, findings + hidden, masked, placeholders, norm.evasion_signals, doc_matches
+        verdict,
+        findings + hidden,
+        masked,
+        placeholders,
+        norm.evasion_signals,
+        doc_matches,
+        norm.text,
+        stopped_early=stopped,
     )
+
+
+TOOL_DESCRIPTION_NOTE = (
+    "A tool description contains instruction-like wording. Check the tool before you send."
+)
+
+
+def cap_injection(result: InspectResult, policies: PolicySet | None) -> None:
+    """Lower a block that only the injection check caused to a warning, in place.
+
+    Used for tool descriptions: they are long, written by the tool's author and often say things
+    like "ignore the previous result", so wording alone must not stop the whole request. A real
+    secret, decoy credential or protected document in the same text still decides on its own.
+    """
+    verdict = result.verdict
+    if verdict.decision != Decision.BLOCK or not any(
+        f.category == "injection" for f in result.findings
+    ):
+        return
+    others = decide(
+        [f.category for f in result.findings if f.category != "injection"],
+        document_sensitivities=[_effective_sensitivity(m) for m in result.doc_matches],
+        evasion_signals=result.evasion_signals,
+        category_actions=policies.categories if policies else None,
+        sensitivity_actions=policies.sensitivity if policies else None,
+    )
+    if others.decision == Decision.BLOCK:
+        return
+    if PRECEDENCE[others.decision] < PRECEDENCE[Decision.WARN]:
+        others.decision = Decision.WARN
+    verdict.decision = others.decision
+    verdict.reasons = [*others.reasons, TOOL_DESCRIPTION_NOTE]

@@ -1,6 +1,6 @@
 """X17: a one-click compliance report mapped to GDPR, NIS2 and the EU AI Act.
 
-The mapping says which duty each Data DNA control helps with. It supports the company's own
+The mapping says which duty each Sentry control helps with. It supports the company's own
 compliance work; it is not legal advice and does not certify anything. The same table is kept
 in docs/business/compliance-mapping.md for people to read and edit.
 """
@@ -191,10 +191,10 @@ def render_pdf(evidence: dict[str, int], now: datetime | None = None) -> bytes:
         rightMargin=15 * mm,
         topMargin=15 * mm,
         bottomMargin=15 * mm,
-        title="Data DNA compliance report",
+        title="Sentry compliance report",
     )
     story: list[Flowable] = [
-        Paragraph("Data DNA compliance report", styles["Title"]),
+        Paragraph("Sentry compliance report", styles["Title"]),
         Paragraph(f"Generated {now:%d %B %Y, %H:%M} UTC", styles["Normal"]),
         Spacer(1, 4 * mm),
     ]
@@ -215,7 +215,7 @@ def render_pdf(evidence: dict[str, int], now: datetime | None = None) -> bytes:
     rows = [
         [
             Paragraph(h, head)
-            for h in ("Framework", "Reference", "Duty", "How Data DNA helps", "Evidence")
+            for h in ("Framework", "Reference", "Duty", "How Sentry helps", "Evidence")
         ]
     ]
     for m in MAPPING:

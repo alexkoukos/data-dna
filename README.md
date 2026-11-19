@@ -1,221 +1,190 @@
 # Sentry, the gate
 
-> Video: [link, added Thu 19 Nov]
+Πύλη (πύλη, "the gate"). Every prompt passes the gate. Brand and mascot: [docs/BRAND.md](docs/BRAND.md).
 
-Sentry is a browser extension and a dashboard. The extension sits in Chrome, right where people paste into ChatGPT, Claude or Gemini. It checks the text before it is sent, even when the text was rewritten, and decides on the spot: allow, warn, mask, answer with the company's own AI, or block. It always says why. The dashboard shows the security team which AI tools are really used and what was caught.
+> Video: [link, added Thu 19 Nov]
+> Sentry is the gate that every AI tool in the company goes through: it finds which AI tools are used, catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 
-## Run it in 3 commands
-
-```bash
-git clone https://github.com/alexkoukos/data-dna.git
-cd data-dna
-docker compose up --build
-```
-
-Needs Docker with Compose v2 and free ports 3000 (dashboard), 3100 (demo chat) and 8001 (API). The first start downloads no models: the embedding model is baked into the image. No OpenAI key is needed (see "What an OpenAI key adds").
-
-## Try it in 2 minutes
-
-1. Open the dashboard at http://localhost:3000. It is full of seeded demo data, so every page already has something to look at.
-2. Go to **Get the extension** and download `sentry-extension.zip`. Unzip it.
-3. In Chrome open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and select the unzipped folder.
-4. Open the demo chat at http://localhost:3100. It stands in for ChatGPT, so it works offline.
-5. Paste the texts from the [`samples/`](samples/README.md) folder (English in `samples/en`, Greek in `samples/el`, or use the copy buttons on the dashboard's Get the extension page). You will see each outcome:
-
-| Sample | What you see |
-| --- | --- |
-| `1-allow` | Nothing. The message is sent as written. |
-| `2-mask` | A tax number and an IBAN are replaced by `[AFM_1]` and `[IBAN_1]` before sending. The answer shows the real values again, on your page only. |
-| `3-warn` | A card: "Check before you send". A client name was found. You can use a safer version, edit, or send anyway and say why. |
-| `4-redirect` | A card: "Use the company AI for this". The text matches a confidential document. One click opens the side panel with your question, answered by the company's own model. |
-| `5-block` | A card: "This was not sent". It matches the restricted board memo. It says why and what to do instead. |
-
-6. Back in the dashboard, open **Security**: your attempts are incidents now. Names are pseudonyms, and a real name needs a reason and a second person.
-7. Optional: pair the extension to a demo person (dashboard, Get the extension, step 3) so incidents carry that person's team. Run `make simulate` to make the dashboard move.
-
 ## Concept
+Companies cannot see which AI tools their people use, and cannot stop a client list, a key or a confidential memo from being pasted into one. Banning the tools does not work: people use them anyway, from personal accounts. Sentry takes the other route. It gives people a safe door, one gateway that every AI tool in the company goes through, and checks each prompt on the way out.
 
-Banning AI at work does not work: people use their personal accounts instead, and the company loses sight of it. Tools that match patterns miss data that was rewritten. Sentry takes a third way. It sits in the browser, where the paste happens, understands what is confidential, and lets people keep working: it masks, redirects or explains instead of just saying no.
+For every prompt Sentry decides one of five things: **allow**, **mask** (hide the sensitive part and still get an answer), **warn** (ask the person to confirm), **answer with a local model** (the data never leaves), or **block**. Every decision comes with a reason in plain words and an approved alternative, and the security team sees all of it with the data protected. It also finds which AI tools are in use, including unapproved ones, from usage logs.
 
-Two sources feed one inventory of AI tools. The extension reports which AI sites people visit (the site and the time, never the page). Network logs (Squid and Zeek) catch AI use from browsers without the extension, desktop apps and scripts.
+The brief's questions are answered one by one, with the number and the demo step for each, in `docs/BRIEF_MAP.md`. The five-minute demo is in `docs/DEMO.md`.
 
 ## Main features
+- **One gateway for every AI tool.** Chat, SDKs, agents and Claude Code point at one endpoint (LiteLLM). Connect page: `/connect`. Model Context Protocol traffic can go through the same checks (`scripts/mcp_proxy.py`).
+- **Detection, cheapest check first.** Text clean-up, patterns with checksums (Greek tax and social security numbers, IBAN, cards), secret and code rules, people and client names, then confidential-document matching that survives rewording (MinHash, then embeddings), session memory across prompts, and prompt-injection checks. Nothing needs a paid model.
+- **Five outcomes with a reason.** Company Chat shows the outcome in words and icon, never colour alone. The incident page has a "Why this decision" panel listing the checks that fired.
+- **Shadow AI discovery.** The AI tools page lists every tool seen in usage logs with approved, tolerated or unapproved and the approved alternative.
+- **Security view.** Overview, incidents with sealed identities (a real name needs two people), documents and marked copies, policies, teams and roles, history, impact.
+- **Ask a question.** Analysts pick a reviewed question (the first is the brief's own: "Which teams sent client data to unapproved AI tools this week?") and see a table and the SQL. Free text goes to a model through a checker that allows only one read-only query over three views; a typed copy of a reviewed question uses the reviewed SQL.
+- **Policies you can try first.** Editable table, shadow mode (record what would happen, change nothing), and a 14-day replay before saving.
+- **Try to break it.** `/break-it` lets anyone attack the checks and see which level caught it.
 
-What Challenge 3 asks for, and where to see it:
-
-| Ask | Where |
-| --- | --- |
-| Discover which AI tools are in use, approved or not | Dashboard, Security, AI tools: every tool with risk rating, teams, trend, the approved alternative, and whether it was seen by the extension, the network logs or both. The extension also shows a banner on an unapproved tool. |
-| Detect sensitive data before it reaches an AI service | The extension checks in the browser first (L1, under a millisecond), then on the company server (L2). |
-| Enforce a policy: allow, redact, warn or block | Five outcomes, per data category and per document, editable in Security, Policies, with the last 14 days replayed before you save. Team and role exceptions on Teams and roles. |
-| Analysts ask "Which teams sent client data to unapproved AI tools?" | Security, Ask: five preset questions, each showing the answer table and the read-only SQL behind it. Free text works when a model is available. |
-| Inspectable inventory with risk ratings, configurable policy | AI tools and Policies pages. |
-| Working prototype ingesting logs and prompts | Squid and Zeek logs are read at start and through `POST /v1/logs/ingest`. Prompts arrive through `POST /v1/check`. |
-| Live demo: detected, acted on, explained | The five samples above. Every card says what happened, why, and what to do instead. |
-| Bonus: prompt injection | Pasted instructions aimed at the AI (including hidden, encoded and Greeklish ones) are blocked. |
-
-How the check works, cheapest first:
-
-- **L1, in the browser, no network.** Cleans the text (invisible characters, digits from other scripts, spaced-out digits, base64 and hex), then finds Greek tax numbers (AFM), social security numbers (AMKA), IBANs and payment cards by checksum, plus API keys, Greek phone numbers, emails, client names from the company's list, and source code. The rules are in one file, [`shared/rules.json`](shared/rules.json), and both the browser and the server test against the same fixtures, so they cannot drift apart.
-- **L2, on the company server.** Compares the text with registered confidential documents (copies, light edits and full paraphrases in Greek and English), remembers what one person sent across prompts (so a document rebuilt from three pieces is caught), looks for prompt injection, and applies the policy for that person's team. No language model is needed for any of this.
-- **If the server is down.** The extension still runs L1 and tells the person the server was not reached. Decisions made offline are sent later and become incidents.
-
-Also built: decoy credentials hidden in documents, sealed identities with a two-person reveal and an audit log, per-copy marks that name which copy of a document leaked (Data DNA), shadow mode, a compliance report, ROI numbers and weekly summaries.
-
-### More features (see `docs/EXTRA_FEATURES.md`)
+### Extra features (see `docs/EXTRA_FEATURES.md`)
 - **Why this decision (X23).** Every decision carries a short list of the checks that fired (patterns, rules, injection phrases, people and contact model, client list, document matching with its score, session memory, the policy). It is stored on the incident and shown on the incident page. It holds only entity names and masked previews, never the prompt.
 - **Shadow mode (X11).** On the Policies page, one switch lets every message through while the dashboard records what the policy would have done ("would have blocked 12"). Use it for the first weeks in a company. The setting is stored in the database and every change is audited.
 - **Compliance report (X17).** The Policies page has a PDF button (`GET /v1/compliance-report.pdf`). It maps what the gateway does to GDPR, NIS2 and the EU AI Act with the live numbers behind each line. It supports a company's own review; it is not legal advice. The same table is in `docs/business/compliance-mapping.md`.
-- **Attack set (X2).** `data/eval/attacks.csv` holds 80 red-team prompts (invisible characters, look-alike letters, hex, URL, ROT13, reversed, spaced, leetspeak, prompt injection, document rewrites, secrets, combined tricks, and normal prompts that must not be flagged). `make eval` reports how many are handled and lists the misses honestly: 77 of 80 today.
+- **Attack set (X2).** `data/eval/attacks.csv` holds 80 red-team prompts (invisible characters, look-alike letters, hex, URL, ROT13, reversed, spaced, leetspeak, prompt injection, document rewrites, secrets, combined tricks, and normal prompts that must not be flagged). `make eval` reports how many are handled and lists the misses honestly: 80 of 80 today, after the seven known gaps were fixed.
 - **More Greek identifiers (X6).** Police ID (ADT), number plates, Greek mobile and landline numbers (with or without +30), and, next to their names, passport and GEMI numbers are found and masked. They have no checksum, so a few look-alikes such as "TAX 1234" can match a plate shape; the cost is one needless mask.
 - **Answer check (X7).** What a model says is checked before the person sees it: echoed secrets and identifiers are masked (patterns and YARA rules), and an answer that reproduces a protected document is withheld whole.
 - **Try a policy first (X12).** On the Policies page, "Try on the last 14 days" shows how many past incidents a change would have made stricter or looser, before you save. It replays the stored categories and matched document, so no raw prompt is ever kept.
 
 ## Setup and run
+Requirements: Docker with Compose v2, about 2 GB of free RAM for Docker, and ports 3000, 4000 and 8001 free.
 
-Requirements: Docker with Compose v2. Free ports: 3000, 3100, 8001.
-
-```bash
-docker compose up --build        # everything the judges need
-```
-
-| Service | Port | What it is |
-| --- | --- | --- |
-| `web` | 3000 | The dashboard (React). Also serves `/extension.zip` and the sample texts. |
-| `mock-ai` | 3100 | A tiny ChatGPT-like page for the offline demo and the tests. |
-| `brain` | 8001 | The API (FastAPI): checks, policy, incidents, inventory, analyst questions. Docs at /docs. |
-| `db` | internal | Postgres with pgvector (official image plus the extension). |
-
-Optional, never needed for the demo:
-
-| Command | What it adds |
-| --- | --- |
-| `make local` | A local model (Ollama) so "Ask the company AI" gives real answers. Without it the answer is a clearly labelled stand-in. First start downloads about 1 GB. |
-| `make gateway` | A LiteLLM gateway on port 4000 (see "Other ways in"). |
-| `make simulate` | Simulated employees use AI sites, so the dashboard moves while you demo. |
-
-**What an OpenAI key adds.** Put `OPENAI_API_KEY` in `.env`. It only turns on free-text analyst questions through a hosted model and nothing else. Everything in "Try it in 2 minutes" works without it.
-
-**Build the extension yourself.** `make extension` builds it into `extension/.output/chrome-mv3`. Load that folder unpacked.
-
-Measured on Windows 11 with WSL 2 (Ubuntu 24.04, Docker Desktop, 16 CPUs, 15.6 GB), fresh clone, no build cache, 17 Nov 2026:
+Measured on Linux (amd64, Docker 15 GB, 19 Nov 2026, images already built, fresh volumes):
 
 | What | Result |
 | --- | --- |
-| Build from scratch (`docker compose build --no-cache`) | 113 s |
-| Start until all four services are healthy (images built, empty database, demo data seeded) | 31 s |
-| RAM when idle | about 770 MB: brain 682 (it holds the embedding and language models), database 57, demo chat 15, dashboard 15 |
-| Image sizes | brain 2.5 GB, database 741 MB, demo chat 239 MB, dashboard 95 MB |
+| Start until all six services are healthy (`make up` after `make reset`) | 78 s |
+| RAM when idle for 2 minutes (six services) | about 1.7 GB: brain 881 MB, gateway 712 MB, database 67 MB, vault-a 22 MB, vault-b 21 MB, web 5 MB |
+| Web (3000) and API docs (8001) answer | yes, HTTP 200 |
 
-On the same machine every Playwright test passes against this stack: 20 of 21 extension tests (the 21st only runs when the server is stopped) and 40 of 41 dashboard tests (the skipped one needs the optional gateway). Before the pivot, on macOS Apple silicon (OrbStack), a build took 72 s and a start 48 s with the gateway running. Native Linux and macOS arm64 runs of the new stack are still to be done.
+The first build from scratch downloads the models and takes several minutes; macOS (arm64, OrbStack) measured 72 s to build and 48 s to start on 13 Nov, before the vaults were added. Windows (WSL 2) is not measured.
+
+```bash
+git clone <this repo>
+cd sentry
+cp .env.example .env        # optional: add OPENAI_API_KEY
+docker compose up --build
+```
+Open http://localhost:3000 (app) and http://localhost:8001/docs (API).
+
+**Demo access.** There is no login. Get a personal key on the Connect page (`/connect`). The offline demo models are `demo-mock`, `demo-echo` and `demo-leaky`, so everything works without an OpenAI key.
+
+## Split storage (additive secret sharing)
+Sensitive fields (salaries, names) are never stored whole. Each value is split into two shares kept in two separate Postgres vaults, so a dump of one vault is random noise.
+
+- **Splitting.** Numbers are integer cents mod `P = 2^127 - 1`: `share_a` is random, `share_b = (value - share_a) mod P`, decoded centered so negatives work. Text and bytes are XOR-split with a random pad (UTF-8, so Greek works).
+- **Isolation.** `vault-a` and `vault-b` have their own credentials, volume and `internal` network. Only `brain` is on both; the vaults cannot see each other. `brain` starts only when both are healthy. Schema: `infra/vault/init.sql`.
+- **Integrity.** Three HMAC-SHA256 tags: `tag_a` (in vault-a), `tag_b` and `value_tag` (in vault-b). The key lives in the app-only `keys` volume and is never in a vault. `reveal` checks both share tags, rebuilds the value, checks `value_tag` (constant-time compares) and on any mismatch raises `IntegrityError` and writes an audit event. Tags bind `record_id` and `field`, so moving a share to another record fails.
+- **API** (`brain.splitstore`): `store(record_id, field, value)`, `reveal(record_id, field, actor)` (roles `admin`, `dpo`, `payroll`; every call, allowed or not, goes to `audit_log`, never with values) and `aggregate_sum(field, record_ids=None, verify_tags=True)` (each vault sums its own shares, only the two sums are combined). By default the aggregate also checks every share against its own tag (`tag_a` / `tag_b`), so a changed, swapped or missing share is caught there too; no value is rebuilt. `verify_tags=False` sums inside the vaults instead (faster, no tag check). `value_tag` needs the whole value, so only `reveal` checks it.
+- **Atomic writes.** `store` uses two-phase commit (`PREPARE TRANSACTION`, enabled on both vaults), so either both shares land or neither. If the app dies between prepare and commit, a failed write and a background check (every 60 s) settle the leftovers: prepared in both -> commit both; only in vault-b -> commit; only in vault-a -> roll back. Only entries older than 30 s are touched, so it is safe with several app instances. Until settled (up to about 90 s), a write to the same record waits.
+- **Wrong key is not "tampering".** vault-b keeps a canary (`HMAC(key, "canary")`, which says nothing about the key). On first use the app compares it with the current key and raises `KeyMismatchError` with a clear message, instead of every reveal failing as if attacked.
+- **HTTP** (off by default; for a trusted backend, since the app has no login yet): set `VAULT_API_TOKEN` (`openssl rand -hex 32`) in `.env`, then call with `Authorization: Bearer <token>`:
+  `POST /v1/vault/store` `{record_id, field, value}` (value is an integer in cents or a string), `POST /v1/vault/reveal` `{record_id, field, actor, role}`, `POST /v1/vault/aggregate` `{field, record_ids?, verify_tags?}`. Answers: 401 bad token, 503 off or vaults down or key mismatch, 403 role not allowed, 404 no such value, 409 integrity error, 422 bad input. The role is taken from the request, so only a backend you trust should hold the token; the store still enforces the role list and audits every call.
+- **Least privilege.** Each vault has an admin account (`VAULT_*_ADMIN_USER`, used only at first start to load the schema and create the app role) and the app role (`VAULT_*_USER`): not a superuser, cannot create anything, only SELECT/INSERT/UPDATE/DELETE on its two tables. The app role settles its own prepared transactions, so no superuser is needed at run time.
+- **Limits.** The sum must fit in about +/-1.7e38. The role and schema are created on a fresh volume only: after pulling this change run `docker compose down -v` (or `make reset`) once, which deletes demo data in the vaults.
+
+Key: nothing to set up. On first start the brain generates the HMAC key once into the app-only `keys` volume (mode 600), so a plain `docker compose up --build` works on a fresh clone. To use your own key, set `HMAC_KEY_FILE` in `.env` to a file inside a volume you mount into the brain (compose override). `make reset` drops the vaults and the key together; if you keep the vaults but lose the key, copy the old key file into the `keys` volume. Switching keys while vault data exists is reported as `KeyMismatchError`.
+
+```bash
+docker compose up --build -d --wait                          # whole stack, both vaults included
+docker compose --profile test run --rm --build splitstore-tests   # tests, inside the containers
+docker compose run --rm brain python -m brain.splitstore.demo     # seed, dump vault-a, aggregate, tamper
+```
 
 ## Architecture
-
 ```
-┌──────────────────────────── Chrome ────────────────────────────┐
-│ Content script on AI sites ─► Service worker (MV3)             │
-│  intercepts paste and send     policy cache, queue, L2 client  │
-│  shows the card, masks,        L1 runs in the content script   │
-│  restores values in answers                                    │
-│ Popup · Side panel (company AI) · Settings                     │
-└───────────────────────────────┬────────────────────────────────┘
-                                │ HTTPS or HTTP, JSON, device token
-┌───────────────────────────────▼────────────────────────────────┐
-│ brain (FastAPI)                                                │
-│  /v1/check  /v1/events  /v1/policy  /v1/ask-local  /v1/pair    │
-│  /v1/inventory  /v1/incidents  /v1/ask  /v1/logs/ingest        │
-│  detection · documents · policy · sessions · incidents         │
-├───────────────┬──────────────────────┬─────────────────────────┤
-│ Postgres +    │ embeddings (ONNX,    │ log ingest              │
-│ pgvector      │ multilingual, CPU)   │ (Squid, Zeek)           │
-└───────────────┴──────────────────────┴─────────────────────────┘
-        ▲                                   ▲
- web (dashboard + /extension.zip)     Ollama (optional, "company AI")
- mock-ai (demo chat)                  LiteLLM gateway (optional)
+ Employee --> web (React) --+
+ SDKs, agents, Claude Code -+--> gateway (LiteLLM) --> cloud model, or local model
+                                  |  pre-call and post-call checks
+                                  v
+                              brain (FastAPI) --> database (Postgres + pgvector)
 ```
 
-- `extension/` WXT, TypeScript strict, React for the popup, side panel and settings. Every DOM selector lives in one adapter per site (`src/adapters/`).
-- `services/brain/` Python 3.12, FastAPI, SQLAlchemy 2.
-- `web/` React, Vite, Tailwind v4.
-- `shared/` the L1 rules and test fixtures used by both sides.
-- `data/` all synthetic: a 200-person company, 10 clients, 3 confidential documents, 14 days of logs and a storyline hidden in them.
-- Design notes: [docs/PRD.md](docs/PRD.md) (original design), [docs/PIVOT.md](docs/PIVOT.md) (what changed and why).
+| Service | What it is | Port |
+| --- | --- | --- |
+| `web` | React app: Company Chat, security view, Try to break it (served by nginx) | 3000 |
+| `gateway` | LiteLLM proxy with a custom guardrail that calls the brain before and after every model call. Fails closed: if the brain is down, nothing passes. | 4000 |
+| `brain` | Detection pipeline, policy engine, incidents, analyst questions, API docs at `/docs` | 8001 |
+| `db` | Postgres 16 (official image) with pgvector, seeded with a synthetic company | internal |
+| `ollama` | Optional local model, started with `make local`. Without it, "answered locally" returns a stand-in answer. | 11434 |
+
+Full design: `docs/PRD.md` section 7. Threats and honest limits: `docs/THREAT_MODEL.md`.
+
+## Browser extension
+
+Personal ChatGPT in the browser bypasses the gate, so the extension (`extension/`, Chrome or Edge, Manifest V3, plain JavaScript, no build step) checks paste and send on `chatgpt.com` against the gate's own checks through its three extension endpoints, `POST /v1/extension/inspect`, `POST /v1/extension/ack` and `GET /v1/extension/me`, before the text leaves the page.
+
+**Load it (3 clicks)**
+1. Open `chrome://extensions`, turn on *Developer mode*, press *Load unpacked* and choose the `extension/` folder.
+2. Copy the extension ID shown on its card (or on the Settings page), put it in `.env` as `EXTENSION_ID=...` and run `make up` again. The brain allows browser calls only from `chrome-extension://<that ID>`.
+3. Open the extension's Settings, paste your personal key from the **Connect** page and press Save. The gate address defaults to `http://localhost:8001`.
+
+**What it does.** Allow: nothing. Mask: the composer text is replaced with the masked text and a note names the entity types and the "Why?" reasons. Warn: a card with the reasons and *Send anyway*, which is recorded on the incident like the gate's `X-DNA-Ack`. Block and local: the send is stopped and the card offers *Use Company AI*. Every non-allow decision is an incident with the tool "ChatGPT (personal)" and channel `browser`, so the Shadow AI view shows it was intercepted. In shadow mode (X11) nothing is changed or stopped; it is only recorded. The user is the owner of the key, resolved by the brain through the gateway; the extension never sends a user or team. The extension stores only the key, the gate address and a daily counter for its popup, and makes no network calls except to the gate address.
+
+**Limits.** One site (`chatgpt.com`); other sites and the ChatGPT desktop or phone apps are not covered, and a person can disable or remove the extension (the Squid and Zeek logs still see that). Only text is checked: pasted images and file uploads are not. If the gate cannot be reached (offline, 502, 503, 504, 429) the extension **fails open**: nothing is blocked and a small badge says so, and nothing is recorded. If the gate answers but refuses to read the text (too long, over 100,000 characters, or malformed) it **fails closed**: the card says "Too long: shorten it or use Company AI". ChatGPT changes its page often, so the composer and send-button selectors in `extension/content.js` may need an update. The test (`web/e2e/extension.spec.ts`) runs against a saved composer page, `extension/test/fixture.html`, not the live site.
 
 ## Evaluation
+How accuracy is measured: a labelled synthetic set of 195 prompts (`data/eval/prompts.csv`: copies, edits, paraphrases, patterns, split leaks and clean prompts, in Greek and English), scored against a regex-and-keyword baseline, plus two attack sets of 80 each (`data/eval/attacks.csv`, `attacks_scripts.csv`) and a red-team run. The expected answer is written before the result is looked at, so known gaps stay in the files. All data is invented.
 
-`make eval` compares Sentry with a regex-and-keyword baseline on 195 labelled prompts and 160 attack prompts, and writes `eval/report.md`. Targets were fixed before building. Run on 17 Nov 2026:
+Measured on 19 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; detection tables in `eval/report.md` and `eval/redteam/report.md`, both committed; load-test and RAM numbers come from `make loadtest` and `docker stats` and are also in PROGRESS.md):
 
-| Metric | Target | Result |
+| What | Result | Target |
 | --- | --- | --- |
-| Recall on paraphrased document leaks | at least 80% | 92.5% (baseline 5.0%) |
-| False alarms on clean prompts | at most 5% | 2.1% |
-| Added latency, p95, no language model | under 100 ms | 23.7 ms |
-| Prompts using zero language-model tokens | at least 90% | 100% |
-| Greeklish, look-alike and foreign-digit attacks caught | at least 80% | 96.2% |
-| Decoy credentials raise the alarm | 100% | 100% |
+| Paraphrased document leaks found | 100%, 40 of 40 (baseline 5.0%; tuned on this set) | 80% |
+| False alarms on clean prompts | 2.1% | 5% |
+| Added latency, brain only, one request at a time (p50 / p95) | 19.4 / 67.4 ms | p95 under 100 ms |
+| Latency under load, 3 people for 15 s (`make loadtest`), three runs | p50 about 110 ms, p95 316 to 326 ms, 0 errors | p95 under 100 ms: **missed** |
+| Latency under load with 3 earlier turns per request (`loadtest.py --history 3`) | p50 484 ms, p95 666 ms | not a target; a fresh long conversation costs more (see below) |
+| Prompts needing zero LLM tokens | 100% | 90% |
+| Correct copy named when a document leaks | 99.2% | 90% |
+| Greeklish, look-alike and foreign-digit attacks caught (X5) | 100% | 80% |
+| Attack set `attacks.csv` handled as expected | 80 of 80 | |
+| Attack set `attacks_scripts.csv` as expected | 80 of 80 | |
+| promptfoo curated cases (`make redteam`) | 25 of 25 | |
 
-By leak type, recall is 100% for copies, light edits, patterns and split-across-prompts leaks, and 92.5% for paraphrases (baseline 0% to 74%). Greek prompts have 5.6% false alarms (n=18), English 0.0% (n=30). Where we miss, the report lists the exact prompts: for example, an English rewrite of the salary bands, a surname with no common Greek ending, and a key split by string concatenation.
+The load-test target is missed on this machine: with three people at once the single brain process queues requests, so p95 is about three times the target even though one request alone is well under it. With earlier turns in the request each earlier message costs an embedding and a people-and-contact call, which is why p95 is higher still; those results are remembered per person for 30 minutes, so only the first request of a long chat is slow (a fresh 300,000 character history takes about 7 s, and one that needs more than the per-request allowance is refused with "too long to check" until a retry has worked through it). `make eval` itself passes its latency target (it measures one request at a time).
 
-Extension, measured on 17 Nov 2026 on a laptop:
-
-- L1 in the browser: p50 0.02 ms, p95 0.03 ms on typical prompts (target: under 5 ms).
-- `/v1/check` on the server including document matching: about 20 to 50 ms.
-- 34 unit tests in the browser engine and 27 shared fixtures that the brain also passes.
-- 21 end-to-end tests in a real Chromium with the extension loaded: all five outcomes in English and Greek, masking and restoring, the offline path, and an accessibility check (axe) of the popup, side panel and settings.
-- Brain: 381 tests, 91% coverage. Dashboard: 76 tests.
+The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test numbers are in the table above; they are not part of `eval/report.md`. Unit tests: 874 brain tests at 88% coverage, 114 web tests and 5 extension tests (`make check`); 40 live gateway tests (`make test-gateway`); 64 end-to-end and accessibility specs (`make e2e`).
 
 ## Privacy and governance
 
-- **What is checked.** The text you paste or send in an AI chat, first in your browser, then on your company's own server. It goes nowhere else.
-- **What is kept.** An incident only when something was found: the kind of data, a masked preview such as `GR••••0695`, the decision and the reason. Never the full message and never the real values. Messages that match nothing are not stored. In a real deployment (demo mode off) records are deleted after 30 days; the period is configurable.
-- **What the extension reports.** Which AI sites you visit (site and time). No page content, no prompt text.
-- **Names.** The dashboard shows pseudonyms. A real name needs a written reason and a second approver, and every look is in the audit log.
-- **Transparency.** The extension's settings page explains all of this in plain words, as the EU AI Act and GDPR ask.
-- **Real data.** None. Everything in this repository is invented.
-- More: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md), `GET /v1/compliance-report.pdf`, [docs/business/compliance-mapping.md](docs/business/compliance-mapping.md).
+### What Sentry itself stores
+A watcher must keep little: masked previews and entity names instead of prompts, fingerprints instead of document text, pseudonyms with a two-person reveal and audit log, 30-day retention, local answers for confidential content, and split storage for the most sensitive fields. Plain-language page on GDPR, NIS2 and the EU AI Act (not legal advice): [docs/business/privacy-and-regulation.md](docs/business/privacy-and-regulation.md). Article table: [compliance-mapping.md](docs/business/compliance-mapping.md).
 
-Why the extension asks for each permission:
+## Business case
+Market and cost figures with sources: [market.md](docs/business/market.md). Competitors: [competitors.md](docs/business/competitors.md). SWOT: [swot.md](docs/business/swot.md). Customer, price and sales path (all hypotheses): [customer-and-pricing.md](docs/business/customer-and-pricing.md). Why people will use it: [engagement.md](docs/business/engagement.md). Honest limits: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
-| Permission | Why |
-| --- | --- |
-| `storage` | Remember the policy, settings and today's counters on this device. |
-| `alarms` | Refresh the policy every minute and send queued events. |
-| `sidePanel` | Show the company AI next to the page. |
-| Access to chatgpt.com, claude.ai, gemini.google.com and localhost | Read the message box and the send button on those sites, and talk to the company server. Nothing else is read. |
+
+**Break it (X28).** Practice on `/break-it` is never stored and never creates an incident; only counters, a masked preview, the attack kind and an optional nickname (no login, nothing that identifies a person) are kept, in memory. The one exception is the "It got through" button: the person chooses to submit the exact text as a test case, and the button says so. That raw text lives only in a review-queue row until a security user decides. Approve moves it into `data/eval/attacks_scripts.csv` and blanks the row; reject deletes the row at once.
+Sentry inspects what people type, so it holds itself to the same rule it enforces. Each claim below points at the code and at a test that fails if the claim stops being true (`services/brain/tests/test_privacy_claims.py` also checks that every test named here exists).
+
+| Claim | Code | Test |
+| --- | --- | --- |
+| No raw prompt is stored. Incidents keep categories, reasons, a masked preview and a trace of check names. | `services/brain/src/brain/records.py`, `db/tables.py` | `test_privacy_claims.py::test_a_raw_prompt_is_in_no_table_after_mask_warn_block_shadow_and_allow` sends prompts through every outcome and searches every table and the dashboard API for the raw text. `::test_no_table_has_a_text_column_that_could_hold_a_raw_prompt` fails if any table gains a text column with a prompt-like name that nobody has reviewed. `test_trace_shadow.py::test_the_trace_is_stored_on_the_incident_and_holds_no_raw_value` |
+| Only masked previews are shown. | `records.py`, `detection/patterns.py` | `test_privacy_claims.py::test_the_masked_preview_is_the_only_prompt_derived_column_on_an_incident`, `test_x_ops.py::test_try_attempts_are_listed_newest_first_with_masked_previews` |
+| A real name needs two people: one asks with a reason, a different one approves. | `services/brain/src/brain/reveal.py` | `test_dashboard_api.py::test_identity_stays_sealed_until_a_second_person_approves`, `::test_denied_request_never_reveals_and_cannot_be_decided_twice` |
+| Every sensitive action is in the audit log (reveal steps, policy edits, setting changes, decoy triggers). | `reveal.py` (`_audit`), `policy/store.py` (`audit_table`) | the two reveal tests above, `test_policy_store.py::test_update_changes_current_and_writes_audit`, `test_x4_honeytokens.py` |
+| Incidents are deleted after `RETENTION_DAYS` (default 30). | `services/brain/src/brain/insights.py` (`purge_expired`), `records.py` (`expires_at`) | `test_x_ops.py::test_purge_deletes_old_incidents_and_their_reveal_requests`, `test_privacy_claims.py::test_every_stored_incident_has_an_expiry_date` |
+| Shadow mode changes are audited. | `settings_store.py`, `main.py` (`put_shadow`) | `test_trace_shadow.py::test_shadow_mode_off_enforces_again_and_the_change_is_audited` |
+
+Other protections: API keys live in `.env` only (gitleaks runs in CI); model answers are checked before the person sees them; the free-text analyst question runs read-only over three views. The compliance report (`GET /v1/compliance-report.pdf`, also in `docs/business/compliance-mapping.md`) maps the gateway to GDPR, NIS2 and the EU AI Act. It supports a company's own review and is not legal advice.
 
 ## Known limits
-
-- Only Chrome is supported. There is no Firefox build.
-- The ChatGPT, Claude and Gemini adapters are written from the sites' current page structure and have only been tested on the demo chat. A site redesign breaks one adapter (one file) and nothing else. Other AI sites get the telemetry and the unapproved-tool banner but no text check.
-- A person can leave the extension off, use another browser or a personal device. The network logs catch the visit but not the text.
-- The stack was run and timed on Windows with WSL 2 only. Native Linux and macOS arm64 runs of the new stack have not been made yet (the arm64 image build runs in CI).
-- Paraphrase detection is 92.5%, not 100%. Short Greek business text can wrongly match a long contract (for example a payment reminder that resembles the Delphi agreement). The risk is a needless "use the company AI" card.
-- Free-text analyst questions need a model (OpenAI key or `make local`). The five presets always work.
-- Fail mode is fixed: if the server is unreachable, everything the browser's own checks find is still applied and the rest is let through and logged. It is not yet editable per category in the dashboard.
-- Single company, single server. No sign-in: identity is a pairing code in the demo and a Chrome policy in production ([deploy/](deploy/README.md)).
-
-## Other ways in
-
-The earlier design put a LiteLLM gateway in front of AI APIs. It still works and is not part of the demo: `make gateway` starts it on port 4000, and [docs/GATEWAY_SETUP.md](docs/GATEWAY_SETUP.md) shows how to point scripts and coding tools at it. It covers what a browser extension cannot: command-line tools and code.
+- **Only traffic through the gateway is checked.** Personal devices and tools that bypass it are seen in usage logs, not stopped.
+- **Detection is probabilistic.** Both attack sets and the 40 paraphrases pass on our own files, but the fixes were written after seeing the failures, so new forms of attack can still pass. What we know gets through: many model-attack prompts from garak that carry no company data and still reach the model (the gateway flagged only 4 of 27 in one family, 5 of 40 in another). A clean Greek prompt was sent to the local model (P0159). See `docs/BRIEF_MAP.md`.
+- **Meaning without matching words** can pass; a paraphrase of a restricted document that scores below 0.91 goes to the local model rather than being blocked, to avoid false blocks; 0.91 or above on a restricted document is blocked (demo step 3 shows 91%). A document can carry translations (`name.en.md` next to `name.md`) so rewrites in another language are compared with text in their own language; that is how Greek salary bands are protected against English rewrites. Translations have to be supplied for each document and language.
+- **Slow leaks** beyond the session window, and anything retyped by hand or photographed, are not caught.
+- **No login.** The brain API is unauthenticated in demo mode and uses a default master key. Do not expose ports 8001 and 4000 beyond a trusted network. Roles, TLS and a key store are roadmap. In demo mode `POST /v1/keys` gives a personal key to any user id, so anything that trusts a personal key (including the tool-request outcomes) is only as strong as that: a demo-only gap.
+- **Load test misses its target.** With three people at once p95 is about 320 ms against 100 ms (one request alone: 67 ms). The brain is one process. Linux and Windows start times are not measured on separate machines.
+- Details and reasoning: `docs/THREAT_MODEL.md`.
 
 ## Extra features
 
 **Try to break it (X1).** Open `/break-it`, type anything you think the gateway will miss and press "Check it". The page shows the outcome, the reasons and the eight levels of the pipeline in order, with the ones that found something marked. Nothing typed there is stored and nobody's practice shows up as an incident. A starter button per kind of attack comes from `data/eval/attacks_scripts.csv`. `web/e2e/break-it.spec.ts` types ten evasions into the real page and checks each one is stopped.
 
-**Attack file (X2).** `data/eval/attacks_scripts.csv` (next to the technique-based `attacks.csv`) holds 80 invented attacks in 10 kinds (spaced out, encoded, look-alike letters, foreign digits, Greeklish, injection, hidden keys, rewritten documents, decoys, and 8 harmless look-alikes), each with the decision we expect. The expectation is written before looking at the result, so known gaps stay in the file and `make eval` lists them under "Script and decoy attacks" (today: reversed text, base64 injection, a key split by string concatenation, a surname with no common ending, one rewritten salary table). Rows come from `scripts/gen_attacks_scripts.py`; to add your own, append rows to the CSV and do not re-run the generator, or add them to the script.
+**Attack file (X2).** `data/eval/attacks_scripts.csv` (next to the technique-based `attacks.csv`) holds 80 invented attacks in 10 kinds (spaced out, encoded, look-alike letters, foreign digits, Greeklish, injection, hidden keys, rewritten documents, decoys, and 8 harmless look-alikes), each with the decision we expect. The expectation is written before looking at the result, so known gaps stay in the file and `make eval` lists them under "Script and decoy attacks" (none left today; the seven that were open are fixed and listed in `docs/BRIEF_MAP.md`). Rows come from `scripts/gen_attacks_scripts.py`; to add your own, append rows to the CSV and do not re-run the generator, or add them to the script.
 
 **Decoy credentials (X4).** A confidential document can carry fake keys and mailboxes that exist nowhere else (`honeytokens:` in its header, or `POST /v1/documents/{id}/honeytokens`, which returns lines to paste in). If one appears in a prompt the decision is block, the reason names the document ("that document has left the company"), the incident is linked to it and `audit_log` gets `honeytoken.triggered`. Matching is an exact string compare against random 20 to 40 character values, so ordinary text and look-alike keys never trigger it (tested on 400 random keys). The three demo documents carry two decoys each. The new category `honeytoken` is on the Policies page and defaults to block.
 
 **Greeklish and look-alike characters (X5).** Before any check the text is cleaned of tricks that keep its length: digits from other scripts (Arabic-Indic, Devanagari, Thai) become 0 to 9, Greek or Cyrillic letters inside a word that mixes scripts or holds a number are folded to the matching Latin ones (a mostly Greek word goes the other way), a capital O or a lower-case l in a long number is read as 0 or 1, and hex, percent-encoded and HTML-entity text is decoded. Names such as "giorgos papadopoulos" are found by Greek surname endings and a list of common surnames, with no model call. `make eval` reports the attacks of these three kinds as one target: 96.2% caught against a target of 80%. A Greek surname with no common ending (for example "Papadaki" in capitals) is still missed.
 
-## Roadmap
+**Request an AI tool (X29).** Brief question 4 becomes a workflow. In Company Chat, "Request approval" (also offered after a blocked message) asks for a tool with a reason for the person's team. In Security, AI tools, the **Requests** tab lists waiting requests; security picks a risk rating (low, medium, high), the data categories the tool may receive and an optional approved alternative, then approves or rejects, with their name for the audit log. Approving sets `ai_tools.approval` to approved and stores the risk, alternative and allowed categories, so the inventory and "risk per tool" in the ROI view change at once; a tool that was never seen is added. `tool.request`, `tool.approve`, `tool.reject` and `tool.outcome_seen` go to `audit_log`. The requester sees the decision once, as a note above the chat, on their next message. A person can have at most 5 requests waiting. Tests: `services/brain/tests/test_x29_tool_requests.py`, `web/src/pages/ToolRequests.test.tsx`. Allowed categories are recorded and shown on the tool; the detection policy itself is not changed by an approval.
+**Break it leaderboard and growing attack set (X28).** `/break-it` also shows today's attempts, how many were stopped, how many got through and the catch rate, plus a top-breakers list by nickname. When an attempt passes but should not have, "It got through" lets the person pick the expected decision (mask, warn or block) and the kind, and sends it to the **Break it review** tab in Security (`/security/review`). Approving appends a row with `source=breakit` and the date to `data/eval/attacks_scripts.csv` (the brain container has that one folder writable); `make eval` then reports those rows on their own line, "Found live, still missed: N", apart from the older attacks. Break it practice still creates no incidents. Tests: `services/brain/tests/test_x28_breakit.py`, `web/src/pages/BreakItBoard.test.tsx`, and `web/e2e/break-it-review.spec.ts` (needs `make up`).
+**SIEM export (X30).** How an incident reaches the SOC: `GET /v1/export/incidents?since=...` returns JSON lines, and `.env` can also turn on a syslog sender (CEF, UDP or TCP) and an HMAC-signed webhook that push every new incident. An event holds the time, the user key ID (never the name), team, tool, decision, categories, matched document ID and rule IDs, and never any prompt text or masked preview. `docs/siem/` has a Sigma rule (3 or more blocks for one user in 10 minutes) and Splunk and Elastic examples. `make siem` starts a demo syslog receiver (compose profile `siem`) so the events can be watched arriving. Tests: `services/brain/tests/test_x30_siem.py`.
+**Send it to Company AI instead (X31).** Brief question 4 ("suggest an approved alternative") becomes one click. When Company Chat blocks or warns, "Send it to Company AI instead" resends the same message with the header `X-DNA-Reroute: 1`. The brain re-checks it, masks what must be masked and answers `local`, so the gate sends it to the company model and never to the destination that was stopped. The answer shows "Answered by Company AI" and the person's own masked values are restored in it. The incident they just caused changes to **rerouted** (no second incident); "rerouted" counts as stopped in the ROI view and appears in the incident filter and the compliance evidence. Some stops cannot be rerouted and stay blocked: prompt injection, decoy credentials, rebuilding a document over several messages, attached files, and any request type other than chat. Shadow mode never reroutes. Tests: `services/brain/tests/test_x31_reroute.py`, `web/src/pages/Reroute.test.tsx`. The browser extension's block card still links to Company AI rather than sending the text there, so no text leaves the page by URL.
+**Weekly team digest (X32).** Brief question 4 also says "warn and educate", so the **Digest** tab in Security (`/security/digest`) gives each team lead one page for the last 7 days: incidents per outcome and per kind of data, the top tools and whether they are approved, the trend against the week before, and two or three short "do this instead" tips picked from the kinds of data that fired (fixed templates in `services/brain/src/brain/digest.py`, no model call). "Copy as email" puts a subject and body on the clipboard and "Download Markdown" saves the same text; nothing is emailed. Data minimisation: the page says at the top that it has team-level counts only, and the SQL reads the views `v_incidents` and `v_inventory` without the column that names the user, so no name, pseudonym, message text or masked preview can appear. "This week" ends at the newest incident, so the seeded demo week is shown. API: `GET /v1/digest/teams`, `/v1/digest?team=`, `/v1/digest.md?team=`. Tests: `services/brain/tests/test_x32_digest.py` (counts match the seeded incidents, no names or text), `web/src/pages/security/Digest.test.tsx`.
 
-Next: the Firefox build, per-category fail modes in the policy editor, a policy for copy and paste of whole files, and Chrome Web Store publishing. Longer term: desktop apps through an endpoint agent, and single sign-on. Market, pricing and the engagement model are in [docs/business](docs/business).
+## Roadmap
+Built already: the browser extension and the SIEM export. Next: (1) Slack and Teams, (2) more languages, (3) a small-company edition with login and roles. Details and what is already built: [docs/business/roadmap.md](docs/business/roadmap.md).
 
 ## Team
-
 Alexandros, Stelios, Vasilis, Konstantinos.
 
 ---

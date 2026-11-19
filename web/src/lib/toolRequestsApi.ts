@@ -1,3 +1,5 @@
+import { savedIdentity } from "./chatApi";
+
 export interface ToolRequest {
   id: number;
   created_at: string;
@@ -72,8 +74,10 @@ export async function decideRequest(
 /** Decisions on this person's requests that they have not seen. Each is returned once. */
 export async function collectOutcomes(userId: string): Promise<ToolRequest[]> {
   try {
+    const saved = savedIdentity();
     const res = await fetch(`/api/v1/users/${encodeURIComponent(userId)}/tool-request-outcomes`, {
       method: "POST",
+      headers: saved && saved.userId === userId ? { Authorization: `Bearer ${saved.key}` } : {},
     });
     return res.ok ? ((await res.json()) as ToolRequest[]) : [];
   } catch {

@@ -185,7 +185,8 @@ class SplitStore:
         if not ig.same(stored, canary):
             raise KeyMismatchError(
                 "HMAC key does not match the one the vaults were written with "
-                "(restore the original secrets/hmac_key, or reset the vault volumes)"
+                "(copy the original key into /var/dna/keys/hmac_key in the brain's keys volume, "
+                "or run make reset to start the vaults fresh)"
             )
 
     # -- read ------------------------------------------------------------------------------

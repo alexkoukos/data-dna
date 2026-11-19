@@ -255,7 +255,19 @@ export default function ChatPage() {
     const first = before.length === 0;
     update(id, (c) => ({ turns: base, title: first && !opts.retry ? titleFrom(clean) : c.title }));
     if (!opts.retry) setDraft("");
-    const history: ChatTurn[] = base.map((t) => ({ role: t.from, content: t.text }));
+    // Earlier turns that passed untouched. A masked, held or rerouted turn is not sent again, so the
+    // gateway never sees the original text twice.
+    const untouched: StoredTurn[] = [];
+    for (let i = 0; i + 2 < base.length; i += 2) {
+      const [q, a] = [base[i], base[i + 1]];
+      if (q?.from === "user" && a?.from === "assistant" && (!a.outcome || a.outcome === "allow"))
+        untouched.push(q, a);
+    }
+    const asked = base[base.length - 1];
+    const history: ChatTurn[] = [...untouched, ...(asked ? [asked] : [])].map((t) => ({
+      role: t.from,
+      content: t.text,
+    }));
     try {
       identity.current ??= await ensureIdentity();
       const who = identity.current;

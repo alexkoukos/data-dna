@@ -3,18 +3,25 @@
 import asyncio
 import base64
 import binascii
+import contextvars
 import csv
+import hashlib
 import hmac
 import html
 import json
 import logging
+import re
+import threading
 import time
-from collections import Counter
-from collections.abc import AsyncIterator, Callable
+from collections import Counter, OrderedDict
+from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import sqlalchemy as sa
 from fastapi import (
@@ -29,7 +36,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from brain import (
     alerts,
@@ -108,7 +115,7 @@ from brain.api.schemas import (
     UnmaskRequest,
     UnmaskResponse,
 )
-from brain.ask.free import AskError, run_free
+from brain.ask.free import AskError, ask_free
 from brain.ask.presets import BY_ID, PRESETS, match_preset, run_preset
 from brain.clients import ClientStore
 from brain.config import settings
@@ -119,12 +126,13 @@ from brain.detection.entities import EntityDetector
 from brain.detection.greeklish import find_greeklish_names
 from brain.detection.layers import explain
 from brain.detection.normalize import normalise
-from brain.detection.patterns import find_patterns, mask, unmask
+from brain.detection.patterns import Finding, find_patterns, mask, unmask
 from brain.detection.pipeline import (
     HIGH_CONFIDENCE,
     Finder,
     InspectResult,
     _add_without_overlap,
+    cap_injection,
     inspect_text,
 )
 from brain.detection.yara_rules import find_yara
@@ -134,7 +142,12 @@ from brain.documents.embeddings import E5Embedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.marking import find_marking
-from brain.documents.registry import DocumentIndex, register_document
+from brain.documents.registry import (
+    DocMatch,
+    DocumentIndex,
+    DowngradeRefused,
+    register_document,
+)
 from brain.documents.session import update_coverage
 from brain.extension import router as extension_router
 from brain.honeytokens import (
@@ -147,12 +160,12 @@ from brain.honeytokens import (
 )
 from brain.identity import GatewayUnavailable, Identity, bearer_token, resolve_key
 from brain.injection.classifier import InjectionClassifier
-from brain.injection.heuristics import injection_finder
+from brain.injection.heuristics import injection_finder, injection_finder_instructions
 from brain.keys import KeyError_, create_key, default_model
 from brain.policy import groups
-from brain.policy.engine import Decision
+from brain.policy.engine import PRECEDENCE, Decision
 from brain.policy.preview import preview as policy_preview
-from brain.policy.store import PolicyError, PolicyStore
+from brain.policy.store import PolicyError, PolicySet, PolicyStore
 from brain.records import record_ack, record_decision, record_reroute, user_row_id
 from brain.seed.load import run_seed
 from brain.sessions import sessions
@@ -196,6 +209,11 @@ def _code() -> CodeIndex:
         if settings.data_dir:
             _code_index.load_dir(Path(settings.data_dir) / "code")
     return _code_index
+
+
+def _expensive_finders() -> list[Finder]:
+    """The two models. They run last, and not at all when the cheap checks already block."""
+    return [injection_classifier.find, entity_detector.find]
 
 
 def _finders() -> list[Finder]:
@@ -291,8 +309,52 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 _attempts = breakit.AttemptLog()
 
-app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Sentry brain", version="0.1.0", lifespan=lifespan)
 app.include_router(vault_router)
+
+
+MAX_BODY_BYTES = 15 * 1024 * 1024
+MAX_INSPECT_CHARS = 100_000
+
+
+class BodyLimit:
+    """Refuse a body over MAX_BODY_BYTES. Counts the bytes actually received, so a chunked body
+    with no Content-Length cannot get past it; a declared length is refused before any read."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.inner(scope, receive, send)
+            return
+        declared = dict(scope["headers"]).get(b"content-length", b"")
+        if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+            await _too_large()(scope, receive, send)
+            return
+        received = 0
+
+        async def limited() -> Any:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > MAX_BODY_BYTES:
+                    raise HTTPException(status_code=413, detail=_TOO_LARGE)
+            return message
+
+        await self.inner(scope, limited, send)
+
+
+_TOO_LARGE = "This request is too large (over 15 MB). Send a smaller one."
+
+
+def _too_large() -> JSONResponse:
+    return JSONResponse(status_code=413, content={"detail": _TOO_LARGE})
+
+
+# Added first, so it sits innermost: its 413 reaches the route, not a middleware task group.
+app.add_middleware(BodyLimit)
 
 
 def extension_origin() -> str | None:
@@ -325,6 +387,91 @@ async def extension_cors(request: Request, call_next: Callable[[Request], Any]) 
     return resp
 
 
+def _own_origins() -> set[str]:
+    parsed = urlsplit(settings.web_url)
+    mine = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+    return {o for o in (mine, "http://localhost:3000", "http://127.0.0.1:3000") if o}
+
+
+# Names this app is reached by: the browser on this machine, the web container's proxy and the
+# gateway (docker service names), and the hosts of the configured dashboard and Company AI links.
+_FIXED_HOSTS = {
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",  # noqa: S104 - a name a browser may send, not an address we bind
+    "::1",
+    "host.docker.internal",
+    "brain",
+    "web",
+    "gateway",
+    "testserver",
+}
+
+
+def _known_hosts() -> set[str]:
+    hosts = set(_FIXED_HOSTS)
+    for url in (settings.web_url, settings.company_ai_url):
+        if urlsplit(url).hostname:
+            hosts.add(str(urlsplit(url).hostname).lower())
+    return hosts
+
+
+def _request_host(request: Request) -> str:
+    raw = request.headers.get("host", "")
+    if raw.startswith("["):
+        host = raw[1 : raw.find("]")] if "]" in raw else raw
+    else:
+        host = raw.rsplit(":", 1)[0] if raw.count(":") == 1 else raw
+    return host.lower().rstrip(".")
+
+
+# GET routes that write to the audit log: guarded like a change.
+_IDENTITY_PATH = re.compile(r"^/v1/(incidents/[^/]+/identity|documents/[^/]+/copies/[^/]+)$")
+
+
+def _refuse(detail: str) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": detail})
+
+
+@app.middleware("http")
+async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> Response:
+    """Refuse requests a hostile web page could make (the brain has no login, so the browser is
+    the only thing standing between such a page and these routes).
+
+    - Host must be a name this app is reached by, which stops DNS rebinding (a page on another
+      domain that points its name at this machine).
+    - Changes (and the incident identity read) must not come from another site: Sec-Fetch-Site,
+      or the Origin when that is missing, must be our own. An Origin that is not ours is refused
+      even when the browser says same-origin.
+    The gateway, scripts and tests send neither header and pass. Extension routes are keyed by
+    the person's key and have their own CORS rules.
+    """
+    path = request.url.path
+    if path == "/healthz" or path.startswith("/v1/extension/") or path in _EXTENSION_PATHS:
+        return await call_next(request)  # type: ignore[no-any-return]
+    if _request_host(request) not in _known_hosts():
+        return _refuse(
+            "This address is not one the Sentry gate answers on, so the request was refused. "
+            "Open the dashboard from its normal address."
+        )
+    unsafe = request.method not in ("GET", "HEAD", "OPTIONS") or bool(_IDENTITY_PATH.match(path))
+    if not unsafe:
+        return await call_next(request)  # type: ignore[no-any-return]
+    site = request.headers.get("sec-fetch-site")
+    origin = request.headers.get("origin")
+    ours = (
+        origin is None
+        or origin in _own_origins()
+        or origin == f"{request.url.scheme}://{request.headers.get('host', '')}"
+    )
+    if (site is not None and site not in ("same-origin", "none")) or not ours:
+        return _refuse(
+            "This change was sent from another website, so it was refused. "
+            "Make it from the Sentry dashboard."
+        )
+    return await call_next(request)  # type: ignore[no-any-return]
+
+
 app.include_router(extension_router)
 
 
@@ -355,38 +502,65 @@ app.add_middleware(
 
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+    """Always 200 while the app runs (compose health). `database` says whether it is reachable."""
+    engine = policy_store.engine
+    if engine is None:
+        return {"status": "ok", "database": "off"}
+    try:
+        with engine.connect() as conn:
+            conn.execute(sa.text("SELECT 1"))
+    except sa.exc.SQLAlchemyError:
+        return {"status": "ok", "database": "unreachable"}
+    return {"status": "ok", "database": "ok"}
 
 
-def _attachment_parts(req: InspectRequest) -> list[tuple[str, str]]:
-    """(file name, text) of every attached file."""
-    parts: list[tuple[str, str]] = []
+def _too_long() -> HTTPException:
+    return HTTPException(
+        status_code=413,
+        detail="This request is too long to check (over 100,000 characters of new text). "
+        "Shorten it or split it into smaller messages.",
+    )
+
+
+def _attachment_text(req: InspectRequest, budget: int = MAX_INSPECT_CHARS) -> tuple[str, list[str]]:
+    """Text of every attached file, appended to the message so one pipeline checks both.
+
+    `budget` is what is left of the new-content limit. A file whose size already shows it cannot
+    fit is refused before it is decoded, and no more files are opened once the budget is used.
+    Also returns a reason for every file that carries a classification stamp (RESTRICTED,
+    CONFIDENTIAL...): a stamped file stays inside the company whether or not it was registered.
+    """
+    parts: list[str] = []
+    stamped: list[str] = []
     for a in req.attachments:
+        if budget <= 0:
+            raise _too_long()
+        if len(a.content_base64) * 3 // 4 > MAX_BYTES + 3:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{a.filename}: this file is larger than 10 MB. Split it or send the "
+                "relevant part.",
+            )
         try:
             data = base64.b64decode(a.content_base64, validate=True)
-            parts.append((a.filename, extract_text(a.filename, data)))
+            parts.append(extract_text(a.filename, data))
+            budget -= len(parts[-1])
+            stamp = find_marking(parts[-1])
+            if stamp:
+                stamped.append(
+                    f"The file {a.filename} is marked {stamp}; marked files stay inside the company"
+                )
         except (binascii.Error, ValueError) as err:
             raise HTTPException(
                 status_code=422,
                 detail=f"{a.filename}: "
-                + (str(err) if isinstance(err, ExtractError) else "the file could not be decoded."),
+                + (
+                    str(err)
+                    if isinstance(err, ExtractError)
+                    else "the file could not be decoded. Attach the file again."
+                ),
             ) from err
-    return parts
-
-
-def _attachment_text(parts: list[tuple[str, str]]) -> str:
-    """Text of every attached file, appended to the message so one pipeline checks both."""
-    return "\n\n" + "\n\n".join(t for _, t in parts) if parts else ""
-
-
-def _stamped_files(parts: list[tuple[str, str]]) -> list[str]:
-    """Reasons for every attached file that carries a classification stamp."""
-    out = []
-    for name, text in parts:
-        stamp = find_marking(text)
-        if stamp:
-            out.append(f"The file {name} is marked {stamp}; marked files stay inside the company")
-    return out
+    return ("\n\n" + "\n\n".join(parts) if parts else ""), stamped
 
 
 def _attribute_copy(result: InspectResult, text: str) -> str | None:
@@ -414,8 +588,8 @@ def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
         with engine.begin() as conn:
             uid = user_row_id(conn, req.user_id, req.team)
             rebuilds = update_coverage(conn, uid, result.doc_matches)
-    except sa.exc.SQLAlchemyError:
-        log.warning("Could not update session memory, continuing")
+    except sa.exc.SQLAlchemyError as err:
+        log.warning("Could not update session memory (%s), continuing", type(err).__name__)
         return
     for r in rebuilds:
         if r.escalate:
@@ -456,90 +630,535 @@ def _decoy_alarm(result: InspectResult) -> list[Owner]:
     return owners
 
 
+SEGMENT_MARK = "\ue000"
+_SEGMENT_JOIN = f"\n\n{SEGMENT_MARK}\n\n"
+HISTORY_MAX_EMBEDDED = 8
+_TRUSTED_ROLES = {"system", "developer", "assistant"}
+# Tool descriptions and other definition text: never new content, but checked like earlier turns.
+_DEFINITION_ROLE = "definition"
+# Descriptions of tools the client offers: injection wording there warns, it never blocks alone.
+_TOOL_DEFINITION_ROLE = "tool_definition"
+_DEFINITION_ROLES = {_DEFINITION_ROLE, _TOOL_DEFINITION_ROLE}
+_INSTRUCTION_ROLES = {"system", "developer"}
+_PREFIX_HISTORY = "Earlier in this conversation: "
+_PREFIX_TOOL = "In a tool description: "
+_PREFIX_ACCEPTED = "Accepted earlier in this conversation: "
+_PREFIX_TRUSTED = "In the instructions, tools or earlier answers: "
+
+
+@dataclass
+class _Pass:
+    """One inspection of a group of messages that were checked together."""
+
+    result: InspectResult
+    indexes: list[int]
+    masked: list[str] | None  # one masked text per message, None if the split went wrong
+    normalised: list[str]
+    prefix: str = ""
+
+
+def _group_messages(msgs: list[Message]) -> tuple[list[int], list[int], list[int]]:
+    """Split message positions into (new content, earlier user/tool turns, trusted roles).
+
+    Let L be the last message from a user or tool. New content is the unbroken run of user and
+    tool messages that ends at L, plus every message after L whatever its role, so a system or
+    assistant message a client appends after its question gets the full checks too (a single
+    assistant prefill included). System and developer text is trusted (no injection checks)
+    only in the leading block before the first user or tool message, which is the normal
+    prompt; one that comes later is checked as an earlier turn. Assistant text before the new
+    content stays trusted. With no user or tool message at all, everything present is new
+    content, so a request never carries text that gets no full check. The other two lists
+    are newest first.
+    """
+    present = [i for i, m in enumerate(msgs) if m.content]
+    skip = _TRUSTED_ROLES | _DEFINITION_ROLES
+    user_like = [k for k, i in enumerate(present) if msgs[i].role not in skip]
+    if not user_like:
+        return list(present), [], []
+    last = user_like[-1]
+    first = last
+    while first > 0 and msgs[present[first - 1]].role not in skip:
+        first -= 1
+    new = [
+        present[k]
+        for k in range(first, len(present))
+        if k <= last or msgs[present[k]].role not in _DEFINITION_ROLES
+    ]
+    leading = set(present[: user_like[0]])
+    older = set(present) - set(new)
+
+    def trusted_role(i: int) -> bool:
+        role = msgs[i].role
+        return role == "assistant" or (role in _TRUSTED_ROLES and i in leading)
+
+    history = [i for i in reversed(present) if i in older and not trusted_role(i)]
+    trusted = [i for i in reversed(present) if i in older and trusted_role(i)]
+    return new, history, trusted
+
+
+@dataclass
+class _HistoryGroup:
+    """Earlier messages that are checked together, and which checks apply to them."""
+
+    kind: str  # "history", "tool", "instructions" or "trusted"
+    indexes: list[int]
+    prefix: str
+    accepted: bool = False
+
+
+def _history_groups(
+    msgs: list[Message],
+    history_idx: list[int],
+    trusted_idx: list[int],
+    accepted: frozenset[int] = frozenset(),
+) -> list[_HistoryGroup]:
+    """Split the earlier messages by what kind of text they are. Empty groups are left out, so a
+    normal request costs what it did before.
+
+    - earlier user and tool turns, and request text that is not a message: injection phrases block;
+    - tool descriptions: injection phrases only warn (`cap_injection`);
+    - system and developer text after the first user turn: injection phrases block, unless the
+      phrase is negated ("Do not reveal these instructions");
+    - the leading prompt and earlier answers: no injection checks.
+
+    Each group is split in two: text the person already accepted comes after the rest, with its
+    own prefix, so a warning they answered once is not raised again (see `_lower_accepted`).
+    """
+    tools = [i for i in history_idx if msgs[i].role == _TOOL_DEFINITION_ROLE]
+    instructions = [i for i in history_idx if msgs[i].role in _INSTRUCTION_ROLES]
+    rest = [i for i in history_idx if i not in set(tools) | set(instructions)]
+    out: list[_HistoryGroup] = []
+    for kind, indexes, prefix in (
+        ("history", rest, _PREFIX_HISTORY),
+        ("tool", tools, _PREFIX_TOOL),
+        ("instructions", instructions, _PREFIX_HISTORY),
+        ("trusted", trusted_idx, _PREFIX_TRUSTED),
+    ):
+        fresh = [i for i in indexes if i not in accepted]
+        done = [i for i in indexes if i in accepted]
+        if fresh:
+            out.append(_HistoryGroup(kind, fresh, prefix))
+        if done:
+            out.append(_HistoryGroup(kind, done, _PREFIX_ACCEPTED, accepted=True))
+    return out
+
+
+def _lower_accepted(p: _Pass) -> None:
+    """A warning the person already answered becomes a mask (or nothing) for this earlier text.
+
+    Block and local are never lowered. The text is still masked in place where it differs, so
+    an IBAN in an accepted turn does not travel as it is.
+    """
+    verdict = p.result.verdict
+    if verdict.decision != Decision.WARN:
+        return
+    changed = p.masked is not None and any(
+        m != n for m, n in zip(p.masked, p.normalised, strict=True)
+    )
+    verdict.decision = Decision.MASK if changed else Decision.ALLOW
+
+
+def _inspect_group(
+    texts: list[str],
+    tail: str,
+    policies: PolicySet,
+    placeholders: dict[str, str] | None,
+    *,
+    finders: list[Finder],
+    view_finders: list[Finder],
+    doc_match: Callable[..., list[DocMatch]],
+    mask_injection: bool = True,
+    early_stop: bool = False,
+) -> tuple[InspectResult, list[str] | None, list[str]]:
+    """Inspect several texts in one call. Returns the result, masked texts and normalised texts.
+
+    The texts are joined with a marker no check treats as a word, so each one can be cut out
+    again afterwards. The masked list is None when a finding swallowed a marker.
+    """
+    segments = [x.replace(SEGMENT_MARK, "") for x in texts] or [""]
+    segments[-1] += tail
+    result = inspect_text(
+        _SEGMENT_JOIN.join(segments),
+        policies,
+        finders,
+        doc_match,
+        priority_finder=_honeytokens().find,
+        view_finders=view_finders,
+        placeholders=placeholders,
+        mask_injection=mask_injection,
+        expensive=_expensive_finders(),
+        early_stop=early_stop,
+    )
+    masked = result.masked_text.split(_SEGMENT_JOIN)
+    normalised = result.text.split(_SEGMENT_JOIN)
+    if len(masked) != len(segments) or len(normalised) != len(segments):
+        return result, None, normalised
+    return result, masked, normalised
+
+
+class _Remembered[V]:
+    """A least-recently-used memory with an expiry, kept per person.
+
+    Every entry belongs to one user. Whether a text is remembered is visible as speed (and as a
+    refusal when a request has to work too much out), so one person's entries must never serve
+    another: a hit counts only for the user who put it there. One user holds at most `per_user`
+    entries (the oldest of theirs goes first), so nobody can fill the whole memory; when it is
+    full the oldest entry overall goes. All of this is constant time per call.
+    """
+
+    def __init__(self, size: int, ttl_seconds: float, per_user: int) -> None:
+        self._items: OrderedDict[tuple[str, Any], tuple[float, V]] = OrderedDict()
+        self._by_user: dict[str, OrderedDict[Any, None]] = {}
+        self._size = size
+        self._per_user = per_user
+        self._ttl = ttl_seconds
+        self._lock = threading.Lock()
+
+    def get(self, user: str, key: Any) -> V | None:
+        with self._lock:
+            hit = self._items.get((user, key))
+            if hit is None or time.monotonic() - hit[0] >= self._ttl:
+                return None
+            self._items.move_to_end((user, key))
+            self._by_user[user].move_to_end(key)
+            return hit[1]
+
+    def put(self, user: str, key: Any, value: V) -> None:
+        with self._lock:
+            mine = self._by_user.setdefault(user, OrderedDict())
+            self._items[(user, key)] = (time.monotonic(), value)
+            self._items.move_to_end((user, key))
+            mine[key] = None
+            mine.move_to_end(key)
+            while len(mine) > self._per_user:
+                self._drop(user, next(iter(mine)))
+            while len(self._items) > self._size:
+                oldest_user, oldest_key = next(iter(self._items))
+                self._drop(oldest_user, oldest_key)
+
+    def _drop(self, user: str, key: Any) -> None:
+        self._items.pop((user, key), None)
+        mine = self._by_user.get(user)
+        if mine is not None:
+            mine.pop(key, None)
+            if not mine:
+                del self._by_user[user]
+
+    def clear(self) -> None:
+        with self._lock:
+            self._items.clear()
+            self._by_user.clear()
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+
+_cache_user: contextvars.ContextVar[str] = contextvars.ContextVar("cache_user", default="anonymous")
+
+
+# A chat resends the same earlier turns on every request, so only the newest message is new work.
+# Answers are kept briefly, so a document registered a moment ago is still found.
+_match_memory: _Remembered[list[DocMatch]] = _Remembered(20_000, 1800.0, per_user=2_000)
+# Keys are SHA-256 digests and values are short lists of findings, so 20,000 entries are a few
+# megabytes. One request may work out at most UNCACHED_HISTORY_MESSAGES new messages, so it can
+# push out well under 1% of what other people's chats have remembered. They last 30 minutes.
+_entity_memory: _Remembered[list[Finding]] = _Remembered(20_000, 1800.0, per_user=2_000)
+MAX_CONVERSATION_CHARS = 1_000_000
+# What one request may work out from scratch across earlier turns (messages already seen cost
+# nothing). About 3 s per 100,000 characters on a laptop, so this keeps a request near 8 s. When
+# it runs out the request is refused (never partly checked); what was worked out is remembered, so
+# sending the same request again gets further.
+UNCACHED_HISTORY_CHARS = 240_000
+UNCACHED_HISTORY_MESSAGES = 150
+_uncached: contextvars.ContextVar[dict[str, int] | None] = contextvars.ContextVar(
+    "uncached_history", default=None
+)
+
+
+def _spend_uncached(kind: str, text: str) -> None:
+    """Count one earlier message worked out from scratch against this request's allowance."""
+    left = _uncached.get()
+    if left is None:
+        return
+    left[kind + "_chars"] -= len(text)
+    left[kind + "_messages"] -= 1
+    if left[kind + "_chars"] < 0 or left[kind + "_messages"] < 0:
+        raise HTTPException(
+            status_code=413,
+            detail="This conversation is too long to check. Start a new chat and paste only "
+            "what you need.",
+        )
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
+
+
+def _history_matches(
+    index: DocumentIndex, text: str, relaxed_for: Sequence[str] = ()
+) -> list[DocMatch]:
+    """Document matches for earlier turns, worked out and remembered per message."""
+    merged: dict[int, DocMatch] = {}
+    version = index.current_version()
+    for segment in text.split(_SEGMENT_JOIN):
+        key = (index, version, _digest(segment), tuple(relaxed_for))
+        found = _match_memory.get(_cache_user.get(), key)
+        if found is None:
+            _spend_uncached("matches", segment)
+            found = index.match(segment, relaxed_for=relaxed_for, max_embedded=HISTORY_MAX_EMBEDDED)
+            _match_memory.put(_cache_user.get(), key, found)
+        for m in found:
+            old = merged.get(m.document_id)
+            if old is None:
+                merged[m.document_id] = m
+                continue
+            best = max((old, m), key=lambda x: (x.kind == "copy", x.score))
+            merged[m.document_id] = replace(
+                best, matched_chunks=sorted({*old.matched_chunks, *m.matched_chunks})
+            )
+    return sorted(merged.values(), key=lambda m: (m.kind != "copy", -m.score))
+
+
+def _history_entities(text: str) -> list[Finding]:
+    """The people-and-contact model run per message and remembered, because it is the slow one."""
+    out: list[Finding] = []
+    offset = 0
+    for segment in text.split(_SEGMENT_JOIN):
+        key = _digest(segment)
+        found = _entity_memory.get(_cache_user.get(), key)
+        if found is None:
+            _spend_uncached("entities", segment)
+            found = entity_detector.find(segment)
+            _entity_memory.put(_cache_user.get(), key, found)
+        out.extend(replace(f, start=f.start + offset, end=f.end + offset) for f in found)
+        offset += len(segment) + len(_SEGMENT_JOIN)
+    return out
+
+
+def _for_history(finders: list[Finder]) -> list[Finder]:
+    return [_history_entities if f == entity_detector.find else f for f in finders]
+
+
+def _combine_decisions(passes: list[_Pass]) -> tuple[Decision, list[str]]:
+    decision = Decision.ALLOW
+    reasons: list[str] = []
+    for p in passes:
+        if PRECEDENCE[p.result.verdict.decision] > PRECEDENCE[decision]:
+            decision = p.result.verdict.decision
+        reasons.extend(p.prefix + r for r in p.result.verdict.reasons)
+    return decision, reasons
+
+
+def _combined_documents(passes: list[_Pass]) -> list[DocMatch]:
+    seen: dict[int, DocMatch] = {}
+    for p in passes:
+        for m in p.result.doc_matches:
+            seen.setdefault(m.document_id, m)
+    return list(seen.values())
+
+
+def _apply_masks(
+    msgs: list[Message], passes: list[_Pass], force: bool = False
+) -> list[Message] | None:
+    """Masked copy of the conversation. Untouched messages keep their original text.
+
+    Normally only passes whose verdict is mask are rewritten. `force` rewrites every pass that
+    found something, whatever its verdict (a reroute answers the whole thing on a company model).
+    """
+    out = list(msgs)
+    for p in passes:
+        if force:
+            if not p.result.findings:
+                continue
+        elif p.result.verdict.decision != Decision.MASK:
+            continue
+        if p.masked is None:
+            return None
+        for k, i in enumerate(p.indexes):
+            if p.masked[k] != p.normalised[k]:
+                out[i] = Message(role=msgs[i].role, content=p.masked[k])
+    return out
+
+
 @app.post("/v1/inspect", response_model=InspectResponse)
 def inspect(
     req: InspectRequest, background: BackgroundTasks, response: Response
 ) -> InspectResponse:
-    # Only the last user message is inspected in this first slice.
-    last = next((m for m in reversed(req.messages) if m.role == "user"), None)
-    if last is None:
+    msgs = req.messages
+    new_idx, history_idx, trusted_idx = _group_messages(msgs)
+    # The 100,000 limit is on new text. Earlier turns, system prompts and tool definitions are
+    # all checked in full (remembered per message), up to a hard limit on the whole request.
+    new_chars = sum(len(msgs[i].content) for i in new_idx)
+    if new_chars > MAX_INSPECT_CHARS:
+        raise _too_long()
+    attached, stamped = _attachment_text(req, MAX_INSPECT_CHARS - new_chars)
+    if new_chars + len(attached) > MAX_INSPECT_CHARS:
+        raise _too_long()
+    if sum(len(m.content) for m in msgs) + len(attached) > MAX_CONVERSATION_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail="This conversation is too long to check. Start a new chat and paste only "
+            "what you need.",
+        )
+    if not new_idx and not history_idx and not trusted_idx and not attached:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
-    clock = time.perf_counter()
-    parts = _attachment_parts(req)
-    attached = _attachment_text(parts)
-    result = inspect_text(
-        last.content + attached,
-        groups.effective(policy_store.engine, policy_store.current(), req.user_id, req.team),
-        _finders(),
-        _documents().match,
-        view_finders=[find_yara, injection_finder],
-        priority_finder=_honeytokens().find,
+    _cache_user.set(req.user_id or "anonymous")
+    _uncached.set(
+        {
+            "matches_chars": UNCACHED_HISTORY_CHARS,
+            "matches_messages": UNCACHED_HISTORY_MESSAGES,
+            "entities_chars": UNCACHED_HISTORY_CHARS,
+            "entities_messages": UNCACHED_HISTORY_MESSAGES,
+        }
     )
-    stamped = _stamped_files(parts)
-    if stamped:
-        # A stamped file never goes out. Keep "local" when the policy already chose it.
-        if result.verdict.decision != Decision.LOCAL:
-            result.verdict.decision = Decision.BLOCK
-        result.verdict.reasons.extend(stamped)
-    decoys = _decoy_alarm(result)
+    clock = time.perf_counter()
+    policies = groups.effective(policy_store.engine, policy_store.current(), req.user_id, req.team)
+    finders = _finders()
+    documents = _documents()
+    passes: list[_Pass] = []
+    first: _Pass | None = None
+    decoys: list[Owner] = []
+    # Shadow mode records what would have happened, so it always runs every check.
+    shadow_on = settings_store.get_bool(policy_store.engine, settings_store.SHADOW)
+    if new_idx or attached:
+        texts = [msgs[i].content for i in new_idx]
+        r1, m1, n1 = _inspect_group(
+            texts,
+            attached,
+            policies,
+            None,
+            finders=finders,
+            view_finders=[find_yara, injection_finder],
+            doc_match=documents.match,
+            # A reroute needs every finding to mask them all, and shadow mode must see every check,
+            # so neither stops early.
+            early_stop=not req.reroute and not shadow_on,
+        )
+        first = _Pass(r1, new_idx, m1, n1)
+        passes.append(first)
+        decoys = _decoy_alarm(r1)
     t_checks = time.perf_counter()
-    reasons_before = len(result.verdict.reasons)
-    _escalate_rebuilds(req, result)
-    memory_reasons = result.verdict.reasons[reasons_before:]
+    placeholders = dict(first.result.placeholders) if first else None
+    earlier = [f for f in finders if f != injection_classifier.find]
+    applied: list[int] = []
+    accepted = frozenset(i for i in req.accepted_indexes if 0 <= i < len(msgs))
+    for group in _history_groups(msgs, history_idx, trusted_idx, accepted):
+        mask_injection = True
+        view_finders: list[Finder]
+        if group.kind == "trusted":
+            # System, developer and assistant text: secrets and personal data count, but an
+            # injection phrase there is the company's own prompt or a model's answer.
+            group_finders = [f for f in earlier if f != injection_finder]
+            view_finders = [find_yara]
+        elif group.kind == "instructions":
+            group_finders = [
+                injection_finder_instructions if f == injection_finder else f for f in earlier
+            ]
+            view_finders = [find_yara, injection_finder_instructions]
+        else:
+            group_finders = earlier
+            view_finders = [find_yara, injection_finder]
+            mask_injection = group.kind != "tool"
+        # Earlier turns get the same checks as new content, but not the slow injection model. The
+        # costly parts (people and contact model, document matching) are remembered per message,
+        # so a long chat that resends its history pays for each message once.
+        group_finders = _for_history(group_finders)
+        doc_match = partial(_history_matches, documents)
+        rg, mg, ng = _inspect_group(
+            [msgs[i].content for i in group.indexes],
+            "",
+            policies,
+            placeholders,
+            finders=group_finders,
+            view_finders=view_finders,
+            doc_match=doc_match,
+            mask_injection=mask_injection,
+        )
+        if group.kind == "tool":
+            cap_injection(rg, policies)
+        earlier_pass = _Pass(rg, group.indexes, mg, ng, group.prefix)
+        if group.accepted:
+            applied.extend(group.indexes)
+            _lower_accepted(earlier_pass)
+        passes.append(earlier_pass)
+        placeholders = rg.placeholders
+    t_history = time.perf_counter()
+    memory_reasons: list[str] = []
+    leaked_copy = None
+    if first:
+        reasons_before = len(first.result.verdict.reasons)
+        _escalate_rebuilds(req, first.result)
+        memory_reasons = first.result.verdict.reasons[reasons_before:]
     t_memory = time.perf_counter()
-    leaked_copy = _attribute_copy(result, last.content + attached)
+    if first:
+        leaked_copy = _attribute_copy(
+            first.result, "\n\n".join(msgs[i].content for i in new_idx) + attached
+        )
     t_marks = time.perf_counter()
     response.headers["Server-Timing"] = (
         f"checks;dur={(t_checks - clock) * 1000:.1f}, "
-        f"memory;dur={(t_memory - t_checks) * 1000:.1f}, "
+        f"history;dur={(t_history - t_checks) * 1000:.1f}, "
+        f"memory;dur={(t_memory - t_history) * 1000:.1f}, "
         f"marks;dur={(t_marks - t_memory) * 1000:.1f}"
     )
-    masked = None
+    would_have_decision, combined_reasons = _combine_decisions(passes)
+    if stamped:
+        # A stamped file never goes out. Keep "local" when the policy already chose it.
+        if would_have_decision != Decision.LOCAL:
+            would_have_decision = Decision.BLOCK
+        combined_reasons = [*combined_reasons, *stamped]
+    masked: list[Message] | None = None
     session_id = None
-    if result.verdict.decision == Decision.MASK and attached:
+    extra_reasons: list[str] = []
+    if would_have_decision == Decision.MASK and attached:
         # Masking cannot rewrite a file the model will receive, so ask before sending it.
-        result.verdict.decision = Decision.WARN
-        result.verdict.reasons.append(
-            "An attached file contains sensitive data that cannot be masked"
+        would_have_decision = Decision.WARN
+        extra_reasons.append("An attached file contains sensitive data that cannot be masked")
+    elif would_have_decision == Decision.MASK:
+        masked = _apply_masks(msgs, passes)
+        if masked is None:
+            would_have_decision = Decision.WARN
+            extra_reasons.append("Part of the conversation could not be masked safely")
+    if policies.degraded:
+        extra_reasons.append(
+            "The role database could not be read, so the strictest matching policy was used"
         )
-    would_have = str(result.verdict.decision)
-    shadow = result.verdict.decision != Decision.ALLOW and settings_store.get_bool(
+    combined_reasons += extra_reasons
+    would_have = str(would_have_decision)
+    shadow = would_have_decision != Decision.ALLOW and settings_store.get_bool(
         policy_store.engine, settings_store.SHADOW
     )
-    steps = build_trace(result, memory_reasons)
-    reasons = list(result.verdict.reasons)
-    decision = result.verdict.decision
+    top = max(passes, key=lambda p: PRECEDENCE[p.result.verdict.decision])
+    steps = build_trace(top.result, memory_reasons if top is first else None)
+    findings = [f for p in passes for f in p.result.findings]
+    categories = [f.category for f in findings]
+    decision = would_have_decision
+    reasons = combined_reasons
     rerouted = False
-    if (
-        req.reroute
-        and not shadow
-        and _can_reroute(decision, [f.category for f in result.findings], memory_reasons, attached)
-    ):
-        rerouted = True
+    if req.reroute and not shadow and _can_reroute(decision, categories, memory_reasons, attached):
+        # X31: never to the blocked tool. Every pass is masked, not only the ones that said mask.
+        reroute_masked = _apply_masks(msgs, passes, force=True)
+        if reroute_masked is not None:
+            rerouted = True
+            masked = reroute_masked
     if rerouted:
-        # X31: never to the blocked tool. The text is masked and answered on the company model.
         decision = Decision.LOCAL
         reasons = [
             *reasons,
             "Rerouted to Company AI: answered on a company-run model, sensitive data masked.",
         ]
-        masked = [
-            m if m is not last else Message(role="user", content=result.masked_text)
-            for m in req.messages
-        ]
-        session_id = sessions.create(req.user_id, result.placeholders)
+        session_id = sessions.create(req.user_id, placeholders or {})
     elif shadow:
         # Shadow mode: record what the policy would have done, but let the message through.
         decision = Decision.ALLOW
         reasons = [
             f"Shadow mode: the policy would have chosen '{would_have}'. Nothing was changed."
         ]
-    elif decision == Decision.MASK:
-        masked = [
-            m if m is not last else Message(role="user", content=result.masked_text)
-            for m in req.messages
-        ]
-        session_id = sessions.create(req.user_id, result.placeholders)
+        masked = None
+    elif decision == Decision.MASK and masked is not None:
+        session_id = sessions.create(req.user_id, placeholders or {})
+    docs = _combined_documents(passes)
+    first_docs = first.result.doc_matches if first else []
     # Written after the answer is sent, so the database never adds to the user's wait.
     # A reroute does not create a new incident: it changes the one the person just caused.
     if rerouted:
@@ -551,17 +1170,25 @@ def inspect(
             user=req.user_id,
             team=req.team,
             decision=would_have,
-            categories=[f.category for f in result.findings],
-            reasons=result.verdict.reasons,
-            masked_preview=result.findings[0].masked_preview if result.findings else None,
+            categories=categories,
+            reasons=combined_reasons,
+            masked_preview=findings[0].masked_preview if findings else None,
             document_id=(
-                result.doc_matches[0].document_id
-                if result.doc_matches
+                first_docs[0].document_id
+                if first_docs
                 else decoys[0].document_id
                 if decoys
+                else docs[0].document_id
+                if docs
                 else None
             ),
-            score=result.doc_matches[0].score if result.doc_matches else None,
+            score=(
+                first_docs[0].score
+                if first_docs
+                else docs[0].score
+                if docs and not decoys
+                else None
+            ),
             copy_code=leaked_copy,
             trace=steps,
             shadow=shadow,
@@ -570,15 +1197,25 @@ def inspect(
         )
     for owner in decoys:
         background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
-    categories = [f.category for f in result.findings]
-    if not shadow and alerts.is_critical(would_have, categories):
-        background.add_task(alerts.notify, would_have, categories, req.user_id, req.team)
+    first_categories = [f.category for f in first.result.findings] if first else []
+    if not shadow and alerts.is_critical(would_have, first_categories):
+        background.add_task(alerts.notify, would_have, first_categories, req.user_id, req.team)
     suggestion = None
-    if decision == Decision.WARN and result.masked_text != last.content + attached:
+    if (
+        decision == Decision.WARN
+        and first is not None
+        and first.masked is not None
+        and first.masked[-1] != first.normalised[-1]
+    ):
         # X19: a warning also offers a safe rewrite, and we count how often it is shown.
-        suggestion = result.masked_text
+        suggestion = first.masked[-1]
         background.add_task(_count_coaching, coaching.SHOWN)
+    warned = sorted(
+        {i for p in passes if p.result.verdict.decision == Decision.WARN for i in p.indexes}
+    )
     return InspectResponse(
+        accepted_applied=sorted(applied),
+        warned_indexes=warned,
         session_id=session_id,
         suggested_rewrite=suggestion,
         decision=decision,
@@ -588,10 +1225,10 @@ def inspect(
         rerouted=rerouted,
         findings=[
             FindingOut(entity=f.entity, category=f.category, masked_preview=f.masked_preview)
-            for f in result.findings
+            for f in findings
         ],
         masked_messages=masked,
-        evasion_signals=result.evasion_signals,
+        evasion_signals=sorted({s for p in passes for s in p.result.evasion_signals}),
         documents=[
             DocumentHit(
                 document_id=m.document_id,
@@ -601,7 +1238,7 @@ def inspect(
                 matched_chunks=m.matched_chunks,
                 total_chunks=m.total_chunks,
             )
-            for m in result.doc_matches
+            for m in docs
         ],
     )
 
@@ -719,10 +1356,49 @@ def inspect_output(req: InspectOutputRequest) -> InspectOutputResponse:
                 for m in matches
             ],
         )
-    findings = _add_without_overlap(find_patterns(text), find_yara(text))
+    # Mask the answer as written unless the cleaned-up copy (zero-width characters and look-alikes
+    # removed) finds something the written text does not: a value hidden on purpose. Only then is
+    # the cleaned-up copy masked, and it is scanned once more so a finding that only the written
+    # text had is not dropped. The _OUT label keeps these tokens apart from the person's own
+    # [IBAN_1].
+    raw_found = _add_without_overlap(find_patterns(req.text), find_yara(req.text))
+    clean_found = _add_without_overlap(find_patterns(text), find_yara(text))
+    hidden = Counter((f.entity, f.value) for f in clean_found) - Counter(
+        (f.entity, f.value) for f in raw_found
+    )
+    if not hidden:
+        findings = raw_found
+        masked, _ = mask(req.text, findings, label_suffix="_OUT")
+    else:
+        findings = clean_found
+        masked, mapping = mask(text, findings, label_suffix="_OUT")
+        more = [
+            f
+            for f in _add_without_overlap(find_patterns(masked), find_yara(masked))
+            if "_OUT_" not in f.value
+        ]
+        if more:
+            masked, _ = mask(masked, more, existing=mapping, label_suffix="_OUT")
+            findings = [*findings, *more]
     if not findings:
         return InspectOutputResponse(text=req.text)
-    masked, _ = mask(text, findings)
+    # Fail closed: if anything is still detectable in what is about to be shown, withhold it.
+    for view in (masked, normalise(masked).text):
+        if any(
+            "_OUT_" not in f.value
+            for f in _add_without_overlap(find_patterns(view), find_yara(view))
+        ):
+            return InspectOutputResponse(
+                text=WITHHELD_NOTICE,
+                changed=True,
+                withheld=True,
+                findings=[
+                    FindingOut(
+                        entity=f.entity, category=f.category, masked_preview=f.masked_preview
+                    )
+                    for f in findings
+                ],
+            )
     return InspectOutputResponse(
         text=masked,
         changed=True,
@@ -741,8 +1417,22 @@ def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> 
         req.text,
         policy_store.current(),
         [find_yara, injection_finder, injection_classifier.find],
+        doc_matcher=_documents().match,
+        priority_finder=_honeytokens().find,
     )
+    owners = _decoy_alarm(result)
+    for owner in owners:
+        background.add_task(record_alarm, policy_store.engine, owner, req.user_id, req.team)
     decision = str(result.verdict.decision)
+    reasons = list(result.verdict.reasons)
+    # The tool-result answer has three values. A warning is masked when it can be (nobody is
+    # there to ask), and confidential company text that would go to the local model is withheld.
+    text = result.masked_text
+    if decision == "warn":
+        decision = "mask" if text != req.text else "block"
+    elif decision == "local":
+        decision = "block"
+        reasons.append("confidential company text in a tool result")
     if decision not in ("block", "mask"):
         return ToolResultResponse(decision="allow", text=req.text)
     background.add_task(
@@ -752,12 +1442,13 @@ def inspect_tool_result(req: ToolResultRequest, background: BackgroundTasks) -> 
         team=req.team,
         decision=decision,
         categories=[f.category for f in result.findings],
-        reasons=result.verdict.reasons,
+        reasons=reasons,
         masked_preview=result.findings[0].masked_preview if result.findings else None,
         tool=req.source,
     )
-    text = result.masked_text if decision == "mask" else ""
-    return ToolResultResponse(decision=decision, text=text, reasons=result.verdict.reasons)
+    return ToolResultResponse(
+        decision=decision, text=text if decision == "mask" else "", reasons=reasons
+    )
 
 
 @app.post("/v1/try", response_model=TryOut)
@@ -804,6 +1495,9 @@ def try_attempts() -> list[Attempt]:
     """X3: the latest attempts to break it, newest first. Kept in memory only (last 50), and
     only the masked preview is shown, so a real secret typed here is never replayed."""
     return _attempts.recent(50)
+
+
+BREAKIT_FALLBACK = Path("/var/dna/breakit/attacks_scripts.csv")
 
 
 def _eval_file() -> Path:
@@ -862,15 +1556,26 @@ def breakit_queue() -> list[CandidateOut]:
 @app.post("/v1/breakit/candidates/{candidate_id}/approve", response_model=ReviewOut)
 def breakit_approve(candidate_id: int, req: ReviewIn) -> ReviewOut:
     path = _eval_file()
+    note = None
     try:
-        eval_id = _write(lambda c: breakit.approve(c, candidate_id, req.reviewer, path))
+        try:
+            eval_id = _write(lambda c: breakit.approve(c, candidate_id, req.reviewer, path))
+        except OSError:
+            # data/eval is read-only here (no host folder permissions): keep the row inside the
+            # brain's own volume and say how to copy it out.
+            path = BREAKIT_FALLBACK
+            eval_id = _write(lambda c: breakit.approve(c, candidate_id, req.reviewer, path))
+            note = (
+                "Saved inside the brain (data/eval is read-only here). Copy it out with: "
+                "docker compose cp brain:/var/dna/breakit/attacks_scripts.csv data/eval/"
+            )
     except breakit.BreakitError as err:
         raise HTTPException(status_code=err.status, detail=str(err)) from err
     except OSError as err:
         raise HTTPException(
             status_code=503, detail="The attack file could not be written. Nothing was approved."
         ) from err
-    return ReviewOut(status="approved", eval_id=eval_id)
+    return ReviewOut(status="approved", eval_id=eval_id, note=note)
 
 
 @app.post("/v1/breakit/candidates/{candidate_id}/reject", response_model=ReviewOut)
@@ -912,7 +1617,10 @@ def plant_honeytokens(document_id: int, req: HoneytokenRequest) -> HoneytokenOut
             sa.select(t.documents.c.title).where(t.documents.c.id == document_id)
         ).scalar_one_or_none()
     if title is None:
-        raise HTTPException(status_code=404, detail="That document is not registered.")
+        raise HTTPException(
+            status_code=404,
+            detail="That document is not registered. Pick one from the Documents page.",
+        )
     tokens: list[Honeytoken] = generate(req.count)
     _honeytokens().register(document_id, tokens)
     return HoneytokenOut(
@@ -934,9 +1642,11 @@ def preview_policy(req: PolicyPreviewRequest) -> PolicyPreview:
     try:
         action = Decision(req.action)
     except ValueError:
-        raise HTTPException(status_code=422, detail="Unknown action.") from None
+        raise HTTPException(
+            status_code=422, detail="Unknown action. Use one of: allow, mask, warn, local, block."
+        ) from None
     if req.scope not in ("category", "sensitivity"):
-        raise HTTPException(status_code=422, detail="Unknown scope.")
+        raise HTTPException(status_code=422, detail="Unknown scope. Use category or sensitivity.")
     out = _read(lambda c: policy_preview(c, policy_store.current(), req.scope, req.key, action))
     return PolicyPreview(**out)  # type: ignore[arg-type]
 
@@ -1039,7 +1749,9 @@ def document_history(document_id: int) -> dict[str, Any]:
     """X24: every incident that matched one document, newest first."""
     out = _read(lambda c: insights.history_for_document(c, document_id))
     if not out["found"] and out["subject"] is None:
-        raise HTTPException(status_code=404, detail="No such document.")
+        raise HTTPException(
+            status_code=404, detail="No such document. Check the id on the Documents page."
+        )
     return out
 
 
@@ -1152,7 +1864,7 @@ def compliance_report() -> Response:
     return Response(
         content=compliance.render_pdf(evidence),
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="data-dna-compliance-report.pdf"'},
+        headers={"Content-Disposition": 'attachment; filename="sentry-compliance-report.pdf"'},
     )
 
 
@@ -1225,8 +1937,16 @@ def register(
             raise HTTPException(status_code=422, detail=str(err)) from err
     try:
         doc_id, chunks = register_document(
-            engine, embedder, title, sensitivity, text, keep_text=settings.demo_mode
+            engine,
+            embedder,
+            title,
+            sensitivity,
+            text,
+            keep_text=settings.demo_mode,
+            allow_downgrade=False,
         )
+    except DowngradeRefused as err:
+        raise HTTPException(status_code=409, detail=str(err)) from err
     except ValueError as err:
         raise HTTPException(status_code=422, detail=str(err)) from err
     except sa.exc.SQLAlchemyError as err:
@@ -1346,7 +2066,14 @@ def ask(req: AskRequest) -> AskOut:
                     status_code=503, detail="The data could not be read. Try again soon."
                 ) from err
         try:
-            return AskOut(**run_free(engine, req.question))
+            answer = ask_free(engine, req.question)
+            if answer is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Free questions are not available right now. Use a preset question "
+                    "or try again in a minute.",
+                )
+            return AskOut(**answer)
         except AskError as err:
             raise HTTPException(status_code=422, detail=str(err)) from err
     preset = BY_ID.get(req.preset or "")
@@ -1415,7 +2142,14 @@ def decide_tool_request(request_id: int, req: ToolDecisionIn) -> ToolRequestOut:
 
 
 @app.post("/v1/users/{user_id}/tool-request-outcomes", response_model=list[ToolRequestOut])
-def tool_request_outcomes(user_id: str) -> list[ToolRequestOut]:
+def tool_request_outcomes(
+    user_id: str, authorization: str | None = Header(default=None)
+) -> list[ToolRequestOut]:
     """X29: decisions the person has not seen yet. Shown once, on their next message."""
+    if _who(authorization).user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="These outcomes belong to another person. Open the chat with your own key.",
+        )
     rows = _write(lambda c: toolrequests.collect_outcomes(c, user_id))
     return [ToolRequestOut.model_validate(r) for r in rows]

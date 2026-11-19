@@ -1,7 +1,7 @@
 # One command: docker compose up --build   (Netcompany rule: must build and start on Linux)
 # The product is the browser extension plus the dashboard. The LiteLLM gateway (another way in,
 # for scripts and coding tools) and the local model are optional profiles: `make gateway`, `make local`.
-name: data-dna
+name: sentry
 
 services:
   db:
@@ -13,7 +13,7 @@ services:
     volumes:
       - dbdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dna} -d ${DB_NAME:-dna}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${DB_USER:-dna} -d ${DB_NAME:-dna}"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -22,7 +22,7 @@ services:
   # own volume, own internal network. Only brain is on both networks; the vaults cannot reach
   # each other, and `internal: true` also cuts them off from the internet.
   vault-a:
-    image: postgres:16
+    image: postgres:16@sha256:3950ad7c3148ca2175ef1b6c36c9efbf78957ae8fbe8b3a5d7c35af50500382f
     command: ["postgres", "-c", "max_prepared_transactions=20"] # two-phase commit for split writes
     environment:
       # Admin account: only used to create the schema and the app role at first start.
@@ -44,7 +44,7 @@ services:
       retries: 20
 
   vault-b:
-    image: postgres:16
+    image: postgres:16@sha256:3950ad7c3148ca2175ef1b6c36c9efbf78957ae8fbe8b3a5d7c35af50500382f
     command: ["postgres", "-c", "max_prepared_transactions=20"] # two-phase commit for split writes
     environment:
       # Admin account: only used to create the schema and the app role at first start.
@@ -72,7 +72,7 @@ services:
     environment:
       VAULT_A_URL: postgresql://${VAULT_A_USER:-vault_a}:${VAULT_A_PASSWORD:-change-me-a}@vault-a:5432/vault
       VAULT_B_URL: postgresql://${VAULT_B_USER:-vault_b}:${VAULT_B_PASSWORD:-change-me-b}@vault-b:5432/vault
-      HMAC_KEY_FILE: /run/secrets/hmac_key
+      HMAC_KEY_FILE: ${HMAC_KEY_FILE:-/var/dna/keys/hmac_key}
       VAULT_API_TOKEN: ${VAULT_API_TOKEN:-}
       DATABASE_URL: postgresql+psycopg://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/${DB_NAME:-dna}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -92,19 +92,25 @@ services:
       # Few threads per model: many small requests beat one wide one (see the load test).
       OMP_NUM_THREADS: ${OMP_NUM_THREADS:-4}
       EMBED_THREADS: ${EMBED_THREADS:-4}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      KEY_RPM_LIMIT: ${KEY_RPM_LIMIT:-0}
+      KEY_MAX_BUDGET: ${KEY_MAX_BUDGET:-0}
+      COMPANY_AI_URL: ${COMPANY_AI_URL:-http://localhost:3000/chat}
+      WEB_URL: ${WEB_URL:-http://localhost:3000}
+      SEED_ON_START: ${SEED_ON_START:-true}
     volumes:
       - models:/models
       - ./data:/data:ro
       # X28: approved break-it rows are appended here, so this one folder is writable
       - ./data/eval:/data/eval
       - logs:/var/dna/logs
-      - keys:/var/dna/keys # app-only: fallback HMAC key when secrets/hmac_key is absent
+      - keys:/var/dna/keys # app-only volume holding the HMAC key
+      - breakit:/var/dna/breakit # approved break-it rows when data/eval is read-only
     # Published on localhost only: the brain admin API has no login and the gateway uses the
     # master key. Other machines on the network cannot reach them.
     ports:
       - "127.0.0.1:8001:8001"
     networks: [default, vault-a-net, vault-b-net]
-    secrets: [hmac_key]
     depends_on:
       db:
         condition: service_healthy
@@ -151,7 +157,7 @@ services:
   # work the same.
   ollama:
     profiles: ["local"]
-    image: ollama/ollama:0.40.16
+    image: ollama/ollama:0.40.16@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
     entrypoint: ["/bin/sh", "-c"]
     command:
       - "ollama serve & until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull $${LOCAL_MODEL} && printf 'FROM %s\\nPARAMETER num_thread %s\\n' $${LOCAL_MODEL} $${LOCAL_THREADS} > /tmp/Modelfile && ollama create dna-local --file /tmp/Modelfile; wait"
@@ -193,7 +199,7 @@ services:
   # `up`: set SIEM_SYSLOG_HOST=syslog-receiver in .env, then run `make siem`.
   syslog-receiver:
     profiles: ["siem"]
-    image: python:3.12-alpine
+    image: python:3.12-alpine@sha256:c5ba3deef00c7758561a0f03c26f44f10589263d40e732b8748e0d1f38f6dd89
     command: ["python", "-u", "/receiver.py"]
     volumes:
       - ./infra/siem/receiver.py:/receiver.py:ro
@@ -201,7 +207,8 @@ services:
   # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
   sim:
     profiles: ["sim"]
-    image: data-dna-brain
+    image: sentry-brain
+    pull_policy: never # built by `make up`; never looked up on a registry
     entrypoint: ["python", "/scripts/simulate.py"]
     command: ["--count", "60"]
     environment:
@@ -221,13 +228,6 @@ networks:
   vault-b-net:
     internal: true
 
-# The HMAC key for the split store. Only brain gets it; the vaults never see it.
-# Create it with scripts/gen_hmac_key.sh (`make up` does that first). Without it the app generates
-# a key into the app-only `keys` volume, so a plain `docker compose up` still works.
-secrets:
-  hmac_key:
-    file: ./secrets/hmac_key
-
 volumes:
   vault-a-data:
   vault-b-data:
@@ -235,4 +235,5 @@ volumes:
   models:
   logs:
   keys:
+  breakit:
   ollama:

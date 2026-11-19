@@ -25,10 +25,10 @@ def test_english_person_email_and_phone(detector: EntityDetector) -> None:
 
 
 def test_greek_person_email_and_mobile(detector: EntityDetector) -> None:
-    text = "Ο Γιώργος Παπαδόπουλος έστειλε email στο g.papa@firm.gr και τηλ 6944123456"
+    text = "Ο Γιώργος Παπαδόπουλος έστειλε email στο g.papa@example.gr και τηλ 6944123456"
     found = kinds(detector.find(text))
     assert ("PERSON", "Γιώργος Παπαδόπουλος") in found
-    assert ("EMAIL", "g.papa@firm.gr") in found
+    assert ("EMAIL", "g.papa@example.gr") in found
     assert ("PHONE", "6944123456") in found
 
 
@@ -121,3 +121,15 @@ def test_a_full_name_at_the_start_is_still_a_person(detector: EntityDetector) ->
     assert any(
         f.value == "Maria Papadopoulou" for f in detector.find("Maria Papadopoulou called today")
     )
+
+
+def test_long_text_is_analysed_in_windows_with_correct_offsets(detector: EntityDetector) -> None:
+    filler = "The quarterly report was reviewed by the team on Monday. "
+    emails = ["first.person@example.org", "second.person@example.org", "third.person@example.org"]
+    text = filler * 800
+    for e, at in zip(emails, (50, 19_890, 40_000), strict=True):
+        text = text[:at] + f" write to {e} now " + text[at:]
+    assert len(text) > 40_000
+    found = [f for f in detector.find(text) if f.entity == "EMAIL"]
+    assert {f.value for f in found} == set(emails)
+    assert all(text[f.start : f.end] == f.value for f in found)

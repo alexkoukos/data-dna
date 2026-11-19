@@ -225,6 +225,25 @@ def test_each_chunk_remembers_its_language_and_a_cross_language_cutoff_exists(
     assert langs == {"en", "el"} or langs <= {"en", "el"}
 
 
+def test_a_zero_embedding_cap_never_calls_the_embedder(engine: sa.Engine) -> None:
+    class Counting(HashingEmbedder):
+        calls = 0
+
+        def embed(self, texts: list[str]) -> np.ndarray:
+            Counting.calls += 1
+            return super().embed(texts)
+
+    emb = Counting()
+    register_document(engine, emb, "Memo", "restricted", MEMO)
+    index = DocumentIndex(engine, emb, ttl_seconds=0)
+    before = Counting.calls
+    paraphrase = "Could you rewrite this for me please: " + " ".join(MEMO.split()[::-1])
+    index.match(paraphrase, max_embedded=0)
+    assert Counting.calls == before
+    index.match(paraphrase)
+    assert Counting.calls > before
+
+
 GREEK_MEMO = " ".join(f"λέξη{i}" for i in range(60))
 
 
@@ -290,3 +309,29 @@ def test_a_name_from_a_documents_title_lowers_the_cutoff_for_that_document_only(
             registry.RELAXED_DELTA = saved
     finally:
         registry.PARAPHRASE_COSINE = old
+
+
+def test_re_registering_with_lower_sensitivity_is_refused_by_the_endpoint(
+    engine: sa.Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fastapi.testclient import TestClient
+
+    import brain.main as main
+    from brain.policy.store import PolicyStore
+    from brain.policy.store import metadata as policy_metadata
+
+    policy_metadata.create_all(engine)
+    monkeypatch.setattr(main, "policy_store", PolicyStore(engine, ttl_seconds=0))
+    client = TestClient(main.app)
+    body = {"title": "Board memo", "text": MEMO}
+    assert (
+        client.post("/v1/documents", data={**body, "sensitivity": "restricted"}).status_code == 200
+    )
+    low = client.post("/v1/documents", data={**body, "sensitivity": "internal"})
+    assert low.status_code == 409 and "already registered as restricted" in low.json()["detail"]
+    assert "Use a new title" in low.json()["detail"]
+    with engine.connect() as c:
+        stored = c.execute(sa.select(t.documents.c.sensitivity)).scalar_one()
+    assert stored == "restricted"
+    same = client.post("/v1/documents", data={**body, "sensitivity": "restricted"})
+    assert same.status_code == 200

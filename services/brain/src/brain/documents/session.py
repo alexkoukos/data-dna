@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql, sqlite
 
 from brain.db import tables as t
 from brain.documents.registry import DocMatch
@@ -34,17 +35,41 @@ class Rebuild:
         return f"{pct}% of '{self.title}' rebuilt from {self.prompts} {plural}"
 
 
+def _insert_if_absent(conn: sa.Connection, user_id: int, document_id: int) -> None:
+    values = {
+        "user_id": user_id,
+        "document_id": document_id,
+        "chunk_idx": [],
+        "prompts": 0,
+        "window_start": None,
+    }
+    stmt: sa.Executable
+    if conn.dialect.name == "postgresql":
+        stmt = postgresql.insert(t.session_coverage).values(**values).on_conflict_do_nothing()
+    else:
+        stmt = sqlite.insert(t.session_coverage).values(**values).on_conflict_do_nothing()
+    conn.execute(stmt)
+
+
 def update_coverage(
     conn: sa.Connection, user_id: int, matches: list[DocMatch], now: datetime | None = None
 ) -> list[Rebuild]:
     now = now or datetime.now(UTC)
     out: list[Rebuild] = []
-    for m in matches:
+    # Always lock documents in the same order, so two requests cannot wait on each other.
+    for m in sorted(matches, key=lambda x: x.document_id):
         where = (
             t.session_coverage.c.user_id == user_id,
             t.session_coverage.c.document_id == m.document_id,
         )
-        row = conn.execute(sa.select(t.session_coverage).where(*where)).mappings().first()
+        # Insert an empty row if there is none, then lock it: two prompts of the same person for
+        # the same document are handled one after the other, so no piece is lost.
+        _insert_if_absent(conn, user_id, m.document_id)
+        row = (
+            conn.execute(sa.select(t.session_coverage).where(*where).with_for_update())
+            .mappings()
+            .first()
+        )
         started = row["window_start"] if row else None
         if started is not None and started.tzinfo is None:
             started = started.replace(tzinfo=UTC)
@@ -57,14 +82,7 @@ def update_coverage(
             "prompts": prompts,
             "window_start": now if fresh else started,
         }
-        if row is None:
-            conn.execute(
-                sa.insert(t.session_coverage).values(
-                    user_id=user_id, document_id=m.document_id, **values
-                )
-            )
-        else:
-            conn.execute(sa.update(t.session_coverage).where(*where).values(**values))
+        conn.execute(sa.update(t.session_coverage).where(*where).values(**values))
         coverage = len(seen) / m.total_chunks if m.total_chunks else 0.0
         escalate = coverage >= COVERAGE_BLOCK or (
             m.sensitivity == "restricted" and prompts >= MAX_PROMPTS_RESTRICTED

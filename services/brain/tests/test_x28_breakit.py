@@ -237,3 +237,26 @@ def _minimal_report(bi: dict[str, object]) -> dict[str, object]:
     rep = summarise([Result(row, "allow", False, 5.0, False, "")], "prompts.sample.csv")
     rep["breakit"] = bi
     return rep
+
+
+def test_approve_falls_back_when_data_eval_is_read_only(
+    env: tuple[TestClient, sa.Engine, Path], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    client, _, csv_path = env
+    fallback = tmp_path / "volume" / "attacks_scripts.csv"
+    fallback.parent.mkdir()
+    fallback.write_text(HEADER + "A1,spacing,en,x,warn,,seed,\n", encoding="utf-8")
+    monkeypatch.setattr(main, "BREAKIT_FALLBACK", fallback)
+    real = main.breakit.append_to_eval
+
+    def deny(path: Path, **kw: object) -> str:
+        if path == csv_path:
+            raise PermissionError("read-only")
+        return real(path, **kw)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(main.breakit, "append_to_eval", deny)
+    cid = _submit(client).json()["id"]  # type: ignore[attr-defined]
+    ok = client.post(f"/v1/breakit/candidates/{cid}/approve", json={"reviewer": "sec1"})
+    assert ok.status_code == 200 and "docker compose cp" in ok.json()["note"]
+    assert "BI001" in fallback.read_text(encoding="utf-8")
+    assert "BI001" not in csv_path.read_text(encoding="utf-8")

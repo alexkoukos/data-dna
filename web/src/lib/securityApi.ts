@@ -170,6 +170,19 @@ export interface IncidentDetail {
 
 export const fetchIncidentDetail = (id: string) => get<IncidentDetail>(`/v1/incidents/${id}`);
 
+/** A FastAPI 422 sends a list of {msg} objects; a plain error sends a string. */
+export function detailText(detail: unknown): string {
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d) =>
+        d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : "",
+      )
+      .filter(Boolean)
+      .join(". ");
+  }
+  return detail == null ? "" : String(detail);
+}
+
 async function send<T>(path: string, method: "POST" | "GET", body?: unknown): Promise<T> {
   let res: Response;
   try {
@@ -184,7 +197,7 @@ async function send<T>(path: string, method: "POST" | "GET", body?: unknown): Pr
   if (!res.ok) {
     let detail = "";
     try {
-      detail = String(((await res.json()) as { detail?: unknown }).detail ?? "");
+      detail = detailText(((await res.json()) as { detail?: unknown }).detail);
     } catch {
       // fall through to the generic message
     }
@@ -364,7 +377,7 @@ async function groupCall(method: "PUT" | "DELETE", p: GroupPolicy): Promise<Grou
   if (!res.ok) {
     let detail = "";
     try {
-      detail = String(((await res.json()) as { detail?: unknown }).detail ?? "");
+      detail = detailText(((await res.json()) as { detail?: unknown }).detail);
     } catch {
       // generic message below
     }

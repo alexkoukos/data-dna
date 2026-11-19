@@ -65,4 +65,34 @@ describe("Company AI chat", () => {
     expect(screen.queryByRole("button", { name: "Keep this?" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "What can I help with?" })).toBeInTheDocument();
   });
+  it("does not send a masked turn again, so the gateway never sees the raw text twice", async () => {
+    const bodies: { messages: unknown[] }[] = [];
+    let n = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (!url.includes("/chat/completions"))
+          return new Response(JSON.stringify({ key: "k", default_model: "m" }));
+        if (typeof init?.body === "string") bodies.push(JSON.parse(init.body));
+        n += 1;
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: n === 1 ? "Looks fine." : "Sure." } }],
+          }),
+          { headers: { "x-dna-decision": n === 1 ? "mask" : "allow" } },
+        );
+      }),
+    );
+    render(<ChatPage />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Your question" }), "Check my IBAN");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("Looks fine.")).toBeInTheDocument();
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Your question" }),
+      "And one more thing",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("Sure.")).toBeInTheDocument();
+    expect(bodies.at(-1)?.messages).toHaveLength(1);
+  });
 });

@@ -83,7 +83,7 @@ add("el", "Το κλειδί μου είναι sk-live-EXAMPLEKEY3EXAMPLEKEY3EXA
 add("en", "Fix this: aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "leak", "pattern", "", "secret", "mask")
 for t, lang in [("Write to Maria Papadopoulou at maria.papadopoulou@example.org about the delay.", "en"),
                 ("Κάλεσε τον Νίκο Αντωνίου στο 6944123456 και πες του ότι αργούμε.", "el"),
-                ("Forward this to g.nikolaou@firm.gr and call +30 6977 123456 tomorrow.", "en"),
+                ("Forward this to g.nikolaou@example.gr and call +30 6977 123456 tomorrow.", "en"),
                 ("Στείλε email στην Ελένη Καραγιάννη (e.karagianni@example.gr) για το ραντεβού.", "el"),
                 ("Dimitris Stavrou will be at the meeting, his mobile is 6981234567.", "en"),
                 ("Ο Γιώργος Παπαδόπουλος ζήτησε να τον πάρουμε στο 6944777888.", "el")]:

@@ -55,6 +55,8 @@ class PolicyError(ValueError):
 class PolicySet:
     categories: dict[str, Decision]
     sensitivity: dict[str, Decision]
+    # True when the person's role could not be read and the strictest matching policy was used.
+    degraded: bool = False
 
 
 @dataclass
@@ -108,6 +110,11 @@ class PolicyStore:
             with self._engine.connect() as conn:
                 rows = conn.execute(sa.select(policies_table)).mappings().all()
         except sa.exc.SQLAlchemyError:
+            with self._lock:
+                last = self._cached
+            if last is not None:
+                log.warning("Policy table unreachable, keeping the last loaded policies")
+                return last
             log.warning("Policy table unreachable, using the seed file")
             return self._seed
         merged = PolicySet(dict(self._seed.categories), dict(self._seed.sensitivity))

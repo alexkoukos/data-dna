@@ -10,7 +10,7 @@ from brain.seed.load import run_seed
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Seed the synthetic Data DNA company.")
+    parser = argparse.ArgumentParser(description="Seed the synthetic Sentry company.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--anchor", type=date.fromisoformat, help="Day after the last of 14 days (YYYY-MM-DD)"

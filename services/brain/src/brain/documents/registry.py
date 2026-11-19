@@ -22,7 +22,7 @@ from sqlalchemy.engine import Engine
 from brain.db import tables as t
 from brain.documents.chunking import chunk_text, language, words
 from brain.documents.embeddings import Embedder
-from brain.documents.fingerprint import PERMS, jaccard, signature
+from brain.documents.fingerprint import PERMS, signature
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ PARAPHRASE_COSINE = 0.88  # e5 scores are compressed: same-topic text sits near 
 # lower for true and false matches alike, so it gets its own, lower cutoff.
 CROSS_LANGUAGE_COSINE = 0.86
 MIN_WORDS_TO_EMBED = 10
-MAX_QUERY_CHUNKS = 64  # chunks compared by MinHash (cheap)
+MAX_QUERY_CHUNKS = 6000  # chunks compared by MinHash: enough for a 200,000 character message
 MAX_EMBEDDED_CHUNKS = 16  # windows sent through the embedding model (about 4 ms each)
 
 # A document can carry translations of itself (data/documents/<name>.<lang>.md). Their chunks are
@@ -88,14 +88,24 @@ class DocumentIndex:
         self._ttl = ttl_seconds
         self._chunks: list[_Chunk] = []
         self._matrix = np.zeros((0, 384), dtype=np.float32)
+        self._sigs = np.zeros((0, PERMS), dtype=np.uint64)
         self._docs: dict[int, tuple[str, str]] = {}
         self._totals: dict[int, int] = {}
         self._tsizes: dict[tuple[int, int], int] = {}
         self._loaded_at = float("-inf")
         self._lock = threading.Lock()
+        self._version = 0
+        self._stamp: tuple[object, ...] = ()
 
     def invalidate(self) -> None:
         self._loaded_at = float("-inf")
+
+    def current_version(self) -> int:
+        """Changes whenever the registered documents change, so answers kept per message can
+        be dropped."""
+        with self._lock:
+            self._refresh()
+            return self._version
 
     def _refresh(self) -> None:
         if time.monotonic() - self._loaded_at < self._ttl or self.engine is None:
@@ -132,8 +142,17 @@ class DocumentIndex:
             for r in rows
             if r.minhash is not None and r.embedding is not None
         ]
+        stamp = (tuple(sorted(docs.items())), tuple((c.document_id, c.idx, c.sig) for c in chunks))
+        if stamp != self._stamp:
+            self._stamp = stamp
+            self._version += 1
         self._docs = docs
         self._chunks = chunks
+        self._sigs = (
+            np.stack([np.frombuffer(c.sig, dtype=np.uint64) for c in chunks])
+            if chunks
+            else np.zeros((0, PERMS), dtype=np.uint64)
+        )
         self._matrix = (
             np.stack([c.vec for c in chunks]) if chunks else np.zeros((0, 384), dtype=np.float32)
         )
@@ -163,14 +182,20 @@ class DocumentIndex:
             return 0
         return min(n - 1, (c.idx % TRANSLATION_BASE) * n // size)
 
-    def match(self, text: str, relaxed_for: Sequence[str] = ()) -> list[DocMatch]:
+    def match(
+        self,
+        text: str,
+        relaxed_for: Sequence[str] = (),
+        max_embedded: int = MAX_EMBEDDED_CHUNKS,
+    ) -> list[DocMatch]:
         """Documents this text copies or paraphrases, best first. Empty if none are registered.
 
         `relaxed_for` are names found in the prompt. Documents whose title contains one of them
-        get paraphrase cutoffs lowered by RELAXED_DELTA (see above)."""
+        get paraphrase cutoffs lowered by RELAXED_DELTA (see above). `max_embedded` caps the windows
+        embedded; 0 means MinHash only."""
         with self._lock:
             self._refresh()
-            chunks, matrix = self._chunks, self._matrix
+            chunks, matrix, sigs = self._chunks, self._matrix, self._sigs
         if not chunks:
             return []
         pieces = chunk_text(text)[:MAX_QUERY_CHUNKS]
@@ -193,21 +218,20 @@ class DocumentIndex:
         copied: set[int] = set()
         copied_query: set[int] = set()
         for qi, qs in enumerate(query_sigs):
-            for i, c in enumerate(chunks):
-                j = jaccard(qs, c.sig)
-                if j >= COPY_JACCARD:
-                    note(c, j, "copy")
-                    copied.add(i)
-                    copied_query.add(qi)
-        if len(words(text)) >= MIN_WORDS_TO_EMBED:
+            scores = (sigs == np.frombuffer(qs, dtype=np.uint64)).mean(axis=1)
+            for i in np.nonzero(scores >= COPY_JACCARD)[0]:
+                note(chunks[int(i)], float(scores[i]), "copy")
+                copied.add(int(i))
+                copied_query.add(qi)
+        if max_embedded > 0 and len(words(text)) >= MIN_WORDS_TO_EMBED:
             # The model is the slow part, so: skip everything when MinHash already explained the
             # prompt, and cap how many windows are embedded (spread evenly over long prompts).
             wanted = [p for p in chunk_text(text) if len(p.split()) >= 6 and not _mostly_numbers(p)]
             if copied_query and len(copied_query) >= len(pieces) - 1:
                 wanted = []
-            if len(wanted) > MAX_EMBEDDED_CHUNKS:
-                step = len(wanted) / MAX_EMBEDDED_CHUNKS
-                wanted = [wanted[int(k * step)] for k in range(MAX_EMBEDDED_CHUNKS)]
+            if len(wanted) > max_embedded:
+                step = len(wanted) / max_embedded
+                wanted = [wanted[int(k * step)] for k in range(max_embedded)]
             if wanted:
                 sims = self._embedder.embed(wanted) @ matrix.T
                 query_lang = np.array([language(p) for p in wanted])
@@ -249,6 +273,13 @@ class DocumentIndex:
         return sorted(out, key=lambda m: (m.kind != "copy", -m.score))
 
 
+_RANK = {"internal": 0, "confidential": 1, "restricted": 2}
+
+
+class DowngradeRefused(ValueError):
+    """A document with this title already has a higher sensitivity."""
+
+
 def register_document(
     engine: Engine,
     embedder: Embedder,
@@ -257,6 +288,7 @@ def register_document(
     text: str,
     keep_text: bool = False,
     translations: list[str] | None = None,
+    allow_downgrade: bool = True,
 ) -> tuple[int, int]:
     """Create (or refill) a document and its chunks. Returns (document id, chunk count).
 
@@ -285,8 +317,19 @@ def register_document(
         ]
     with engine.begin() as conn:
         found = conn.execute(
-            sa.select(t.documents.c.id).where(t.documents.c.title == title)
-        ).scalar_one_or_none()
+            sa.select(t.documents.c.id, t.documents.c.sensitivity).where(
+                t.documents.c.title == title
+            )
+        ).first()
+        if (
+            found is not None
+            and not allow_downgrade
+            and _RANK.get(sensitivity, 0) < _RANK.get(found.sensitivity, 0)
+        ):
+            raise DowngradeRefused(
+                f"A document called '{title}' is already registered as {found.sensitivity}. "
+                "Use a new title, or ask an admin to lower it."
+            )
         if found is None:
             res = conn.execute(
                 sa.insert(t.documents).values(
@@ -298,7 +341,7 @@ def register_document(
                 raise sa.exc.SQLAlchemyError("document id not returned")
             doc_id = int(key[0])
         else:
-            doc_id = int(found)
+            doc_id = int(found.id)
             conn.execute(
                 sa.update(t.documents)
                 .where(t.documents.c.id == doc_id)

@@ -1,5 +1,5 @@
 name,vendor,domains,category,approval,risk,reason,alternative
-Company AI,Data DNA gateway,gateway.local,chat,approved,low,"All traffic is checked by the gateway",
+Company AI,Sentry gateway,gateway.local,chat,approved,low,"All traffic is checked by the gateway",
 Claude Code (gateway),Anthropic via gateway,gateway.claude.local,coding,approved,low,"Runs through the company gateway",
 GitHub Copilot,GitHub,api.githubcopilot.com;copilot-proxy.githubusercontent.com,coding,approved,medium,"Company licence, code stays in the tenant",
 Microsoft Copilot,Microsoft,copilot.microsoft.com,chat,approved,medium,"Company tenant with data protection",

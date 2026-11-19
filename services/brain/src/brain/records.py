@@ -9,6 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.engine import Engine
 
 from brain import siem
@@ -19,20 +20,22 @@ RETENTION_DAYS = 30
 
 
 def user_row_id(conn: sa.Connection, pseudonym: str, team: str) -> int:
-    found = conn.execute(
-        sa.select(t.users.c.id).where(t.users.c.pseudonym == pseudonym)
-    ).scalar_one_or_none()
-    if found is not None:
-        return int(found)
-    res = conn.execute(
-        sa.insert(t.users).values(
-            pseudonym=pseudonym, team=team, role="employee", created_at=datetime.now(UTC)
-        )
+    """The row for this person, created on first sight. Two first requests at once both get it."""
+    values = {
+        "pseudonym": pseudonym,
+        "team": team,
+        "role": "employee",
+        "created_at": datetime.now(UTC),
+    }
+    stmt: sa.Executable
+    if conn.dialect.name == "postgresql":
+        stmt = postgresql.insert(t.users).values(**values).on_conflict_do_nothing()
+    else:
+        stmt = sqlite.insert(t.users).values(**values).on_conflict_do_nothing()
+    conn.execute(stmt)
+    return int(
+        conn.execute(sa.select(t.users.c.id).where(t.users.c.pseudonym == pseudonym)).scalar_one()
     )
-    key = res.inserted_primary_key
-    if key is None:
-        raise sa.exc.SQLAlchemyError("user id not returned")
-    return int(key[0])
 
 
 def _bump_counter(conn: sa.Connection, day: date, team: str, allowed: bool) -> None:
@@ -175,7 +178,15 @@ def record_reroute(engine: Engine | None, user: str) -> None:
             if uid is None:
                 return
             row = conn.execute(
-                sa.select(t.incidents.c.id, t.incidents.c.reasons)
+                sa.select(
+                    t.incidents.c.id,
+                    t.incidents.c.reasons,
+                    t.incidents.c.team,
+                    t.incidents.c.tool,
+                    t.incidents.c.categories,
+                    t.incidents.c.document_id,
+                    t.incidents.c.trace,
+                )
                 .where(
                     t.incidents.c.user_id == uid,
                     t.incidents.c.decision.in_(("block", "warn", "local")),
@@ -197,3 +208,18 @@ def record_reroute(engine: Engine | None, user: str) -> None:
             )
     except sa.exc.SQLAlchemyError:
         log.warning("Could not record a reroute, continuing")
+        return
+    siem.push(
+        siem.event(
+            incident_id=row.id,
+            ts=datetime.now(UTC),
+            user_key_id=user,
+            team=row.team or "",
+            tool=row.tool or "",
+            decision="rerouted",
+            categories=list(row.categories or []),
+            document_id=row.document_id,
+            trace=row.trace,
+            shadow=False,
+        )
+    )

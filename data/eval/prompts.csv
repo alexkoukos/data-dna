@@ -38,7 +38,7 @@ P0036,el,"Το κλειδί μου είναι sk-live-EXAMPLEKEY3EXAMPLEKEY3EXAM
 P0037,en,Fix this: aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY,leak,pattern,,secret,mask,
 P0038,en,Write to Maria Papadopoulou at maria.papadopoulou@example.org about the delay.,leak,pattern,,person_email_phone,mask,
 P0039,el,Κάλεσε τον Νίκο Αντωνίου στο 6944123456 και πες του ότι αργούμε.,leak,pattern,,person_email_phone,mask,
-P0040,en,Forward this to g.nikolaou@firm.gr and call +30 6977 123456 tomorrow.,leak,pattern,,person_email_phone,mask,
+P0040,en,Forward this to g.nikolaou@example.gr and call +30 6977 123456 tomorrow.,leak,pattern,,person_email_phone,mask,
 P0041,el,Στείλε email στην Ελένη Καραγιάννη (e.karagianni@example.gr) για το ραντεβού.,leak,pattern,,person_email_phone,mask,
 P0042,en,"Dimitris Stavrou will be at the meeting, his mobile is 6981234567.",leak,pattern,,person_email_phone,mask,
 P0043,el,Ο Γιώργος Παπαδόπουλος ζήτησε να τον πάρουμε στο 6944777888.,leak,pattern,,person_email_phone,mask,

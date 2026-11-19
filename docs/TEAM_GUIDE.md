@@ -23,7 +23,7 @@
    ```
    cd ~
    git clone <το link του repo>
-   cd data-dna
+   cd sentry
    code .
    ```
 8. Στο VS Code πατήστε **«Reopen in Container»** όταν το προτείνει. Την πρώτη φορά αργεί λίγα λεπτά: στήνει Python, Node, Docker, Claude Code και όλα τα dependencies **ακριβώς ίδια** με των υπολοίπων.

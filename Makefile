@@ -16,7 +16,7 @@ setup: ## First time: install all dependencies exactly as locked
 	cd web && npm ci
 
 up: ## Build and start everything (the judges' command)
-	@sh scripts/gen_hmac_key.sh
+	@sh scripts/prepare_dirs.sh
 	docker compose up --build -d --wait
 	@echo "Web: http://localhost:3000   Brain API: http://localhost:8001/docs"
 
@@ -29,9 +29,10 @@ logs: ## Follow logs
 reset: ## Stop and delete the database (fresh seed next time)
 	docker compose down -v
 
-test: ## Unit tests (brain + web)
+test: ## Unit tests (brain + web + extension)
 	cd services/brain && uv run pytest
 	cd web && npm test
+	node --test extension/test/logic.test.mjs
 
 lint: ## Linters and formatters in check mode
 	cd services/brain && uv run ruff check . && uv run ruff format --check .
@@ -69,11 +70,11 @@ validate: ## Check the team's data files (prompts, AI tools, org)
 check: validate lint typecheck test ## Everything CI checks. Run before every commit.
 
 split-test: ## Split storage tests inside the containers (vaults start automatically)
-	@sh scripts/gen_hmac_key.sh
+	@sh scripts/prepare_dirs.sh
 	docker compose --profile test run --rm --build splitstore-tests
 
 split-demo: ## Split storage demo: seed salaries, dump vault-a, aggregate, tamper
-	@sh scripts/gen_hmac_key.sh
+	@sh scripts/prepare_dirs.sh
 	docker compose run --rm brain python -m brain.splitstore.demo
 
 e2e: ## End-to-end + accessibility (needs `make up` first)
@@ -94,7 +95,7 @@ judge-data: ## Regenerate the judge fine-tune data from data/train_org (D7, dete
 	python3 scripts/gen_finetune.py
 
 judge-ollama: ## Start the judge's own Ollama on port 11435 (separate from `make up`, which would remove a compose-started one)
-	docker start judge-ollama 2>/dev/null || docker run -d --name judge-ollama --restart unless-stopped -p 11435:11434 -v data-dna_ollama:/root/.ollama -e OLLAMA_KEEP_ALIVE=30m ollama/ollama:0.40.16
+	docker start judge-ollama 2>/dev/null || docker run -d --name judge-ollama --restart unless-stopped -p 127.0.0.1:11435:11434 -v sentry_ollama:/root/.ollama -e OLLAMA_KEEP_ALIVE=30m ollama/ollama:0.40.16@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
 
 judge-eval: ## Compare plain gemma3:1b (dna-local) with the tuned judge on the test set (needs `make judge-ollama` and the dna-judge model, see docs/JUDGE_FINETUNE.md)
 	python3 scripts/eval_judge.py dna-judge dna-local --url http://localhost:11435 --out eval/judge_eval.md

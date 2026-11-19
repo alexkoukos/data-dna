@@ -240,3 +240,16 @@ def test_recording_an_incident_pushes_it(
     _record(engine)
     assert len(pushed) == 1 and pushed[0]["decision"] == "block" and pushed[0]["id"] == 1
     assert "Papadopoulou" not in json.dumps(pushed)
+
+
+def test_a_reroute_is_pushed_with_its_severity(
+    engine: sa.Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _record(engine, "block")
+    pushed: list[dict[str, object]] = []
+    monkeypatch.setattr(siem, "push", lambda ev: pushed.append(ev))
+    records.record_reroute(engine, "u-de036ece")
+    assert len(pushed) == 1
+    assert pushed[0]["decision"] == "rerouted" and pushed[0]["team"] == "Finance"
+    assert siem.SEVERITY["rerouted"] == 4
+    assert "Contains" not in json.dumps(pushed[0])

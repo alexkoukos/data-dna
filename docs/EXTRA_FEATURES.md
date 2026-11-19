@@ -1,7 +1,4 @@
-# Extra features (X1 to X29)
-# Extra features (X1 to X26, X30)
-# Extra features (X1 to X26, X31)
-# Extra features (X1 to X26, X32)
+# Extra features (X1 to X32)
 
 These sit on top of the P0 and P1 items in `TASKS.md`. A feature counts only if it has tests and one paragraph in the README. Priority: **P1** if the core works, **P2** is cut first.
 Suggested order: X1, X2, X4, X5, X11, X17, X23. All small, no new infrastructure, and visible in a demo.

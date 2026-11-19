@@ -6,7 +6,7 @@
 
 **Στόχος:** να κερδίσουμε το Netcompany Hackathon Athens 2026, Challenge 3 (Shadow AI protection και Data Protection).
 
-**Ημερομηνίες:** go/no-go για τα έγγραφα Σάββατο 14, feature freeze Τρίτη 17 βράδυ, freeze υποβολής Πέμπτη 19 στις 20:00, **υποβολή Παρασκευή 20 μέχρι το μεσημέρι**, pitching Πέμπτη 26 (Πανεπιστήμιο Πειραιώς), απονομή Παρασκευή 27.
+**Ημερομηνίες:** go/no-go για τα έγγραφα Σάββατο 14, **υποβολή Παρασκευή 20 μέχρι το μεσημέρι**, pitching Πέμπτη 26 (Πανεπιστήμιο Πειραιώς), απονομή Παρασκευή 27.
 
 **Κανόνες που αν σπάσουν χάνουμε:**
 - `git clone` και μετά `docker compose up --build` στο Linux πρέπει να δουλεύει. Αλλιώς η υποβολή ακυρώνεται.
@@ -57,9 +57,9 @@
 | Σάβ 14 | S1 τελειωμένο, D3 (go/no-go στις 20 παραφράσεις), L1 (τοπικό μοντέλο), δεδομένα από Βασίλη και Κωνσταντίνο |
 | Κυρ 15 | G1 gateway, O1 οργανισμός, UI οθόνες με το brand |
 | Δευ 16 | X21 επέκταση (1 μέρα), μασκότ (μισή μέρα), πρώτο `make eval`, δοκιμή από Fable |
-| Τρί 17 | Διορθώσεις από τη δοκιμή. **Feature freeze το βράδυ.** |
+| Τρί 17 | Διορθώσεις από τη δοκιμή. |
 | Τετ 18 | Μόνο tests, README, δεδομένα business, πρόβα demo |
-| Πεμ 19 | Video, slides, καθαρό clone σε 3 μηχανήματα. **Freeze 20:00.** |
+| Πεμ 19 | Video, slides, καθαρό clone σε 3 μηχανήματα. |
 | Παρ 20 | Τελικός έλεγχος και **υποβολή μέχρι το μεσημέρι** |
 
 ## 5. Η επέκταση browser (X21)
@@ -154,7 +154,11 @@
 ## 9. Πώς ανοίγεις το project στο VS Code
 
 1. Βγάλε το zip σε φάκελο. Μέσα του πρέπει να είναι τα `CLAUDE.md`, `TASKS.md`, `docker-compose.yml` στο πρώτο επίπεδο.
+<<<<<<<< HEAD:docs/HIVE_PLAN.md
 2. Στα Windows ξεζίπαρε μέσα στο WSL (π.χ. `~/hive`) και γράψε `code .` εκεί. Αλλιώς: File, Open Folder.
+========
+2. Στα Windows ξεζίπαρε μέσα στο WSL (π.χ. `~/sentry`) και γράψε `code .` εκεί. Αλλιώς: File, Open Folder.
+>>>>>>>> origin/main:docs/SENTRY_PLAN.md
 3. Άνοιξε το Claude Code. Διαβάζει αυτόματα το `CLAUDE.md`.
 4. Ξεκίνα με το prompt A παρακάτω.
 5. Για να δείξεις αρχείο: γράψε `@docs/PRD.md`. Για αρχεία εκτός φακέλου: σύρε τα με πατημένο Shift. (Δεν έχει ελεγχθεί στην τρέχουσα τεκμηρίωση.)
@@ -186,7 +190,7 @@ PROJECT
 Sentry (Greek "πύλη", gate) is an AI gateway for companies. Every AI tool an employee uses goes through it. It (1) discovers "shadow AI", AI tools used without approval, from network logs (Squid, Zeek) and gateway traffic, (2) detects sensitive data before it leaves, and (3) decides per prompt: allow, warn, mask (hide and restore in the answer), local (answered by a small local model), or block. Optional DNA feature: confidential documents get small per-copy differences so a leaked copy can be traced to its recipient; identities stay sealed and need two people to reveal. Analysts ask questions in plain language and see the SQL. A Chrome extension (optional) catches paste and Send on chatgpt.com, grok.com, claude.ai and gemini.google.com and shows a mascot overlay. A read-only MCP server exposes masked incident data.
 
 CONTEXT
-- Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection. Submission Friday 20 Nov at noon, pitching Thursday 26 Nov, awards 27 Nov. Feature freeze Tuesday 17 Nov evening.
+- Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection. Submission Friday 20 Nov at noon, pitching Thursday 26 Nov, awards 27 Nov.
 - 80 percent of the score comes from the GitHub repo alone, so the repo must run: `git clone` then `docker compose up --build` on Linux must work or the submission is void.
 - Rules: official vendor DB images only, synthetic data only, no secrets in the repo, cross-platform (amd64 and arm64, Linux, macOS, Windows via WSL), README with concept, features, setup and architecture.
 - Judges include a cybersecurity and red-team lead, an AI lead, senior engineers and a software testing director. Expect attacks on the filter and scrutiny of tests.

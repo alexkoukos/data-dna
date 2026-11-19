@@ -46,3 +46,12 @@ def test_keys_endpoint_rejects_odd_user_id() -> None:
 def test_keys_endpoint_off_outside_demo_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main.settings, "demo_mode", False)
     assert client.post("/v1/keys", json={"user_id": "maria"}).status_code == 403
+
+
+def test_new_keys_are_limited_to_inspected_routes() -> None:
+    from brain.keys import ALLOWED_ROUTES, key_request
+
+    body = key_request("u1", "finance")
+    assert body["allowed_routes"] == ALLOWED_ROUTES
+    assert "/v1/chat/completions" in ALLOWED_ROUTES and "/v1/messages" in ALLOWED_ROUTES
+    assert not any("assistants" in r or "files" in r or "batches" in r for r in ALLOWED_ROUTES)

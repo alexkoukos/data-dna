@@ -9,8 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: services/brain } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
       - run: uv sync --frozen
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run mypy
@@ -21,13 +21,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: web } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
       - run: npm ci
       - run: npm run lint && npm run format:check
       - run: npm test
       - run: npm run build
+      - run: node --test ../extension/test/logic.test.mjs
 
   extension:
     runs-on: ubuntu-latest
@@ -59,12 +60,11 @@ jobs:
     needs: [brain, web, extension]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: cp .env.example .env
-      - run: sh scripts/gen_hmac_key.sh
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: chmod -R a+w data/eval # the non-root brain writes approved break-it rows here
       - run: docker compose up --build -d --wait
       - run: curl -fsS http://localhost:8001/healthz && curl -fsS http://localhost:3000/ >/dev/null
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: { node-version: 22 }
       - run: cd web && npm ci && npx playwright install --with-deps chromium && npm run e2e
       # The extension against the real stack: the brain on :8001 and mock-ai on :3100 are up.
@@ -77,11 +77,13 @@ jobs:
     needs: [brain, web]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - run: docker buildx build --platform linux/arm64 services/brain
       - run: docker buildx build --platform linux/arm64 -f web/Dockerfile .
+      - run: docker buildx build --platform linux/arm64 infra/db
+      - run: docker buildx build --platform linux/arm64 infra/gateway
       - run: docker buildx build --platform linux/arm64 mock-ai
 
   secrets:
@@ -90,7 +92,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }

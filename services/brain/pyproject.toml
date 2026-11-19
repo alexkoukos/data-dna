@@ -1,7 +1,7 @@
 [project]
 name = "brain"
 version = "0.1.0"
-description = "Data DNA brain: detection, policy, DNA attribution, dashboard API"
+description = "Sentry brain: detection, policy, DNA attribution, dashboard API"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.115",
