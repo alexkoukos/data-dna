@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { TextureButton } from "@/components/ui/texture-button";
+import { HeroLoop } from "./HeroLoop";
+import { Catches } from "./Landing";
 import { RibbonField } from "./RibbonField";
 import { SiteShell } from "./SiteShell";
 
@@ -42,8 +44,7 @@ export default function LandingV2() {
                 </TextureButton>
               </div>
             </div>
-            {/* TODO: product screen (Overview screenshot) here, no laptop frame */}
-            <div aria-hidden="true" />
+            <HeroLoop />
           </div>
         </section>
 
@@ -66,12 +67,7 @@ export default function LandingV2() {
         <section id="catches" className="section section-white" aria-labelledby="catches-title">
           <div className="wrap">
             <h2 id="catches-title">What it catches</h2>
-            <ul className="v2-chips">
-              {CATCHES.map((c) => (
-                <li key={c}>{c}</li>
-              ))}
-            </ul>
-            {/* TODO: interactive raw to masked demo */}
+            <Catches />
           </div>
         </section>
 

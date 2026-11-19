@@ -123,7 +123,7 @@ function Wordmark({ reverse = false, className = "" }: { reverse?: boolean; clas
   );
 }
 
-function Catches() {
+export function Catches() {
   const [pick, setPick] = useState(0);
   const c = CATCHES[pick];
   return (

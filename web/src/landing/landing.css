@@ -1966,17 +1966,3 @@
   margin-top: 6px;
   color: var(--ink-muted);
 }
-.v2-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  list-style: none;
-  padding: 0;
-}
-.v2-chips li {
-  padding: 8px 16px;
-  border: 1px solid var(--border);
-  border-radius: 9999px;
-  background: var(--tint);
-  font-weight: 600;
-}
