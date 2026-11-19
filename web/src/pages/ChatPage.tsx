@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   BrainIcon,
+  FileText,
   CheckIcon as Check,
   CopyIcon,
   PanelLeft,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { ChatSidebar } from "../components/chat/ChatSidebar";
 import { PromptBox } from "../components/chat/PromptBox";
+import { UploadBanner } from "../components/chat/UploadBanner";
 import {
   ChatContainerContent,
   ChatContainerRoot,
@@ -38,7 +40,18 @@ import { Sentinel } from "../components/Sentinel";
 import { RequestToolForm } from "../components/RequestToolForm";
 import { OutcomeChip } from "../components/OutcomeChip";
 import { WarnCard } from "../components/WarnCard";
+import {
+  composeMessage,
+  DEFAULT_LIMITS,
+  fileSummary,
+  precheck,
+  toSent,
+  uploadHint,
+  type Attachment,
+  type ReadFile,
+} from "../lib/attachments";
 import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
+import { extractFile, fetchFileLimits } from "../lib/filesApi";
 import { PROMPT_GROUPS } from "../lib/chatPrompts";
 import {
   loadChats,
@@ -65,6 +78,7 @@ interface Pending {
   text: string;
   reasons: string[];
   suggestion?: string;
+  files?: ReadFile[];
 }
 
 const ico = "size-4";
@@ -208,8 +222,17 @@ export default function ChatPage() {
   const chatsRef = useRef(chats);
   chatsRef.current = chats;
   const counter = useRef(0);
+  // Files to attach to the next message, and the text of files already sent (by turn id). File
+  // text lives only in memory for this visit: it is never written to localStorage.
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [limits, setLimits] = useState(DEFAULT_LIMITS);
+  const [hint, setHint] = useState(() => uploadHint(window.location.search));
+  const turnFiles = useRef(new Map<number, ReadFile[]>());
 
   useEffect(() => saveChats(chats), [chats]);
+  useEffect(() => {
+    void fetchFileLimits().then(setLimits);
+  }, []);
   useEffect(() => {
     ensureIdentity().then(
       (i) => {
@@ -232,13 +255,77 @@ export default function ChatPage() {
   const append = (id: string, t: Omit<StoredTurn, "id">) =>
     update(id, (c) => ({ turns: [...c.turns, { ...t, id: makeId() }] }));
 
+  const accept = limits.types.join(",");
+  const fileId = () => `f${makeId()}`;
+
+  /** Checks each file, then has the server read it. Ready files go out with the next message. */
+  const addFiles = (picked: File[]) => {
+    let count = attachments.filter((a) => a.status !== "error").length;
+    const added: Attachment[] = [];
+    const toRead: [string, File][] = [];
+    for (const f of picked) {
+      const id = fileId();
+      const problem = precheck(f, limits, count);
+      if (problem) added.push({ id, name: f.name, status: "error", message: problem });
+      else {
+        added.push({ id, name: f.name, status: "reading" });
+        toRead.push([id, f]);
+        count += 1;
+      }
+    }
+    setAttachments((all) => [...all, ...added]);
+    for (const [id, f] of toRead)
+      void extractFile(f, limits).then((r) =>
+        setAttachments((all) =>
+          all.map((a) =>
+            a.id !== id
+              ? a
+              : r.ok
+                ? {
+                    id,
+                    status: "ready",
+                    name: r.name,
+                    text: r.text,
+                    chars: r.chars,
+                    truncated: r.truncated,
+                  }
+                : { id, name: f.name, status: "error", message: r.message },
+          ),
+        ),
+      );
+  };
+  const removeFile = (id: string) => setAttachments((all) => all.filter((a) => a.id !== id));
+  const dismissHint = () => {
+    setHint(null);
+    try {
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+    } catch {
+      // the banner is gone either way
+    }
+  };
+  /** What the gateway checks for a turn: the typed text plus the text of its files. */
+  const contentOf = (t: StoredTurn) => {
+    const files = turnFiles.current.get(t.id);
+    return files ? composeMessage(t.text, files) : t.text;
+  };
+
   /** Sends `text` as a new turn, or retries the last question when `retry` is set. */
   const send = async (
     text: string,
-    opts: { ack?: string; retry?: boolean; reroute?: boolean } = {},
+    opts: { ack?: string; retry?: boolean; reroute?: boolean; files?: ReadFile[] } = {},
   ) => {
     const clean = text.trim();
-    if (!clean || busy) return;
+    const fromComposer = !opts.retry && !opts.files;
+    const files: ReadFile[] = opts.retry
+      ? []
+      : (opts.files ??
+        attachments.flatMap((a) =>
+          a.status === "ready"
+            ? [{ name: a.name, text: a.text, chars: a.chars, truncated: a.truncated }]
+            : [],
+        ));
+    if ((!clean && !files.length) || busy) return;
+    if (fromComposer && attachments.some((a) => a.status === "reading")) return;
     let id = activeId;
     if (!id) {
       const c = newChat();
@@ -249,12 +336,26 @@ export default function ChatPage() {
     setPending(null);
     setBusy(true);
     const before = id === activeId ? turnsOf(id) : [];
+    const turnId = makeId();
+    if (files.length) turnFiles.current.set(turnId, files);
     const base: StoredTurn[] = opts.retry
       ? before.slice(0, before.findLastIndex((t) => t.from === "user") + 1)
-      : [...before, { id: makeId(), from: "user", text: clean }];
+      : [
+          ...before,
+          {
+            id: turnId,
+            from: "user",
+            text: clean,
+            ...(files.length ? { files: files.map(toSent) } : {}),
+          },
+        ];
     const first = before.length === 0;
-    update(id, (c) => ({ turns: base, title: first && !opts.retry ? titleFrom(clean) : c.title }));
+    update(id, (c) => ({
+      turns: base,
+      title: first && !opts.retry ? titleFrom(clean || (files[0]?.name ?? "")) : c.title,
+    }));
     if (!opts.retry) setDraft("");
+    if (fromComposer) setAttachments([]);
     // Earlier turns that passed untouched. A masked, held or rerouted turn is not sent again, so the
     // gateway never sees the original text twice.
     const untouched: StoredTurn[] = [];
@@ -266,7 +367,7 @@ export default function ChatPage() {
     const asked = base[base.length - 1];
     const history: ChatTurn[] = [...untouched, ...(asked ? [asked] : [])].map((t) => ({
       role: t.from,
-      content: t.text,
+      content: contentOf(t),
     }));
     try {
       identity.current ??= await ensureIdentity();
@@ -283,9 +384,17 @@ export default function ChatPage() {
           outcome: res.outcome,
           reasons: res.reasons,
         });
-      else if (res.kind === "warn")
-        setPending({ text: clean, reasons: res.reasons, suggestion: res.suggestion });
-      else if (res.kind === "block")
+      else if (res.kind === "warn") {
+        const held = opts.retry ? turnFiles.current.get(asked?.id ?? -1) : files;
+        // A suggested rewrite covers the whole message, file text included, so it is not offered
+        // when files are attached: that text would land in the saved chat.
+        setPending({
+          text: opts.retry ? (asked?.text ?? clean) : clean,
+          reasons: res.reasons,
+          suggestion: held?.length ? undefined : res.suggestion,
+          ...(held?.length ? { files: held } : {}),
+        });
+      } else if (res.kind === "block")
         append(id, {
           from: "assistant",
           text: `I did not send that. ${res.alternative}`,
@@ -328,6 +437,8 @@ export default function ChatPage() {
     const i = active.turns.findIndex((x) => x.id === t.id);
     update(active.id, (c) => ({ turns: c.turns.slice(0, i) }));
     setDraft(t.text);
+    const files = turnFiles.current.get(t.id) ?? [];
+    setAttachments(files.map((f) => ({ id: fileId(), status: "ready", ...f })));
   };
 
   return (
@@ -375,6 +486,18 @@ export default function ChatPage() {
             </span>
           </header>
 
+          {hint ? (
+            <UploadBanner
+              tool={hint.tool}
+              file={hint.file}
+              accept={accept}
+              onFiles={(f) => {
+                addFiles(f);
+                dismissHint();
+              }}
+              onDismiss={dismissHint}
+            />
+          ) : null}
           {notices.length > 0 ? (
             <div role="status" className="space-y-2 border-b border-ink-200 bg-brand-50 px-4 py-2">
               {notices.map((n) => (
@@ -409,6 +532,11 @@ export default function ChatPage() {
                   onChange={setDraft}
                   onSend={() => void send(draft)}
                   busy={busy}
+                  attachments={attachments}
+                  accept={accept}
+                  maxChars={limits.maxChars}
+                  onAddFiles={addFiles}
+                  onRemoveFile={removeFile}
                 />
                 {requestOpen && who ? (
                   <div className="mt-4">
@@ -460,9 +588,30 @@ export default function ChatPage() {
                             className="mx-auto flex w-full max-w-3xl items-start justify-end gap-3 px-2"
                           >
                             <div className="group flex min-w-0 flex-col items-end gap-1">
-                              <MessageContent className="max-w-[85%] whitespace-pre-wrap rounded-3xl bg-brand-100 px-5 py-2.5 text-ink-900 sm:max-w-[75%]">
-                                {t.text}
-                              </MessageContent>
+                              {t.files?.length ? (
+                                <ul
+                                  className="flex max-w-full flex-wrap justify-end gap-2"
+                                  aria-label="Attached files"
+                                >
+                                  {t.files.map((f) => (
+                                    <li
+                                      key={f.name}
+                                      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-ink-200 bg-ink-50 px-3 py-1.5 text-xs text-ink-700"
+                                    >
+                                      <FileText className="size-3.5 shrink-0" aria-hidden="true" />
+                                      <span className="truncate font-medium">{f.name}</span>
+                                      {f.truncated ? (
+                                        <span className="shrink-0">· Shortened</span>
+                                      ) : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
+                              {t.text ? (
+                                <MessageContent className="max-w-[85%] whitespace-pre-wrap rounded-3xl bg-brand-100 px-5 py-2.5 text-ink-900 sm:max-w-[75%]">
+                                  {t.text}
+                                </MessageContent>
+                              ) : null}
                               <MessageActions className="flex gap-0 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
                                 <ActionButton
                                   label="Edit"
@@ -511,7 +660,12 @@ export default function ChatPage() {
                             )}
                             {!t.failed && t.outcome ? (
                               <div className="flex flex-col items-start gap-2">
-                                <OutcomeChip outcome={t.outcome} />
+                                <OutcomeChip
+                                  outcome={t.outcome}
+                                  detail={
+                                    asked?.files?.length ? fileSummary(asked.files) : undefined
+                                  }
+                                />
                                 {t.outcome === "rerouted" ? (
                                   <p className="text-sm text-ink-600">Answered by Company AI</p>
                                 ) : null}
@@ -521,7 +675,19 @@ export default function ChatPage() {
                                     toolPart={{
                                       type: "sentry_check",
                                       state: "output-available",
-                                      input: { message: `${asked?.text.length ?? 0} characters` },
+                                      input: {
+                                        message: `${asked?.text.length ?? 0} characters`,
+                                        ...(asked?.files?.length
+                                          ? {
+                                              files: asked.files
+                                                .map(
+                                                  (f) =>
+                                                    `${f.name} (${f.chars.toLocaleString("en")} characters${f.truncated ? ", shortened" : ""})`,
+                                                )
+                                                .join(", "),
+                                            }
+                                          : {}),
+                                      },
                                       output: {
                                         decision: t.outcome,
                                         why: t.reasons.map(explainReason).join("; "),
@@ -601,7 +767,9 @@ export default function ChatPage() {
                             setDraft(pending.text);
                             setPending(null);
                           }}
-                          onSendAnyway={(reason) => void send(pending.text, { ack: reason })}
+                          onSendAnyway={(reason) =>
+                            void send(pending.text, { ack: reason, files: pending.files })
+                          }
                           onCancel={() => setPending(null)}
                           onReroute={reroute}
                         />

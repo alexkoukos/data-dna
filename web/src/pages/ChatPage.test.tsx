@@ -96,3 +96,105 @@ describe("Company AI chat", () => {
     expect(bodies.at(-1)?.messages).toHaveLength(1);
   });
 });
+
+describe("Company AI chat with files", () => {
+  const extracted = (text: string, truncated = false) =>
+    new Response(
+      JSON.stringify({ filename: "x", kind: "pdf", text, chars: text.length, truncated }),
+    );
+
+  function stubServer(decision = "mask") {
+    const calls: { url: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push({ url, body: init?.body });
+        if (url.includes("/keys"))
+          return new Response(JSON.stringify({ key: "k", default_model: "m" }));
+        if (url.includes("/files/limits"))
+          return new Response(
+            JSON.stringify({
+              max_bytes: 1000,
+              max_files: 2,
+              max_chars: 30000,
+              types: [".csv", ".docx", ".md", ".pdf", ".txt"],
+            }),
+          );
+        if (url.includes("/files/extract")) {
+          const file = (init?.body as FormData).get("file") as File;
+          if (file.name === "scan.pdf")
+            return new Response(
+              JSON.stringify({
+                detail: { filename: "scan.pdf", message: "No text was found in this PDF." },
+              }),
+              { status: 422 },
+            );
+          return extracted(`Pay GR1601101250000000012300695 (${file.name})`);
+        }
+        return new Response(JSON.stringify({ choices: [{ message: { content: "Done." } }] }), {
+          headers: { "x-dna-decision": decision, "x-dna-reasons": "iban" },
+        });
+      }),
+    );
+    return calls;
+  }
+
+  const fileInput = () => document.querySelector<HTMLInputElement>('input[type="file"]')!;
+  const pdf = (name = "report.pdf", size = 10) =>
+    new File(["%PDF-".padEnd(size, "x")], name, { type: "application/pdf" });
+
+  it("sends the file text inside the message and shows the outcome with the file name", async () => {
+    const calls = stubServer("mask");
+    render(<ChatPage />);
+    await userEvent.upload(fileInput(), pdf());
+    expect(await screen.findByText("· Ready")).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: "Your question" }), "Summarise it");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("Done.")).toBeInTheDocument();
+    const sent = calls.find((c) => c.url.includes("/chat/completions"))!;
+    const message = (JSON.parse(String(sent.body)) as { messages: { content: string }[] })
+      .messages[0]!.content;
+    expect(message).toContain("Summarise it\n\n[File: report.pdf]\n");
+    expect(message).toContain("[End of file: report.pdf]");
+    expect(screen.getByText("· report.pdf")).toBeInTheDocument(); // on the outcome chip
+    expect(screen.getByText("Masked")).toBeInTheDocument();
+    // The chips are cleared after sending, and the file text never reaches localStorage.
+    expect(screen.queryByRole("button", { name: "Remove report.pdf" })).not.toBeInTheDocument();
+    expect(localStorage.getItem("sentry.chats")).toContain("report.pdf");
+    expect(localStorage.getItem("sentry.chats")).not.toContain("GR1601101250000000012300695");
+  });
+
+  it("explains files it cannot take, and keeps the limit on the number of files", async () => {
+    stubServer();
+    render(<ChatPage />);
+    await screen.findByRole("button", { name: "Attach files" });
+    await waitForLimits();
+    await userEvent.upload(fileInput(), [pdf("scan.pdf"), pdf("big.pdf", 2000)]);
+    expect(await screen.findByText(/No text was found in this PDF/)).toBeInTheDocument();
+    expect(screen.getByText(/big.pdf is larger than 1 KB/)).toBeInTheDocument();
+    await userEvent.upload(fileInput(), [pdf("a.pdf"), pdf("b.pdf"), pdf("c.pdf")]);
+    expect(
+      await screen.findByText(/c.pdf was not added. You can attach up to 2 files/),
+    ).toBeInTheDocument();
+    const exe = new File(["MZ"], "tool.exe");
+    await userEvent.upload(fileInput(), exe, { applyAccept: false });
+    expect(await screen.findByText(/tool.exe was not added. Attach a PDF/)).toBeInTheDocument();
+  });
+
+  it("shows the extension's hand-off banner and lets the person dismiss it", async () => {
+    stubServer();
+    window.history.pushState({}, "", "/chat?from=chatgpt&file=q4-report.pdf");
+    render(<ChatPage />);
+    const banner = screen.getByRole("region", { name: "Upload the file here instead" });
+    expect(banner).toHaveTextContent("You tried to upload q4-report.pdf to ChatGPT.");
+    expect(banner).toHaveTextContent("it is checked first and you will still get an answer");
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss this message" }));
+    expect(screen.queryByRole("region", { name: "Upload the file here instead" })).toBeNull();
+    expect(window.location.search).toBe("");
+  });
+});
+
+async function waitForLimits() {
+  // the limits request resolves on the next tick
+  await new Promise((r) => setTimeout(r, 0));
+}
