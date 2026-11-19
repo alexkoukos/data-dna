@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SiteNav } from "./landing/SiteNav";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
@@ -24,14 +24,12 @@ import ToolsPage from "./pages/security/ToolsPage";
 const Landing = lazy(() => import("./landing/Landing"));
 const LandingV2 = lazy(() => import("./landing/LandingV2"));
 const DeepDive = lazy(() => import("./landing/DeepDive"));
-const Trust = lazy(() => import("./landing/Trust"));
 const Developers = lazy(() => import("./landing/Developers"));
 
 const SITE_PAGES: Record<string, React.LazyExoticComponent<() => React.JSX.Element>> = {
   "/": Landing,
   "/v2": LandingV2,
   "/how-it-works": DeepDive,
-  "/trust": Trust,
   "/developers": Developers,
 };
 
@@ -52,6 +50,8 @@ export default function App() {
   const { pathname } = useLocation();
   // The public site has its own header and footer, and no app chrome.
   const Page = SITE_PAGES[pathname];
+  // The Security page became a section of How it works.
+  if (pathname === "/trust") return <Navigate to="/how-it-works#security" replace />;
   if (Page) {
     return (
       <Suspense fallback={null}>

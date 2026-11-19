@@ -5,7 +5,6 @@ import { LANDING_ONLY } from "./mode";
 
 const PAGES = [
   { to: "/how-it-works", label: "How it works" },
-  { to: "/trust", label: "Security" },
   { to: "/developers", label: "Developers" },
 ];
 

@@ -45,8 +45,7 @@ for (const vp of [
 }
 
 for (const [path, h1] of [
-  ["/how-it-works", "The second after you paste."],
-  ["/trust", "The gate is guarded too."],
+  ["/how-it-works", "How Sentry works."],
   ["/developers", "Run it. Read it. Test it."],
 ] as const) {
   test(`${path} shows its headline, is reachable from the nav and has no axe violations`, async ({

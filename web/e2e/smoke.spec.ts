@@ -4,7 +4,6 @@ import { expect, test, type Page } from "@playwright/test";
 const ROUTES = [
   "/",
   "/how-it-works",
-  "/trust",
   "/developers",
   "/app",
   "/extension",

@@ -5,6 +5,10 @@ Newest entry at the top. Every session ends with a new entry (the `/handoff` com
 Template:
 
 ```
+## 2026-11-19 22:30, Alexandros, How it works and Security merged, short and UI-first
+**Done:** `/trust` (Security) is now the "Your data stays yours" section of `/how-it-works` (`/trust` redirects to `/how-it-works#security`; the nav has no Security link). The page is three steps, five outcomes, six things it catches, what is kept, four promises, one "be aware" line and the measured numbers, with no developer material. The architecture diagram moved to `/developers`. Landing unchanged. axe clean at 1440 and 390 px; 120 web tests pass. `web/e2e` specs updated for the new headline and routes but not run (needs `make up` from this branch).
+**Files touched:** web/src/landing/{DeepDive,Developers,SiteNav,landing.css}.tsx/css, web/src/App.tsx, web/src/App.test.tsx, web/e2e/{smoke,landing}.spec.ts; removed landing/Trust.tsx.
+
 ## 2026-11-19 21:30, Alexandros, plainer and more illustrated site pages, 404, calmer security view
 **Done:** `/how-it-works`, `/trust` and `/developers` rewritten with less text and real examples: one real message through the checks (real `/v1/check` output), the five outcomes as the cards a person sees, a checks table with an example each, "what is kept about a message" (stored record vs the typed text, which is never stored), a real request and response. The landing page is unchanged. New 404 page (`landing/NotFound.tsx`, shown for any unknown address, with the address "scanned" and 0 found). Security overview: three numbers instead of four, no "Ask a question" card, three recent incidents, smaller shield on each row, trend charts folded by default except on Impact and History. axe is clean on /, /how-it-works, /trust, /developers, /security, a 404, at 1440 and 390 px; 120 web tests pass.
 **Next step:** same as the entry below. PR #67 still waits on the gitleaks allowlist for `shared/fixtures/l1.json` and the pip-audit job.

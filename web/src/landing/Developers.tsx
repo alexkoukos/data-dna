@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { TextureButton } from "@/components/ui/texture-button";
+import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { PageHead, SiteShell } from "./SiteShell";
 
 const GITHUB = "https://github.com/alexkoukos/data-dna";
@@ -70,6 +71,13 @@ ${START}`}</pre>
           </div>
         </section>
 
+        <section className="section" aria-labelledby="arch-h">
+          <div className="wrap">
+            <h2 id="arch-h">How the parts connect.</h2>
+            <ArchitectureDiagram />
+          </div>
+        </section>
+
         <section className="section section-white" aria-labelledby="parts-title">
           <div className="wrap">
             <h2 id="parts-title">Inside.</h2>
@@ -100,7 +108,7 @@ make e2e       # browser tests`}</pre>
                 <a href={GITHUB}>Open the repo</a>
               </TextureButton>
               <TextureButton asChild variant="secondary" size="lg">
-                <Link to="/trust">Security and privacy</Link>
+                <Link to="/how-it-works#security">Security and privacy</Link>
               </TextureButton>
             </div>
           </div>

@@ -1,144 +1,87 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { TextureButton } from "@/components/ui/texture-button";
-import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { PageHead, SiteShell } from "./SiteShell";
 import { LANDING_ONLY } from "./mode";
 
 /** A real answer from the brain for this message (POST /v1/check, tool Claude.ai). */
-const EXAMPLE = {
-  typed: [
-    "Please wire 12,400 EUR to ",
-    ["GR1601101250000000012300695", "IBAN"],
-    " for ",
-    ["Maria Papadopoulou", "PERSON"],
-    ", then send her the contract.",
-  ] as (string | [string, string])[],
-  sent: "Please wire 12,400 EUR to [IBAN_1] for [PERSON_1], then send her the contract.",
-  checks: [
-    ["Browser rules", "IBAN, mod 97 valid", "2 ms"],
-    ["Server check", "Name found by Presidio", "9 ms"],
-    ["Policy", "IBAN and person: mask", "1 ms"],
-  ] as [string, string, string][],
-};
-
-const OUTCOMES: [string, string, string, string][] = [
-  ["allow", "Allowed", "Nothing sensitive in it.", "Sent as written"],
-  [
-    "warn",
-    "Warned",
-    "Looks like a Greek ID number. Confirm before it goes.",
-    "Send anyway · Edit message",
-  ],
-  [
-    "mask",
-    "Masked",
-    "1 item masked before sending. Real values come back in the answer.",
-    "Sent with [IBAN_1]",
-  ],
-  [
-    "local",
-    "Answered locally",
-    "Company AI can answer this without it leaving.",
-    "Ask the company AI",
-  ],
-  [
-    "block",
-    "Blocked",
-    "This file is marked RESTRICTED and must stay inside the company.",
-    "Open company AI · Edit message",
-  ],
+const TYPED: (string | [string, string])[] = [
+  "Please wire 12,400 EUR to ",
+  ["GR1601101250000000012300695", "IBAN"],
+  " for ",
+  ["Maria Papadopoulou", "NAME"],
+];
+const SENT = "Please wire 12,400 EUR to [IBAN_1] for [PERSON_1]";
+const CHECKS: [string, string][] = [
+  ["Your browser", "IBAN found · 2 ms"],
+  ["Your server", "Name found · 9 ms"],
+  ["Your rules", "Hide both · 1 ms"],
 ];
 
-/** What the server looks for, with a real example of each and how it tells. */
-const CHECKS: [string, string, string][] = [
-  [
-    "IDs, cards, IBANs",
-    "GR16 0110 1250 0000 0001 2300 695",
-    "Checksums (mod 97, Luhn, mod 11). A random number does not trigger.",
-  ],
-  [
-    "Secrets and code",
-    "sk-…, AKIA…, ghp_…, private-key blocks",
-    "Prefix rules (YARA); source code by fingerprint.",
-  ],
-  [
-    "People and clients",
-    "Maria Papadopoulou, a client list",
-    "Presidio in English and Greek; accent-blind matching.",
-  ],
-  [
-    "Documents",
-    "A reworded paragraph of a confidential report",
-    "60-word pieces, MinHash for copies, embeddings for rewording.",
-  ],
-  [
-    "Slice by slice",
-    "Three prompts that rebuild one document",
-    "Per-person memory for 24 h. Past 40% of a document, it is blocked.",
-  ],
-  [
-    "Stamped files",
-    "A PDF marked ΕΜΠΙΣΤΕΥΤΙΚΟ or CONFIDENTIAL",
-    "The marking is read from the file. It never leaves.",
-  ],
-  [
-    "Hidden instructions",
-    "“Ignore previous instructions…” inside a file",
-    "A trained classifier plus known phrasings, before an agent reads it.",
-  ],
-  [
-    "Tricks",
-    "1 2 3 4 5 6 7 8 3, zero-width characters, base64",
-    "Normalised first; each trick found is a reason of its own.",
-  ],
+const OUTCOMES: [string, string, string][] = [
+  ["allow", "Allowed", "Nothing sensitive. It goes as written."],
+  ["warn", "Warned", "Looks sensitive. You confirm, or edit."],
+  ["mask", "Masked", "Private values are swapped out, then restored in the answer."],
+  ["local", "Answered locally", "A model on your servers answers. Nothing leaves."],
+  ["block", "Blocked", "Stopped, with a reason and a safe way to still get your answer."],
 ];
 
-/** One line each: what stops it going wrong. */
-const SAFEGUARDS: string[] = [
-  "Two checks, browser and server. The stricter wins. Server down: keys and IDs fail closed, harmless text fails open.",
-  "The answer is checked too. A secret echoed by the model is caught on the way back.",
-  "Security sees a pseudonym. Revealing a person needs a reason and a second person. Both are logged.",
-  "The text is never stored: a masked preview, the kind of data and the reason, for 30 days.",
-  "The audit log is append-only. The app can add and read, not edit.",
-  "Decoy secrets in documents show which one leaked. Self-hosted, so no third party reads prompts.",
+const CATCHES: [string, string][] = [
+  ["IDs, cards, IBANs", "GR16 0110 1250 …"],
+  ["Secrets and keys", "sk-…  AKIA…  ghp_…"],
+  ["People and clients", "Maria Papadopoulou"],
+  ["Confidential documents", "Even reworded"],
+  ["Stamped files", "ΕΜΠΙΣΤΕΥΤΙΚΟ · CONFIDENTIAL"],
+  ["Hidden instructions", "“Ignore the rules above…”"],
+];
+
+const PROMISES: [string, string][] = [
+  ["Never stores what you typed", "Only what was found, and what was done."],
+  [
+    "Names stay hidden",
+    "Security sees a code. Revealing a person takes a reason and a second person.",
+  ],
+  ["Deleted after 30 days", "Every record, on a timer."],
+  ["Runs on your servers", "No third party reads your prompts."],
+];
+
+const RECORD: [string, string][] = [
+  ["When", "19 Nov, 09:14"],
+  ["Who", "u-03ddf851 · Engineering"],
+  ["Tool", "Claude"],
+  ["Found", "IBAN GR••••••••0695"],
+  ["Decision", "Masked"],
+  ["Deleted", "in 30 days"],
 ];
 
 const LIMITS = [
-  "Traffic that skips the gateway, such as personal devices, is outside what a server can see.",
-  "A paraphrase that shares no words or topic with a registered document can pass.",
-  "Retyping a document by hand, or photographing the screen, cannot be stopped.",
-  "Detection is probabilistic. Shadow mode measures false alarms and misses before anything is enforced.",
-  "The demo has no login. A real pilot needs login, roles and TLS first.",
+  "Only ChatGPT, Claude and Gemini today.",
+  "Text and stamped files. Not images.",
+  "Demo data. A real pilot needs login first.",
 ];
 
 export default function DeepDive() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash]);
   return (
     <SiteShell>
       <main id="main">
         <PageHead
-          label="How it works"
-          title="How Sentry works, end to end."
-          lead="What happens to a message between Enter and the AI."
+          title="How Sentry works."
+          lead="Every message is checked before it leaves. This is what you see."
         />
 
-        <section className="section section-white" aria-labelledby="arch-h">
+        <section className="section" aria-labelledby="steps-h">
           <div className="wrap">
-            <h2 id="arch-h">The system on one page.</h2>
-            <ArchitectureDiagram />
-          </div>
-        </section>
-
-        <section className="section" aria-labelledby="ex-h">
-          <div className="wrap">
-            <h2 id="ex-h">One real message.</h2>
-            <p className="section-sub">
-              Typed into Claude. The cheapest check runs first, and a clear block stops the rest.
-            </p>
-            <div className="ex" role="group" aria-label="A message, the checks, and what is sent">
-              <div className="ex-col">
-                <h3>1 · What was typed</h3>
+            <h2 id="steps-h">Three steps. About a tenth of a second.</h2>
+            <ol className="steps3">
+              <li className="step3">
+                <span className="step3-n">1</span>
+                <h3>You send</h3>
                 <p className="ex-box">
-                  {EXAMPLE.typed.map((p, i) =>
+                  {TYPED.map((p, i) =>
                     typeof p === "string" ? (
                       <span key={i}>{p}</span>
                     ) : (
@@ -149,97 +92,94 @@ export default function DeepDive() {
                     ),
                   )}
                 </p>
-              </div>
-              <div className="ex-col">
-                <h3>2 · What checked it</h3>
+              </li>
+              <li className="step3">
+                <span className="step3-n">2</span>
+                <h3>Sentry checks</h3>
                 <ul className="ex-checks">
-                  {EXAMPLE.checks.map(([who, what, t]) => (
+                  {CHECKS.map(([who, what]) => (
                     <li key={who}>
                       <b>{who}</b>
-                      <span>{what}</span>
-                      <em>{t}</em>
+                      <em>{what}</em>
                     </li>
                   ))}
                 </ul>
-              </div>
-              <div className="ex-col">
-                <h3>3 · What the AI receives</h3>
-                <p className="ex-box ex-out">{EXAMPLE.sent}</p>
-                <p className="ex-note">
-                  The answer comes back with the real values restored, on that page only.
-                </p>
-              </div>
-            </div>
+              </li>
+              <li className="step3">
+                <span className="step3-n">3</span>
+                <h3>The AI gets the safe version</h3>
+                <p className="ex-box ex-out">{SENT}</p>
+                <p className="ex-note">Your answer comes back with the real values put back.</p>
+              </li>
+            </ol>
           </div>
         </section>
 
         <section className="section section-white" aria-labelledby="out-title">
           <div className="wrap">
-            <h2 id="out-title">Five outcomes. Each says why.</h2>
+            <h2 id="out-title">Five things can happen.</h2>
             <ul className="oc-grid">
-              {OUTCOMES.map(([k, name, text, act]) => (
+              {OUTCOMES.map(([k, name, text]) => (
                 <li key={k} className={`oc ${k}`}>
                   <b>{name}</b>
                   <p>{text}</p>
-                  <span>{act}</span>
                 </li>
               ))}
             </ul>
           </div>
         </section>
 
-        <section className="section" aria-labelledby="layers-h">
+        <section className="section" aria-labelledby="catch-h">
           <div className="wrap">
-            <h2 id="layers-h">What it looks for.</h2>
-            <div className="tbl-scroll">
-              <table className="tbl">
-                <caption className="sr-only">
-                  What the checks look for, with an example and the method
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Looks for</th>
-                    <th scope="col">Example</th>
-                    <th scope="col">How</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {CHECKS.map(([t, e, h]) => (
-                    <tr key={t}>
-                      <th scope="row">{t}</th>
-                      <td>{e}</td>
-                      <td>{h}</td>
-                    </tr>
+            <h2 id="catch-h">What it catches.</h2>
+            <ul className="catch-grid">
+              {CATCHES.map(([t, e]) => (
+                <li key={t} className="catch">
+                  <b>{t}</b>
+                  <code>{e}</code>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section id="security" className="section section-white" aria-labelledby="sec-h">
+          <div className="wrap">
+            <h2 id="sec-h">Your data stays yours.</h2>
+            <div className="kept">
+              <div className="kept-no">
+                <h3>Never stored</h3>
+                <p className="ex-box kept-typed">
+                  Please wire 12,400 EUR to GR1601101250000000012300695 for Maria Papadopoulou
+                </p>
+              </div>
+              <div className="kept-yes">
+                <h3>The only record</h3>
+                <dl className="kept-rec">
+                  {RECORD.map(([k, v]) => (
+                    <div key={k}>
+                      <dt>{k}</dt>
+                      <dd>{v}</dd>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </dl>
+              </div>
             </div>
-          </div>
-        </section>
-
-        <section className="section section-white" aria-labelledby="two-h">
-          <div className="wrap">
-            <h2 id="two-h">Safeguards.</h2>
-            <ul className="watch">
-              {SAFEGUARDS.map((t) => (
-                <li key={t}>{t}</li>
+            <ul className="promises">
+              {PROMISES.map(([t, d]) => (
+                <li key={t}>
+                  <b>{t}</b>
+                  <span>{d}</span>
+                </li>
               ))}
             </ul>
+            <p className="be-aware">
+              <b>Be aware:</b> {LIMITS.join(" ")}
+            </p>
           </div>
         </section>
 
-        <section className="section" aria-labelledby="limits-h">
-          <div className="wrap">
-            <h2 id="limits-h">What it does not do.</h2>
-            <ul className="watch">
-              {LIMITS.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        <section className="section section-white" aria-labelledby="proof-title">
+        <section className="section" aria-labelledby="proof-title">
           <div className="wrap">
             <h2 id="proof-title">Measured, with the misses published.</h2>
             <div className="stats">
@@ -257,7 +197,7 @@ export default function DeepDive() {
               </div>
               <div className="stat">
                 <strong>80 / 80</strong>
-                <span>attacks handled, in two sets</span>
+                <span>attacks handled</span>
               </div>
             </div>
             <p className="prose">Invented data, tuned on that set. Read it as a ceiling.</p>
