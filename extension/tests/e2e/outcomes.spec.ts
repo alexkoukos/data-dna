@@ -104,7 +104,7 @@ for (const lang of ["en", "el"]) {
       const card = page.getByRole("alertdialog");
       await expect(card).toContainText("This stays in the hive.");
       await expect(card).toContainText("Board memo");
-      await expect(card).toContainText(/Company policy does not allow/);
+      await expect(card).toContainText(/I stopped this send/);
       expect(await received(request)).toEqual([]);
       await card.getByRole("button", { name: "Edit message" }).click();
       await expect(page.locator("#prompt")).not.toHaveValue("");
