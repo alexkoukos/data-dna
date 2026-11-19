@@ -23,7 +23,8 @@ export function LogoBar() {
   const one = (copy: number) =>
     SUPPORTED_TOOLS.map((t) => (
       <span key={`${copy}-${t.name}`} className="logobar-item" aria-hidden={copy > 0 || undefined}>
-        <img src={t.logo} alt={copy === 0 ? t.name : ""} className="logobar-img" />
+        <img src={t.logo} alt="" className="logobar-img" />
+        <span className="logobar-name">{t.name}</span>
       </span>
     ));
   // The slider shows its children twice and loops by half. Three sets per half keep the strip full

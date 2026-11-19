@@ -2442,3 +2442,66 @@
 .flow-6 {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
+
+/* ---------- One grid for every page: the nav, the hero and the sections share a 1200px column ---------- */
+:root {
+  --page-w: 1200px;
+  --page-pad: 32px;
+}
+.top .top-in {
+  max-width: calc(var(--page-w) + 2 * var(--page-pad));
+  padding-inline: var(--page-pad);
+}
+.hero {
+  padding-inline: var(--page-pad);
+}
+.hero-in,
+.wrap {
+  max-width: var(--page-w);
+}
+.section {
+  padding-inline: var(--page-pad);
+}
+@media (max-width: 760px) {
+  :root {
+    --page-pad: 16px;
+  }
+}
+
+/* ---------- "Works with": a dark band, every tool in its own colour, the same size and baseline ---------- */
+.logobar-band {
+  background: #0f0d0a;
+  border-block: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: none;
+  padding: 22px 0;
+}
+.logobar .logobar-title {
+  color: #fbbf24;
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 0 28px 0 max(var(--page-pad), calc((100vw - var(--page-w)) / 2));
+}
+.logobar-item {
+  gap: 10px;
+  min-width: 0;
+  padding: 0 20px;
+  height: 40px;
+}
+.logobar-img {
+  flex: none;
+  height: 28px;
+  width: 28px;
+  max-width: none;
+  object-fit: contain;
+}
+.logobar-name {
+  color: #f5f1ea;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .logobar .logobar-title {
+    padding: 0 14px 0 var(--page-pad);
+  }
+}

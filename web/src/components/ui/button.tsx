@@ -15,7 +15,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "border-brand-700/50 bg-brand-600 text-ink-900 hover:bg-brand-500 active:bg-brand-700/40",
+          "border-brand-700/50 bg-brand-600 text-[#1a1000] hover:bg-brand-500 active:bg-brand-700/40",
         destructive: "border-block-solid bg-block-solid text-white hover:bg-block-fg",
         outline: "border-ink-300 bg-surface text-ink-900 hover:bg-ink-50 active:bg-ink-100",
         secondary: "border-ink-200 bg-ink-100 text-ink-900 hover:bg-ink-200",

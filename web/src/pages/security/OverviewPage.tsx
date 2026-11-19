@@ -61,7 +61,7 @@ function Recent({ page }: { page: IncidentPage }) {
         </h2>
         <Link
           to="/security/incidents"
-          className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-4 text-sm font-semibold text-ink-900 hover:bg-brand-500"
+          className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-4 text-sm font-semibold text-[#1a1000] hover:bg-brand-500"
         >
           Review all {formatNumber(page.total)} incidents
         </Link>

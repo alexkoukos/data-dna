@@ -288,7 +288,7 @@ export function HeroDitheringContainer({
   return (
     <div
       className={cn(
-        "relative z-10 mx-auto w-full max-w-[1360px] px-6 md:px-8 grid gap-6 pb-16 sm:gap-8 sm:pb-20 lg:grid-cols-[1fr_minmax(300px,500px)] lg:items-center lg:gap-12 lg:pb-24 xl:grid-cols-[1fr_1fr]",
+        "relative z-10 mx-auto w-full max-w-[1264px] px-4 md:px-8 grid gap-6 pb-16 sm:gap-8 sm:pb-20 lg:grid-cols-[1fr_minmax(300px,500px)] lg:items-center lg:gap-12 lg:pb-24 xl:grid-cols-[1fr_1fr]",
         className,
       )}
       data-slot="hero-dithering-container"
@@ -304,7 +304,7 @@ export function HeroDitheringContent({
   return (
     <div
       className={cn(
-        "flex flex-col justify-center gap-4 text-balance sm:gap-5 sm:px-4 md:px-8 lg:gap-6 lg:pr-0 lg:pl-4 xl:pl-8 2xl:pl-0",
+        "flex flex-col justify-center gap-4 text-balance sm:gap-5 sm:px-4 md:px-8 lg:gap-6 lg:pr-0 lg:pl-0",
         className,
       )}
       data-slot="hero-dithering-content"

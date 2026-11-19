@@ -21,7 +21,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
       <h2 className="flex items-center gap-3 text-lg font-semibold text-ink-900">
         <span
           aria-hidden="true"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-ink-900"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-[#1a1000]"
         >
           {n}
         </span>
@@ -187,7 +187,7 @@ export default function ExtensionPage() {
           <a
             href="/extension.zip"
             download="sentry-extension.zip"
-            className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-5 text-base font-semibold text-ink-900 hover:bg-brand-500"
+            className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-5 text-base font-semibold text-[#1a1000] hover:bg-brand-500"
           >
             Download sentry-extension.zip
           </a>

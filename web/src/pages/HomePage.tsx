@@ -50,7 +50,7 @@ export default function HomePage() {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link
               to="/extension"
-              className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-5 text-base font-semibold text-ink-900 hover:bg-brand-500"
+              className="inline-flex min-h-11 items-center rounded-md bg-brand-600 px-5 text-base font-semibold text-[#1a1000] hover:bg-brand-500"
             >
               Get the extension
             </Link>
@@ -95,7 +95,7 @@ export default function HomePage() {
             <li key={s.n} className="flex flex-col rounded-lg border border-ink-200 bg-surface p-5">
               <span
                 aria-hidden="true"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-ink-900"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-[#1a1000]"
               >
                 {s.n}
               </span>
