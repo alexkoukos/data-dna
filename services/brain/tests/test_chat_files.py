@@ -239,3 +239,23 @@ def test_an_injection_inside_a_file_is_caught(client: TestClient) -> None:
     )
     r = _inspect(client, as_message("cv.txt", text))
     assert r["decision"] != "allow"
+
+
+def test_a_stopped_file_tells_the_extension_where_company_ai_is(client: TestClient) -> None:
+    import base64
+
+    stamped = pdf_with_text("Q4 report. Classification: RESTRICTED.")
+    r = client.post(
+        "/v1/check",
+        json={
+            "text": "",
+            "tool": "ChatGPT",
+            "attachments": [
+                {"filename": "q4.pdf", "content_base64": base64.b64encode(stamped).decode()}
+            ],
+        },
+    ).json()
+    assert r["action"] in ("block", "local")
+    assert r["alternative_url"] == settings.company_ai_url
+    clean = client.post("/v1/check", json={"text": "Summarise this meeting"}).json()
+    assert clean["alternative_url"] is None

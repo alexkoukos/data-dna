@@ -97,6 +97,7 @@ export function fileSummary(files: { name: string }[]): string {
 
 const TOOL_NAMES: Record<string, string> = {
   chatgpt: "ChatGPT",
+  "claude.ai": "Claude",
   claude: "Claude",
   gemini: "Gemini",
 };

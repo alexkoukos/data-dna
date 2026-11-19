@@ -55,6 +55,7 @@ interface CheckOut {
   rewrite?: string | null;
   document?: CheckResult["document"] | null;
   alternative?: string | null;
+  alternative_url?: string | null;
   policy_version?: number;
 }
 
@@ -89,6 +90,7 @@ export async function checkRemote(
       rewrite: d.rewrite ?? undefined,
       document: d.document ?? undefined,
       alternative: d.alternative ?? undefined,
+      alternativeUrl: d.alternative_url ?? undefined,
       policyVersion: d.policy_version,
     };
   } catch {

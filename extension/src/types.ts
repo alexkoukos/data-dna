@@ -23,6 +23,8 @@ export interface CheckResult {
   rewrite?: string;
   /** For local and block: which document this looks like. */
   document?: { title: string; sensitivity: string; coverage?: number };
+  /** Company AI's address on the company server, for "upload it there instead". */
+  alternativeUrl?: string;
   /** The approved path to suggest. */
   alternative?: string;
   policyVersion?: number;
@@ -61,6 +63,7 @@ export type Msg =
     }
   | { type: "visit"; tool: string; host: string }
   | { type: "openPanel"; prompt: string }
+  | { type: "openChat"; tool: string; file: string; url?: string }
   | { type: "askLocal"; prompt: string }
   | { type: "override"; reason: string; tool: string; host: string }
   | { type: "policy"; force?: boolean }

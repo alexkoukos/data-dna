@@ -164,10 +164,17 @@ export default defineContentScript({
         ],
         buttons: [
           { id: "ok", label: "Close", kind: "secondary" },
-          { id: "ask", label: "Open company AI", kind: "primary" },
+          { id: "upload", label: "Upload it in Company AI", kind: "primary" },
         ],
       });
-      if (choice.id === "ask") void send({ type: "openPanel", prompt: "" });
+      // Company Chat takes files and checks them first; the side panel takes text only.
+      if (choice.id === "upload")
+        void send({
+          type: "openChat",
+          tool: adapter!.tool,
+          file: list[0]!.name,
+          url: r.alternativeUrl,
+        });
     }
 
     const toTransfer = (files: File[]) => {
