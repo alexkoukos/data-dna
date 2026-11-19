@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * (Kept under the TextureButton name so every screen keeps its import.)
  */
 const buttonVariants = cva(
-  "inline-flex min-h-11 select-none items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border px-5 text-sm font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex min-h-11 select-none items-center justify-center gap-2 max-w-full whitespace-normal text-center rounded-[10px] border px-5 text-sm font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {

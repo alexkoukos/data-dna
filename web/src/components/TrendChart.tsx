@@ -238,17 +238,19 @@ export function TrendChart({
           </g>
         )}
       </svg>
-      <table className="sr-only">
-        <caption>{summary}</caption>
-        <tbody>
-          {labels.map((l, i) => (
-            <tr key={i}>
-              <th scope="row">{l}</th>
-              <td>{at0(data, i)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="sr-only">
+        <table>
+          <caption>{summary}</caption>
+          <tbody>
+            {labels.map((l, i) => (
+              <tr key={i}>
+                <th scope="row">{l}</th>
+                <td>{at0(data, i)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
