@@ -1,0 +1,6 @@
+renders/
+node_modules/
+.hyperframes/
+# regenerated: bash film/tools/prep_clips.sh (clips) and python3 film/tools/make_audio.py (music, sounds)
+assets/clips/
+assets/bgm/

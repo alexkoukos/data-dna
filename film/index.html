@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+<style>
+  /* the website's own fonts: Plus Jakarta Sans (landing, brand), Playfair Display (dashboard headings), Poppins (app) */
+  @font-face { font-family: "Plus Jakarta Sans"; font-weight: 600; src: url(assets/fonts/plus-jakarta-sans-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Plus Jakarta Sans"; font-weight: 700; src: url(assets/fonts/plus-jakarta-sans-latin-700-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Plus Jakarta Sans"; font-weight: 800; src: url(assets/fonts/plus-jakarta-sans-latin-800-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Playfair Display"; font-weight: 600; src: url(assets/fonts/playfair-display-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Poppins"; font-weight: 500; src: url(assets/fonts/poppins-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Poppins"; font-weight: 600; src: url(assets/fonts/poppins-latin-600-normal.woff2) format("woff2"); }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #000;
+    font-family: "Plus Jakarta Sans", "Helvetica Neue", Arial, sans-serif; font-weight: 800; color: #fff; -webkit-font-smoothing: antialiased; }
+  video, .still { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; z-index: 1; transform-origin: 50% 50%; }
+  .abs { position: absolute; }
+  .grade { filter: contrast(1.07) saturate(.92) brightness(.97); }   /* a little weight on the live-action footage */
+
+  /* the stage: a warm spotlight on black (keynote), used behind every window scene */
+  .stage { inset: 0; z-index: 2; opacity: 0; background: radial-gradient(ellipse 70% 60% at 50% 42%, #2a1c08 0%, #0b0803 55%, #000 100%); }
+
+  /* always-on finish: a soft vignette and a fixed film grain over everything */
+  #vigAll { inset: 0; z-index: 80; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.45) 100%); }
+  #grain { inset: 0; z-index: 81; pointer-events: none; opacity: .07; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 1.1 -.2'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>"); }
+
+  /* lower-third captions */
+  .cap { left: 0; width: 1920px; text-align: center; bottom: 52px; z-index: 30; opacity: 0; pointer-events: none; }
+  .cap span { display: inline-block; padding: 16px 40px 20px; border-radius: 22px; font-size: 56px; line-height: 1.1; font-weight: 700;
+    background: rgba(10,8,4,.82); color: #fff; border: 1.5px solid rgba(251,191,36,.35); box-shadow: 0 14px 50px rgba(0,0,0,.55); backdrop-filter: blur(10px); }
+  .cap b { color: #FBBF24; font-weight: 800; }
+
+  /* part 1 */
+  #key { left: 1500px; top: 660px; z-index: 14; padding: 20px 38px; border-radius: 18px; font-size: 42px; background: #2b2a27; color: #fff;
+    border: 3px solid #5b5850; border-bottom-width: 10px; opacity: 0; }
+  #vign { inset: 0; z-index: 12; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 20%, rgba(0,0,0,.95) 100%); }
+  #dim { inset: 0; z-index: 11; opacity: 0; background: #000; }
+  .big { left: 0; width: 1920px; top: 420px; text-align: center; z-index: 20; font-size: 150px; line-height: 1.05; letter-spacing: -.03em; white-space: nowrap; }
+  .big i { font-style: normal; opacity: 0; }
+  #shadow { color: #FBBF24; }
+  #rwb { right: 70px; top: 56px; z-index: 20; font-size: 40px; letter-spacing: .14em; color: #fff; font-family: "Courier New", monospace; font-weight: 700; opacity: 0; text-shadow: 3px 0 #f00, -3px 0 #0ff; }
+
+  /* windows (the real app, floating on the stage) */
+  .win { left: 192px; top: 150px; width: 1536px; height: 864px; z-index: 5; border-radius: 26px; overflow: hidden; opacity: 0;
+    box-shadow: 0 60px 120px -20px rgba(0,0,0,.9), 0 0 0 1.5px rgba(255,255,255,.12), 0 0 160px rgba(251,191,36,.10); background: #fff; }
+  .win video { width: 1536px; height: 864px; }
+  .chip { left: 0; width: 1920px; text-align: center; top: 56px; z-index: 6; font-size: 30px; letter-spacing: .24em; color: #FBBF24; opacity: 0; }
+  .chip b { color: #fff; font-weight: 800; }
+
+  /* hive title card and bee */
+  #bee { z-index: 25; width: 260px; left: 1920px; top: 400px; opacity: 0; filter: drop-shadow(0 12px 22px rgba(0,0,0,.5)); }
+  #titleBee { z-index: 8; width: 300px; left: 810px; top: 250px; opacity: 0; }
+  #titleWord { left: 0; width: 1920px; top: 560px; text-align: center; z-index: 8; opacity: 0; }
+  #titleWord img { height: 190px; }
+
+  /* how it works */
+  #howtitle { left: 0; width: 1920px; text-align: center; top: 130px; z-index: 6; font-size: 30px; letter-spacing: .3em; color: #FBBF24; opacity: 0; }
+  .step { top: 330px; width: 520px; height: 370px; border-radius: 34px; z-index: 6; opacity: 0; padding: 46px 40px; text-align: center;
+    background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.03)); border: 1.5px solid rgba(251,191,36,.45);
+    box-shadow: 0 40px 80px -30px rgba(0,0,0,.9), inset 0 1.5px 0 rgba(255,255,255,.18); backdrop-filter: blur(16px); }
+  .step .n { width: 78px; height: 78px; border-radius: 50%; background: #FBBF24; color: #1c1917; font-size: 42px; line-height: 78px; margin: 0 auto 28px; }
+  .step h3 { font-size: 41px; white-space: nowrap; line-height: 1.12; margin-bottom: 16px; letter-spacing: -.01em; }
+  .step p { font-family: "Poppins", sans-serif; font-size: 28px; font-weight: 500; color: #d6c9ae; }
+  #s1 { left: 96px; } #s2 { left: 700px; } #s3 { left: 1304px; }
+  .arrow { top: 490px; z-index: 6; width: 90px; height: 50px; opacity: 0; }
+  #a1 { left: 604px; } #a2 { left: 1208px; }
+
+  /* close */
+  #teamlabel { left: 0; width: 1920px; text-align: center; top: 190px; z-index: 6; font-size: 30px; letter-spacing: .3em; color: #FBBF24; opacity: 0; }
+  .tm { top: 330px; width: 380px; z-index: 6; text-align: center; opacity: 0; }
+  .tm .av { width: 250px; height: 250px; border-radius: 50%; margin: 0 auto 30px; background: linear-gradient(145deg,#FBBF24,#B45309); color: #1c1917; font-size: 120px; line-height: 250px; }
+  .tm .nm { font-size: 44px; letter-spacing: -.01em; }
+  #t1 { left: 88px; } #t2 { left: 520px; } #t3 { left: 952px; } #t4 { left: 1384px; }
+  #endLogo { left: 0; width: 1920px; top: 290px; text-align: center; z-index: 9; opacity: 0; }
+  #endLogo img { height: 200px; }
+  #tag1 { left: 0; width: 1920px; top: 590px; text-align: center; z-index: 9; font-family: "Playfair Display", Georgia, serif; font-weight: 600; font-size: 84px; letter-spacing: -.01em; color: #fff; opacity: 0; }
+  #tag1 em { font-style: normal; color: #FBBF24; }
+  /* stats + business (keynote numbers) */
+  .stat { top: 300px; width: 780px; z-index: 6; text-align: center; opacity: 0; }
+  #st1 { left: 150px; } #st2 { left: 990px; }
+  .stat .num { font-size: 230px; line-height: 1; letter-spacing: -.05em; color: #FBBF24; font-feature-settings: "tnum"; }
+  #st2 .num { color: #fff; }
+  .stat .lbl { margin-top: 26px; font-size: 44px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
+  .stat .src { margin-top: 22px; font-family: "Poppins", sans-serif; font-weight: 500; font-size: 24px; color: #8f846f; }
+  #bizTitle { left: 0; width: 1920px; text-align: center; top: 150px; z-index: 6; font-size: 84px; letter-spacing: -.03em; opacity: 0; }
+  #bizTitle em { font-style: normal; color: #FBBF24; }
+  .barRow { left: 260px; width: 1400px; z-index: 6; opacity: 0; }
+  #br1 { top: 400px; } #br2 { top: 580px; }
+  .barRow .bl { font-size: 36px; font-weight: 700; margin-bottom: 18px; display: flex; justify-content: space-between; }
+  .barRow .bl span:last-child { font-feature-settings: "tnum"; }
+  .barRow .track { height: 64px; border-radius: 32px; background: rgba(255,255,255,.07); overflow: hidden; }
+  .barRow .fill { height: 64px; width: 0; border-radius: 32px; }
+  #br1 .fill { background: #5c574d; } #br2 .fill { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+  #br2 .bl { color: #FBBF24; }
+  #bizSub { left: 0; width: 1920px; text-align: center; top: 800px; z-index: 6; font-family: "Poppins", sans-serif; font-weight: 600; font-size: 38px; color: #d6c9ae; opacity: 0; }
+  #bizSub b { color: #fff; }
+  .kpi { top: 330px; width: 560px; z-index: 6; text-align: center; opacity: 0; }
+  #k1 { left: 100px; } #k2 { left: 680px; } #k3 { left: 1260px; }
+  .kpi .num { font-size: 170px; line-height: 1; letter-spacing: -.05em; color: #fff; }
+  #k2 .num { color: #FBBF24; }
+  .kpi .lbl { margin-top: 24px; font-size: 38px; font-weight: 700; line-height: 1.2; }
+  .kpi .src { margin-top: 14px; font-family: "Poppins", sans-serif; font-weight: 500; font-size: 24px; color: #8f846f; }
+  #kpiNote { left: 0; width: 1920px; text-align: center; top: 820px; z-index: 6; font-family: "Poppins", sans-serif; font-weight: 500; font-size: 26px; color: #8f846f; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="103.6" data-width="1920" data-height="1080">
+
+  <!-- ===== PART 1: THE PROBLEM (real footage) ===== -->
+  <video id="vA1" class="clip grade" src="assets/clips/A1.mp4" data-start="0" data-duration="3.4" data-track-index="0" muted playsinline></video>
+  <video id="vB"  class="clip grade" src="assets/clips/B.mp4"  data-start="3.4" data-duration="2.9" data-track-index="0" muted playsinline></video>
+  <video id="vA2" class="clip grade" src="assets/clips/A2.mp4" data-start="6.3" data-duration="2.8" data-track-index="0" muted playsinline></video>
+  <video id="vC"  class="clip" src="assets/clips/C.mp4"  data-start="9.1" data-duration="2.37" data-track-index="0" muted playsinline></video>
+  <video id="vD"  class="clip grade" src="assets/clips/D.mp4"  data-start="11.47" data-duration="1.1" data-track-index="0" muted playsinline></video>
+  <video id="vE"  class="clip" src="assets/clips/E.mp4"  data-start="12.57" data-duration="3.03" data-track-index="0" muted playsinline></video>
+  <img id="freeze" class="still clip" src="assets/clips/E_last.png" data-start="15.6" data-duration="8.1" data-track-index="0" />
+
+  <div id="key" class="abs clip" data-start="15.1" data-duration="1.1">Enter&nbsp;↵</div>
+  <div id="dim" class="abs clip" data-start="15.6" data-duration="8.1"></div>
+  <div id="vign" class="abs clip" data-start="15.6" data-duration="8.1"></div>
+  <div id="l1" class="abs big clip" data-start="16.5" data-duration="1.3"></div>
+  <div id="l2" class="abs big clip" data-start="17.9" data-duration="1.2"></div>
+  <div id="l3" class="abs big clip" data-start="19.2" data-duration="1.9" style="font-size:132px"></div>
+  <div id="shadow" class="abs big clip" data-start="21.3" data-duration="2.3"></div>
+
+  <!-- ===== PART 2: THE SOLUTION ===== -->
+  <video id="vRW" class="clip" src="assets/clips/rewind.mp4" data-start="32.6" data-duration="2.567" data-track-index="0" muted playsinline></video>
+  <div id="rwb" class="abs clip" data-start="32.6" data-duration="2.567">◀◀ REWIND</div>
+  <video id="vRP" class="clip" src="assets/clips/replay.mp4" data-start="35.167" data-duration="7.533" data-track-index="0" muted playsinline></video>
+
+  <div id="stageT" class="abs stage clip" data-start="42.5" data-duration="3.0"></div>
+  <img id="titleBee" class="abs clip" src="assets/brand/hive-guard-bee.svg" data-start="42.7" data-duration="2.5" />
+  <div id="titleWord" class="abs clip" data-start="42.7" data-duration="2.5"><img src="assets/brand/hive-wordmark-reverse.svg" alt="Hive" /></div>
+
+  <!-- the landing page's own live demo: Hive in the browser -->
+  <video id="vL" class="clip" src="assets/clips/L-landing.mp4" data-start="45.2" data-duration="11.0" data-media-start="0.8" data-track-index="0" muted playsinline></video>
+  <img id="bee" class="abs clip" src="assets/brand/hive-guard-bee.svg" data-start="49.8" data-duration="6.4" />
+  <div id="c1" class="abs cap clip" data-start="48.8" data-duration="3.0"><span>Detects <b>sensitive</b> data</span></div>
+  <div id="c2" class="abs cap clip" data-start="51.9" data-duration="2.5"><span>Before it leaves the <b>browser</b></span></div>
+  <div id="c3" class="abs cap clip" data-start="54.5" data-duration="1.6"><span>Employees keep <b>working</b></span></div>
+
+  <div id="stageW" class="abs stage clip" data-start="56.0" data-duration="16.6"></div>
+  <div id="chip2" class="abs chip clip" data-start="56.2" data-duration="5.0">PROMPT INJECTION &nbsp;·&nbsp; <b>BLOCKED</b></div>
+  <div id="chip3" class="abs chip clip" data-start="61.2" data-duration="4.8">REWORDED BOARD MEMO &nbsp;·&nbsp; <b>CAUGHT BY MEANING</b></div>
+  <div id="chipD" class="abs chip clip" data-start="66.0" data-duration="6.5">SECURITY TEAM &nbsp;·&nbsp; <b>NO DATA, ONLY DECISIONS</b></div>
+  <div id="w2" class="abs win"><video id="v2" class="clip" src="assets/clips/F2-block.mp4" data-start="56.2" data-duration="5.0" data-media-start="4.6" data-track-index="0" muted playsinline></video></div>
+  <div id="w3" class="abs win"><video id="v3" class="clip" src="assets/clips/F3-memo.mp4" data-start="61.2" data-duration="4.8" data-media-start="1.6" data-track-index="0" muted playsinline></video></div>
+  <div id="wD" class="abs win" style="background:#faf7f4"><video id="vD1" class="clip" src="assets/clips/D-overview.mp4" data-start="66.0" data-duration="4.0" data-media-start="1.0" data-track-index="0" muted playsinline></video><video id="vD2" class="clip" src="assets/clips/D-incidents.mp4" data-start="70.0" data-duration="2.5" data-media-start="1.2" data-track-index="0" muted playsinline></video></div>
+
+  <!-- ===== PART 3: HOW IT WORKS ===== -->
+  <div id="stageH" class="abs stage clip" data-start="72.5" data-duration="9.0"></div>
+  <div id="howtitle" class="abs clip" data-start="72.5" data-duration="9.0">HOW IT WORKS</div>
+  <div id="s1" class="abs step clip" data-start="73.1" data-duration="8.4"><div class="n">1</div><h3>Browser extension</h3><p>Sees what you send</p></div>
+  <svg id="a1" class="abs arrow clip" data-start="74.2" data-duration="7.3" viewBox="0 0 90 50"><path d="M4 25H74M54 7l22 18-22 18" fill="none" stroke="#FBBF24" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div id="s2" class="abs step clip" data-start="74.6" data-duration="6.9"><div class="n">2</div><h3>Local detection</h3><p>Decides in milliseconds</p></div>
+  <svg id="a2" class="abs arrow clip" data-start="75.8" data-duration="5.7" viewBox="0 0 90 50"><path d="M4 25H74M54 7l22 18-22 18" fill="none" stroke="#FBBF24" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div id="s3" class="abs step clip" data-start="76.2" data-duration="5.3"><div class="n">3</div><h3>Block · Redact · Log</h3><p>Always with the reason</p></div>
+  <div id="c4" class="abs cap clip" data-start="73.2" data-duration="1.5"><span>Runs <b>locally</b></span></div>
+  <div id="c5" class="abs cap clip" data-start="74.8" data-duration="1.4"><span>Your data <b>never leaves</b></span></div>
+  <div id="c6" class="abs cap clip" data-start="76.4" data-duration="3.0"><span><b>Docker</b> compose</span></div>
+
+  <!-- ===== PART 4: CLOSE ===== -->
+  <!-- H: to use a real team clip, add assets/clips/H.mp4 as a <video> under #stageC; the names are the lower-thirds -->
+  <div id="stageC" class="abs stage clip" data-start="95.4" data-duration="8.2"></div>
+  <div id="teamlabel" class="abs clip" data-start="95.5" data-duration="2.5">BUILT BY</div>
+  <div id="t1" class="abs tm clip" data-start="95.6" data-duration="2.4"><div class="av">A</div><span class="nm">Alexandros</span></div>
+  <div id="t2" class="abs tm clip" data-start="95.75" data-duration="2.25"><div class="av">S</div><span class="nm">Stelios</span></div>
+  <div id="t3" class="abs tm clip" data-start="95.9" data-duration="2.1"><div class="av">V</div><span class="nm">Vasilis</span></div>
+  <div id="t4" class="abs tm clip" data-start="96.05" data-duration="1.95"><div class="av">K</div><span class="nm">Konstantinos</span></div>
+  <div id="endLogo" class="abs clip" data-start="98.0" data-duration="5.6"><img src="assets/brand/hive-wordmark-reverse.svg" alt="Hive" /></div>
+  <div id="tag1" class="abs clip" data-start="98.0" data-duration="5.6">Your data is the honey. <em>We guard the gate.</em></div>
+
+  <!-- ===== STATS: why it matters (after "This is Shadow AI") ===== -->
+  <div id="stageS" class="abs stage clip" data-start="23.6" data-duration="9.0"></div>
+  <div id="st1" class="abs stat clip" data-start="23.9" data-duration="8.5"><div class="num"><span id="n77">0</span>%</div><div class="lbl">of AI users paste company<br/>data into prompts</div><div class="src">LayerX, Enterprise AI &amp; SaaS Data Security Report 2025</div></div>
+  <div id="st2" class="abs stat clip" data-start="27.7" data-duration="4.7"><div class="num">$<span id="n670">0</span>K</div><div class="lbl">added to the average breach<br/>by shadow AI</div><div class="src">IBM, Cost of a Data Breach 2025</div></div>
+
+  <!-- ===== BUSINESS (before the close) ===== -->
+  <div id="stageB" class="abs stage clip" data-start="81.4" data-duration="14.0"></div>
+  <div id="bizTitle" class="abs clip" data-start="81.5" data-duration="6.8">AI for everyone. <em>For less.</em></div>
+  <div id="br1" class="abs barRow clip" data-start="81.9" data-duration="6.4"><div class="bl"><span>ChatGPT Business, no data control</span><span>$20.00</span></div><div class="track"><div class="fill"></div></div></div>
+  <div id="br2" class="abs barRow clip" data-start="82.6" data-duration="5.7"><div class="bl"><span>Hive Protect (€9) + AI tokens at cost</span><span>$14.35</span></div><div class="track"><div class="fill"></div></div></div>
+  <div id="bizSub" class="abs clip" data-start="84.6" data-duration="3.7">per user, per month &nbsp;·&nbsp; <b>$13,560 saved a year</b> for 200 people</div>
+  <div id="k1" class="abs kpi clip" data-start="88.6" data-duration="6.6"><div class="num">€1.1B</div><div class="lbl">market a year<br/>in the EU</div><div class="src">bottom-up, Eurostat 2023</div></div>
+  <div id="k2" class="abs kpi clip" data-start="90.0" data-duration="5.2"><div class="num">8 → 69</div><div class="lbl">customers<br/>2027 → 2029</div><div class="src">break-even at ~70</div></div>
+  <div id="k3" class="abs kpi clip" data-start="91.4" data-duration="3.8"><div class="num">€1.4M</div><div class="lbl">ARR<br/>by 2029</div><div class="src">pre-seed €450K</div></div>
+  <div id="kpiNote" class="abs clip" data-start="92.4" data-duration="2.8">Numbers from our business model (business/model.py). Assumptions to validate in pilots.</div>
+
+  <div id="vigAll" class="abs clip" data-start="0" data-duration="103.6"></div>
+  <div id="grain" class="abs clip" data-start="0" data-duration="103.6"></div>
+
+  <!-- ===== AUDIO ===== -->
+  <audio id="mTense" src="assets/bgm/tense-cut.wav" data-start="0" data-duration="15.45" data-volume="0.5"></audio>
+  <audio id="mUp" src="assets/bgm/upbeat-cut.wav" data-start="42.6" data-duration="61.0" data-volume="0.3"></audio>
+  <audio id="v1" src="assets/vo/v1.wav" data-start="0.5" data-duration="2.75" data-volume="1"></audio>
+  <audio id="v2a" src="assets/vo/v2.wav" data-start="6.5" data-duration="1.6" data-volume="1"></audio>
+  <audio id="v3a" src="assets/vo/v3.wav" data-start="32.8" data-duration="1.3" data-volume="1"></audio>
+  <audio id="v4" src="assets/vo/v4.wav" data-start="35.6" data-duration="5.1" data-volume="1"></audio>
+  <audio id="v5" src="assets/vo/v5.wav" data-start="42.95" data-duration="0.75" data-volume="1"></audio>
+  <audio id="v6" src="assets/vo/v6.wav" data-start="45.5" data-duration="3.85" data-volume="1"></audio>
+  <audio id="v7" src="assets/vo/v7.wav" data-start="56.5" data-duration="3.05" data-volume="1"></audio>
+  <audio id="v8" src="assets/vo/v8.wav" data-start="61.5" data-duration="2.85" data-volume="1"></audio>
+  <audio id="v9" src="assets/vo/v9.wav" data-start="66.3" data-duration="4.15" data-volume="1"></audio>
+  <audio id="v10" src="assets/vo/v10.wav" data-start="72.8" data-duration="5.5" data-volume="1"></audio>
+  <audio id="v11" src="assets/vo/v11.wav" data-start="98.4" data-duration="3.05" data-volume="1"></audio>
+
+  <audio id="sBass1" src="assets/sfx/bass-hit.wav" data-start="3.4" data-duration="1.4" data-volume="0.8"></audio>
+  <audio id="sClick" src="assets/sfx/click.wav" data-start="9.0" data-duration="0.1" data-volume="0.9"></audio>
+  <audio id="sKey" src="assets/sfx/click.wav" data-start="15.45" data-duration="0.1" data-volume="1"></audio>
+  <audio id="sBass2" src="assets/sfx/bass-hit.wav" data-start="15.6" data-duration="1.4" data-volume="1"></audio>
+  <audio id="sT1" src="assets/sfx/type1.wav" data-start="16.55" data-duration="0.5" data-volume="0.8"></audio>
+  <audio id="sT2" src="assets/sfx/type2.wav" data-start="17.95" data-duration="0.75" data-volume="0.8"></audio>
+  <audio id="sT3" src="assets/sfx/type3.wav" data-start="19.25" data-duration="1.25" data-volume="0.8"></audio>
+  <audio id="sT4" src="assets/sfx/type4.wav" data-start="21.35" data-duration="1.0" data-volume="0.8"></audio>
+  <audio id="sRew" src="assets/sfx/rewind.wav" data-start="32.6" data-duration="2.6" data-volume="0.7"></audio>
+  <audio id="sTitle" src="assets/sfx/chime.wav" data-start="42.7" data-duration="1.2" data-volume="0.6"></audio>
+  <audio id="sBee" src="assets/sfx/whoosh.wav" data-start="49.8" data-duration="0.7" data-volume="0.6"></audio>
+  <audio id="sCh1" src="assets/sfx/chime.wav" data-start="50.3" data-duration="1.2" data-volume="0.5"></audio>
+  <audio id="sBuzz1" src="assets/sfx/buzz.wav" data-start="57.7" data-duration="0.5" data-volume="0.5"></audio>
+  <audio id="sBuzz2" src="assets/sfx/buzz.wav" data-start="62.8" data-duration="0.5" data-volume="0.5"></audio>
+  <audio id="sW3" src="assets/sfx/whoosh.wav" data-start="73.0" data-duration="0.7" data-volume="0.5"></audio>
+  <audio id="sW4" src="assets/sfx/whoosh.wav" data-start="74.5" data-duration="0.7" data-volume="0.5"></audio>
+  <audio id="sW5" src="assets/sfx/whoosh.wav" data-start="76.1" data-duration="0.7" data-volume="0.5"></audio>
+  <audio id="sEnd" src="assets/sfx/chime.wav" data-start="98.0" data-duration="1.2" data-volume="0.6"></audio>
+
+  <audio id="v12" src="assets/vo/v12.wav" data-start="23.8" data-duration="8.05" data-volume="1"></audio>
+  <audio id="v13" src="assets/vo/v13.wav" data-start="81.6" data-duration="6.8" data-volume="1"></audio>
+  <audio id="v14" src="assets/vo/v14.wav" data-start="88.6" data-duration="5.7" data-volume="1"></audio>
+  <audio id="sStat1" src="assets/sfx/bass-hit.wav" data-start="23.9" data-duration="1.4" data-volume="0.55"></audio>
+  <audio id="sStat2" src="assets/sfx/bass-hit.wav" data-start="27.7" data-duration="1.4" data-volume="0.55"></audio>
+  <audio id="sK1" src="assets/sfx/whoosh.wav" data-start="88.6" data-duration="0.7" data-volume="0.45"></audio>
+  <audio id="sK2" src="assets/sfx/whoosh.wav" data-start="90.0" data-duration="0.7" data-volume="0.45"></audio>
+  <audio id="sK3" src="assets/sfx/whoosh.wav" data-start="91.4" data-duration="0.7" data-volume="0.45"></audio>
+
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    const $ = (s) => document.querySelector(s);
+    const fade = (sel, at, dur, o = 1) => tl.fromTo(sel, { opacity: 0 }, { opacity: o, duration: dur, ease: "power1.out" }, at);
+    const out = (sel, at, dur) => tl.to(sel, { opacity: 0, duration: dur, ease: "power1.in" }, at);
+
+    function typeLine(sel, text, at) {
+      const el = $(sel); el.innerHTML = [...text].map((c) => "<i>" + (c === " " ? "&nbsp;" : c) + "</i>").join("");
+      [...el.children].forEach((c, k) => tl.set(c, { opacity: 1 }, at + k * 0.045));
+    }
+
+    // ---- PART 1: slow, deliberate pushes; every cut lands on an action ----
+    tl.fromTo("#vA1", { scale: 1.0 }, { scale: 1.09, duration: 3.4, ease: "none" }, 0);
+    tl.fromTo("#vB", { scale: 1.0 }, { scale: 1.0, duration: 0.01 }, 3.4);
+    tl.to("#vB", { scale: 2.0, transformOrigin: "50% 89%", duration: 0.8, ease: "power3.inOut" }, 5.45);    // push into the stamp
+    tl.fromTo("#vA2", { scale: 1.0 }, { scale: 1.1, duration: 2.8, ease: "none" }, 6.3);
+    tl.fromTo("#vC", { scale: 1.0 }, { scale: 1.08, duration: 2.37, ease: "none" }, 9.1);
+    tl.fromTo("#vD", { scale: 1.0 }, { scale: 1.12, duration: 1.1, ease: "none" }, 11.47);
+    // E: the input box fills the frame, slow and getting closer, then the Enter
+    tl.fromTo("#vE", { scale: 1, transformOrigin: "50% 47%" }, { scale: 2.35, transformOrigin: "50% 47%", duration: 2.9, ease: "power1.inOut" }, 12.57);
+    fade("#key", 15.1, 0.18);
+    tl.to("#key", { y: 10, duration: 0.09, ease: "power1.in" }, 15.45); tl.to("#key", { y: 0, duration: 0.12 }, 15.54);
+    out("#key", 15.75, 0.25);
+    // the freeze: the picture drains and goes dark, a beat of nothing, then the words
+    tl.set("#freeze", { scale: 2.35, transformOrigin: "50% 47%" }, 15.6);
+    tl.fromTo("#freeze", { filter: "saturate(1) brightness(1)" }, { filter: "saturate(0) brightness(.5)", duration: 0.7, ease: "power2.out" }, 15.6);
+    fade("#vign", 15.6, 0.7); fade("#dim", 15.6, 1.1, 0.6);
+    typeLine("#l1", "Leaked.", 16.5);                 out("#l1", 17.55, 0.25);
+    typeLine("#l2", "A GDPR fine.", 17.9);            out("#l2", 18.85, 0.25);
+    typeLine("#l3", "Konstantinos was fired.", 19.2); out("#l3", 20.85, 0.25);
+    typeLine("#shadow", "This is Shadow AI.", 21.3); out("#shadow", 23.3, 0.3);
+    out("#dim", 23.3, 0.3); out("#vign", 23.3, 0.3); out("#freeze", 23.45, 0.15);
+
+    // ---- PART 2 ----
+    fade("#rwb", 32.6, 0.1); tl.fromTo("#rwb", { x: -5 }, { x: 5, duration: 0.07, repeat: 33, yoyo: true, ease: "none" }, 32.6); out("#rwb", 35.0, 0.15);
+    // title card: the bee lands, then the name
+    fade("#stageT", 42.5, 0.3); out("#stageT", 45.0, 0.3);
+    tl.fromTo("#titleBee", { opacity: 0, x: 500, rotation: 8 }, { opacity: 1, x: 0, rotation: 0, duration: 0.7, ease: "back.out(1.4)" }, 42.75);
+    tl.to("#titleBee", { y: -14, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: 3 }, 43.45);
+    tl.fromTo("#titleWord", { opacity: 0, y: 30, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "power3.out" }, 43.1);
+    out("#titleBee", 44.9, 0.3); out("#titleWord", 44.9, 0.3);
+    // landing page demo: a long, slow push into the live card; the bee arrives when Hive catches it
+    tl.fromTo("#vL", { scale: 1, transformOrigin: "85% 72%" }, { scale: 1.22, transformOrigin: "85% 72%", duration: 2.8, ease: "power1.inOut" }, 45.2);
+    tl.to("#vL", { scale: 1.55, transformOrigin: "85% 72%", duration: 2.4, ease: "power2.inOut" }, 48.0);
+    tl.to("#vL", { scale: 1.62, transformOrigin: "85% 72%", duration: 5.8, ease: "none" }, 50.4);
+    tl.fromTo("#bee", { opacity: 0, x: 0, y: 0 }, { opacity: 1, x: -290, duration: 0.7, ease: "back.out(1.5)" }, 49.8);
+    tl.to("#bee", { y: -14, duration: 0.55, ease: "sine.inOut", yoyo: true, repeat: 9 }, 50.5);
+    out("#bee", 55.7, 0.4);
+    fade("#c1", 48.8, 0.25); out("#c1", 51.6, 0.25);
+    fade("#c2", 51.9, 0.25); out("#c2", 54.2, 0.25);
+    fade("#c3", 54.5, 0.25); out("#c3", 55.9, 0.25);
+    // windows on the stage: block, memo, security team
+    fade("#stageW", 56.0, 0.4); out("#stageW", 72.2, 0.4);
+    const win = (w, chip, at, end) => {
+      fade(chip, at, 0.4); out(chip, end - 0.3, 0.3);
+      tl.fromTo(w, { opacity: 0, scale: .94, y: 40 }, { opacity: 1, scale: 1, y: 0, duration: 0.7, ease: "power3.out" }, at);
+      tl.to(w, { scale: 1.03, duration: end - at - 0.6, ease: "none" }, at + 0.7);
+      out(w, end - 0.3, 0.3);
+    };
+    win("#w2", "#chip2", 56.2, 61.2);
+    tl.fromTo("#v2", { scale: 1, transformOrigin: "50% 36%" }, { scale: 1.7, transformOrigin: "50% 36%", duration: 1.1, ease: "power2.inOut" }, 57.6);
+    win("#w3", "#chip3", 61.2, 66.0);
+    tl.fromTo("#v3", { scale: 1, transformOrigin: "50% 36%" }, { scale: 1.7, transformOrigin: "50% 36%", duration: 1.1, ease: "power2.inOut" }, 62.7);
+    win("#wD", "#chipD", 66.0, 72.5);
+    tl.fromTo("#vD1", { scale: 1.0, transformOrigin: "50% 20%" }, { scale: 1.05, transformOrigin: "50% 20%", duration: 4.0, ease: "none" }, 66.0);
+
+    // ---- PART 3 ----
+    fade("#stageH", 72.5, 0.4); fade("#howtitle", 72.7, 0.4);
+    const pop = (sel, at) => tl.fromTo(sel, { opacity: 0, y: 60, scale: .94 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" }, at);
+    pop("#s1", 73.1); pop("#s2", 74.6); pop("#s3", 76.2);
+    tl.fromTo("#a1", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 74.25);
+    tl.fromTo("#a2", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 75.85);
+    fade("#c4", 73.2, 0.2); out("#c4", 74.5, 0.2);
+    fade("#c5", 74.8, 0.2); out("#c5", 76.0, 0.2);
+    fade("#c6", 76.4, 0.2); out("#c6", 79.2, 0.3);
+    ["#s1", "#s2", "#s3"].forEach((q, k) => tl.to(q, { y: -10, duration: 1.3, ease: "sine.inOut", yoyo: true, repeat: 3 }, 77.2 + 0.2 * k));
+    ["#a1", "#a2"].forEach((q) => tl.to(q, { x: 12, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: 5 }, 77.2));
+    ["#stageH", "#howtitle", "#s1", "#s2", "#s3", "#a1", "#a2"].forEach((s) => out(s, 81.1, 0.3));
+
+    // ---- PART 4 ----
+    fade("#stageC", 95.4, 0.4); fade("#teamlabel", 95.5, 0.3);
+    ["#t1", "#t2", "#t3", "#t4"].forEach((s, k) => tl.fromTo(s, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 95.6 + 0.15 * k));
+    ["#teamlabel", "#t1", "#t2", "#t3", "#t4"].forEach((s) => out(s, 97.75, 0.25));
+    tl.fromTo("#endLogo", { opacity: 0, y: 24, scale: .97 }, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "power3.out" }, 98.0);
+    tl.fromTo("#tag1", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, 98.6);
+    tl.to("#endLogo", { scale: 1.03, duration: 5, ease: "none" }, 98.8);
+
+    // ---- STATS ----
+    fade("#stageS", 23.6, 0.4); out("#stageS", 32.3, 0.3);
+    const count = (sel, to, at, dur) => { const o = { v: 0 }; tl.to(o, { v: to, duration: dur, ease: "power2.out", onUpdate: () => { $(sel).textContent = Math.round(o.v); } }, at); };
+    tl.fromTo("#st1", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 23.9); count("#n77", 77, 23.9, 1.1);
+    tl.fromTo("#st2", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 27.7); count("#n670", 670, 27.7, 1.3);
+    tl.to(["#st1", "#st2"], { scale: 1.03, duration: 2.5, ease: "none" }, 29.4);
+    out("#st1", 32.1, 0.3); out("#st2", 32.1, 0.3);
+
+    // ---- BUSINESS ----
+    fade("#stageB", 81.4, 0.4); out("#stageB", 95.1, 0.3);
+    tl.fromTo("#bizTitle", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 81.5);
+    fade("#br1", 81.9, 0.4); tl.fromTo("#br1 .fill", { width: 0 }, { width: 1400, duration: 1.1, ease: "power3.out" }, 82.0);
+    fade("#br2", 82.6, 0.4); tl.fromTo("#br2 .fill", { width: 0 }, { width: 1004, duration: 1.1, ease: "power3.out" }, 82.7);
+    fade("#bizSub", 84.6, 0.5);
+    ["#bizTitle", "#br1", "#br2", "#bizSub"].forEach((q) => out(q, 88.0, 0.3));
+    const kpi = (sel, at) => tl.fromTo(sel, { opacity: 0, y: 50, scale: .95 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" }, at);
+    kpi("#k1", 88.6); kpi("#k2", 90.0); kpi("#k3", 91.4); fade("#kpiNote", 92.4, 0.5);
+    tl.to(["#k1", "#k2", "#k3"], { y: -8, duration: 1.2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 92.6);
+    ["#k1", "#k2", "#k3", "#kpiNote"].forEach((q) => out(q, 94.9, 0.3));
+
+    window.__timelines["main"] = tl;
+  </script>
+</div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "hive-demo-film",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.9.34 preview",
+    "check": "npx --yes hyperframes@0.9.34 check",
+    "render": "npx --yes hyperframes@0.9.34 render --fps 30 --quality delivery -o renders/hive-film.mp4"
+  }
+}
