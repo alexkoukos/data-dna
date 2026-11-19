@@ -17,7 +17,7 @@ async function init() {
   if (out.ok) {
     status.className = "ok";
     status.textContent = `Signed in as ${out.body.user_id}.${out.body.shadow_mode ? " Shadow mode: recording only." : ""}`;
-    $("incidents").href = out.body.incidents_url;
+    $("incidents").href = globalThis.PyliLogic.safeHref(out.body.incidents_url);
   } else {
     status.className = "bad";
     status.textContent =

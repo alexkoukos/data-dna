@@ -179,7 +179,7 @@
       "a",
       {
         class: "btn primary",
-        href: url || "#",
+        href: globalThis.PyliLogic.safeHref(url),
         target: "_blank",
         rel: "noopener noreferrer",
       },
@@ -191,6 +191,13 @@
   // ---- the decision ---------------------------------------------------------------------
   /** Ask the gate. Returns the verdict, or null when it should fail open. */
   async function check(text) {
+    const L = globalThis.PyliLogic;
+    if (text.length > L.MAX_CHARS)
+      return {
+        decision: "block",
+        reasons: L.failReasons(413),
+        entity_types: [],
+      };
     const out = await ask({ type: "inspect", text });
     if (out.ok) {
       clear();
@@ -202,6 +209,13 @@
       showBadge("Pyli: add your key in the extension options");
     else if (out.status === 401)
       showBadge("Pyli: key not accepted, copy it again from Connect");
+    else if (L.failMode(out.status) === "block")
+      // The gate answered but would not read this: nothing goes out unchecked.
+      return {
+        decision: "block",
+        reasons: L.failReasons(out.status),
+        entity_types: [],
+      };
     else showBadge("Pyli offline");
     return null;
   }
@@ -296,7 +310,11 @@
         setText(field, v.masked_text);
         return maskedNote(v);
       }
-      if (v.decision === "warn") return warnCard(v, send);
+      // If the message was edited while the warning was open, "Send anyway" checks it again.
+      if (v.decision === "warn")
+        return warnCard(v, () =>
+          textOf(composer()) === text ? send() : onSend(),
+        );
       blockCard(v);
     } finally {
       busy = false;
