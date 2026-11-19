@@ -1,20 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "brain": {
-      "root": "services/brain",
-      "framework": "fastapi",
-      "entrypoint": "vercel_entry:app"
-    },
-    "web": {
-      "root": "web",
-      "framework": "vite",
-      "buildCommand": "cp -r ../samples public/samples && (cd ../extension && npm ci --ignore-scripts && npx wxt prepare && npx wxt zip && cp .output/*-chrome.zip ../web/public/extension.zip) && npm run build",
-      "rewrites": [{ "source": "/((?!assets/|brand/|fonts/|landing/|logos/|samples/).*)", "destination": "/index.html" }]
-    }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "brain" } },
-    { "source": "/(.*)", "destination": { "service": "web" } }
-  ]
+  "framework": null,
+  "installCommand": "cd web && npm ci",
+  "buildCommand": "cd web && npm run build",
+  "outputDirectory": "web/dist",
+  "rewrites": [{ "source": "/((?!assets/|brand/|fonts/|landing/|logos/|favicon.svg|icons.svg).*)", "destination": "/index.html" }]
 }
