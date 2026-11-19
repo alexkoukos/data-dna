@@ -28,6 +28,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from brain import (
@@ -324,6 +325,31 @@ async def extension_cors(request: Request, call_next: Callable[[Request], Any]) 
 
 
 app.include_router(extension_router)
+
+
+# The routes the browser extension calls from its own origin (/v1/check and friends).
+_EXTENSION_PATHS = {getattr(r, "path", "") for r in extension_router.routes}
+
+
+class _OpenCors(CORSMiddleware):
+    """Open CORS for the extension's own routes only. No cookies are used, so any origin is safe
+    there; who is asking comes from the device token. Every other route (and the X27
+    /v1/extension/ endpoints, which have their own stricter CORS) gets no CORS headers."""
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] == "http" and scope["path"] in _EXTENSION_PATHS:
+            await super().__call__(scope, receive, send)
+        else:
+            await self.app(scope, receive, send)
+
+
+app.add_middleware(
+    _OpenCors,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["ETag"],
+)
 
 
 @app.get("/healthz")
