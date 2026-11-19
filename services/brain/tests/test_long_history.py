@@ -36,8 +36,8 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(main, "policy_store", PolicyStore(engine, ttl_seconds=0))
     monkeypatch.setattr(main, "embedder", emb)
     monkeypatch.setattr(main, "_doc_index", None)
-    main._match_memory._items.clear()
-    main._entity_memory._items.clear()
+    main._match_memory.clear()
+    main._entity_memory.clear()
     return TestClient(main.app)
 
 
@@ -205,3 +205,46 @@ def test_a_300_message_history_gets_through_on_the_second_request(
     msgs.append(SHORT)
     codes = [_post(client, msgs).status_code for _ in range(3)]
     assert codes[-1] == 200 and codes[1:] == [200, 200] or codes[0] == 200
+
+
+def test_one_users_remembered_results_never_serve_another_user(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[int] = []
+
+    class _Entities:
+        def find(self, text: str) -> list[Finding]:
+            calls.append(len(text))
+            return []
+
+        def warm_up(self) -> None:
+            return None
+
+    monkeypatch.setattr(main, "entity_detector", _Entities())
+    msgs = [
+        {"role": "assistant", "content": "A shared answer. " + FILLER * 20},
+        {"role": "user", "content": "go on"},
+        SHORT,
+    ]
+
+    def as_user(user: str) -> int:
+        body = {"user_id": user, "messages": msgs}
+        return client.post("/v1/inspect", json=body).status_code
+
+    assert as_user("alice") == 200
+    long_one = max(calls)
+    n = len(calls)
+    assert as_user("alice") == 200 and long_one not in calls[n:]  # served from her own memory
+    n = len(calls)
+    assert as_user("bob") == 200 and long_one in calls[n:]  # bob's identical request is fresh
+
+
+def test_a_busy_user_cannot_push_other_users_out_of_the_memory() -> None:
+    mem: main._Remembered[int] = main._Remembered(size=10, ttl_seconds=60, per_user=8)
+    for n in range(4):
+        mem.put("quiet", n, n)
+    for n in range(50):
+        mem.put("busy", n, n)
+    assert all(mem.get("quiet", n) == n for n in range(4))
+    assert len(mem) <= 10 and mem.get("busy", 49) == 49
+    assert mem.get("other", 0) is None

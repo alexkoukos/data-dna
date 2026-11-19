@@ -52,7 +52,11 @@ OVERLAP = 4_000  # chunks overlap, so a phrase on a boundary is whole in one of 
 
 
 class _Withhold(Exception):
-    """The whole message must not reach the client."""
+    """The whole message must not reach the client. `field` says where the finding was."""
+
+    def __init__(self, field: str = "") -> None:
+        super().__init__(field)
+        self.field = field
 
 
 def _check(text: str, inspect: Inspect) -> str:
@@ -97,8 +101,10 @@ _MIME = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,60}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+*-]{0,80}$"
 )
 _TEXT_MIME = re.compile(r"^(text/|application/(json|xml|yaml|x-yaml|.*\+(json|xml)))", re.I)
-# Values the server picks that name things. They are checked, but never rewritten: a block
-# withholds the message, anything else is left exactly as it was.
+# Values the server picks that name things. They are never rewritten, so a finding of any kind
+# in one withholds the whole message.
+_VERSION_KEYS = {"protocolVersion", "version"}
+_VERSION = re.compile(r"^(\d{4}-\d{2}-\d{2}|\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)$")
 _STRUCTURAL = {"uri", "name", "cursor", "nextCursor", "protocolVersion", "version", "id"}
 # Field names of the protocol. Any other key is checked too.
 _PROTOCOL_KEYS = _STRUCTURAL | {
@@ -147,7 +153,7 @@ def _walk(node: Any, inspect: Inspect, item: bool = False) -> Any:
     out: dict[str, Any] = {}
     for key, value in node.items():
         if key not in _PROTOCOL_KEYS and _check(key, inspect) != key:
-            raise _Withhold  # a key is never rewritten: a finding in it withholds the message
+            raise _Withhold("a field name")  # a key is never rewritten
         if key == "tools" and isinstance(value, list):
             out[key] = _safe_tools(value, inspect)
         elif key == "blob" and isinstance(value, str):
@@ -158,13 +164,13 @@ def _walk(node: Any, inspect: Inspect, item: bool = False) -> Any:
             whole = json.dumps(value, ensure_ascii=False)
             out[key] = UNAVAILABLE if _stopped(whole, inspect) else _walk(value, inspect)
         elif key in _STRUCTURAL and isinstance(value, str):
-            checked = _check(value, inspect)
-            if checked == UNAVAILABLE or checked.startswith("[Data DNA blocked"):
-                raise _Withhold  # a block, or no answer: the message is withheld
-            if checked != value:
-                # Never rewritten (a changed uri or name would point somewhere else), so the value
-                # stays as it was and the finding is only noted.
-                print("Data DNA: a masked value was left unchanged in " + key, file=sys.stderr)
+            # Never rewritten (a changed uri or name would point somewhere else), so a value the
+            # brain would mask or block would reach the model as it is: any finding withholds the
+            # message. Only a version number of a strict shape is let through unchecked.
+            if not (key in _VERSION_KEYS and _VERSION.match(value)) and (
+                _check(value, inspect) != value
+            ):
+                raise _Withhold(key)
             out[key] = value
         elif is_item and (
             (key == "type" and value in _CONTENT_TYPES)
@@ -259,24 +265,30 @@ def filter_message(msg: Any, inspect: Inspect) -> Any:
     inspect = _memoised(inspect)
     try:
         if isinstance(msg.get("id"), str) and _check(msg["id"], inspect) != msg["id"]:
-            raise _Withhold
+            raise _Withhold("id")
         for part in ("result", "params", "error"):
             if isinstance(msg.get(part), (dict, list)):
                 whole = _stopped(json.dumps(_readable(msg[part]), ensure_ascii=False), inspect)
                 msg[part] = _walk(msg[part], inspect)
                 if whole and not _has_notice(msg[part]):
                     raise _Withhold  # blocked only as a whole (split across fields)
-    except _Withhold:
-        error = _error_for(msg)
+    except _Withhold as stop:
+        error = _error_for(msg, stop.field)
         return json.loads(error) if error else None
     return msg
 
 
-def _error_for(msg: Any) -> str | None:
+def _error_for(msg: Any, field: str = "") -> str | None:
     """What to write when a message could not be filtered: an error for a reply, nothing for a
     notification or a server request (the original is never passed on unchecked)."""
     if isinstance(msg, dict) and "id" in msg and "method" not in msg:
-        error = {"code": -32603, "message": UNAVAILABLE}
+        what = (
+            f"The value of '{field}' holds sensitive data or an instruction, so this reply was "
+            "not passed on. Remove it at the source and try again."
+            if field
+            else UNAVAILABLE
+        )
+        error = {"code": -32603, "message": what}
         return json.dumps({"jsonrpc": "2.0", "id": msg["id"], "error": error})
     return None
 

@@ -757,39 +757,72 @@ def _inspect_group(
     return result, masked, normalised
 
 
-class _Remembered[K, V]:
-    """A small least-recently-used memory with an expiry, safe to share between requests."""
+class _Remembered[V]:
+    """A least-recently-used memory with an expiry, kept per person.
 
-    def __init__(self, size: int, ttl_seconds: float) -> None:
-        self._items: OrderedDict[K, tuple[float, V]] = OrderedDict()
+    Every entry belongs to one user. Whether a text is remembered is visible as speed (and as a
+    refusal when a request has to work too much out), so one person's entries must never serve
+    another: a hit counts only for the user who put it there. One user holds at most `per_user`
+    entries, and when the whole memory is full the user with the most entries gives one up first,
+    so nobody can push other people's entries out by sending a lot.
+    """
+
+    def __init__(self, size: int, ttl_seconds: float, per_user: int) -> None:
+        self._items: OrderedDict[tuple[str, Any], tuple[float, V]] = OrderedDict()
+        self._count: dict[str, int] = {}
         self._size = size
+        self._per_user = per_user
         self._ttl = ttl_seconds
         self._lock = threading.Lock()
 
-    def get(self, key: K) -> V | None:
+    def get(self, user: str, key: Any) -> V | None:
         with self._lock:
-            hit = self._items.get(key)
+            hit = self._items.get((user, key))
             if hit is None or time.monotonic() - hit[0] >= self._ttl:
                 return None
-            self._items.move_to_end(key)
+            self._items.move_to_end((user, key))
             return hit[1]
 
-    def put(self, key: K, value: V) -> None:
+    def put(self, user: str, key: Any, value: V) -> None:
         with self._lock:
-            self._items[key] = (time.monotonic(), value)
+            full = (user, key)
+            if full not in self._items:
+                self._count[user] = self._count.get(user, 0) + 1
+            self._items[full] = (time.monotonic(), value)
+            self._items.move_to_end(full)
+            while self._count[user] > self._per_user:
+                self._drop_oldest_of(user)
             while len(self._items) > self._size:
-                self._items.popitem(last=False)
+                self._drop_oldest_of(max(self._count, key=lambda u: self._count[u]))
+
+    def _drop_oldest_of(self, user: str) -> None:
+        for k in self._items:
+            if k[0] == user:
+                del self._items[k]
+                self._count[user] -= 1
+                if not self._count[user]:
+                    del self._count[user]
+                return
+
+    def clear(self) -> None:
+        with self._lock:
+            self._items.clear()
+            self._count.clear()
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+
+_cache_user: contextvars.ContextVar[str] = contextvars.ContextVar("cache_user", default="anonymous")
 
 
 # A chat resends the same earlier turns on every request, so only the newest message is new work.
 # Answers are kept briefly, so a document registered a moment ago is still found.
-_match_memory: _Remembered[tuple[DocumentIndex, int, str, tuple[str, ...]], list[DocMatch]] = (
-    _Remembered(20_000, 1800.0)
-)
+_match_memory: _Remembered[list[DocMatch]] = _Remembered(20_000, 1800.0, per_user=2_000)
 # Keys are SHA-256 digests and values are short lists of findings, so 20,000 entries are a few
 # megabytes. One request may work out at most UNCACHED_HISTORY_MESSAGES new messages, so it can
 # push out well under 1% of what other people's chats have remembered. They last 30 minutes.
-_entity_memory: _Remembered[str, list[Finding]] = _Remembered(20_000, 1800.0)
+_entity_memory: _Remembered[list[Finding]] = _Remembered(20_000, 1800.0, per_user=2_000)
 MAX_CONVERSATION_CHARS = 1_000_000
 # What one request may work out from scratch across earlier turns (messages already seen cost
 # nothing). About 3 s per 100,000 characters on a laptop, so this keeps a request near 8 s. When
@@ -829,11 +862,11 @@ def _history_matches(
     version = index.current_version()
     for segment in text.split(_SEGMENT_JOIN):
         key = (index, version, _digest(segment), tuple(relaxed_for))
-        found = _match_memory.get(key)
+        found = _match_memory.get(_cache_user.get(), key)
         if found is None:
             _spend_uncached("matches", segment)
             found = index.match(segment, relaxed_for=relaxed_for, max_embedded=HISTORY_MAX_EMBEDDED)
-            _match_memory.put(key, found)
+            _match_memory.put(_cache_user.get(), key, found)
         for m in found:
             old = merged.get(m.document_id)
             if old is None:
@@ -852,11 +885,11 @@ def _history_entities(text: str) -> list[Finding]:
     offset = 0
     for segment in text.split(_SEGMENT_JOIN):
         key = _digest(segment)
-        found = _entity_memory.get(key)
+        found = _entity_memory.get(_cache_user.get(), key)
         if found is None:
             _spend_uncached("entities", segment)
             found = entity_detector.find(segment)
-            _entity_memory.put(key, found)
+            _entity_memory.put(_cache_user.get(), key, found)
         out.extend(replace(f, start=f.start + offset, end=f.end + offset) for f in found)
         offset += len(segment) + len(_SEGMENT_JOIN)
     return out
@@ -929,6 +962,7 @@ def inspect(
         )
     if not new_idx and not history_idx and not trusted_idx and not attached:
         return InspectResponse(decision=Decision.ALLOW, reasons=[])
+    _cache_user.set(req.user_id or "anonymous")
     _uncached.set(
         {
             "matches_chars": UNCACHED_HISTORY_CHARS,
