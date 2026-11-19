@@ -11,7 +11,6 @@ import {
   type PairingCode,
 } from "../lib/extensionApi";
 import { useFetch } from "../lib/useFetch";
-import { ExtensionTerminal, INSTALL_TABS, OUTCOME_TABS } from "../components/ExtensionTerminal";
 import { TextureButton } from "@/components/ui/texture-button";
 import { Check, Copy, ExternalLink, KeyRound } from "lucide-react";
 
@@ -151,12 +150,17 @@ function SampleCard({ id, lang }: { id: string; lang: Lang }) {
         </p>
       ) : (
         <>
-          <pre
-            lang={lang}
-            className="mt-3 whitespace-pre-wrap break-words rounded-md bg-ink-50 p-3 text-sm text-ink-900"
-          >
-            {text}
-          </pre>
+          <details className="mt-3">
+            <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-ink-700">
+              Show the text
+            </summary>
+            <pre
+              lang={lang}
+              className="whitespace-pre-wrap break-words rounded-md bg-ink-50 p-3 text-sm text-ink-900"
+            >
+              {text}
+            </pre>
+          </details>
           <TextureButton variant="secondary" type="button" onClick={copy} className="mt-2">
             {copied ? (
               <Check className="size-4" aria-hidden="true" />
@@ -178,8 +182,7 @@ export default function ExtensionPage() {
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-3xl font-semibold text-ink-900">Get the extension</h1>
       <p className="mt-2 max-w-prose text-ink-600">
-        The extension sits in Chrome, right where people paste into ChatGPT, Claude or Gemini. It
-        checks the text before it is sent and tells the person what it did and why.
+        Checks what people paste into ChatGPT, Claude and Gemini, before it is sent.
       </p>
 
       <ol className="mt-6 space-y-4">
@@ -193,23 +196,10 @@ export default function ExtensionPage() {
           </a>
         </Step>
 
-        <Step n={2} title="Install it in Chrome">
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>Unzip the file into a folder.</li>
-            <li>
-              Open <code className="rounded bg-ink-100 px-1">chrome://extensions</code> and turn on
-              Developer mode (top right).
-            </li>
-            <li>Choose Load unpacked and select the folder.</li>
-          </ol>
-          <ExtensionTerminal
-            tabs={INSTALL_TABS}
-            label="The commands to download and install the extension, one tab for each"
-            className="pt-2"
-          />
-          <p className="text-sm text-ink-600">
-            In a company this step does not exist: IT installs it for everyone with a Chrome policy
-            (an example is in <code className="rounded bg-ink-100 px-1">deploy/</code>).
+        <Step n={2} title="Install it">
+          <p>
+            Unzip it. Open <code className="rounded bg-ink-100 px-1">chrome://extensions</code>,
+            turn on Developer mode, choose Load unpacked, select the folder.
           </p>
         </Step>
 
@@ -217,14 +207,13 @@ export default function ExtensionPage() {
           <Pairing />
         </Step>
 
-        <Step n={4} title="Try it on the demo chat">
+        <Step n={4} title="Try it">
           <TextureButton variant="secondary" asChild>
             <a href={mockAiUrl()} target="_blank" rel="noreferrer">
               Open the demo chat (opens a new tab)
               <ExternalLink className="size-4" aria-hidden="true" />
             </a>
           </TextureButton>
-          <p>Paste each text below into the chat and watch what happens.</p>
           <div role="group" aria-label="Language of the samples" className="flex gap-2">
             {(["en", "el"] as const).map((l) => (
               <TextureButton
@@ -240,20 +229,6 @@ export default function ExtensionPage() {
           </div>
         </Step>
       </ol>
-
-      <section aria-labelledby="cards-h" className="mt-8">
-        <h2 id="cards-h" className="text-lg font-semibold text-ink-900">
-          What the extension card says
-        </h2>
-        <p className="mt-1 max-w-prose text-ink-600">
-          Each outcome shows a card like this on the AI site. Pick one to see its words.
-        </p>
-        <ExtensionTerminal
-          tabs={OUTCOME_TABS}
-          label="The card the extension shows for each of the five outcomes"
-          className="mt-3"
-        />
-      </section>
 
       <ul className="mt-4 space-y-3" aria-label="Sample texts">
         {SAMPLES.map((s) => (

@@ -1,30 +1,6 @@
 import { Link } from "react-router-dom";
 import { Sentinel } from "../components/Sentinel";
 
-const STEPS = [
-  {
-    n: 1,
-    title: "An employee pastes something risky",
-    body: "A bank account number, an access key, a client name. The kind of thing people paste into ChatGPT without thinking. The extension is right there in the browser.",
-    to: "/extension",
-    cta: "Get the extension",
-  },
-  {
-    n: 2,
-    title: "Sentry catches it before it is sent",
-    body: "Each message is checked before it leaves the browser. It is allowed, masked, held for a second look, answered by the company AI or blocked, with the reason in plain words.",
-    to: "/break-it",
-    cta: "Try to break it",
-  },
-  {
-    n: 3,
-    title: "Security sees it, with proof",
-    body: "Every decision becomes an incident. Names stay sealed until a second person approves. Ask questions and get a table plus the SQL behind it.",
-    to: "/security/incidents",
-    cta: "Open the security view",
-  },
-];
-
 const TOOLS = [
   { to: "/extension", name: "Get the extension", text: "Install it in Chrome." },
   { to: "/break-it", name: "Try to break it", text: "Paste something risky and watch." },
@@ -84,35 +60,6 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
-      </section>
-
-      <section aria-labelledby="how-h" className="mt-14">
-        <h2 id="how-h" className="text-lg font-semibold text-ink-900">
-          How the demo goes
-        </h2>
-        <ol className="mt-4 grid gap-4 md:grid-cols-3">
-          {STEPS.map((s) => (
-            <li key={s.n} className="flex flex-col rounded-lg border border-ink-200 bg-surface p-5">
-              <span
-                aria-hidden="true"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-[#1a1000]"
-              >
-                {s.n}
-              </span>
-              <h3 className="mt-3 font-semibold text-ink-900">
-                <span className="sr-only">Step {s.n}: </span>
-                {s.title}
-              </h3>
-              <p className="mt-1 flex-1 text-sm text-ink-600">{s.body}</p>
-              <Link
-                to={s.to}
-                className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-brand-700 underline"
-              >
-                {s.cta}
-              </Link>
-            </li>
-          ))}
-        </ol>
       </section>
     </main>
   );

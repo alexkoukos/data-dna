@@ -44,10 +44,7 @@ for (const vp of [
   });
 }
 
-for (const [path, h1] of [
-  ["/how-it-works", "How Sentry works."],
-  ["/developers", "Run it. Read it. Test it."],
-] as const) {
+for (const [path, h1] of [["/how-it-works", "How Sentry works."]] as const) {
   test(`${path} shows its headline, is reachable from the nav and has no axe violations`, async ({
     page,
   }) => {

@@ -24,13 +24,11 @@ import ToolsPage from "./pages/security/ToolsPage";
 const Landing = lazy(() => import("./landing/Landing"));
 const LandingV2 = lazy(() => import("./landing/LandingV2"));
 const DeepDive = lazy(() => import("./landing/DeepDive"));
-const Developers = lazy(() => import("./landing/Developers"));
 
 const SITE_PAGES: Record<string, React.LazyExoticComponent<() => React.JSX.Element>> = {
   "/": Landing,
   "/v2": LandingV2,
   "/how-it-works": DeepDive,
-  "/developers": Developers,
 };
 
 const NotFound = lazy(() => import("./landing/NotFound"));
@@ -52,6 +50,7 @@ export default function App() {
   const Page = SITE_PAGES[pathname];
   // The Security page became a section of How it works.
   if (pathname === "/trust") return <Navigate to="/how-it-works#security" replace />;
+  if (pathname === "/developers") return <Navigate to="/how-it-works#developers" replace />;
   if (Page) {
     return (
       <Suspense fallback={null}>

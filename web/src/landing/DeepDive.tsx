@@ -54,6 +54,14 @@ const RECORD: [string, string][] = [
   ["Deleted", "in 30 days"],
 ];
 
+const GITHUB = "https://github.com/alexkoukos/data-dna";
+const START = `git clone ${GITHUB}
+cd data-dna && docker compose up --build
+# dashboard :3000  ·  API docs :8001/docs  ·  no API key`;
+const CALL = `POST /v1/check  { "text": "…", "tool": "Claude.ai" }
+→ { "action": "mask", "masked_text": "…[IBAN_1]…" }`;
+const TESTS = "make check · make eval · make redteam · make e2e";
+
 const LIMITS = [
   "Only ChatGPT, Claude and Gemini today.",
   "Text and stamped files. Not images.",
@@ -67,7 +75,7 @@ export default function DeepDive() {
   }, [hash]);
   return (
     <SiteShell>
-      <main id="main">
+      <main id="main" className="tight">
         <PageHead
           title="How Sentry works."
           lead="Every message is checked before it leaves. This is what you see."
@@ -75,7 +83,7 @@ export default function DeepDive() {
 
         <section className="section" aria-labelledby="steps-h">
           <div className="wrap">
-            <h2 id="steps-h">Three steps. About a tenth of a second.</h2>
+            <h2 id="steps-h">Three steps. A tenth of a second.</h2>
             <ol className="steps3">
               <li className="step3">
                 <span className="step3-n">1</span>
@@ -132,11 +140,10 @@ export default function DeepDive() {
         <section className="section" aria-labelledby="catch-h">
           <div className="wrap">
             <h2 id="catch-h">What it catches.</h2>
-            <ul className="catch-grid">
+            <ul className="catch-chips">
               {CATCHES.map(([t, e]) => (
-                <li key={t} className="catch">
-                  <b>{t}</b>
-                  <code>{e}</code>
+                <li key={t} title={e}>
+                  {t}
                 </li>
               ))}
             </ul>
@@ -179,9 +186,36 @@ export default function DeepDive() {
           </div>
         </section>
 
-        <section className="section" aria-labelledby="proof-title">
+        <section id="developers" className="section" aria-labelledby="dev-h">
           <div className="wrap">
-            <h2 id="proof-title">Measured, with the misses published.</h2>
+            <h2 id="dev-h">Run it yourself.</h2>
+            <div className="api-pair">
+              <pre className="code" tabIndex={0} aria-label="Start">
+                {START}
+              </pre>
+              <pre className="code" tabIndex={0} aria-label="One call">
+                {CALL}
+              </pre>
+            </div>
+            <p className="prose">
+              Extension: <code>make extension-zip</code>. Tests: <code>{TESTS}</code>.
+            </p>
+            <div className="cta-row">
+              <TextureButton asChild variant="primary" size="lg">
+                <a href={GITHUB}>Open the repo</a>
+              </TextureButton>
+              {LANDING_ONLY ? null : (
+                <TextureButton asChild variant="secondary" size="lg">
+                  <Link to="/break-it">Try to break it</Link>
+                </TextureButton>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="section section-white" aria-labelledby="proof-title">
+          <div className="wrap">
+            <h2 id="proof-title">Measured. Misses published.</h2>
             <div className="stats">
               <div className="stat">
                 <strong>100%</strong>
@@ -201,16 +235,6 @@ export default function DeepDive() {
               </div>
             </div>
             <p className="prose">Invented data, tuned on that set. Read it as a ceiling.</p>
-            <div className="cta-row">
-              {LANDING_ONLY ? null : (
-                <TextureButton asChild variant="primary" size="lg">
-                  <Link to="/break-it">Try to break it</Link>
-                </TextureButton>
-              )}
-              <TextureButton asChild variant={LANDING_ONLY ? "primary" : "secondary"} size="lg">
-                <Link to="/developers">For developers</Link>
-              </TextureButton>
-            </div>
           </div>
         </section>
       </main>

@@ -331,304 +331,312 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-61px)] min-h-[32rem] overflow-hidden bg-surface">
-      <ChatSidebar
-        chats={chats}
-        activeId={activeId}
-        open={sidebar}
-        onSelect={(id) => {
-          setActiveId(id);
-          setPending(null);
-          closeOnMobile();
-        }}
-        onNew={() => {
-          setActiveId(null);
-          setDraft("");
-          setPending(null);
-          closeOnMobile();
-        }}
-        onRename={(id, title) => update(id, () => ({ title }))}
-        onDelete={(id) => {
-          setChats((all) => all.filter((c) => c.id !== id));
-          if (id === activeId) setActiveId(null);
-        }}
-        onClose={() => setSidebar(false)}
-      />
+    <div className="bg-[#0a0908]">
+      <div className="mx-auto flex h-[calc(100dvh-76px)] min-h-[32rem] w-full max-w-[1264px] overflow-hidden px-0 sm:px-4">
+        <ChatSidebar
+          chats={chats}
+          activeId={activeId}
+          open={sidebar}
+          onSelect={(id) => {
+            setActiveId(id);
+            setPending(null);
+            closeOnMobile();
+          }}
+          onNew={() => {
+            setActiveId(null);
+            setDraft("");
+            setPending(null);
+            closeOnMobile();
+          }}
+          onRename={(id, title) => update(id, () => ({ title }))}
+          onDelete={(id) => {
+            setChats((all) => all.filter((c) => c.id !== id));
+            if (id === activeId) setActiveId(null);
+          }}
+          onClose={() => setSidebar(false)}
+        />
 
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="z-10 flex h-14 w-full shrink-0 items-center gap-2 border-b border-ink-200 bg-surface px-4">
-          <TextureButton
-            variant="minimal"
-            size="icon"
-            aria-label={sidebar ? "Hide chat history" : "Show chat history"}
-            aria-expanded={sidebar}
-            onClick={() => setSidebar((s) => !s)}
-          >
-            <PanelLeft className="size-4" aria-hidden="true" />
-          </TextureButton>
-          <h1 className="min-w-0 truncate text-lg text-ink-900">{active?.title ?? "Company AI"}</h1>
-          <span className="ml-auto hidden shrink-0 text-xs text-ink-600 sm:inline">
-            Messages are checked first. Answers come from the company&apos;s own model.
-          </span>
-        </header>
-
-        {notices.length > 0 ? (
-          <div role="status" className="space-y-2 border-b border-ink-200 bg-brand-50 px-4 py-2">
-            {notices.map((n) => (
-              <p key={n} className="text-sm text-ink-900">
-                {n}
-              </p>
-            ))}
-          </div>
-        ) : null}
-        {who && !requestOpen ? (
-          <p className="border-b border-ink-200 px-4 py-1 text-sm text-ink-600">
-            Need another AI tool?{" "}
-            <button
-              type="button"
-              onClick={() => setRequestOpen(true)}
-              className="min-h-11 font-medium text-brand-700 underline underline-offset-2"
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="z-10 flex h-14 w-full shrink-0 items-center gap-2 border-b border-ink-200 bg-[#0a0908] px-4">
+            <TextureButton
+              variant="minimal"
+              size="icon"
+              aria-label={sidebar ? "Hide chat history" : "Show chat history"}
+              aria-expanded={sidebar}
+              onClick={() => setSidebar((s) => !s)}
             >
-              Request approval
-            </button>
-          </p>
-        ) : null}
+              <PanelLeft className="size-4" aria-hidden="true" />
+            </TextureButton>
+            <h1 className="min-w-0 truncate text-lg text-ink-900">
+              {active?.title ?? "Company AI"}
+            </h1>
+            <span className="ml-auto hidden shrink-0 text-xs text-ink-600 sm:inline">
+              Messages are checked first. Answers come from the company&apos;s own model.
+            </span>
+          </header>
 
-        {empty ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-10">
-            <div className="w-full max-w-3xl">
-              <div className="mb-6 flex flex-col items-center gap-3 text-center">
-                <Sentinel size={72} />
-                <h2 className="text-3xl text-ink-900">What can I help with?</h2>
-              </div>
-              <PromptBox
-                value={draft}
-                onChange={setDraft}
-                onSend={() => void send(draft)}
-                busy={busy}
-              />
-              {requestOpen && who ? (
-                <div className="mt-4">
-                  <RequestToolForm
-                    userId={who.userId}
-                    team={who.team}
-                    onClose={() => setRequestOpen(false)}
-                  />
-                </div>
-              ) : null}
-              <div className="mt-4 min-h-24">
-                {group ? (
-                  <div className="flex w-full flex-col space-y-1">
-                    {group.items.map((s) => (
-                      <PromptSuggestion
-                        key={s}
-                        highlight={group.highlight}
-                        className="flex h-auto flex-wrap text-left"
-                        onClick={() => setDraft(s)}
-                      >
-                        {s}
-                      </PromptSuggestion>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
-                    {PROMPT_GROUPS.map((g) => (
-                      <PromptSuggestion key={g.label} onClick={() => setCategory(g.label)}>
-                        <BrainIcon className="mr-2 size-4" aria-hidden="true" />
-                        {g.label}
-                      </PromptSuggestion>
-                    ))}
-                  </div>
-                )}
-              </div>
+          {notices.length > 0 ? (
+            <div role="status" className="space-y-2 border-b border-ink-200 bg-brand-50 px-4 py-2">
+              {notices.map((n) => (
+                <p key={n} className="text-sm text-ink-900">
+                  {n}
+                </p>
+              ))}
             </div>
-          </div>
-        ) : (
-          <>
-            <div className="relative min-h-0 flex-1">
-              <ChatContainerRoot className="h-full">
-                <ChatContainerContent className="space-y-6 px-2 py-8 sm:px-5">
-                  {turns.map((t, i) => {
-                    const last = i === turns.length - 1;
-                    if (t.from === "user")
-                      return (
-                        <Message
-                          key={t.id}
-                          className="mx-auto flex w-full max-w-3xl items-start justify-end gap-3 px-2"
-                        >
-                          <div className="group flex min-w-0 flex-col items-end gap-1">
-                            <MessageContent className="max-w-[85%] whitespace-pre-wrap rounded-3xl bg-brand-100 px-5 py-2.5 text-ink-900 sm:max-w-[75%]">
-                              {t.text}
-                            </MessageContent>
-                            <MessageActions className="flex gap-0 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
-                              <ActionButton
-                                label="Edit"
-                                onClick={() => editTurn(t)}
-                                disabled={busy}
-                              >
-                                <Pencil className={ico} aria-hidden="true" />
-                              </ActionButton>
-                              <ActionButton
-                                label="Delete"
-                                onClick={() => removeTurn(t)}
-                                disabled={busy}
-                              >
-                                <Trash className={ico} aria-hidden="true" />
-                              </ActionButton>
-                              <ActionButton
-                                label="Copy"
-                                onClick={() => void navigator.clipboard?.writeText(t.text)}
-                              >
-                                <CopyIcon className={ico} aria-hidden="true" />
-                              </ActionButton>
-                            </MessageActions>
-                          </div>
-                          <MessageAvatar src={USER_AVATAR} alt="You" fallback="You" />
-                        </Message>
-                      );
-                    const asked = turns[i - 1];
-                    return (
-                      <Message
-                        key={t.id}
-                        className="mx-auto flex w-full max-w-3xl items-start gap-3 px-2"
-                      >
-                        <MessageAvatar src={BEE_AVATAR} alt="Company AI" fallback="AI" />
-                        <div className="group flex min-w-0 flex-1 flex-col gap-2">
-                          {t.failed ? (
-                            <SystemMessage variant="error" fill>
-                              {t.text}
-                            </SystemMessage>
-                          ) : (
-                            <MessageContent
-                              markdown
-                              className="flex-1 rounded-lg bg-transparent p-0 text-ink-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
-                            >
-                              {t.text}
-                            </MessageContent>
-                          )}
-                          {!t.failed && t.outcome ? (
-                            <div className="flex flex-col items-start gap-2">
-                              <OutcomeChip outcome={t.outcome} />
-                              {t.outcome === "rerouted" ? (
-                                <p className="text-sm text-ink-600">Answered by Company AI</p>
-                              ) : null}
-                              {t.reasons?.length ? (
-                                <Tool
-                                  className="w-full max-w-md"
-                                  toolPart={{
-                                    type: "sentry_check",
-                                    state: "output-available",
-                                    input: { message: `${asked?.text.length ?? 0} characters` },
-                                    output: {
-                                      decision: t.outcome,
-                                      why: t.reasons.map(explainReason).join("; "),
-                                    },
-                                  }}
-                                />
-                              ) : null}
-                            </div>
-                          ) : null}
-                          {last && t.outcome === "block" && !busy ? (
-                            <div className="flex flex-wrap gap-2">
-                              <TextureButton variant="primary" onClick={reroute}>
-                                Send it to Company AI instead
-                              </TextureButton>
-                              {!requestOpen ? (
-                                <TextureButton
-                                  variant="secondary"
-                                  onClick={() => setRequestOpen(true)}
-                                >
-                                  Request approval for the tool you wanted
-                                </TextureButton>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          {!t.failed ? (
-                            <AnswerActions
-                              text={t.text}
-                              last={last}
-                              canRetry={!busy && last && !!lastUser}
-                              onRetry={() => lastUser && void send(lastUser.text, { retry: true })}
-                            />
-                          ) : null}
-                          {!t.failed && lastAnswer?.id === t.id && !busy ? (
-                            rated === t.id ? (
-                              <p className="text-sm text-ink-600">
-                                Thanks. That helps me answer better.
-                              </p>
-                            ) : (
-                              <FeedbackBar
-                                className="w-fit"
-                                title="Was this response helpful?"
-                                onHelpful={() => setRated(t.id)}
-                                onNotHelpful={() => setRated(t.id)}
-                                onClose={() => setRated(t.id)}
-                              />
-                            )
-                          ) : null}
-                        </div>
-                      </Message>
-                    );
-                  })}
+          ) : null}
+          {who && !requestOpen ? (
+            <p className="border-b border-ink-200 px-4 py-1 text-sm text-ink-600">
+              Need another AI tool?{" "}
+              <button
+                type="button"
+                onClick={() => setRequestOpen(true)}
+                className="min-h-11 font-medium text-brand-700 underline underline-offset-2"
+              >
+                Request approval
+              </button>
+            </p>
+          ) : null}
 
-                  {busy ? (
-                    <div
-                      className="mx-auto flex w-full max-w-3xl items-center gap-3 px-2 text-sm text-ink-600"
-                      role="status"
-                    >
-                      <Loader variant="dots" size="sm" />
-                      <ThinkingBar text="Thinking on the company server" />
-                    </div>
-                  ) : null}
-
-                  {pending ? (
-                    <div className="mx-auto w-full max-w-3xl px-2">
-                      <WarnCard
-                        reasons={pending.reasons}
-                        suggestion={pending.suggestion}
-                        busy={busy}
-                        onUseSuggestion={
-                          pending.suggestion ? () => void send(pending.suggestion ?? "") : undefined
-                        }
-                        onEdit={() => {
-                          setDraft(pending.text);
-                          setPending(null);
-                        }}
-                        onSendAnyway={(reason) => void send(pending.text, { ack: reason })}
-                        onCancel={() => setPending(null)}
-                        onReroute={reroute}
-                      />
-                    </div>
-                  ) : null}
-                  {requestOpen && who ? (
-                    <div className="mx-auto w-full max-w-3xl px-2">
-                      <RequestToolForm
-                        userId={who.userId}
-                        team={who.team}
-                        onClose={() => setRequestOpen(false)}
-                      />
-                    </div>
-                  ) : null}
-                  <ChatContainerScrollAnchor />
-                </ChatContainerContent>
-                <div className="absolute bottom-4 left-1/2 flex w-full max-w-3xl -translate-x-1/2 justify-end px-5">
-                  <ScrollButton aria-label="Scroll to the newest message" className="shadow-sm" />
+          {empty ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-10">
+              <div className="w-full max-w-3xl">
+                <div className="mb-6 flex flex-col items-center gap-3 text-center">
+                  <Sentinel size={72} />
+                  <h2 className="text-3xl text-ink-900">What can I help with?</h2>
                 </div>
-              </ChatContainerRoot>
-            </div>
-            <div className="z-10 shrink-0 bg-surface px-3 pb-3 md:px-5 md:pb-5">
-              <div className="mx-auto max-w-3xl">
                 <PromptBox
                   value={draft}
                   onChange={setDraft}
                   onSend={() => void send(draft)}
                   busy={busy}
                 />
+                {requestOpen && who ? (
+                  <div className="mt-4">
+                    <RequestToolForm
+                      userId={who.userId}
+                      team={who.team}
+                      onClose={() => setRequestOpen(false)}
+                    />
+                  </div>
+                ) : null}
+                <div className="mt-4 min-h-24">
+                  {group ? (
+                    <div className="flex w-full flex-col space-y-1">
+                      {group.items.map((s) => (
+                        <PromptSuggestion
+                          key={s}
+                          highlight={group.highlight}
+                          className="flex h-auto flex-wrap text-left"
+                          onClick={() => setDraft(s)}
+                        >
+                          {s}
+                        </PromptSuggestion>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
+                      {PROMPT_GROUPS.map((g) => (
+                        <PromptSuggestion key={g.label} onClick={() => setCategory(g.label)}>
+                          <BrainIcon className="mr-2 size-4" aria-hidden="true" />
+                          {g.label}
+                        </PromptSuggestion>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </>
-        )}
-      </section>
+          ) : (
+            <>
+              <div className="relative min-h-0 flex-1">
+                <ChatContainerRoot className="h-full">
+                  <ChatContainerContent className="space-y-6 px-2 py-8 sm:px-5">
+                    {turns.map((t, i) => {
+                      const last = i === turns.length - 1;
+                      if (t.from === "user")
+                        return (
+                          <Message
+                            key={t.id}
+                            className="mx-auto flex w-full max-w-3xl items-start justify-end gap-3 px-2"
+                          >
+                            <div className="group flex min-w-0 flex-col items-end gap-1">
+                              <MessageContent className="max-w-[85%] whitespace-pre-wrap rounded-3xl bg-brand-100 px-5 py-2.5 text-ink-900 sm:max-w-[75%]">
+                                {t.text}
+                              </MessageContent>
+                              <MessageActions className="flex gap-0 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+                                <ActionButton
+                                  label="Edit"
+                                  onClick={() => editTurn(t)}
+                                  disabled={busy}
+                                >
+                                  <Pencil className={ico} aria-hidden="true" />
+                                </ActionButton>
+                                <ActionButton
+                                  label="Delete"
+                                  onClick={() => removeTurn(t)}
+                                  disabled={busy}
+                                >
+                                  <Trash className={ico} aria-hidden="true" />
+                                </ActionButton>
+                                <ActionButton
+                                  label="Copy"
+                                  onClick={() => void navigator.clipboard?.writeText(t.text)}
+                                >
+                                  <CopyIcon className={ico} aria-hidden="true" />
+                                </ActionButton>
+                              </MessageActions>
+                            </div>
+                            <MessageAvatar src={USER_AVATAR} alt="You" fallback="You" />
+                          </Message>
+                        );
+                      const asked = turns[i - 1];
+                      return (
+                        <Message
+                          key={t.id}
+                          className="mx-auto flex w-full max-w-3xl items-start gap-3 px-2"
+                        >
+                          <MessageAvatar src={BEE_AVATAR} alt="Company AI" fallback="AI" />
+                          <div className="group flex min-w-0 flex-1 flex-col gap-2">
+                            {t.failed ? (
+                              <SystemMessage variant="error" fill>
+                                {t.text}
+                              </SystemMessage>
+                            ) : (
+                              <MessageContent
+                                markdown
+                                className="flex-1 rounded-lg bg-transparent p-0 text-ink-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+                              >
+                                {t.text}
+                              </MessageContent>
+                            )}
+                            {!t.failed && t.outcome ? (
+                              <div className="flex flex-col items-start gap-2">
+                                <OutcomeChip outcome={t.outcome} />
+                                {t.outcome === "rerouted" ? (
+                                  <p className="text-sm text-ink-600">Answered by Company AI</p>
+                                ) : null}
+                                {t.reasons?.length ? (
+                                  <Tool
+                                    className="w-full max-w-md"
+                                    toolPart={{
+                                      type: "sentry_check",
+                                      state: "output-available",
+                                      input: { message: `${asked?.text.length ?? 0} characters` },
+                                      output: {
+                                        decision: t.outcome,
+                                        why: t.reasons.map(explainReason).join("; "),
+                                      },
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {last && t.outcome === "block" && !busy ? (
+                              <div className="flex flex-wrap gap-2">
+                                <TextureButton variant="primary" onClick={reroute}>
+                                  Send it to Company AI instead
+                                </TextureButton>
+                                {!requestOpen ? (
+                                  <TextureButton
+                                    variant="secondary"
+                                    onClick={() => setRequestOpen(true)}
+                                  >
+                                    Request approval for the tool you wanted
+                                  </TextureButton>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {!t.failed ? (
+                              <AnswerActions
+                                text={t.text}
+                                last={last}
+                                canRetry={!busy && last && !!lastUser}
+                                onRetry={() =>
+                                  lastUser && void send(lastUser.text, { retry: true })
+                                }
+                              />
+                            ) : null}
+                            {!t.failed && lastAnswer?.id === t.id && !busy ? (
+                              rated === t.id ? (
+                                <p className="text-sm text-ink-600">
+                                  Thanks. That helps me answer better.
+                                </p>
+                              ) : (
+                                <FeedbackBar
+                                  className="w-fit"
+                                  title="Was this response helpful?"
+                                  onHelpful={() => setRated(t.id)}
+                                  onNotHelpful={() => setRated(t.id)}
+                                  onClose={() => setRated(t.id)}
+                                />
+                              )
+                            ) : null}
+                          </div>
+                        </Message>
+                      );
+                    })}
+
+                    {busy ? (
+                      <div
+                        className="mx-auto flex w-full max-w-3xl items-center gap-3 px-2 text-sm text-ink-600"
+                        role="status"
+                      >
+                        <Loader variant="dots" size="sm" />
+                        <ThinkingBar text="Thinking on the company server" />
+                      </div>
+                    ) : null}
+
+                    {pending ? (
+                      <div className="mx-auto w-full max-w-3xl px-2">
+                        <WarnCard
+                          reasons={pending.reasons}
+                          suggestion={pending.suggestion}
+                          busy={busy}
+                          onUseSuggestion={
+                            pending.suggestion
+                              ? () => void send(pending.suggestion ?? "")
+                              : undefined
+                          }
+                          onEdit={() => {
+                            setDraft(pending.text);
+                            setPending(null);
+                          }}
+                          onSendAnyway={(reason) => void send(pending.text, { ack: reason })}
+                          onCancel={() => setPending(null)}
+                          onReroute={reroute}
+                        />
+                      </div>
+                    ) : null}
+                    {requestOpen && who ? (
+                      <div className="mx-auto w-full max-w-3xl px-2">
+                        <RequestToolForm
+                          userId={who.userId}
+                          team={who.team}
+                          onClose={() => setRequestOpen(false)}
+                        />
+                      </div>
+                    ) : null}
+                    <ChatContainerScrollAnchor />
+                  </ChatContainerContent>
+                  <div className="absolute bottom-4 left-1/2 flex w-full max-w-3xl -translate-x-1/2 justify-end px-5">
+                    <ScrollButton aria-label="Scroll to the newest message" className="shadow-sm" />
+                  </div>
+                </ChatContainerRoot>
+              </div>
+              <div className="z-10 shrink-0 bg-[#0a0908] px-3 pb-3 md:px-5 md:pb-5">
+                <div className="mx-auto max-w-3xl">
+                  <PromptBox
+                    value={draft}
+                    onChange={setDraft}
+                    onSend={() => void send(draft)}
+                    busy={busy}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

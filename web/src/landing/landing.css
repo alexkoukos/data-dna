@@ -2915,3 +2915,48 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* a short page: tighter rhythm, so the whole story fits in about three HD screens */
+.tight .section {
+  padding-block: 44px;
+}
+.tight .page-head {
+  padding-block: 40px 28px;
+}
+.tight h2 {
+  margin-bottom: 20px;
+}
+.tight .steps3,
+.tight .oc-grid,
+.tight .kept,
+.tight .api-pair {
+  margin-top: 20px;
+}
+.tight .step3 {
+  padding: 20px;
+}
+.catch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.catch-chips li {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--tint);
+  font-weight: 600;
+  font-size: 15px;
+}
+.tight .kept-rec div {
+  padding: 6px 0;
+}
+.tight .promises {
+  margin-top: 24px;
+}
+.tight .stats {
+  margin-top: 0;
+}

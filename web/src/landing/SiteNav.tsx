@@ -3,10 +3,7 @@ import { Sentinel } from "@/components/Sentinel";
 import "./landing.css";
 import { LANDING_ONLY } from "./mode";
 
-const PAGES = [
-  { to: "/how-it-works", label: "How it works" },
-  { to: "/developers", label: "Developers" },
-];
+const PAGES = [{ to: "/how-it-works", label: "How it works" }];
 
 /**
  * The glass navigation bar, used on every page of the site and the app. Few links on purpose: what it

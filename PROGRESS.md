@@ -5,6 +5,11 @@ Newest entry at the top. Every session ends with a new entry (the `/handoff` com
 Template:
 
 ```
+## 2026-11-19 23:30, Alexandros, one short How it works page, chat bar fixed, extension page cut
+**Done:** Developers is gone from the nav and the code; `/developers` redirects to `/how-it-works#developers`, a short "Run it yourself" section (start command, one API call, tests, repo). How it works is about 3.5 HD screens (was 5.4). Chat: the top bar and the chat now share one background, and the chat sits in the same 1264 px column as the nav. `/extension` went from 6.5 to 2.6 screens (no install terminals or outcome terminal, sample text folded under "Show the text"). `/app` fits one screen (the "How the demo goes" block is removed). axe clean on how-it-works, app, chat, extension, connect, break-it, security at 1440 and 390 px; 120 web tests pass.
+**Not done:** `/break-it` (1.4 screens) and the security sub-pages were not shortened. The architecture diagram (`landing/ArchitectureDiagram.tsx`) is no longer used on any page.
+**Files touched:** web/src/landing/{DeepDive,SiteNav,landing.css}, web/src/App.tsx, web/src/pages/{ChatPage,ExtensionPage,HomePage}.tsx, web/src/components/chat/ChatSidebar.tsx, tests; removed landing/Developers.tsx.
+
 ## 2026-11-19 22:30, Alexandros, How it works and Security merged, short and UI-first
 **Done:** `/trust` (Security) is now the "Your data stays yours" section of `/how-it-works` (`/trust` redirects to `/how-it-works#security`; the nav has no Security link). The page is three steps, five outcomes, six things it catches, what is kept, four promises, one "be aware" line and the measured numbers, with no developer material. The architecture diagram moved to `/developers`. Landing unchanged. axe clean at 1440 and 390 px; 120 web tests pass. `web/e2e` specs updated for the new headline and routes but not run (needs `make up` from this branch).
 **Files touched:** web/src/landing/{DeepDive,Developers,SiteNav,landing.css}.tsx/css, web/src/App.tsx, web/src/App.test.tsx, web/e2e/{smoke,landing}.spec.ts; removed landing/Trust.tsx.

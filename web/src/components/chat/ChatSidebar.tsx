@@ -51,7 +51,7 @@ export function ChatSidebar({
       <aside
         aria-label="Chat history"
         className={cn(
-          "z-30 flex w-72 shrink-0 flex-col border-r border-ink-200 bg-surface transition-[margin,transform] duration-200",
+          "z-30 flex w-72 shrink-0 flex-col border-r border-ink-200 bg-[#0a0908] transition-[margin,transform] duration-200",
           "max-md:fixed max-md:inset-y-16 max-md:left-0",
           open
             ? "translate-x-0"
