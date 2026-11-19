@@ -784,9 +784,12 @@ class _Remembered[K, V]:
 # A chat resends the same earlier turns on every request, so only the newest message is new work.
 # Answers are kept briefly, so a document registered a moment ago is still found.
 _match_memory: _Remembered[tuple[DocumentIndex, int, str, tuple[str, ...]], list[DocMatch]] = (
-    _Remembered(256, 60.0)
+    _Remembered(20_000, 1800.0)
 )
-_entity_memory: _Remembered[str, list[Finding]] = _Remembered(512, 600.0)
+# Keys are SHA-256 digests and values are short lists of findings, so 20,000 entries are a few
+# megabytes. One request may work out at most UNCACHED_HISTORY_MESSAGES new messages, so it can
+# push out well under 1% of what other people's chats have remembered. They last 30 minutes.
+_entity_memory: _Remembered[str, list[Finding]] = _Remembered(20_000, 1800.0)
 MAX_CONVERSATION_CHARS = 1_000_000
 # What one request may work out from scratch across earlier turns (messages already seen cost
 # nothing). About 3 s per 100,000 characters on a laptop, so this keeps a request near 8 s. When

@@ -158,8 +158,13 @@ def _walk(node: Any, inspect: Inspect, item: bool = False) -> Any:
             whole = json.dumps(value, ensure_ascii=False)
             out[key] = UNAVAILABLE if _stopped(whole, inspect) else _walk(value, inspect)
         elif key in _STRUCTURAL and isinstance(value, str):
-            if _check(value, inspect) != value:
-                raise _Withhold  # never rewritten, so any finding withholds the message
+            checked = _check(value, inspect)
+            if checked == UNAVAILABLE or checked.startswith("[Data DNA blocked"):
+                raise _Withhold  # a block, or no answer: the message is withheld
+            if checked != value:
+                # Never rewritten (a changed uri or name would point somewhere else), so the value
+                # stays as it was and the finding is only noted.
+                print("Data DNA: a masked value was left unchanged in " + key, file=sys.stderr)
             out[key] = value
         elif is_item and (
             (key == "type" and value in _CONTENT_TYPES)

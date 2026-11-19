@@ -11,7 +11,7 @@
    * nothing goes out unchecked.
    */
   function failMode(status) {
-    if (status === 0 || status === 502 || status === 503) return "open";
+    if ([0, 429, 502, 503, 504].includes(status)) return "open";
     if (status === 401) return "badge";
     return "block";
   }

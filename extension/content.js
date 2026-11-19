@@ -216,6 +216,8 @@
         reasons: L.failReasons(out.status),
         entity_types: [],
       };
+    else if (out.status === 429 || out.status === 504)
+      showBadge("Pyli could not check this message, nothing was changed");
     else showBadge("Pyli offline");
     return null;
   }

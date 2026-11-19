@@ -5,12 +5,12 @@ import { createRequire } from "node:module";
 const L = createRequire(import.meta.url)("../logic.js");
 
 test("a gate that cannot be reached lets the text through with a badge", () => {
-  for (const s of [0, 502, 503]) assert.equal(L.failMode(s), "open");
+  for (const s of [0, 429, 502, 503, 504]) assert.equal(L.failMode(s), "open");
   assert.equal(L.failMode(401), "badge");
 });
 
 test("a gate that refuses or fails in another way blocks, it never lets text through unchecked", () => {
-  for (const s of [413, 422, 400, 403, 404, 500])
+  for (const s of [413, 422, 400, 403, 404, 500, 501])
     assert.equal(L.failMode(s), "block");
 });
 

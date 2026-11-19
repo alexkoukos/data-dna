@@ -371,7 +371,7 @@ def test_structural_values_are_never_rewritten_so_any_finding_withholds_the_mess
         {"id": 2, "result": {"resource": {"uri": "file:///notes.txt", "text": "ok"}}}, _marking
     )
     assert clean["result"]["resource"]["uri"] == "file:///notes.txt"
-    for uri in ("file:///SECRET.txt", INJECTION):  # a mask and a block
+    for uri in (INJECTION,):  # a block
         withheld = proxy.filter_message(
             {"id": 3, "result": {"resource": {"uri": uri, "text": "ok"}}}, _marking
         )
@@ -461,3 +461,10 @@ def test_long_text_is_checked_in_overlapping_chunks_and_withheld_whole_if_any_ne
     long_ok = "word " * 40_000 + "zzSECRET"
     notice = proxy.filter_message(result(long_ok), mask_late)["result"]["content"][0]["text"]
     assert "could not check" in notice  # a long text needing a change is withheld whole
+
+
+def test_a_mask_verdict_on_a_structural_value_keeps_it_unchanged(capsys: Any) -> None:
+    msg = {"id": 5, "result": {"resource": {"uri": "file:///SECRET.txt", "text": "ok"}}}
+    out = proxy.filter_message(msg, _marking)
+    assert out["result"]["resource"]["uri"] == "file:///SECRET.txt"
+    assert "left unchanged" in capsys.readouterr().err

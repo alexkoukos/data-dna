@@ -179,3 +179,29 @@ def test_a_hundred_and_fifty_new_earlier_messages_is_the_most_one_request_works_
     msgs.append(SHORT)
     assert _post(client, msgs).status_code == 413
     assert main.UNCACHED_HISTORY_MESSAGES == 150
+
+
+def test_the_remembered_results_are_big_and_long_lived_enough_for_real_chats() -> None:
+    assert main._match_memory._size >= 5_000 and main._entity_memory._size >= 5_000
+    assert main._match_memory._ttl >= 1800 and main._entity_memory._ttl >= 1800
+    assert main._entity_memory._size > main.UNCACHED_HISTORY_MESSAGES * 20
+
+
+def test_a_300_message_history_gets_through_on_the_second_request(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class _Entities:
+        def find(self, text: str) -> list[Finding]:
+            return []
+
+        def warm_up(self) -> None:
+            return None
+
+    monkeypatch.setattr(main, "entity_detector", _Entities())
+    msgs: list[dict[str, str]] = []
+    for n in range(150):
+        msgs.append({"role": "assistant", "content": f"Answer {n}: the weather is mild today."})
+        msgs.append({"role": "user", "content": f"Question {n}: and tomorrow?"})
+    msgs.append(SHORT)
+    codes = [_post(client, msgs).status_code for _ in range(3)]
+    assert codes[-1] == 200 and codes[1:] == [200, 200] or codes[0] == 200
