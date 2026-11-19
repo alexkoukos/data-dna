@@ -18,7 +18,7 @@ Answers are filtered too, streamed or not (chat, text completion, Responses API,
 
 Personal keys can call only the inspected routes (chat completions, completions, messages, responses, embeddings, models). Other LiteLLM routes (assistants, files, batches...) answer 401/403; keys created before this change keep full access until `make reset`. A request that tries to set `api_base` gets LiteLLM's own 401 before the gate's 403.
 
-Known limits kept on purpose: the gateway container runs as root (LiteLLM's non-root image has no arm64 build, so judges on ARM would not start), and images are pinned by digest instead.
+The gateway container runs as a normal user (uid 10001, built on LiteLLM's own image pinned by digest, so it also builds on ARM).
 
 A client that sends `organization` (the OpenAI SDK does, as a header or in the body) is accepted: the gateway drops the body field and does not forward the header. Other connection settings (`api_key`, `api_base`, `base_url`, `extra_headers`...) are still refused with 403.
 
