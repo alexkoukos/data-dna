@@ -71,9 +71,33 @@ function Popup() {
       const day = d as DayStats | undefined;
       if (day && day.day === new Date().toISOString().slice(0, 10)) setStats(day);
       const st = await getSettings();
-      setWho(st.demoUser || (st.token ? "paired device" : ""));
+      setWho(st.userLabel || st.demoUser || (st.token ? "paired device" : ""));
     })();
   }, []);
+
+  // The worker connects in the background right after install: show it the moment it happens.
+  useEffect(() => {
+    const onChange = (c: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area !== "local" || !c.settings) return;
+      void getSettings().then((st) =>
+        setWho(st.userLabel || st.demoUser || (st.token ? "paired device" : "")),
+      );
+    };
+    chrome.storage.onChanged.addListener(onChange);
+    return () => chrome.storage.onChanged.removeListener(onChange);
+  }, []);
+
+  const [trying, setTrying] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const connect = async () => {
+    setTrying(true);
+    setFailed(false);
+    const r = (await chrome.runtime.sendMessage({ type: "connect" })) as { ok: boolean } | null;
+    const st = await getSettings();
+    setWho(st.userLabel || st.demoUser || (st.token ? "paired device" : ""));
+    setFailed(!r?.ok);
+    setTrying(false);
+  };
 
   const openPanel = async () => {
     const win = await chrome.windows.getCurrent();
@@ -92,8 +116,26 @@ function Popup() {
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h1 className="sr-only">Sentry</h1>
           <Logo />
-          <span className="muted status">{who ? `Signed in as ${who}` : "Not signed in"}</span>
+          <span className="muted status">{who ? `Connected as ${who}` : "Not connected"}</span>
         </div>
+        {who ? null : (
+          <div className="connect-card" role="status">
+            <b>Not connected to a Sentry server.</b>
+            <span className="muted">
+              {failed
+                ? "Still can't reach it. Start it with “docker compose up”, then try again."
+                : "Start the server (“docker compose up”), then press Connect."}
+            </span>
+            <button
+              className="primary"
+              type="button"
+              onClick={() => void connect()}
+              disabled={trying}
+            >
+              {trying ? "Connecting…" : "Connect"}
+            </button>
+          </div>
+        )}
         <div className="shield-strip" role="status">
           <ShieldCheck size={20} aria-hidden="true" />
           <div>

@@ -203,7 +203,11 @@ export default function ExtensionPage() {
           </p>
         </Step>
 
-        <Step n={3} title="Pair it (demo)">
+        <Step n={3} title="It connects by itself">
+          <p>
+            Click the Sentry icon: it says Connected. To act as a specific person instead, pair it
+            below (optional).
+          </p>
           <Pairing />
         </Step>
 

@@ -891,3 +891,20 @@ button.glow.soft::after {
     animation: none;
   }
 }
+
+.connect-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--warn-solid);
+  border-radius: 12px;
+  background: var(--warn-bg);
+}
+.connect-card b {
+  color: var(--warn-fg);
+}
+.connect-card .muted {
+  font-size: 13px;
+  line-height: 18px;
+}

@@ -10,7 +10,7 @@ export default defineConfig({
     content_security_policy: {
       extension_pages: "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'",
     },
-    permissions: ["storage", "sidePanel", "alarms"],
+    permissions: ["storage", "sidePanel", "alarms", "scripting"],
     web_accessible_resources: [
       {
         resources: ["fonts/*.woff2"],

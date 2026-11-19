@@ -106,7 +106,7 @@ The extension (`extension/`, Chrome, Edge or Brave, Manifest V3, WXT + React + T
 make extension-zip          # builds extension/.output/chrome-mv3 and sentry-extension.zip
 ```
 1. Open `chrome://extensions`, turn on *Developer mode*, press *Load unpacked* and choose `extension/.output/chrome-mv3` (or unzip `sentry-extension.zip` and choose that folder).
-2. Open the extension's Settings. The server address defaults to `http://localhost:8001` (it must be https, or http on localhost). Pair with the 6-digit code from the dashboard (*Get the extension*), or pick a demo user.
+2. That is all. On install the extension connects to `http://localhost:8001` by itself, picks the first demo person, and switches on in AI tabs that are already open. The popup says *Connected as …*. If the server is not up yet it says so and offers *Connect*. To act as someone else, use Settings (a pairing code from the dashboard, or pick a demo user); the address must be https, or http on localhost.
 3. With `make up` running, paste a prompt holding an IBAN on any of the three sites.
 
 **What it does.** Allow: sent as written. Mask: the composer text is replaced and the real values come back in the answer, on that page only. Warn: a card asks first. Block and local: the send is stopped and the card points to Company AI (side panel, or a tab if the browser has no side panel). A file stamped RESTRICTED or CONFIDENTIAL is blocked. If the server cannot be reached the browser's own checks still run; if the server refuses to read the text (too long, malformed) it fails closed.

@@ -1,5 +1,5 @@
-import { askLocal, checkRemote, postEvents, refreshPolicy } from "../src/api";
-import { bumpStats, getPolicy } from "../src/storage";
+import { askLocal, checkRemote, postEvents, refreshPolicy, safeBrainUrl } from "../src/api";
+import { bumpStats, getPolicy, getSettings, saveSettings } from "../src/storage";
 import type { Msg } from "../src/types";
 
 /** Pages the content script runs on. A message from anywhere else is ignored. */
@@ -24,7 +24,9 @@ const PAGE_MESSAGES = new Set<Msg["type"]>([
 
 function allowedSender(sender: chrome.runtime.MessageSender, type: Msg["type"]): boolean {
   if (sender.id !== chrome.runtime.id) return false;
-  if (!sender.tab) return true; // popup, side panel, options: our own pages
+  // Our own pages (popup, side panel, options), also when they are open in a tab.
+  if (sender.url?.startsWith(chrome.runtime.getURL("/"))) return true;
+  if (!sender.tab) return true;
   if (!PAGE_MESSAGES.has(type)) return false;
   try {
     return AI_HOSTS.has(new URL(sender.url ?? sender.tab.url ?? "").hostname);
@@ -45,6 +47,48 @@ interface QueuedEvent {
 }
 
 const QUEUE_CAP = 500;
+
+const AI_PAGES = [
+  "https://chatgpt.com/*",
+  "https://chat.openai.com/*",
+  "https://claude.ai/*",
+  "https://gemini.google.com/*",
+  "http://localhost:3100/*",
+];
+
+/**
+ * Connect without asking anything: use the default server and, in the demo, the first demo person.
+ * A company's own setup (a Chrome policy or a pairing code) is never overwritten.
+ */
+async function autoConnect(): Promise<boolean> {
+  const s = await getSettings();
+  if (s.token || s.demoUser) return true;
+  const base = safeBrainUrl(s.brainUrl);
+  if (!base) return false;
+  try {
+    const res = await fetch(`${base}/v1/demo-users`);
+    if (!res.ok) return false;
+    const users = (await res.json()) as { user: string; team: string }[];
+    const first = users[0];
+    if (!first) return false;
+    await saveSettings({ demoUser: first.user, userLabel: `${first.user} (${first.team})` });
+    void refreshPolicy();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A page that was open before the extension arrived has no content script yet: add it, no reload needed. */
+async function protectOpenTabs() {
+  const tabs = await chrome.tabs.query({ url: AI_PAGES });
+  for (const t of tabs) {
+    if (t.id === undefined) continue;
+    chrome.scripting
+      .executeScript({ target: { tabId: t.id }, files: ["content-scripts/ai-sites.js"] })
+      .catch(() => undefined);
+  }
+}
 
 async function enqueue(e: QueuedEvent) {
   const { queue } = await chrome.storage.local.get("queue");
@@ -76,13 +120,19 @@ export default defineBackground(() => {
   void chrome.storage.local.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" });
   void chrome.storage.session.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" });
   void refreshPolicy();
+  void autoConnect();
   chrome.runtime.onInstalled.addListener(() => {
+    void autoConnect();
+    void protectOpenTabs();
     void refreshPolicy();
     void chrome.alarms.create("policy", { periodInMinutes: 1 });
     void chrome.alarms.create("flush", { periodInMinutes: 0.5 });
   });
   chrome.alarms.onAlarm.addListener((a) => {
-    if (a.name === "policy") void refreshPolicy();
+    if (a.name === "policy") {
+      void refreshPolicy();
+      void autoConnect(); // keeps trying until the server is up
+    }
     if (a.name === "flush") void flush();
   });
 
@@ -100,10 +150,17 @@ export default defineBackground(() => {
         case "policy": {
           // `force` is the popup's "Refresh now": wait for the server's answer instead of the cache.
           // A page script cannot force it, so a page cannot make the worker call the server in a loop.
-          reply(msg.force && !sender.tab ? await refreshPolicy() : await getPolicy());
+          reply(
+            msg.force && sender.url?.startsWith(chrome.runtime.getURL("/"))
+              ? await refreshPolicy()
+              : await getPolicy(),
+          );
           if (!msg.force) void refreshPolicy();
           return;
         }
+        case "connect":
+          reply({ ok: await autoConnect() });
+          return;
         case "visit":
           await enqueue({ ts: Date.now(), tool: msg.tool, host: msg.host, kind: "visit" });
           reply({ ok: true });

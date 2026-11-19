@@ -8,6 +8,15 @@ import { Overlay } from "../src/overlay";
 import type { CheckResult, Msg } from "../src/types";
 import { Unmasker } from "../src/unmask";
 
+/** True after the extension was updated or reloaded while this page stayed open: the old script is cut off. */
+function cutOff(): boolean {
+  try {
+    return !chrome.runtime?.id;
+  } catch {
+    return true;
+  }
+}
+
 function send<T>(msg: Msg): Promise<T | null> {
   return new Promise((resolve) => {
     try {
@@ -30,6 +39,10 @@ export default defineContentScript({
   ],
   runAt: "document_idle",
   main() {
+    // The worker can add this script to a page that already has it (on install or update): once is enough.
+    const w = window as unknown as { __sentryOn?: boolean };
+    if (w.__sentryOn) return;
+    w.__sentryOn = true;
     const adapter = adapterFor(new URL(location.href));
     if (!adapter) return;
     const overlay = new Overlay();
@@ -104,7 +117,11 @@ export default defineContentScript({
       overlay.clearChip();
       if (!r || !r.action) {
         // The server could not be reached: the browser cannot read a file, so it lets it through and says so.
-        overlay.note("Company server not reached, so the file was not checked.");
+        overlay.note(
+          cutOff()
+            ? "Sentry was updated. Reload this page to turn file checks back on."
+            : "Company server not reached, so the file was not checked.",
+        );
         return release();
       }
       void send({
