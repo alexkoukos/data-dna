@@ -26,7 +26,7 @@ function renderAt(path: string) {
 }
 
 describe("Overview", () => {
-  it("shows a skeleton, then the four numbers and recent incidents", async () => {
+  it("shows a skeleton, then the three numbers and recent incidents", async () => {
     mockApi({
       "/v1/metrics": metrics,
       "/v1/incidents": { total: 664, items: [incident(1), incident(2, { decision: "block" })] },
@@ -34,7 +34,6 @@ describe("Overview", () => {
     renderAt("/security");
     expect(screen.getByRole("status", { name: "Loading the overview" })).toBeInTheDocument();
     expect(await screen.findByText("9,769")).toBeInTheDocument();
-    expect(screen.getByText("90%")).toBeInTheDocument();
     expect(screen.getByText("Down 6 from the week before")).toBeInTheDocument();
     expect(screen.getByText("Demo data")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Review all 664 incidents" })).toBeInTheDocument();

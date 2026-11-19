@@ -10,14 +10,8 @@ import { Skeleton } from "./ui";
 import { Eye, EyeOff, RotateCw } from "lucide-react";
 
 const KEY = "sentry.trends";
-/** Pages where the trend is the point; elsewhere the cards start folded so forms stay in view. */
-const OPEN_BY_DEFAULT = [
-  "/security",
-  "/security/tools",
-  "/security/incidents",
-  "/security/impact",
-  "/security/history",
-];
+/** The trend is the point only on these pages; everywhere else the cards start folded. */
+const OPEN_BY_DEFAULT = ["/security/impact", "/security/history"];
 
 const SPAN: Record<Period, { short: string; long: string; unit: string }> = {
   Weekly: { short: "7 days", long: "the last 7 days", unit: "day" },

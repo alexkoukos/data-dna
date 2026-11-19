@@ -4,20 +4,28 @@ import { PageHead, SiteShell } from "./SiteShell";
 
 const GITHUB = "https://github.com/alexkoukos/data-dna";
 
-const PARTS: [string, string][] = [
-  ["Extension", "Chrome and Edge. WXT, TypeScript."],
-  ["Brain :8001", "FastAPI, Pydantic v2, SQLAlchemy 2."],
-  ["Dashboard :3000", "React, TypeScript, Tailwind v4."],
-  ["Database", "Postgres 16 with pgvector."],
-];
+const START = `$ docker compose up --build
+ ✔ Container sentry-db-1       Healthy
+ ✔ Container sentry-vault-a-1  Healthy
+ ✔ Container sentry-brain-1    Healthy
+ ✔ Container sentry-web-1      Healthy
+Web: http://localhost:3000   Brain API: http://localhost:8001/docs`;
 
-const API = [
-  "POST /v1/check",
-  "POST /v1/events",
-  "GET  /v1/policy",
-  "POST /v1/pair",
-  "POST /v1/ask-local",
-  "POST /v1/logs/ingest",
+/** A real call and the real answer (demo data). */
+const REQUEST = `POST /v1/check
+{ "text": "Please wire 12,400 EUR to GR1601101250000000012300695 for Maria Papadopoulou",
+  "tool": "Claude.ai", "url": "https://claude.ai/new" }`;
+
+const RESPONSE = `{ "action": "mask",
+  "reasons": ["Contains iban", "Contains person email phone"],
+  "findings": [{ "entity": "IBAN", "masked_preview": "GR••••••••••••••••••0695" }],
+  "masked_text": "Please wire 12,400 EUR to [IBAN_1] for [PERSON_1]" }`;
+
+const PARTS: [string, string][] = [
+  ["Extension", "WXT, React, TypeScript. Chrome, Edge, Brave."],
+  ["Brain :8001", "FastAPI, Pydantic v2, SQLAlchemy 2."],
+  ["Dashboard :3000", "React, Tailwind v4."],
+  ["Database", "Postgres 16, pgvector."],
 ];
 
 export default function Developers() {
@@ -30,57 +38,52 @@ export default function Developers() {
           lead="One command, invented data, no API key."
         />
 
-        <section className="section" aria-labelledby="repo-title">
-          <div className="wrap">
-            <h2 id="repo-title">The code.</h2>
-            <a href={GITHUB} className="pair-card repo-card" target="_blank" rel="noreferrer">
-              <h3>GitHub repository</h3>
-              <p>Brain, dashboard and extension in one repo. Star it, read it, open an issue.</p>
-              <p className="repo-url">{GITHUB.replace("https://", "")}</p>
-            </a>
-          </div>
-        </section>
-
         <section className="section section-white" aria-labelledby="run-title">
           <div className="wrap">
             <h2 id="run-title">Start.</h2>
-            <pre className="code" tabIndex={0}>{`git clone ${GITHUB}
+            <pre className="code term" tabIndex={0}>{`git clone ${GITHUB}
 cd data-dna
-docker compose up --build`}</pre>
+${START}`}</pre>
             <p className="prose">
-              Dashboard on <code>localhost:3000</code>, API docs on <code>localhost:8001/docs</code>
-              . Extension: <code>make extension</code>, then load the folder unpacked.
+              No API key and invented data. Extension: <code>make extension-zip</code>, then load{" "}
+              <code>extension/.output/chrome-mv3</code> unpacked.
             </p>
           </div>
         </section>
 
-        <section className="section" aria-labelledby="parts-title">
+        <section className="section" aria-labelledby="api-title">
           <div className="wrap">
-            <h2 id="parts-title">Inside.</h2>
-            <div className="pair pair-4">
-              {PARTS.map(([t, d]) => (
-                <div key={t} className="pair-card">
-                  <h3>{t}</h3>
-                  <p>{d}</p>
-                </div>
-              ))}
+            <h2 id="api-title">One call.</h2>
+            <div className="api-pair">
+              <pre className="code" tabIndex={0} aria-label="Request">
+                {REQUEST}
+              </pre>
+              <pre className="code" tabIndex={0} aria-label="Response">
+                {RESPONSE}
+              </pre>
             </div>
             <p className="prose">
-              Optional: <code>make gateway</code> puts SDKs and agents behind the same checks.{" "}
-              <code>make local</code> adds a local model.
+              Also <code>/v1/events</code>, <code>/v1/policy</code>, <code>/v1/pair</code>,{" "}
+              <code>/v1/ask-local</code>. Browser rules are shared JSON, tested by Python and
+              TypeScript on the same fixtures. Full reference at <code>:8001/docs</code>.
             </p>
           </div>
         </section>
 
-        <section className="section section-white" aria-labelledby="api-title">
+        <section className="section section-white" aria-labelledby="parts-title">
           <div className="wrap">
-            <h2 id="api-title">The extension's API.</h2>
-            <pre className="code" tabIndex={0}>
-              {API.join("\n")}
-            </pre>
+            <h2 id="parts-title">Inside.</h2>
+            <dl className="parts">
+              {PARTS.map(([t, d]) => (
+                <div key={t}>
+                  <dt>{t}</dt>
+                  <dd>{d}</dd>
+                </div>
+              ))}
+            </dl>
             <p className="prose">
-              Browser rules are shared JSON, tested by both Python and TypeScript on the same
-              fixtures.
+              <code>make gateway</code> puts SDKs and agents behind the same checks.{" "}
+              <code>make local</code> adds a local model.
             </p>
           </div>
         </section>

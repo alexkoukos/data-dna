@@ -35,6 +35,19 @@ const SITE_PAGES: Record<string, React.LazyExoticComponent<() => React.JSX.Eleme
   "/developers": Developers,
 };
 
+const NotFound = lazy(() => import("./landing/NotFound"));
+
+/** An unknown address inside the app: the same page, with the nav above it already shown. */
+function NotFoundInApp() {
+  return (
+    <div className="sentry dark">
+      <Suspense fallback={null}>
+        <NotFound />
+      </Suspense>
+    </div>
+  );
+}
+
 export default function App() {
   const { pathname } = useLocation();
   // The public site has its own header and footer, and no app chrome.
@@ -57,6 +70,7 @@ export default function App() {
         <Route path="/connect" element={<ConnectPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/break-it" element={<BreakItPage />} />
+        <Route path="*" element={<NotFoundInApp />} />
         <Route path="/security" element={<SecurityLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="tools" element={<ToolsPage />} />
