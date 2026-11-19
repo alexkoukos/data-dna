@@ -9,4 +9,5 @@ paths = [
   '''data/documents/.*\.md''',
   '''data/eval/attacks.*\.csv''',
   '''services/brain/tests/.*''',
+  '''shared/fixtures/l1\.json''',
 ]
