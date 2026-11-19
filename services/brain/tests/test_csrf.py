@@ -85,7 +85,7 @@ def test_identity_get_cross_site_refused(monkeypatch) -> None:  # type: ignore[n
 def test_an_unknown_host_is_refused_for_every_route(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     client, _ = _client(monkeypatch)
     r = client.get("/v1/ask/presets", headers={"Host": "attacker.example:8001"})
-    assert r.status_code == 403 and "not one the Pyli gate answers on" in r.json()["detail"]
+    assert r.status_code == 403 and "not one the Sentry gate answers on" in r.json()["detail"]
     for ok in ("localhost:8001", "127.0.0.1:8001", "brain:8001", "gateway:4000"):
         assert client.get("/v1/ask/presets", headers={"Host": ok}).status_code == 200
     assert client.get("/healthz", headers={"Host": "attacker.example"}).status_code == 200

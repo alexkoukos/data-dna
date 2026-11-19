@@ -19,7 +19,7 @@
   function failReasons(status) {
     if (status === 413 || status === 422)
       return ["Too long: shorten it or use Company AI"];
-    return ["Pyli could not check this. Try again, or use Company AI."];
+    return ["Sentry could not check this. Try again, or use Company AI."];
   }
 
   /** A link is only followed when it is http or https. */
@@ -33,6 +33,6 @@
   }
 
   const api = { MAX_CHARS, failMode, failReasons, safeHref };
-  root.PyliLogic = api;
+  root.SentryLogic = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

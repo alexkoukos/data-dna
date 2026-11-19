@@ -505,7 +505,7 @@ def _fmt(v: object) -> str:
 def to_markdown(rep: dict[str, Any]) -> str:
     m = rep["metrics"]
     lines = [
-        "# Data DNA evaluation report",
+        "# Sentry evaluation report",
         "",
         f"Prompt set: `{rep['source']}` ({rep['rows']} prompts)."
         + (

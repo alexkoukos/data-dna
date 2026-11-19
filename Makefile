@@ -95,7 +95,7 @@ judge-data: ## Regenerate the judge fine-tune data from data/train_org (D7, dete
 	python3 scripts/gen_finetune.py
 
 judge-ollama: ## Start the judge's own Ollama on port 11435 (separate from `make up`, which would remove a compose-started one)
-	docker start judge-ollama 2>/dev/null || docker run -d --name judge-ollama --restart unless-stopped -p 127.0.0.1:11435:11434 -v data-dna_ollama:/root/.ollama -e OLLAMA_KEEP_ALIVE=30m ollama/ollama:0.40.16@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
+	docker start judge-ollama 2>/dev/null || docker run -d --name judge-ollama --restart unless-stopped -p 127.0.0.1:11435:11434 -v sentry_ollama:/root/.ollama -e OLLAMA_KEEP_ALIVE=30m ollama/ollama:0.40.16@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
 
 judge-eval: ## Compare plain gemma3:1b (dna-local) with the tuned judge on the test set (needs `make judge-ollama` and the dna-judge model, see docs/JUDGE_FINETUNE.md)
 	python3 scripts/eval_judge.py dna-judge dna-local --url http://localhost:11435 --out eval/judge_eval.md

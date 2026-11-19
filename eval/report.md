@@ -1,4 +1,4 @@
-# Data DNA evaluation report
+# Sentry evaluation report
 
 Prompt set: `prompts.csv` (195 prompts).
 

@@ -1,6 +1,6 @@
 # Threat model (X26)
 
-What Pyli stops, what it does not, and how sure we are. Written for the judges and for the first customer's security team, so it says the uncomfortable parts too. Numbers come from `make eval`, `make calibrate` and the attack file `data/eval/attacks.csv`; all test data is invented.
+What Sentry stops, what it does not, and how sure we are. Written for the judges and for the first customer's security team, so it says the uncomfortable parts too. Numbers come from `make eval`, `make calibrate` and the attack file `data/eval/attacks.csv`; all test data is invented.
 
 ## What we protect
 Company data leaving through AI tools: personal identifiers (AFM, AMKA, IBAN, cards, ID, phones), secrets and keys, source code, client names, and the text of confidential documents (copied, lightly edited, or paraphrased).

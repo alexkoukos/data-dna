@@ -1,6 +1,6 @@
 # One command: docker compose up --build   (Netcompany rule: must build and start on Linux)
 # Gateway (LiteLLM) and the local model are added in TASKS.md items G1 and L1.
-name: data-dna
+name: sentry
 
 services:
   db:
@@ -199,7 +199,7 @@ services:
   # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
   sim:
     profiles: ["sim"]
-    image: data-dna-brain
+    image: sentry-brain
     pull_policy: never # built by `make up`; never looked up on a registry
     entrypoint: ["python", "/scripts/simulate.py"]
     command: ["--count", "60"]

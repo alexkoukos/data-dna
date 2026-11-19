@@ -1,5 +1,5 @@
 /* Only the host element lives in the page; the card itself is inside a shadow root. */
-pyli-host {
+sentry-host {
   display: block;
   box-sizing: border-box;
   max-width: 100%;

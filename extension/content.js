@@ -1,4 +1,4 @@
-// Pyli on chatgpt.com: check paste and send in the composer before the text leaves the page.
+// Sentry on chatgpt.com: check paste and send in the composer before the text leaves the page.
 // Fails open: if the gate cannot be reached nothing is blocked, and a small badge says so.
 (() => {
   const COMPOSER = "#prompt-textarea";
@@ -65,14 +65,14 @@
   const STYLE = `
     :host { all: initial; }
     .card { box-sizing: border-box; width: 100%; display: flex; gap: 12px; align-items: flex-start;
-      flex-wrap: wrap; padding: 12px; border: 1px solid var(--pyli-border, #e5e7eb);
-      border-left: 4px solid var(--accent); border-radius: 12px; background: var(--pyli-tint, #fffbeb);
-      color: var(--pyli-text, #262626); font: 14px/1.45 var(--pyli-font, system-ui, sans-serif);
+      flex-wrap: wrap; padding: 12px; border: 1px solid var(--sentry-border, #e5e7eb);
+      border-left: 4px solid var(--accent); border-radius: 12px; background: var(--sentry-tint, #fffbeb);
+      color: var(--sentry-text, #262626); font: 14px/1.45 var(--sentry-font, system-ui, sans-serif);
       overflow-wrap: anywhere; }
-    .card.mask { --accent: var(--pyli-mask, #1d4ed8); }
-    .card.warn { --accent: var(--pyli-warn, #b45309); }
-    .card.block { --accent: var(--pyli-block, #b91c1c); }
-    .card.local { --accent: var(--pyli-local, #0f766e); }
+    .card.mask { --accent: var(--sentry-mask, #1d4ed8); }
+    .card.warn { --accent: var(--sentry-warn, #b45309); }
+    .card.block { --accent: var(--sentry-block, #b91c1c); }
+    .card.local { --accent: var(--sentry-local, #0f766e); }
     img { width: 44px; height: auto; flex: none; }
     .body { flex: 1 1 200px; min-width: 0; }
     .title { font-weight: 600; margin: 0 0 2px; }
@@ -84,15 +84,15 @@
     button, a.btn { box-sizing: border-box; min-height: 44px; min-width: 44px; padding: 0 14px;
       display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;
       font: inherit; font-weight: 600; cursor: pointer; text-decoration: none;
-      border: 1px solid var(--pyli-border, #e5e7eb); background: var(--pyli-bg, #fff);
-      color: var(--pyli-text, #262626); }
-    .primary { background: var(--pyli-primary, #f59e0b); border-color: var(--pyli-primary, #f59e0b);
-      color: var(--pyli-on-primary, #262626); }
-    :is(button, a, summary):focus-visible { outline: 3px solid var(--pyli-focus, #b45309);
+      border: 1px solid var(--sentry-border, #e5e7eb); background: var(--sentry-bg, #fff);
+      color: var(--sentry-text, #262626); }
+    .primary { background: var(--sentry-primary, #f59e0b); border-color: var(--sentry-primary, #f59e0b);
+      color: var(--sentry-on-primary, #262626); }
+    :is(button, a, summary):focus-visible { outline: 3px solid var(--sentry-focus, #b45309);
       outline-offset: 2px; }
     .badge { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 2px 10px;
-      border-radius: 999px; background: var(--pyli-muted, #f3f4f6); border: 1px solid var(--pyli-border, #e5e7eb);
-      color: var(--pyli-text, #262626); font: 13px var(--pyli-font, system-ui, sans-serif); }
+      border-radius: 999px; background: var(--sentry-muted, #f3f4f6); border: 1px solid var(--sentry-border, #e5e7eb);
+      color: var(--sentry-text, #262626); font: 13px var(--sentry-font, system-ui, sans-serif); }
     .badge img { width: 22px; height: auto; }
     @media (max-width: 480px) { .row > * { flex: 1 1 100%; } }
   `;
@@ -103,7 +103,7 @@
     if (!field) return null;
     const anchor = field.closest("form") || field.parentElement;
     if (!host) {
-      host = document.createElement("pyli-host");
+      host = document.createElement("sentry-host");
       host.attachShadow({ mode: "open" });
     }
     if (
@@ -122,10 +122,10 @@
     return el;
   }
 
-  // The Hive guard bee. The state is carried by the card colour and the words, not by the picture.
+  // The Sentry guard bee. The state is carried by the card colour and the words, not by the picture.
   function mascot() {
     return h("img", {
-      src: chrome.runtime.getURL("brand/hive-guard-bee.svg"),
+      src: chrome.runtime.getURL("brand/sentry-guard-bee.svg"),
       alt: "",
       "aria-hidden": "true",
     });
@@ -179,7 +179,7 @@
       "a",
       {
         class: "btn primary",
-        href: globalThis.PyliLogic.safeHref(url),
+        href: globalThis.SentryLogic.safeHref(url),
         target: "_blank",
         rel: "noopener noreferrer",
       },
@@ -191,7 +191,7 @@
   // ---- the decision ---------------------------------------------------------------------
   /** Ask the gate. Returns the verdict, or null when it should fail open. */
   async function check(text) {
-    const L = globalThis.PyliLogic;
+    const L = globalThis.SentryLogic;
     if (text.length > L.MAX_CHARS)
       return {
         decision: "block",
@@ -206,9 +206,9 @@
       return v.shadow ? { ...v, decision: "allow" } : v;
     }
     if (out.error === "no-key")
-      showBadge("Pyli: add your key in the extension options");
+      showBadge("Sentry: add your key in the extension options");
     else if (out.status === 401)
-      showBadge("Pyli: key not accepted, copy it again from Connect");
+      showBadge("Sentry: key not accepted, copy it again from Connect");
     else if (L.failMode(out.status) === "block")
       // The gate answered but would not read this: nothing goes out unchecked.
       return {
@@ -217,8 +217,8 @@
         entity_types: [],
       };
     else if (out.status === 429 || out.status === 504)
-      showBadge("Pyli could not check this message, nothing was changed");
-    else showBadge("Pyli offline");
+      showBadge("Sentry could not check this message, nothing was changed");
+    else showBadge("Sentry offline");
     return null;
   }
 

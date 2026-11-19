@@ -1,21 +1,21 @@
-title: Pyli - repeated blocks for one user key
+title: Sentry - repeated blocks for one user key
 id: 6d1a9c1e-3f0a-4f5e-9d51-5a7b8f0c1a27
 status: experimental
 description: >
-  Three or more Pyli blocks for the same user key within ten minutes. One block is a mistake;
+  Three or more Sentry blocks for the same user key within ten minutes. One block is a mistake;
   a run of them is someone trying different ways to send protected data to an AI tool.
-author: Pyli
+author: Sentry
 date: 2026/11/17
 tags:
   - attack.exfiltration
   - attack.t1567
 logsource:
-  product: pyli
+  product: sentry
   service: gate
   category: dlp
 detection:
   selection:
-    DeviceVendor: Pyli
+    DeviceVendor: Sentry
     DeviceEventClassID: block       # CEF signature field; the incident's decision
   timeframe: 10m
   condition: selection | count() by SourceUserName >= 3   # SourceUserName is CEF `suser`

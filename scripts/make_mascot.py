@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draws the Pyli mascot (an arch-shaped gate guardian) in every pose the web app uses.
+"""Draws the Sentry mascot (an arch-shaped gate guardian) in every pose the web app uses.
 
 Usage: python3 scripts/make_mascot.py [out_dir ...]
 Default output: web/public/mascot and docs/brand/mascot. Files keep the names thyro-<pose>.svg so the
@@ -160,7 +160,7 @@ def svg(pose: str) -> str:
         f'<g class="blink">{face}</g>{MOUTH[mk]}{"" if head_eyes else extras(ex)}{glyph}</g>'
     )
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}" width="400" height="400" role="img" aria-label="Pyli, the gate guardian">'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}" width="400" height="400" role="img" aria-label="Sentry, the gate guardian">'
         f"<style>{CSS}</style>{inner}</svg>\n"
     )
 

@@ -1,4 +1,4 @@
-# Sending Pyli incidents to the SOC (X30)
+# Sending Sentry incidents to the SOC (X30)
 
 "How does this reach our SOC?" Three ways, all optional, none sends prompt text.
 
@@ -6,7 +6,7 @@
 |---|---|---|
 | Pull | `GET /v1/export/incidents?since=2026-11-17T09:00:00Z` | JSON lines, oldest first |
 | Syslog push | `SIEM_SYSLOG_HOST`, `SIEM_SYSLOG_PORT` (514), `SIEM_SYSLOG_PROTO` (`udp` or `tcp`) | CEF in a syslog frame (facility local0) |
-| Webhook push | `SIEM_WEBHOOK_URL`, `SIEM_WEBHOOK_SECRET` | JSON body, header `X-Pyli-Signature: sha256=<HMAC-SHA256 of the body>` |
+| Webhook push | `SIEM_WEBHOOK_URL`, `SIEM_WEBHOOK_SECRET` | JSON body, header `X-Sentry-Signature: sha256=<HMAC-SHA256 of the body>` |
 
 Set the variables in `.env` (see `.env.example`) and run `docker compose up -d brain`. Set `SIEM_EXPORT_TOKEN` to require `Authorization: Bearer <token>` on the export.
 
@@ -28,7 +28,7 @@ Example JSON line:
 The same event as CEF (the one line, split here for reading):
 
 ```
-CEF:0|Pyli|Gate|1.0|block|Pyli block: ChatGPT (personal)|8|rt=1795084200000 externalId=42 suser=u-de036ece act=block
+CEF:0|Sentry|Gate|1.0|block|Sentry block: ChatGPT (personal)|8|rt=1795084200000 externalId=42 suser=u-de036ece act=block
   cs1Label=team cs1=Finance cs2Label=tool cs2=ChatGPT (personal) cs3Label=categories cs3=document,iban
   cs4Label=ruleIds cs4=document-matching,patterns-and-checksums cn1Label=documentId cn1=3 cn2Label=shadow cn2=0
 ```
@@ -50,9 +50,9 @@ Sign and compare the exact bytes you received, not a re-encoded copy.
 
 1. Add `SIEM_SYSLOG_HOST=syslog-receiver` to `.env`.
 2. `make siem` starts a tiny receiver (compose profile `siem`) and follows its log.
-3. Send a risky message in the Company AI chat (or run `make simulate`): a `CEF:0|Pyli|Gate|...` line appears within a second. Practice on `/break-it` creates no incident, so it sends nothing.
+3. Send a risky message in the Company AI chat (or run `make simulate`): a `CEF:0|Sentry|Gate|...` line appears within a second. Practice on `/break-it` creates no incident, so it sends nothing.
 
 ## Detection rules and searches
 
-- `sigma/pyli-repeated-blocks.yml`: three or more blocks by one user key in 10 minutes.
+- `sigma/sentry-repeated-blocks.yml`: three or more blocks by one user key in 10 minutes.
 - `splunk.md` and `elastic.md`: how to ingest the CEF lines and the same search in SPL and Elasticsearch.

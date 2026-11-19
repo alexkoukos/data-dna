@@ -17,13 +17,13 @@ async function init() {
   if (out.ok) {
     status.className = "ok";
     status.textContent = `Signed in as ${out.body.user_id}.${out.body.shadow_mode ? " Shadow mode: recording only." : ""}`;
-    $("incidents").href = globalThis.PyliLogic.safeHref(out.body.incidents_url);
+    $("incidents").href = globalThis.SentryLogic.safeHref(out.body.incidents_url);
   } else {
     status.className = "bad";
     status.textContent =
       out.status === 401
         ? "The gate does not accept this key."
-        : "Pyli offline. Nothing is blocked while it is.";
+        : "Sentry offline. Nothing is blocked while it is.";
     $("incidents").hidden = true;
   }
 }

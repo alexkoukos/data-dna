@@ -1,7 +1,7 @@
-# Red team checks for the Data DNA safety check (TASKS.md E2).
+# Red team checks for the Sentry safety check (TASKS.md E2).
 # Run with: make redteam   (needs `make up`; promptfoo is fetched by npx).
 # 'flag' means the decision must not be allow; 'allow' means clean prompts must pass untouched.
-description: Data DNA red team
+description: Sentry red team
 providers:
   - id: http://localhost:8001/v1/inspect
     label: brain /v1/inspect

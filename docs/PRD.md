@@ -1,4 +1,4 @@
-# PRD: Pyli (Data DNA), the AI gate that keeps company data inside
+# PRD: Sentry (Sentry), the AI gate that keeps company data inside
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 Team: Alexandros (gateway, web app, Docker, CI), Stelios (detection, routing, DNA, MCP, eval, synthetic org), Vasilis (research, business, policy), Konstantinos (data, story, video, slides, pitch).
@@ -10,7 +10,7 @@ This document is the build spec. Read it fully before writing code. When somethi
 
 ## 1. One sentence
 
-Pyli, the gate (working title Data DNA), is the AI gate that every AI tool in the company goes through: it discovers which AI tools are used (including hidden ones, from network logs), catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
+Sentry, the gate (working title Sentry), is the AI gate that every AI tool in the company goes through: it discovers which AI tools are used (including hidden ones, from network logs), catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
 
 ## 2. Hard rules from Netcompany (failing any of these voids or hurts the submission)
 

@@ -1,16 +1,16 @@
-# Pyli, the gate
+# Sentry, the gate
 
 Πύλη (πύλη, "the gate"). Every prompt passes the gate. Brand and mascot: [docs/BRAND.md](docs/BRAND.md).
 
 > Video: [link, added Thu 19 Nov]
-> Pyli is the gate that every AI tool in the company goes through: it finds which AI tools are used, catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
+> Sentry is the gate that every AI tool in the company goes through: it finds which AI tools are used, catches sensitive data before it leaves (even when rewritten), and decides per prompt: allow, warn, mask, answer with a local model, or block.
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 
 ## Concept
-Companies cannot see which AI tools their people use, and cannot stop a client list, a key or a confidential memo from being pasted into one. Banning the tools does not work: people use them anyway, from personal accounts. Pyli takes the other route. It gives people a safe door, one gateway that every AI tool in the company goes through, and checks each prompt on the way out.
+Companies cannot see which AI tools their people use, and cannot stop a client list, a key or a confidential memo from being pasted into one. Banning the tools does not work: people use them anyway, from personal accounts. Sentry takes the other route. It gives people a safe door, one gateway that every AI tool in the company goes through, and checks each prompt on the way out.
 
-For every prompt Pyli decides one of five things: **allow**, **mask** (hide the sensitive part and still get an answer), **warn** (ask the person to confirm), **answer with a local model** (the data never leaves), or **block**. Every decision comes with a reason in plain words and an approved alternative, and the security team sees all of it with the data protected. It also finds which AI tools are in use, including unapproved ones, from usage logs.
+For every prompt Sentry decides one of five things: **allow**, **mask** (hide the sensitive part and still get an answer), **warn** (ask the person to confirm), **answer with a local model** (the data never leaves), or **block**. Every decision comes with a reason in plain words and an approved alternative, and the security team sees all of it with the data protected. It also finds which AI tools are in use, including unapproved ones, from usage logs.
 
 The brief's questions are answered one by one, with the number and the demo step for each, in `docs/BRIEF_MAP.md`. The five-minute demo is in `docs/DEMO.md`.
 
@@ -48,7 +48,7 @@ The first build from scratch downloads the models and takes several minutes; mac
 
 ```bash
 git clone <this repo>
-cd data-dna
+cd sentry
 cp .env.example .env        # optional: add OPENAI_API_KEY
 docker compose up --build
 ```
@@ -135,7 +135,7 @@ The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The 
 
 ## Privacy and governance
 
-### What Pyli itself stores
+### What Sentry itself stores
 A watcher must keep little: masked previews and entity names instead of prompts, fingerprints instead of document text, pseudonyms with a two-person reveal and audit log, 30-day retention, local answers for confidential content, and split storage for the most sensitive fields. Plain-language page on GDPR, NIS2 and the EU AI Act (not legal advice): [docs/business/privacy-and-regulation.md](docs/business/privacy-and-regulation.md). Article table: [compliance-mapping.md](docs/business/compliance-mapping.md).
 
 ## Business case
@@ -143,7 +143,7 @@ Market and cost figures with sources: [market.md](docs/business/market.md). Comp
 
 
 **Break it (X28).** Practice on `/break-it` is never stored and never creates an incident; only counters, a masked preview, the attack kind and an optional nickname (no login, nothing that identifies a person) are kept, in memory. The one exception is the "It got through" button: the person chooses to submit the exact text as a test case, and the button says so. That raw text lives only in a review-queue row until a security user decides. Approve moves it into `data/eval/attacks_scripts.csv` and blanks the row; reject deletes the row at once.
-Pyli inspects what people type, so it holds itself to the same rule it enforces. Each claim below points at the code and at a test that fails if the claim stops being true (`services/brain/tests/test_privacy_claims.py` also checks that every test named here exists).
+Sentry inspects what people type, so it holds itself to the same rule it enforces. Each claim below points at the code and at a test that fails if the claim stops being true (`services/brain/tests/test_privacy_claims.py` also checks that every test named here exists).
 
 | Claim | Code | Test |
 | --- | --- | --- |

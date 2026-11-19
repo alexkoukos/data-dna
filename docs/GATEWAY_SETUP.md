@@ -1,16 +1,16 @@
-# Pointing a company's AI traffic at Pyli (X22)
+# Pointing a company's AI traffic at Sentry (X22)
 
-Pyli only protects what passes through it. This guide shows three ways to send AI traffic to the gateway, from the simplest to the most complete. The gateway speaks the OpenAI API at `http://<host>:4000/v1`.
+Sentry only protects what passes through it. This guide shows three ways to send AI traffic to the gateway, from the simplest to the most complete. The gateway speaks the OpenAI API at `http://<host>:4000/v1`.
 
 ## 1. Change two settings in the tool (works today)
 Most tools and SDKs read an address and a key:
 
 ```bash
-export OPENAI_BASE_URL=http://pyli.company.internal:4000/v1
+export OPENAI_BASE_URL=http://sentry.company.internal:4000/v1
 export OPENAI_API_KEY=<the person's own key from the Connect page>
 ```
 
-Each person gets their own key (`POST /v1/keys`, or the Connect page), so every decision is tied to a pseudonym. Python, Node and most IDE plugins need nothing else. For Claude Code use the Anthropic-format endpoint (task G4): `ANTHROPIC_BASE_URL=http://pyli.company.internal:4000`.
+Each person gets their own key (`POST /v1/keys`, or the Connect page), so every decision is tied to a pseudonym. Python, Node and most IDE plugins need nothing else. For Claude Code use the Anthropic-format endpoint (task G4): `ANTHROPIC_BASE_URL=http://sentry.company.internal:4000`.
 
 The gateway checks the whole request: every earlier turn, the system prompt or instructions, tool descriptions and tool results, not only the last message. Tools that resend the full conversation on every call (Claude Code, API clients) are checked again each time, but a warning you acknowledged once (with `X-DNA-Ack`) is remembered by the gateway for 1 hour, per personal key: the same earlier text, sent again with the same role, is no longer warned about (sensitive values in it are still masked, and blocks are never lifted). A changed text is a new text and warns again; a restart of the gateway forgets everything. The master key and keys without a user are shared by many people, so nothing is remembered for them: those clients still need to send `X-DNA-Ack` on every call, for Claude Code via `ANTHROPIC_CUSTOM_HEADERS="X-DNA-Ack: approved by me, reason"`. Trade-off: a tool description you acknowledged stays accepted for 1 hour, even if it is malicious; change of its text brings the warning back.
 
@@ -34,13 +34,13 @@ Block the public AI domains for everyone except the gateway host. The list of do
 # squid.conf (sketch)
 acl shadow_ai dstdomain "/etc/squid/ai_domains.txt"
 http_access deny shadow_ai
-deny_info https://pyli.company.internal:3000/connect shadow_ai
+deny_info https://sentry.company.internal:3000/connect shadow_ai
 ```
 
 The access log of that proxy is also what feeds the Shadow AI inventory (O2).
 
 ## 3. Inspect content in transit (sketch, not built)
-A proxy can pass requests to Pyli before they leave, using ICAP request modification (Squid `icap_service` with `reqmod_precache`). A small ICAP service would take the request body, call `POST /v1/inspect`, and either forward the masked body, return 403, or pass it through. This needs TLS interception, which has legal and privacy consequences (works council, employee notice) and is not part of the hackathon build. Prefer steps 1 and 2.
+A proxy can pass requests to Sentry before they leave, using ICAP request modification (Squid `icap_service` with `reqmod_precache`). A small ICAP service would take the request body, call `POST /v1/inspect`, and either forward the masked body, return 403, or pass it through. This needs TLS interception, which has legal and privacy consequences (works council, employee notice) and is not part of the hackathon build. Prefer steps 1 and 2.
 
 ## For individuals: the paste guard (X21)
 `python tools/paste_guard.py` watches the clipboard and offers the masked version of anything sensitive before you paste it into an AI. It is separate from the gateway and needs no network access beyond the brain.
@@ -51,4 +51,4 @@ A proxy can pass requests to Pyli before they leave, using ICAP request modifica
 3. Look at the incident list: the event appears with a pseudonym, never a name.
 
 ## What this does not do
-Traffic that never touches the gateway or the proxy is invisible to Pyli: personal phones, home networks, tools with pinned certificates. See `docs/THREAT_MODEL.md`.
+Traffic that never touches the gateway or the proxy is invisible to Sentry: personal phones, home networks, tools with pinned certificates. See `docs/THREAT_MODEL.md`.

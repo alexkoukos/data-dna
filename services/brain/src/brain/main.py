@@ -306,7 +306,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 _attempts = breakit.AttemptLog()
 
-app = FastAPI(title="Data DNA brain", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Sentry brain", version="0.1.0", lifespan=lifespan)
 app.include_router(vault_router)
 
 
@@ -448,7 +448,7 @@ async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> R
         return await call_next(request)  # type: ignore[no-any-return]
     if _request_host(request) not in _known_hosts():
         return _refuse(
-            "This address is not one the Pyli gate answers on, so the request was refused. "
+            "This address is not one the Sentry gate answers on, so the request was refused. "
             "Open the dashboard from its normal address."
         )
     unsafe = request.method not in ("GET", "HEAD", "OPTIONS") or bool(_IDENTITY_PATH.match(path))
@@ -464,7 +464,7 @@ async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> R
     if (site is not None and site not in ("same-origin", "none")) or not ours:
         return _refuse(
             "This change was sent from another website, so it was refused. "
-            "Make it from the Pyli dashboard."
+            "Make it from the Sentry dashboard."
         )
     return await call_next(request)  # type: ignore[no-any-return]
 
@@ -1819,7 +1819,7 @@ def compliance_report() -> Response:
     return Response(
         content=compliance.render_pdf(evidence),
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="data-dna-compliance-report.pdf"'},
+        headers={"Content-Disposition": 'attachment; filename="sentry-compliance-report.pdf"'},
     )
 
 
