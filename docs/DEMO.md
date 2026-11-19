@@ -6,7 +6,7 @@ Run order for the judges. Each step is 30 seconds or less. Step numbers are the 
 
 ## Before the demo
 
-1. `make reset` then `make up`. Fresh start measured: **66 s** until all four services were healthy (images already built, volumes deleted, internet available). A first build from scratch took **81 s** (`docker compose up --build -d --wait`). An offline start was not measured.
+1. `make reset` then `make up`. Fresh start measured: **78 s** until all six services were healthy (images already built, volumes deleted, internet available). A first build from scratch took **81 s** (`docker compose up --build -d --wait`). An offline start was not measured.
 2. Open four tabs: `/chat`, `/security/ask`, `/break-it`, `/security/policies`.
 3. Warm up so the first answer is not slow. On a fresh stack the first chat answer took **1.3 s**; every later step in the scripted run answered in under 0.5 s. Send one message ("hello") in `/chat`, press the first question on `/security/ask` once, press "Check it" once on `/break-it`. The warm-up leaves three extra rows in the incident list; that is fine.
 4. Shadow mode must be **off** (Policies page, switch reads "off").

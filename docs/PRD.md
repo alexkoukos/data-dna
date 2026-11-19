@@ -136,6 +136,8 @@ Pyli, the gate (working title Data DNA), is the AI gate that every AI tool in th
 
 **Compose services**
 
+As built: see the README Architecture section. The MCP proxy is `scripts/mcp_proxy.py` (a stdio wrapper, not a service), there is no seed service (seeding runs inside the brain at start), and the local model is `gemma3:1b`. The table below is the original plan.
+
 | Service | Image / build | Port | Notes |
 | --- | --- | --- | --- |
 | `db` | build `infra/db` (FROM `postgres:16` + pgvector) | 5432 (internal) | Init SQL + seed |

@@ -25,10 +25,10 @@ def test_english_person_email_and_phone(detector: EntityDetector) -> None:
 
 
 def test_greek_person_email_and_mobile(detector: EntityDetector) -> None:
-    text = "Ο Γιώργος Παπαδόπουλος έστειλε email στο g.papa@firm.gr και τηλ 6944123456"
+    text = "Ο Γιώργος Παπαδόπουλος έστειλε email στο g.papa@example.gr και τηλ 6944123456"
     found = kinds(detector.find(text))
     assert ("PERSON", "Γιώργος Παπαδόπουλος") in found
-    assert ("EMAIL", "g.papa@firm.gr") in found
+    assert ("EMAIL", "g.papa@example.gr") in found
     assert ("PHONE", "6944123456") in found
 
 
