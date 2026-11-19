@@ -1943,3 +1943,40 @@
 .top {
   height: 84px;
 }
+
+/* ---------- Landing v2 scaffold ---------- */
+.v2-steps {
+  display: grid;
+  gap: 16px;
+  list-style: none;
+  padding: 0;
+}
+@media (min-width: 800px) {
+  .v2-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.v2-steps li {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.v2-steps p {
+  margin-top: 6px;
+  color: var(--ink-muted);
+}
+.v2-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+}
+.v2-chips li {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--tint);
+  font-weight: 600;
+}

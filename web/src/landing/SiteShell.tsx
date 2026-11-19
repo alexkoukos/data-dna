@@ -48,7 +48,9 @@ export function SiteShell({ children, home = false }: { children: ReactNode; hom
             <div className="top-links">
               <a href="#how">How it works</a>
               <a href="#catches">What it catches</a>
-              <a href="#security">For security teams</a>
+              <a href="#security">Security teams</a>
+              <a href="#extension">Extension</a>
+              <Link to="/break-it">Try to break it</Link>
               <Link to="/app" className="btn btn-primary btn-sm">
                 Live demo
               </Link>

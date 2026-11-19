@@ -21,12 +21,14 @@ import SecurityLayout from "./pages/security/SecurityLayout";
 import ToolsPage from "./pages/security/ToolsPage";
 
 const Landing = lazy(() => import("./landing/Landing"));
+const LandingV2 = lazy(() => import("./landing/LandingV2"));
 const DeepDive = lazy(() => import("./landing/DeepDive"));
 const Trust = lazy(() => import("./landing/Trust"));
 const Developers = lazy(() => import("./landing/Developers"));
 
 const SITE_PAGES: Record<string, React.LazyExoticComponent<() => React.JSX.Element>> = {
   "/": Landing,
+  "/v2": LandingV2,
   "/how-it-works": DeepDive,
   "/trust": Trust,
   "/developers": Developers,
