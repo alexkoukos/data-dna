@@ -82,12 +82,8 @@ What Sentry does and does not stop: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
 | [docs/DEMO.md](docs/DEMO.md) | The five-minute demo script |
 | [docs/GATEWAY_SETUP.md](docs/GATEWAY_SETUP.md) | Pointing a company's AI traffic at the gateway |
 | [docs/siem/](docs/siem/README.md) | Sending incidents to a SIEM |
-| [docs/business/](docs/business) | Market, competitors, pricing, compliance, roadmap |
+| [docs/business/](docs/business) | Market, competitors, pricing, compliance |
 | [docs/BRAND.md](docs/BRAND.md) | Name, logo, mascot |
-
-## Roadmap
-
-Built: the browser extension and the SIEM export. Next: Slack and Teams, more languages, and a small-company edition with login and roles. See [docs/business/roadmap.md](docs/business/roadmap.md).
 
 ## Team
 

@@ -33,4 +33,4 @@ Cheapest first: normalisation, patterns with checksums, YARA and code fingerprin
 Raw prompts are not stored: incidents keep a masked preview, categories and reasons, deleted after `RETENTION_DAYS`. Names are pseudonyms until a two-person reveal, which is audited. The paste guard, the browser extension and the gateway send text only to the company's own brain.
 
 ## What would change the picture
-A login and roles for the web and the brain API, TLS everywhere, a managed key store, and per-tenant data separation. They are listed in the roadmap, not claimed as done.
+A login and roles for the web and the brain API, TLS everywhere, a managed key store, and per-tenant data separation. None of these exist yet, and we do not claim them.
