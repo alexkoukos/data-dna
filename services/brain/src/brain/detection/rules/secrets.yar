@@ -1,4 +1,4 @@
-// Secrets and credentials (PRD 9.2). `category` tells the policy engine which action applies.
+// Secrets and credentials. `category` tells the policy engine which action applies.
 
 rule pem_private_key {
   meta: category = "secret" entity = "PRIVATE_KEY"

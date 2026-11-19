@@ -1,4 +1,4 @@
-"""Free-text analyst questions (PRD 13, A2): a model writes the SQL, we check it hard, then run it.
+"""Free-text analyst questions: a model writes the SQL, we check it hard, then run it.
 
 The model never sees data, only the schema of three read-only views. Its SQL is accepted only if
 it is a single SELECT over those views. On Postgres it also runs on its own connection as a login

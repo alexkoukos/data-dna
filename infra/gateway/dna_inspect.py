@@ -1,4 +1,4 @@
-"""Gateway-side glue between LiteLLM and the brain (PRD section 8).
+"""Gateway-side glue between LiteLLM and the brain.
 
 Pure logic, no LiteLLM imports, so it can be unit tested without the gateway image.
 `dna_guardrail.py` is the thin LiteLLM wrapper around it.

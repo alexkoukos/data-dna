@@ -1,4 +1,4 @@
-"""Session memory (PRD 9.4): someone who rebuilds a document piece by piece across prompts.
+"""Session memory: someone who rebuilds a document piece by piece across prompts.
 
 For each (person, document) we keep the union of matched chunk numbers for 24 hours. When the
 share of the document rebuilt reaches the limit, or a restricted document was hit in several

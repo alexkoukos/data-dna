@@ -2,13 +2,13 @@
 
 Prompt set: `prompts.csv` (195 prompts).
 
-## Targets (PRD section 17)
+## Targets
 
 | Metric | Target | Result | Status |
 | --- | --- | --- | --- |
 | Recall, paraphrased document leaks | >= 80% | 100.0 | PASS |
 | False alarms on clean prompts | <= 5% | 2.1 | PASS |
-| Added latency p95 | < 100 ms | 67.4 | PASS |
+| Added latency p95 | < 100 ms | 58.0 | PASS |
 | Prompts with zero LLM tokens | >= 90% | 100.0 | PASS |
 | Correct copy named (leaks with 3 or more marks) | >= 90% | 99.2 | PASS |
 | Greeklish, look-alike and foreign-digit attacks caught (X5) | >= 80% | 100.0 | PASS |
@@ -39,7 +39,7 @@ Prompt set: `prompts.csv` (195 prompts).
 - Prompt injection caught: 100.0%
 - Evasion attempts caught: 100.0%
 - False alarms, baseline: 2.1%
-- Latency p50 / p95: 19.4 / 67.4 ms (no LLM judge)
+- Latency p50 / p95: 20.8 / 58.0 ms (no LLM judge)
 - Zero-LLM share: 100.0%, LLM tokens used: 0
 
 ## Where the decision differs from the label

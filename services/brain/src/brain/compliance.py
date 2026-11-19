@@ -2,7 +2,7 @@
 
 The mapping says which duty each Sentry control helps with. It supports the company's own
 compliance work; it is not legal advice and does not certify anything. The same table is kept
-in docs/business/compliance-mapping.md for people to read and edit.
+in docs/business/compliance.md for people to read and edit.
 """
 
 import io

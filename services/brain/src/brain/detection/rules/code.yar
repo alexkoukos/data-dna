@@ -1,4 +1,4 @@
-// Company source code markers (PRD 9.2). Edit the names to match the company's repositories.
+// Company source code markers. Edit the names to match the company's repositories.
 
 rule internal_hostname {
   meta: category = "source_code" entity = "INTERNAL_HOST"

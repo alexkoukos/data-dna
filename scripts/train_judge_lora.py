@@ -1,4 +1,4 @@
-"""LoRA fine-tune of gemma3:1b as the D7 borderline judge. Made to run on a Kaggle GPU notebook (guide: docs/JUDGE_FINETUNE.md).
+"""LoRA fine-tune of gemma3:1b as the D7 borderline judge. Made to run on a Kaggle GPU notebook (guide: docs/experiments/judge-finetune.md).
 
   python3 train_judge_lora.py --check-data                    no GPU needed: checks the files and prints sizes
   python3 train_judge_lora.py --base /kaggle/input/.../gemma-3-1b-it --out /kaggle/working/dna-judge

@@ -1,4 +1,4 @@
-"""YARA rules for secrets and company code (PRD 9.2). Rules live in `rules/*.yar`."""
+"""YARA rules for secrets and company code. Rules live in `rules/*.yar`."""
 
 from pathlib import Path
 

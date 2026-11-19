@@ -1,4 +1,4 @@
-"""Turn an uploaded file into text (PRD 9.1): PDF, DOCX, and plain text or Markdown."""
+"""Turn an uploaded file into text: PDF, DOCX, and plain text or Markdown."""
 
 import io
 import zipfile

@@ -1,4 +1,4 @@
-# LiteLLM gateway config (PRD sections 7 and 8).
+# LiteLLM gateway config.
 model_list:
   # Cloud model. Needs OPENAI_API_KEY in .env; without it use demo-mock below.
   - model_name: gpt-4o-mini
