@@ -113,7 +113,7 @@ Personal ChatGPT in the browser bypasses the gate, so the extension (`extension/
 ## Evaluation
 How accuracy is measured: a labelled synthetic set of 195 prompts (`data/eval/prompts.csv`: copies, edits, paraphrases, patterns, split leaks and clean prompts, in Greek and English), scored against a regex-and-keyword baseline, plus two attack sets of 80 each (`data/eval/attacks.csv`, `attacks_scripts.csv`) and a red-team run. The expected answer is written before the result is looked at, so known gaps stay in the files. All data is invented.
 
-Measured on 19 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; full tables in `eval/report.md` and `eval/redteam/report.md`, both committed):
+Measured on 19 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; detection tables in `eval/report.md` and `eval/redteam/report.md`, both committed; load-test and RAM numbers come from `make loadtest` and `docker stats` and are also in PROGRESS.md):
 
 | What | Result | Target |
 | --- | --- | --- |
@@ -131,7 +131,7 @@ Measured on 19 Nov 2026 (`make eval`, `make loadtest`, `make redteam`; full tabl
 
 The load-test target is missed on this machine: with three people at once the single brain process queues requests, so p95 is about three times the target even though one request alone is well under it. With earlier turns in the request each earlier message costs an embedding and a people-and-contact call, which is why p95 is higher still; those results are remembered per person for 30 minutes, so only the first request of a long chat is slow (a fresh 300,000 character history takes about 7 s, and one that needs more than the per-request allowance is refused with "too long to check" until a retry has worked through it). `make eval` itself passes its latency target (it measures one request at a time).
 
-The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test p95 sits on the target: 4 of 5 runs passed, by a few milliseconds. Unit tests: 874 brain tests at 88% coverage, 114 web tests and 5 extension tests (`make check`); 40 live gateway tests (`make test-gateway`); 64 end-to-end and accessibility specs (`make e2e`).
+The misses are listed by id in `eval/report.md` and in `docs/BRIEF_MAP.md`. The load-test numbers are in the table above; they are not part of `eval/report.md`. Unit tests: 874 brain tests at 88% coverage, 114 web tests and 5 extension tests (`make check`); 40 live gateway tests (`make test-gateway`); 64 end-to-end and accessibility specs (`make e2e`).
 
 ## Privacy and governance
 
