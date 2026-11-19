@@ -18,8 +18,8 @@ Monitoring staff has legal and works-council implications that vary by country. 
 ## EU AI Act, plainly
 - **Art. 4, AI literacy:** applies since 2 February 2025; organisations must take measures so staff using AI understand it. Plain-word reasons in the product support this. The wording was amended by the Digital Omnibus; the date did not change.
 - **Art. 50, transparency:** main obligations are due in 2026, but secondary sources disagree on whether parts were postponed to 2 December 2026. **Check EUR-Lex before stating a date to anyone.**
-- **High-risk obligations** (Annex III) are reported as moved to 2 December 2027. Hive is not itself a high-risk system as designed (it does not decide on people); a customer who uses it to monitor employees should check with counsel whether their use changes that.
-- Hive tells people when a message was masked, held or answered by a local model, so the user is never unknowingly talking to a stand-in.
+- **High-risk obligations** (Annex III) are reported as moved to 2 December 2027. Sentry is not itself a high-risk system as designed (it does not decide on people); a customer who uses it to monitor employees should check with counsel whether their use changes that.
+- Sentry tells people when a message was masked, held or answered by a local model, so the user is never unknowingly talking to a stand-in.
 
 Sources: [Kennedys on the AI Act timeline](https://kennedyslaw.com/en/thought-leadership/article/2026/the-eu-ai-act-implementation-timeline-understanding-the-next-deadline-for-compliance), [Future of Privacy Forum on the AI Omnibus](https://fpf.org/?p=250371). Both are secondary sources; the Official Journal is the authority.
 

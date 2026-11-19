@@ -5,6 +5,13 @@ Newest entry at the top. Every session ends with a new entry (the `/handoff` com
 Template:
 
 ```
+## 2026-11-19, Alexandros, Sentry rebrand (black and amber)
+**Done:** Hive is now Sentry everywhere a person reads it (web, extension, brain strings, docs). Black and amber palette, shield-with-eye mark, pixel-font logo, Hero Dithering landing with a rolling "Works with" strip, one glass nav on every page (including the app and chat), `/app` lists every tool, eyebrows removed. CanvasFractalGrid dots behind the hero only. New "How it works" page with the architecture diagram, the seven checks, the "two of everything" safeguards and a technique table. Extension: smaller popup and side panel (no scrolling, Close button, Esc), tool logos in Last events, and uploaded files are now checked (picker, drop, paste) through `/v1/check` with attachments; a file stamped RESTRICTED or CONFIDENTIAL is blocked (ported from `task/pdf-block`). Peak chart component added, not wired in yet.
+**Current state:** web 114 tests, extension 37 tests, brain pytest, ruff and mypy pass. The e2e suites were not run; `web/e2e/landing.spec.ts` was rewritten for the new page. The Docker stack on port 3000 is still the old Hive build; run `make down` in the old checkout, then `make up` here.
+**Next step:** wire `peak-chart.tsx` into `SecurityTrends`; run `make e2e` and `make e2e-extension`; check the file upload on claude.ai with a real stamped PDF; decide how to deploy the public pages (the site at data-dna-web.vercel.app is an old Pyli build with no route rewrites).
+**Problems / decisions needed:** `docs/HIVE_PLAN.md` and `PROGRESS.md` history keep the old name on purpose. Logos exist for 8 tools only. `main` is 51 commits ahead of this branch, so merging will need conflict work.
+**Files touched:** `web/src/landing/*`, `web/src/components/ui/*`, `web/src/index.css`, `extension/*`, `services/brain/src/brain/{extension,main,siem}.py`, `services/brain/src/brain/documents/marking.py`, `infra/gateway/dna_inspect.py`.
+
 ## YYYY-MM-DD HH:MM, <name>, task <ID>
 **Done:** what now works (and how to see it)
 **State:** branch, PR link, CI green or red, anything half-done

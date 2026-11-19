@@ -1,4 +1,4 @@
-"""Who watches the watcher (J5): every privacy claim Hive makes, checked against the code.
+"""Who watches the watcher (J5): every privacy claim Sentry makes, checked against the code.
 
 The README privacy section lists each claim with the code and the test that backs it. These tests
 are the ones that did not exist before: nothing stores a raw prompt, no table can quietly gain a
@@ -69,8 +69,8 @@ def test_no_table_has_a_text_column_that_could_hold_a_raw_prompt() -> None:
     unreviewed = risky - set(REVIEWED_TEXT_COLUMNS)
     assert not unreviewed, (
         f"New column(s) that could store a raw prompt: {sorted(unreviewed)}. "
-        "Hive stores masked previews only. If the column is safe, add it to REVIEWED_TEXT_COLUMNS "
-        "with the reason; if it holds user text, remove it."
+        "Sentry stores masked previews only. If the column is safe, add it to "
+        "REVIEWED_TEXT_COLUMNS with the reason; if it holds user text, remove it."
     )
     assert set(REVIEWED_TEXT_COLUMNS) <= risky, "a reviewed column no longer exists; remove it"
 

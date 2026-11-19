@@ -6,11 +6,9 @@ import "@fontsource/poppins/600.css";
 import "@fontsource/space-grotesk/600.css";
 import "../../src/ui.css";
 import { ActionIcon } from "../../src/ActionIcon";
-import { MessageSquareText, RefreshCw, Settings } from "lucide-react";
+import { ExternalLink, MessageSquareText, Settings } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
-import { TrendChart } from "../../src/TrendChart";
-import { daysSeries } from "../../src/history";
-import { getSettings, type DayStats, type RecentEvent } from "../../src/storage";
+import { getSettings, type RecentEvent } from "../../src/storage";
 
 const WORD: Record<string, string> = {
   allow: "Allowed",
@@ -20,7 +18,23 @@ const WORD: Record<string, string> = {
   block: "Blocked",
 };
 
-const TOOL: Record<string, string> = { ChatGPT: "#10a37f", Claude: "#c9623f", Gemini: "#4a7de0" };
+/** Each tool's colour and a white logo bundled with the extension, so the list works offline and no site is contacted. */
+const TOOL: Record<string, { color: string; logo: string }> = {
+  ChatGPT: { color: "#10a37f", logo: "/logos/chatgpt.svg" },
+  "Claude.ai": { color: "#c9623f", logo: "/logos/claude.svg" },
+  Gemini: { color: "#4a7de0", logo: "/logos/gemini.svg" },
+  "Mock AI (demo)": { color: "#2a2520", logo: "/brand/sentry-guard.svg" },
+};
+
+/** The tool's logo on its own colour. A tool without a logo falls back to its first letter. */
+function ToolAvatar({ tool }: { tool: string }) {
+  const t = TOOL[tool];
+  return (
+    <span className="avatar" style={{ background: t?.color ?? "#6b7280" }} aria-hidden="true">
+      {t ? <img src={t.logo} alt="" className="avatar-logo" /> : tool.slice(0, 1)}
+    </span>
+  );
+}
 
 function ago(ts: number): string {
   const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
@@ -31,133 +45,27 @@ function ago(ts: number): string {
 }
 
 /** One ring, split by what happened to everything checked today. The centre says how many saves. */
-function Gauge({ stats }: { stats: DayStats }) {
-  const R = 52;
-  const C = 2 * Math.PI * R;
-  const parts = [
-    { key: "masked", n: stats.masked, label: "Masked" },
-    { key: "warned", n: stats.warned, label: "Warned" },
-    { key: "blocked", n: stats.blocked, label: "Blocked" },
-    { key: "local", n: stats.local, label: "Local" },
-  ];
-  const flagged = parts.reduce((a, p) => a + p.n, 0);
-  const total = Math.max(stats.checked, flagged);
-  const saves = stats.masked + stats.blocked + stats.local;
-  let offset = 0;
-  return (
-    <div className="gauge">
-      <svg
-        viewBox="0 0 130 130"
-        role="img"
-        aria-label={`${total} checked today, ${flagged} flagged`}
-      >
-        <circle cx="65" cy="65" r={R} className="ring-bg" />
-        {total > 0 &&
-          parts.map((p) => {
-            const len = (p.n / total) * C;
-            const el = (
-              <circle
-                key={p.key}
-                cx="65"
-                cy="65"
-                r={R}
-                className={`ring ${p.key}`}
-                strokeDasharray={`${Math.max(len - 3, 0)} ${C}`}
-                strokeDashoffset={-offset}
-              />
-            );
-            offset += len;
-            return p.n > 0 ? el : null;
-          })}
-      </svg>
-      <div className="gauge-center">
-        <b>{total}</b>
-        <span>checked</span>
-      </div>
-      <ul className="legend" aria-label="What happened to them">
-        {parts.map((p) => (
-          <li key={p.key}>
-            <span className={`dot ${p.key}`} aria-hidden="true" />
-            <span>{p.label}</span>
-            <b>{p.n}</b>
-          </li>
-        ))}
-        <li className="saves-line">
-          <span>{saves === 1 ? "1 save" : `${saves} saves`} today</span>
-        </li>
-      </ul>
-    </div>
-  );
+/** The dashboard is on the same machine as the brain, one port over. */
+async function dashboardUrl(): Promise<string> {
+  try {
+    const u = new URL((await getSettings()).brainUrl);
+    u.port = "3000";
+    u.pathname = "/security";
+    return u.toString();
+  } catch {
+    return "http://localhost:3000/security";
+  }
 }
 
-type Span = 7 | 30;
-
-/** One trend card: a number, what it counts, the busiest day and a flat chart. */
-function TrendCard({
-  title,
-  counts,
-  days,
-  accent,
-  unit,
-  empty,
-}: {
-  title: string;
-  counts: Record<string, number>;
-  days: Span;
-  accent: string;
-  unit: string;
-  empty: string;
-}) {
-  const s = daysSeries(counts, new Date(), days);
-  const peak = s.data.indexOf(Math.max(...s.data));
-  return (
-    <div className="weekcard">
-      <h3 className="trend-title">{title}</h3>
-      <p className="week-top">
-        <b>{s.total}</b>
-        <span>in the last {days} days</span>
-      </p>
-      <p className="muted week-sub">
-        {s.total === 0 ? empty : `Busiest day: ${s.labels[peak]}, ${s.data[peak]}`}
-      </p>
-      <TrendChart
-        data={s.data}
-        labels={s.labels}
-        accent={accent}
-        unit={unit}
-        height={130}
-        summary={`${title} per day, last ${days} days. ${s.total} in total.`}
-      />
-    </div>
-  );
-}
-
-const EMPTY: DayStats = { day: "", checked: 0, masked: 0, warned: 0, blocked: 0, local: 0 };
-
+/** Small on purpose: who is signed in, the last few checks, and where to go next. The numbers live on the dashboard. */
 function Popup() {
-  const [stats, setStats] = useState<DayStats>(EMPTY);
   const [recent, setRecent] = useState<RecentEvent[]>([]);
-  const [version, setVersion] = useState<number | null>(null);
   const [who, setWho] = useState("");
-  const [history, setHistory] = useState<Record<string, number>>({});
-  const [checks, setChecks] = useState<Record<string, number>>({});
-  const [span, setSpan] = useState<Span>(7);
 
   useEffect(() => {
     void (async () => {
-      const {
-        stats: s,
-        recent: r,
-        policy,
-        history: h,
-        checks: c,
-      } = await chrome.storage.local.get(["stats", "recent", "policy", "history", "checks"]);
-      setChecks((c as Record<string, number>) ?? {});
-      setHistory((h as Record<string, number>) ?? {});
-      const today = new Date().toISOString().slice(0, 10);
-      if (s && (s as DayStats).day === today) setStats(s as DayStats);
+      const { recent: r } = await chrome.storage.local.get(["recent"]);
       setRecent((r as RecentEvent[]) ?? []);
-      setVersion((policy as { version?: number } | undefined)?.version ?? null);
       const st = await getSettings();
       setWho(st.demoUser || (st.token ? "paired device" : ""));
     })();
@@ -168,57 +76,23 @@ function Popup() {
     if (win.id !== undefined) await chrome.sidePanel.open({ windowId: win.id });
     window.close();
   };
+  const openDashboard = async () => {
+    await chrome.tabs.create({ url: await dashboardUrl() });
+    window.close();
+  };
 
   return (
     <>
       <TextureStyles />
-      <div className="wrap" style={{ width: 440, background: "var(--tint)" }}>
+      <div className="wrap" style={{ width: 380, background: "var(--tint)" }}>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h1 className="sr-only">Sentry</h1>
           <picture>
             <source media="(prefers-color-scheme: dark)" srcSet="/brand/sentry-wordmark-dark.svg" />
-            <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={120} />
+            <img className="wordmark" src="/brand/sentry-wordmark.svg" alt="Sentry" width={110} />
           </picture>
           <span className="muted status">{who ? `Signed in as ${who}` : "Not paired yet"}</span>
         </div>
-        <Gauge stats={stats} />
-        <section aria-labelledby="week-h">
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <h2 id="week-h">Trends</h2>
-            <div role="group" aria-label="Period" className="row" style={{ gap: 6 }}>
-              {([7, 30] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className={span === d ? "primary" : ""}
-                  aria-pressed={span === d}
-                  onClick={() => setSpan(d)}
-                  style={{ minHeight: 36, padding: "0 14px", fontSize: 13 }}
-                >
-                  {d} days
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            <TrendCard
-              title="Checked"
-              counts={checks}
-              days={span}
-              accent="#22c5e8"
-              unit="checked"
-              empty="This fills in as I check what you paste."
-            />
-            <TrendCard
-              title="Leaks stopped"
-              counts={history}
-              days={span}
-              accent="#30752a"
-              unit="stopped"
-              empty="Masked, blocked or kept inside shows up here."
-            />
-          </div>
-        </section>
         <h2>Last events</h2>
         {recent.length === 0 ? (
           <p className="muted">Nothing yet. Each check shows up here.</p>
@@ -226,52 +100,32 @@ function Popup() {
           <ul className="events">
             {recent.slice(0, 3).map((e) => (
               <li key={e.ts} className={`ev ${e.action}`}>
-                <span
-                  className="avatar"
-                  style={{ background: TOOL[e.tool] ?? "#6b7280" }}
-                  aria-hidden="true"
-                >
-                  {e.tool.slice(0, 1)}
-                </span>
+                <ToolAvatar tool={e.tool} />
                 <div className="ev-body">
                   <div className="ev-head">
                     <b>{e.tool}</b>
                     <span className="muted">{ago(e.ts)}</span>
                   </div>
-                  {e.reason && <p className="ev-reason">{e.reason}</p>}
+                  <span className={`tag ${e.action}`}>
+                    <ActionIcon action={e.action} />
+                    {WORD[e.action] ?? e.action}
+                  </span>
                 </div>
-                <span className={`tag ${e.action}`}>
-                  <ActionIcon action={e.action} />
-                  {WORD[e.action] ?? e.action}
-                </span>
               </li>
             ))}
           </ul>
         )}
-        <p className="muted status">
-          Policy version {version ?? "not loaded yet"}{" "}
-          <button
-            type="button"
-            onClick={async () => {
-              const p = (await chrome.runtime.sendMessage({ type: "policy", force: true })) as {
-                version?: number;
-              } | null;
-              setVersion(p?.version ?? null);
-            }}
-            style={{ minHeight: 44, marginLeft: 4 }}
-          >
-            <RefreshCw size={16} aria-hidden="true" />
-            Refresh now
-          </button>
-        </p>
-        <div className="row" style={{ marginTop: 8 }}>
+        <div className="row actions-row" style={{ marginTop: 12 }}>
           <button className="primary" onClick={openPanel} style={{ flex: 1 }}>
             <MessageSquareText size={16} aria-hidden="true" />
-            Open Company AI
+            Company AI
           </button>
-          <button onClick={() => chrome.runtime.openOptionsPage()}>
+          <button onClick={() => void openDashboard()}>
+            <ExternalLink size={16} aria-hidden="true" />
+            Dashboard
+          </button>
+          <button onClick={() => chrome.runtime.openOptionsPage()} aria-label="Settings">
             <Settings size={16} aria-hidden="true" />
-            Settings
           </button>
         </div>
       </div>
@@ -279,4 +133,5 @@ function Popup() {
   );
 }
 
+document.body.classList.add("fit");
 createRoot(document.getElementById("root")!).render(<Popup />);

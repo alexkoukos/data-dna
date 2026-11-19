@@ -19,7 +19,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Engine
 
-from brain.api.schemas import InspectRequest, Message
+from brain.api.schemas import Attachment, InspectRequest, Message
 from brain.config import settings
 from brain.db import tables as t
 from brain.policy import groups
@@ -132,9 +132,11 @@ def _host(url: str) -> str:
 
 
 class CheckRequest(BaseModel):
-    text: str = Field(max_length=200_000)
+    text: str = Field(default="", max_length=200_000)
     tool: str = "unknown"
     url: str = ""
+    # Files attached on the page, base64. A stamped file (RESTRICTED...) never goes out.
+    attachments: list[Attachment] = Field(default_factory=list, max_length=5)
 
 
 class DocumentView(BaseModel):
@@ -195,6 +197,7 @@ def check(
             messages=[Message(role="user", content=req.text)],
             tool=tool,
             channel="extension",
+            attachments=req.attachments,
         ),
         background,
         response,
@@ -480,7 +483,7 @@ def pair(req: PairRequest) -> PairResponse:
     if engine is None or hit is None or hit[1] < time.monotonic():
         raise HTTPException(status_code=400, detail="That code is wrong or has expired.")
     who = identify(None, hit[0])
-    token = "hive_" + secrets.token_urlsafe(24)
+    token = "sentry_" + secrets.token_urlsafe(24)
     with engine.begin() as conn:
         uid = user_row_id(conn, who.user, who.team)
         conn.execute(

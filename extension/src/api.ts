@@ -31,12 +31,13 @@ export async function checkRemote(
   text: string,
   tool: string,
   pageUrl: string,
+  attachments: { filename: string; content_base64: string }[] = [],
 ): Promise<Partial<CheckResult> | null> {
   try {
     const res = await fetch(await url("/v1/check"), {
       method: "POST",
       headers: await headers(),
-      body: JSON.stringify({ text, tool, url: pageUrl }),
+      body: JSON.stringify({ text, tool, url: pageUrl, attachments }),
     });
     if (!res.ok) return null;
     const d = (await res.json()) as CheckOut;

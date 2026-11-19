@@ -114,7 +114,7 @@ function PendingCard({
           type="button"
           disabled={busy || !reviewer.trim()}
           onClick={() => void decide(true)}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#04141a] hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700 disabled:opacity-60"
         >
           Approve
         </button>

@@ -30,6 +30,17 @@ export default function Developers() {
           lead="One command, invented data, no API key."
         />
 
+        <section className="section" aria-labelledby="repo-title">
+          <div className="wrap">
+            <h2 id="repo-title">The code.</h2>
+            <a href={GITHUB} className="pair-card repo-card" target="_blank" rel="noreferrer">
+              <h3>GitHub repository</h3>
+              <p>Brain, dashboard and extension in one repo. Star it, read it, open an issue.</p>
+              <p className="repo-url">{GITHUB.replace("https://", "")}</p>
+            </a>
+          </div>
+        </section>
+
         <section className="section section-white" aria-labelledby="run-title">
           <div className="wrap">
             <h2 id="run-title">Start.</h2>

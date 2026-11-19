@@ -130,31 +130,13 @@ function Options() {
           </p>
         )}
 
-        <h2>What we check and what we keep</h2>
-        <div className="bubble">
-          <p>
-            <b>Checked:</b> the text you paste or send in an AI chat, before it is sent. First in
-            your browser, then on your company&apos;s own server. It is never sent to Sentry&apos;s
-            makers or to any outside service.
-          </p>
-          <p>
-            <b>Kept:</b> a record only when something was found: the kind of data, a masked preview
-            such as GR••••0695, the decision and the reason. Never the full message, never the real
-            values. Messages that match nothing are not stored anywhere.
-          </p>
-          <p>
-            <b>Reported:</b> which AI sites you visit (the site name and the time) so the company
-            can see which tools are in use. No page content.
-          </p>
-          <p>
-            <b>Your name:</b> the dashboard shows a pseudonym and your team. Only two people
-            together, with a written reason, can see who a pseudonym is, and every look is logged.
-          </p>
-          <p>
-            <b>Why this exists:</b> the EU AI Act and GDPR ask companies to be open about
-            monitoring. This is that page.
-          </p>
-        </div>
+        <h2>What we check and keep</h2>
+        <p className="muted">
+          Only the text you paste or send in an AI chat, checked in your browser and on your company
+          server, never by an outside service. A record is kept only when something was found: the
+          kind of data, a masked preview and the decision, never the full message. The dashboard
+          shows a pseudonym, and revealing a name needs two people and is logged.
+        </p>
       </div>
     </>
   );

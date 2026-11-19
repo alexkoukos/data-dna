@@ -2,12 +2,11 @@ import { Link } from "react-router-dom";
 import { TextureButton } from "@/components/ui/texture-button";
 import { HeroLoop } from "./HeroLoop";
 import { Catches } from "./Landing";
-import { HeroBackdrop } from "./HeroBackdrop";
 import { SiteShell } from "./SiteShell";
 
 const STEPS = [
   { t: "Check", d: "Every prompt is scanned before it reaches an AI tool." },
-  { t: "Mask or block", d: "Company data is replaced or stopped. Nothing leaves the hive." },
+  { t: "Mask or block", d: "Company data is replaced or stopped. Nothing leaves the sentry." },
   { t: "Still get an answer", d: "Company AI answers locally, so there is always a way out." },
 ];
 
@@ -17,7 +16,6 @@ export default function LandingV2() {
     <SiteShell home>
       <main id="main">
         <section className="hero" aria-labelledby="v2-title">
-          <HeroBackdrop className="hero-ribbon" />
           <div className="hero-in">
             <div className="hero-copy">
               <h1 id="v2-title">Your data stays yours. Sentry holds the gate.</h1>

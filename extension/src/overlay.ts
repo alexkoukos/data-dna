@@ -25,7 +25,7 @@ const STYLE = `
 .cardwrap { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); width: min(540px, calc(100vw - 32px)); animation: rise .2s ease-out; pointer-events: none; }
 .card::before { content: ""; display: block; height: 4px; background: var(--solid); }
 .card {
-  position: relative; background: #0e141c; color: #eaf0f7;
+  position: relative; background: #11100d; color: #f5f1ea;
   border: 1px solid #e5e7eb; border-radius: 22px; overflow: hidden; pointer-events: auto;
   box-shadow: 0 24px 60px rgba(38,38,38,.22), 0 4px 14px rgba(38,38,38,.1);
 }
@@ -33,8 +33,8 @@ const STYLE = `
 .ribbons { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
 .rib { position: absolute; left: 0; width: 200%; height: 120px; fill: none; stroke-width: 26; stroke-linecap: round; filter: blur(6px); }
 .rib1 { top: -4%; stroke: var(--solid); opacity: .2; animation: flow 18s linear infinite; }
-.rib2 { top: 34%; stroke: #22c5e8; opacity: .24; animation: flow 26s linear infinite reverse; }
-.rib3 { top: 66%; stroke: #67dbf5; opacity: .3; animation: flow 32s linear infinite; }
+.rib2 { top: 34%; stroke: #f59e0b; opacity: .24; animation: flow 26s linear infinite reverse; }
+.rib3 { top: 66%; stroke: #fbbf24; opacity: .3; animation: flow 32s linear infinite; }
 @keyframes flow { to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .rib { animation: none; } }
 /* A second, smaller sentinel patrols the card's edge while the one in the header hovers and scans */
@@ -79,31 +79,31 @@ textarea { width: 100%; min-height: 72px; resize: vertical; font-size: 14px; lin
 .hint kbd { font: inherit; font-weight: 700; border: 1px solid #d1d5db; border-radius: 6px; padding: 1px 6px; background: rgba(255,255,255,.7); }
 @media (max-width: 480px) { .hint { display: none; } }
 .chip, .note { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
-  max-width: min(480px, calc(100vw - 32px)); background: #0e141c; color: #eaf0f7; font-size: 14px; line-height: 21px;
+  max-width: min(480px, calc(100vw - 32px)); background: #11100d; color: #f5f1ea; font-size: 14px; line-height: 21px;
   padding: 12px 20px 12px 14px; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 10px 30px rgba(38,38,38,.16); }
 .chip .sentinel, .note .sentinel { width: 30px; }
-.banner { position: absolute; top: 0; left: 0; right: 0; background: #0e141c; color: #eaf0f7; border-bottom: 2px solid #22c5e8;
+.banner { position: absolute; top: 0; left: 0; right: 0; background: #11100d; color: #f5f1ea; border-bottom: 2px solid #f59e0b;
   padding: 14px 20px; font-size: 14px; display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .banner button { min-height: 40px; }
-textarea:focus-visible, a:focus-visible { outline: 2px solid #67dbf5; outline-offset: 2px; }
+textarea:focus-visible, a:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media all {
-  .chip, .note { background: #0e141c; color: #eaf0f7; border-color: #2f3a4a; }
-  .card { color: #eaf0f7; border-color: rgba(255,255,255,.14); }
-  .card { background: linear-gradient(165deg, color-mix(in srgb, var(--dbg) 70%, #0e141c), color-mix(in srgb, var(--dbg) 30%, #080c11)); }
+  .chip, .note { background: #11100d; color: #f5f1ea; border-color: #332d26; }
+  .card { color: #f5f1ea; border-color: rgba(255,255,255,.14); }
+  .card { background: linear-gradient(165deg, color-mix(in srgb, var(--dbg) 70%, #11100d), color-mix(in srgb, var(--dbg) 30%, #0a0908)); }
   .card::before { background: var(--dsolid); }
-  h2 { color: #eaf0f7; }
+  h2 { color: #f5f1ea; }
   .chipo { color: var(--dfg); }
-  p, label { color: #b9c4d2; }
-  .found li { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); color: #eaf0f7; }
+  p, label { color: #c9c2b8; }
+  .found li { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); color: #f5f1ea; }
   .found li::before { background: var(--dsolid); }
-  .rib1 { stroke: var(--dsolid); opacity: .3; } .rib2 { opacity: .3; } .rib3 { opacity: .2; stroke: #1e8ca8; }
-  .tip { background: rgba(255,255,255,.06); color: #b9c4d2; }
+  .rib1 { stroke: var(--dsolid); opacity: .3; } .rib2 { opacity: .3; } .rib3 { opacity: .2; stroke: #b45309; }
+  .tip { background: rgba(255,255,255,.06); color: #c9c2b8; }
   .actions { border-top-color: rgba(255,255,255,.1); }
-  .hint { color: #9eabbc; } .hint kbd { background: rgba(255,255,255,.08); border-color: #2f3a4a; }
-  code { background: #080c11; border-color: #2f3a4a; color: #eaf0f7; }
-  textarea { background: rgba(255,255,255,.08); color: #eaf0f7; border-color: rgba(255,255,255,.2); }
-  .banner { background: #0e141c; color: #eaf0f7; border-bottom-color: #22c5e8; }
+  .hint { color: #b0a89d; } .hint kbd { background: rgba(255,255,255,.08); border-color: #332d26; }
+  code { background: #0a0908; border-color: #332d26; color: #f5f1ea; }
+  textarea { background: rgba(255,255,255,.08); color: #f5f1ea; border-color: rgba(255,255,255,.2); }
+  .banner { background: #11100d; color: #f5f1ea; border-bottom-color: #f59e0b; }
 }
 ${TEXTURE_CSS}
 `;
@@ -194,7 +194,7 @@ const RIBBONS = ["rib1", "rib2", "rib3"]
   .join("");
 
 /** The sentinel, inline so a site's content security policy cannot block it. */
-const SENTINEL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 74" role="img" aria-hidden="true" focusable="false"><path d="M32 4 L58 14 V36 C58 52 46 63 32 69 C18 63 6 52 6 36 V14 Z" fill="#22c5e8"/><path d="M32 22 C41 22 47 30 47 36 C47 42 41 50 32 50 C23 50 17 42 17 36 C17 30 23 22 32 22 Z" fill="none" stroke="#04141a" stroke-width="3.5"/><circle class="sentinel-eye" cx="32" cy="36" r="6" fill="#04141a"/></svg>`;
+const SENTINEL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 74" role="img" aria-hidden="true" focusable="false"><path d="M32 4 L58 14 V36 C58 52 46 63 32 69 C18 63 6 52 6 36 V14 Z" fill="#f59e0b"/><path d="M32 22 C41 22 47 30 47 36 C47 42 41 50 32 50 C23 50 17 42 17 36 C17 30 23 22 32 22 Z" fill="none" stroke="#1a1000" stroke-width="3.5"/><circle class="sentinel-eye" cx="32" cy="36" r="6" fill="#1a1000"/></svg>`;
 
 function sentinelEl(): HTMLElement {
   const el = document.createElement("span");
@@ -265,7 +265,7 @@ export class Overlay {
 
   constructor() {
     loadFonts();
-    this.host = document.createElement("hive-overlay");
+    this.host = document.createElement("sentry-overlay");
     this.root = this.host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = STYLE;
@@ -337,8 +337,8 @@ export class Overlay {
     el.dataset.action = opts.action;
     el.setAttribute("role", "alertdialog");
     el.setAttribute("aria-modal", "true");
-    el.setAttribute("aria-labelledby", "hive-title");
-    el.setAttribute("aria-describedby", "hive-desc hive-tip");
+    el.setAttribute("aria-labelledby", "sentry-title");
+    el.setAttribute("aria-describedby", "sentry-desc sentry-tip");
 
     // Header band in the outcome colour: the sentinel, the verdict chip, then the headline in its voice.
     const head = document.createElement("div");
@@ -352,7 +352,7 @@ export class Overlay {
     icon.append(lucideEl(a.icon, 14));
     chipo.append(icon, document.createTextNode(a.word));
     const h2 = document.createElement("h2");
-    h2.id = "hive-title";
+    h2.id = "sentry-title";
     h2.textContent = opts.title;
     text.append(h2);
     head.append(sentinelEl(), text, chipo);
@@ -369,7 +369,7 @@ export class Overlay {
     const main = document.createElement("div");
     main.className = "main";
     const desc = document.createElement("div");
-    desc.id = "hive-desc";
+    desc.id = "sentry-desc";
     const [first, ...rest] = opts.reasons;
     if (first) {
       const p = document.createElement("p");
@@ -396,7 +396,7 @@ export class Overlay {
     }
     if (rest.length) {
       const tip = document.createElement("p");
-      tip.id = "hive-tip";
+      tip.id = "sentry-tip";
       tip.className = "tip";
       tip.textContent = rest.join(" ");
       main.append(tip);
@@ -409,10 +409,10 @@ export class Overlay {
     let reasonBox: HTMLTextAreaElement | null = null;
     if (opts.askReason) {
       const lab = document.createElement("label");
-      lab.htmlFor = "hive-reason";
+      lab.htmlFor = "sentry-reason";
       lab.textContent = "Why do you need to send this? (saved with the log)";
       reasonBox = document.createElement("textarea");
-      reasonBox.id = "hive-reason";
+      reasonBox.id = "sentry-reason";
       main.append(lab, reasonBox);
     }
     const actions = document.createElement("div");

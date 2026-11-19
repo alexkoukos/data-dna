@@ -44,7 +44,13 @@ export const DEFAULT_SETTINGS: Settings = {
 
 /** Messages from the page scripts to the service worker. */
 export type Msg =
-  | { type: "l2"; text: string; tool: string; url: string }
+  | {
+      type: "l2";
+      text: string;
+      tool: string;
+      url: string;
+      attachments?: { filename: string; content_base64: string }[];
+    }
   | {
       type: "event";
       tool: string;

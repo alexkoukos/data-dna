@@ -65,7 +65,7 @@ function AnswerView({ answer }: { answer: Answer }) {
         <pre
           tabIndex={0}
           aria-label="SQL for this answer"
-          className="mt-2 overflow-x-auto rounded-lg bg-ink-900 p-4 text-sm text-ink-50"
+          className="mt-2 overflow-x-auto rounded-lg border border-ink-300 bg-ink-100 p-4 text-sm text-ink-900"
         >
           <code>{answer.sql}</code>
         </pre>

@@ -6,6 +6,8 @@ export type Period = (typeof PERIODS)[number];
 export interface Series {
   data: number[];
   labels: string[];
+  /** The day (or first of the month) each bucket starts, as YYYY-MM-DD. */
+  dates: string[];
   total: number;
 }
 
@@ -15,6 +17,8 @@ interface Row {
 }
 
 const DAY = 86_400_000;
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 /**
@@ -42,6 +46,14 @@ export function buildSeries(
       ? `${d.toLocaleDateString("en", { weekday: "short" })} ${d.getDate()}`
       : `${d.getDate()} ${d.toLocaleDateString("en", { month: "short" })}`;
   });
+  const dates = Array.from({ length: n }, (_, i) => {
+    const back = n - 1 - i;
+    return iso(
+      monthly
+        ? new Date(last.getFullYear(), last.getMonth() - back, 1)
+        : new Date(last.getTime() - back * DAY),
+    );
+  });
   for (const r of rows) {
     if (!pick(r)) continue;
     const t = new Date(r.ts);
@@ -52,7 +64,7 @@ export function buildSeries(
     const idx = n - 1 - back;
     if (idx >= 0 && idx < n) data[idx] += 1;
   }
-  return { data, labels, total: data.reduce((a, b) => a + b, 0) };
+  return { data, labels, dates, total: data.reduce((a, b) => a + b, 0) };
 }
 
 /** "up" when the later half of the series is higher than the earlier half, "down" when lower. */

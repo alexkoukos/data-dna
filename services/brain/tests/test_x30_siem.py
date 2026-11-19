@@ -55,11 +55,11 @@ def test_cef_line_format() -> None:
     parts = line.split("|", 7)
     assert parts[:7] == [
         "CEF:0",
-        "Hive",
+        "Sentry",
         "Gate",
         "1.0",
         "block",
-        "Hive block: ChatGPT (personal)",
+        "Sentry block: ChatGPT (personal)",
         "8",
     ]
     ext = parts[7]
@@ -79,7 +79,7 @@ def test_cef_severity_follows_the_decision() -> None:
 
 def test_cef_escapes_pipes_equals_backslashes_and_newlines() -> None:
     line = siem.to_cef(_ev(tool="A|B", team="x=y\\z\nw"))
-    assert "Hive block: A\\|B" in line.split("|8|")[0] + ""
+    assert "Sentry block: A\\|B" in line.split("|8|")[0] + ""
     ext = line.split("|8|", 1)[1]
     assert "cs1=x\\=y\\\\z\\nw" in ext
     assert "\n" not in line
@@ -110,7 +110,7 @@ def test_webhook_body_is_signed_with_the_exact_bytes_sent(monkeypatch: pytest.Mo
     siem.send_webhook(_ev(), "http://siem.example/hook", "s3cret")
     headers = seen["headers"]
     assert isinstance(headers, dict)
-    assert siem.verify(seen["content"], "s3cret", headers["X-Hive-Signature"])  # type: ignore[arg-type]
+    assert siem.verify(seen["content"], "s3cret", headers["X-Sentry-Signature"])  # type: ignore[arg-type]
     assert json.loads(seen["content"])["user_key_id"] == "u-de036ece"  # type: ignore[arg-type]
 
 
@@ -121,7 +121,7 @@ def test_syslog_udp_delivers_the_cef_line() -> None:
     siem.send_syslog(siem.to_cef(_ev()), "127.0.0.1", srv.getsockname()[1], "udp")
     data = srv.recv(4096).decode()
     srv.close()
-    assert data.startswith("<134>") and " hive: CEF:0|Hive|Gate|1.0|block|" in data
+    assert data.startswith("<134>") and " sentry: CEF:0|Sentry|Gate|1.0|block|" in data
 
 
 def test_syslog_tcp_delivers_a_newline_terminated_line() -> None:
@@ -141,7 +141,7 @@ def test_syslog_tcp_delivers_a_newline_terminated_line() -> None:
     siem.send_syslog(siem.to_cef(_ev()), "127.0.0.1", srv.getsockname()[1], "tcp")
     th.join(3)
     srv.close()
-    assert got[0].endswith(b"\n") and b"CEF:0|Hive" in got[0]
+    assert got[0].endswith(b"\n") and b"CEF:0|Sentry" in got[0]
 
 
 def test_push_never_raises_when_the_siem_is_down(monkeypatch: pytest.MonkeyPatch) -> None:

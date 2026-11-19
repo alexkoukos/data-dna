@@ -39,7 +39,8 @@ export class Unmasker {
       return;
     }
     if (!(node instanceof HTMLElement)) return;
-    if (node.closest('hive-overlay, textarea, [contenteditable="true"], .sentry-restored')) return;
+    if (node.closest('sentry-overlay, textarea, [contenteditable="true"], .sentry-restored'))
+      return;
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
     const texts: Text[] = [];
     while (walker.nextNode()) texts.push(walker.currentNode as Text);
@@ -50,7 +51,7 @@ export class Unmasker {
     const parent = text.parentElement;
     if (
       !parent ||
-      parent.closest('.sentry-restored, textarea, [contenteditable="true"], hive-overlay')
+      parent.closest('.sentry-restored, textarea, [contenteditable="true"], sentry-overlay')
     )
       return;
     const value = text.data;
@@ -65,7 +66,7 @@ export class Unmasker {
       const idx = m.index ?? 0;
       frag.append(value.slice(last, idx));
       const span = document.createElement("span");
-      span.className = "hive-restored";
+      span.className = "sentry-restored";
       span.textContent = real;
       span.title = "Restored on this page only. The AI never saw this value.";
       span.style.cssText = "text-decoration: underline dotted; text-underline-offset: 3px;";

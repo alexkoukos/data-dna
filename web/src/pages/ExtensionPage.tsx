@@ -11,6 +11,7 @@ import {
   type PairingCode,
 } from "../lib/extensionApi";
 import { useFetch } from "../lib/useFetch";
+import { ExtensionTerminal, INSTALL_TABS, OUTCOME_TABS } from "../components/ExtensionTerminal";
 import { TextureButton } from "@/components/ui/texture-button";
 import { Check, Copy, ExternalLink, KeyRound } from "lucide-react";
 
@@ -175,7 +176,6 @@ export default function ExtensionPage() {
   const [lang, setLang] = useState<Lang>("en");
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <p className="eyebrow">Sentry</p>
       <h1 className="text-3xl font-semibold text-ink-900">Get the extension</h1>
       <p className="mt-2 max-w-prose text-ink-600">
         The extension sits in Chrome, right where people paste into ChatGPT, Claude or Gemini. It
@@ -202,6 +202,11 @@ export default function ExtensionPage() {
             </li>
             <li>Choose Load unpacked and select the folder.</li>
           </ol>
+          <ExtensionTerminal
+            tabs={INSTALL_TABS}
+            label="The commands to download and install the extension, one tab for each"
+            className="pt-2"
+          />
           <p className="text-sm text-ink-600">
             In a company this step does not exist: IT installs it for everyone with a Chrome policy
             (an example is in <code className="rounded bg-ink-100 px-1">deploy/</code>).
@@ -235,6 +240,20 @@ export default function ExtensionPage() {
           </div>
         </Step>
       </ol>
+
+      <section aria-labelledby="cards-h" className="mt-8">
+        <h2 id="cards-h" className="text-lg font-semibold text-ink-900">
+          What the extension card says
+        </h2>
+        <p className="mt-1 max-w-prose text-ink-600">
+          Each outcome shows a card like this on the AI site. Pick one to see its words.
+        </p>
+        <ExtensionTerminal
+          tabs={OUTCOME_TABS}
+          label="The card the extension shows for each of the five outcomes"
+          className="mt-3"
+        />
+      </section>
 
       <ul className="mt-4 space-y-3" aria-label="Sample texts">
         {SAMPLES.map((s) => (

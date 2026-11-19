@@ -193,7 +193,7 @@ def test_pairing_gives_a_token_that_identifies_the_person(
     assert len(code) == 6
     paired = client.post("/v1/pair", json={"code": code}).json()
     assert paired["user"] == user
-    assert paired["token"].startswith("hive_")
+    assert paired["token"].startswith("sentry_")
     pol = client.get("/v1/policy", headers={"Authorization": f"Bearer {paired['token']}"}).json()
     assert (pol["user"], pol["team"]) == (user, team)
     # A code works once, and the token is stored hashed.

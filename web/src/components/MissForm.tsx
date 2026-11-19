@@ -50,7 +50,7 @@ export function MissForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-4 min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#04141a] hover:bg-brand-700"
+        className="mt-4 min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700"
       >
         It got through
       </button>
@@ -115,7 +115,7 @@ export function MissForm({
           type="submit"
           disabled={state === "busy"}
           aria-busy={state === "busy"}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#04141a] hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700 disabled:opacity-60"
         >
           {state === "busy" ? "Sending…" : "Send this text as a test case"}
         </button>

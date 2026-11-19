@@ -5,11 +5,22 @@ import "@fontsource/plus-jakarta-sans/800.css";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./landing.css";
+import { SiteNav } from "./SiteNav";
+import { LogoBar } from "./LogoBar";
+import { Checkpoint, HowItWorks, Solved } from "./Sections";
 import { TextureButton } from "@/components/ui/texture-button";
-import { HeroLoop } from "./HeroLoop";
-import { HeroBackdrop } from "./HeroBackdrop";
-
-const GITHUB = "https://github.com/alexkoukos/data-dna";
+import {
+  HeroDitheringActions,
+  HeroDitheringContainer,
+  HeroDitheringContent,
+  HeroDitheringDescription,
+  HeroDitheringHeading,
+  HeroDitheringMobileVisual,
+  HeroDitheringRoot,
+  HeroDitheringVisual,
+} from "@/components/ui/hero-dithering";
+import { CanvasFractalGrid } from "@/components/ui/canvas-fractal-grid";
+import { PixelHeading } from "@/components/ui/pixel-heading-character";
 
 type Kind = "mask" | "block" | "local" | "warn";
 const GLYPH: Record<Kind, string> = { mask: "◐", block: "■", local: "⌂", warn: "▲" };
@@ -103,26 +114,6 @@ const CATCHES: {
   },
 ];
 
-const WATCHER = [
-  ["Self-hosted.", "Runs in your own Docker setup, on your own servers."],
-  ["No raw prompts stored.", "The log keeps what was found and what was done, not the text."],
-  ["Masked previews only.", "Security teams see [SALARY_1], not the salary."],
-  ["Two-person reveal.", "Seeing an original value needs a second person to approve."],
-  ["An audit log.", "Every decision and every reveal is recorded."],
-];
-
-function Wordmark({ reverse = false, className = "" }: { reverse?: boolean; className?: string }) {
-  return (
-    <img
-      className={className}
-      src={reverse ? "/brand/sentry-wordmark-reverse.svg" : "/brand/sentry-wordmark.svg"}
-      alt="Sentry"
-      width="173"
-      height="70"
-    />
-  );
-}
-
 export function Catches() {
   const [pick, setPick] = useState(0);
   const c = CATCHES[pick];
@@ -214,56 +205,82 @@ function useReveal(root: React.RefObject<HTMLDivElement | null>) {
 export default function Landing() {
   const rootRef = useRef<HTMLDivElement>(null);
   useReveal(rootRef);
+  const [reduceMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [playHeading, setPlayHeading] = useState(!reduceMotion);
+  useEffect(() => {
+    if (!playHeading) return;
+    const t = window.setTimeout(() => setPlayHeading(false), 3200);
+    return () => window.clearTimeout(t);
+  }, [playHeading]);
   return (
-    <div className="sentry" ref={rootRef}>
+    <div className="sentry dark" ref={rootRef}>
       <a className="skip" href="#main">
         Skip to content
       </a>
-      <header className="top">
-        <nav aria-label="Main" className="top-in">
-          <Link to="/" className="top-logo" aria-label="Sentry home">
-            <Wordmark reverse className="top-wordmark" />
-          </Link>
-          <div className="top-links">
-            <a href="#catches">What it catches</a>
-            <a href="#security">For security teams</a>
-            <Link to="/app" className="btn btn-primary btn-sm">
-              Live demo
-            </Link>
-          </div>
-        </nav>
-      </header>
+      <SiteNav />
 
       <main id="main">
-        <section className="hero" aria-labelledby="hero-title">
-          <HeroBackdrop className="hero-ribbon" />
-          <div className="hero-in">
-            <div className="hero-copy">
-              <h1 id="hero-title">Your data stays yours. Sentry holds the gate.</h1>
-              <p className="lead">
-                Sentry checks every prompt before it reaches an AI tool, masks or stops what belongs
-                to your company, and always shows a way to still get your answer.
-              </p>
-              <div className="cta">
-                <TextureButton asChild variant="primary" size="lg">
-                  <Link to="/app">See the live demo</Link>
-                </TextureButton>
-                <TextureButton asChild variant="secondary" size="lg">
-                  <a href="#catches">See what it catches</a>
-                </TextureButton>
-              </div>
+        <HeroDitheringRoot
+          className="hero-dither"
+          srTitle="Your data stays yours. Sentry holds the gate."
+          description="Sentry checks every prompt before it reaches an AI tool, masks or stops what belongs to your company, and always shows a way to still get your answer."
+          renderCta={() => (
+            <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <TextureButton asChild variant="primary" size="lg">
+                <Link to="/app">See the live demo</Link>
+              </TextureButton>
+              <TextureButton asChild variant="secondary" size="lg">
+                <Link to="/how-it-works">See how it works</Link>
+              </TextureButton>
             </div>
-            <HeroLoop />
-          </div>
-        </section>
+          )}
+          desktopShaderProps={{
+            colorFront: "#ffa60d",
+            colorBack: "#0a0908",
+            width: 800,
+            height: 800,
+            scale: 0.7,
+            speed: reduceMotion ? 0 : 0.9,
+          }}
+          mobileShaderProps={{ colorFront: "#ffa60d", speed: reduceMotion ? 0 : 0.7 }}
+        >
+          <CanvasFractalGrid
+            contained
+            className="[mask-image:linear-gradient(to_bottom,black_72%,transparent)]"
+          />
+          <HeroDitheringContainer>
+            <HeroDitheringContent>
+              <HeroDitheringHeading>
+                <PixelHeading
+                  as="h2"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  mode="wave"
+                  autoPlay={playHeading}
+                  cycleInterval={340}
+                  staggerDelay={60}
+                  showLabel={false}
+                  className="font-normal"
+                >
+                  Your data stays yours. Sentry holds the gate.
+                </PixelHeading>
+              </HeroDitheringHeading>
+              <HeroDitheringDescription />
+              <HeroDitheringActions />
+            </HeroDitheringContent>
+            <HeroDitheringVisual className="aspect-square w-full max-w-[520px] justify-self-center lg:h-auto xl:h-auto" />
+          </HeroDitheringContainer>
+          <HeroDitheringMobileVisual />
+        </HeroDitheringRoot>
 
-        <section id="catches" className="section" aria-labelledby="catches-title">
-          <div className="wrap" data-reveal>
-            <h2 id="catches-title">The things people paste without thinking.</h2>
-            <p className="section-sub">Pick one to see what you paste and what leaves.</p>
-            <Catches />
-          </div>
-        </section>
+        <LogoBar />
+
+        <HowItWorks />
+        <Solved />
 
         <section id="security" className="section section-white" aria-labelledby="sec-title">
           <div className="wrap sec-grid" data-reveal>
@@ -273,6 +290,7 @@ export default function Landing() {
                 The Overview counts saves, not violations. It shows which tools your teams use, what
                 was kept in, and what needs a second look.
               </p>
+              <Checkpoint />
               <TextureButton asChild variant="secondary" size="lg">
                 <Link to="/security">Open the Overview</Link>
               </TextureButton>
@@ -296,41 +314,7 @@ export default function Landing() {
             </figure>
           </div>
         </section>
-
-        <section className="section" aria-labelledby="watch-title">
-          <div className="wrap" data-reveal>
-            <h2 id="watch-title">The gate is guarded too.</h2>
-            <ul className="watch">
-              {WATCHER.map(([title, text]) => (
-                <li key={title}>
-                  <strong>{title}</strong> {text}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
       </main>
-
-      <footer className="foot">
-        <div className="wrap foot-in">
-          <Wordmark className="foot-wordmark" />
-          <p>Built for the Netcompany Hackathon 2026</p>
-          <nav aria-label="Footer" className="foot-nav">
-            <Link to="/how-it-works" className="foot-link">
-              Deep dive
-            </Link>
-            <Link to="/trust" className="foot-link">
-              Security and privacy
-            </Link>
-            <Link to="/developers" className="foot-link">
-              Developers
-            </Link>
-            <a href={GITHUB} className="foot-link">
-              GitHub
-            </a>
-          </nav>
-        </div>
-      </footer>
     </div>
   );
 }

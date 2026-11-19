@@ -5,31 +5,31 @@
 /* Sentry brand tokens (Sentry brand kit v1, night palette). Pick only from these scales (see CLAUDE.md, frontend rules).
    The ink scale runs dark to light on purpose: ink-50 is the page, ink-900 is the text. */
 @theme static {
-  /* Brand: Beacon cyan. Cyan is a fill (night text on it); brand-700 is the cyan that must be read on dark. */
-  --color-brand-50: #06202a;
-  --color-brand-100: #0a3140;
-  --color-brand-200: #0f4a5f;
-  --color-brand-300: #17687f;
-  --color-brand-400: #1e8ca8;
-  --color-brand-500: #1fb0d0;
-  --color-brand-600: #22c5e8;
-  --color-brand-700: #67dbf5;
-  --color-brand-800: #a5ecfb;
-  --color-brand-900: #ddf8fd;
+  /* Brand: Hive amber. Amber is a fill (ink text on it); brand-700 is the amber that must be read on dark. */
+  --color-brand-50: #1c1202;
+  --color-brand-100: #2b1a03;
+  --color-brand-200: #452a05;
+  --color-brand-300: #7c4a06;
+  --color-brand-400: #b45309;
+  --color-brand-500: #e9a516;
+  --color-brand-600: #f59e0b;
+  --color-brand-700: #fbbf24;
+  --color-brand-800: #fcd34d;
+  --color-brand-900: #fef3c7;
 
-  /* Ink: night slate, dark to light */
-  --color-ink-50: #080c11;
-  --color-ink-100: #111823;
-  --color-ink-200: #1b2330;
-  --color-ink-300: #2f3a4a;
-  --color-ink-400: #6f7e91;
-  --color-ink-500: #8795a8;
-  --color-ink-600: #9eabbc;
-  --color-ink-700: #b9c4d2;
-  --color-ink-800: #d3dce7;
-  --color-ink-900: #eaf0f7;
+  /* Ink: warm black, dark to light */
+  --color-ink-50: #0a0908;
+  --color-ink-100: #14110e;
+  --color-ink-200: #1f1b16;
+  --color-ink-300: #332d26;
+  --color-ink-400: #8a8277;
+  --color-ink-500: #9d958a;
+  --color-ink-600: #b0a89d;
+  --color-ink-700: #c9c2b8;
+  --color-ink-800: #e3ddd4;
+  --color-ink-900: #f5f1ea;
   /* Raised surface: cards, panels, popovers */
-  --color-surface: #0e141c;
+  --color-surface: #11100d;
   /* Text that sits on a solid outcome or destructive fill */
   --color-on-solid: #ffffff;
 
@@ -52,14 +52,14 @@
 
   /* shadcn aliases, so ui components resolve to Sentry tokens. Do not use these in screens. */
   --color-primary: var(--color-brand-600);
-  --color-primary-foreground: #04141a;
+  --color-primary-foreground: #1a1000;
   --color-secondary: var(--color-ink-100);
   --color-secondary-foreground: var(--color-ink-900);
   --color-destructive: var(--color-block-solid);
   --color-accent: var(--color-ink-100);
   --color-accent-foreground: var(--color-ink-900);
   --color-background: var(--color-ink-50);
-  --color-input: var(--color-ink-300);
+  --color-input: var(--color-ink-400);
   --color-ring: var(--color-brand-600);
   --color-muted-foreground: var(--color-ink-600);
   --color-foreground: var(--color-ink-900);
@@ -129,23 +129,13 @@ h2 {
   letter-spacing: 0;
 }
 body {
-  @apply bg-ink-50 text-ink-900 font-sans antialiased;
+  @apply text-ink-900 font-sans antialiased;
 }
 
 /* Visible keyboard focus everywhere (WCAG 2.4.7). */
 :focus-visible {
   outline: 2px solid var(--color-brand-700);
   outline-offset: 2px;
-}
-
-/* Eyebrow: 12 px caps, +8% tracking, brand-700. */
-.eyebrow {
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-brand-700);
 }
 
 /* Motion. Calm and purposeful: things arrive, settle, and answer touch. Everything stops for people who ask for reduced motion. */
@@ -310,4 +300,96 @@ details[open] > :not(summary) {
 .prompt-textarea:focus-visible {
   outline: none;
   box-shadow: none;
+}
+
+/* ---------- Geist Pixel (SIL OFL, files in public/fonts/geist-pixel) ----------
+   Used for pixel headings and the numbers for what Sentry saves. The pixel fonts are Latin only, so
+   Greek text falls through to Poppins. */
+@font-face {
+  font-family: "Geist Pixel Square";
+  src: url("/fonts/geist-pixel/GeistPixel-Square.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Pixel Grid";
+  src: url("/fonts/geist-pixel/GeistPixel-Grid.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Pixel Circle";
+  src: url("/fonts/geist-pixel/GeistPixel-Circle.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Pixel Triangle";
+  src: url("/fonts/geist-pixel/GeistPixel-Triangle.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Pixel Line";
+  src: url("/fonts/geist-pixel/GeistPixel-Line.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@theme static {
+  --font-pixel-square: "Geist Pixel Square", var(--font-sans);
+  --font-pixel-grid: "Geist Pixel Grid", var(--font-sans);
+  --font-pixel-circle: "Geist Pixel Circle", var(--font-sans);
+  --font-pixel-triangle: "Geist Pixel Triangle", var(--font-sans);
+  --font-pixel-line: "Geist Pixel Line", var(--font-sans);
+}
+
+/* ---------- Aliases for components written against the plain shadcn variable names ---------- */
+:root {
+  --card: var(--color-card);
+  --border: var(--color-border);
+  --foreground: var(--color-foreground);
+  --muted-foreground: var(--color-muted-foreground);
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-primary-foreground);
+}
+
+/* The blinking cursor of the animated terminal */
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+@utility animate-caret-blink {
+  animation: caret-blink 1s step-end infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-caret-blink {
+    animation: none;
+  }
+}
+
+/* The animated terminal reads the plain shadcn colour names; give it a dark set of its own. */
+.term-dark {
+  --color-foreground: #f5f5f4;
+  --color-muted-foreground: #a8a29e;
+  --color-muted: rgba(255, 255, 255, 0.08);
+  --color-border: rgba(255, 255, 255, 0.18);
+  --color-card: #14110d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sentinel,
+  .sentinel .sentinel-eye {
+    animation: none;
+  }
 }

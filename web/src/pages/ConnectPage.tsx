@@ -108,7 +108,7 @@ function Snippets({ identity, url }: { identity: Identity; url: string }) {
             <pre
               tabIndex={0}
               aria-label={`${current.label} code`}
-              className="mt-3 overflow-x-auto rounded-lg bg-ink-900 p-4 text-sm text-ink-50"
+              className="mt-3 overflow-x-auto rounded-lg border border-ink-300 bg-ink-100 p-4 text-sm text-ink-900"
             >
               <code>{current.code}</code>
             </pre>
@@ -133,7 +133,6 @@ export default function ConnectPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
-      <p className="eyebrow">Sentry</p>
       <h1 className="text-2xl font-semibold text-ink-900">Connect a tool</h1>
       <p className="mt-1 max-w-prose text-ink-600">
         Point any tool that speaks the OpenAI format at the address below, with your personal key.
@@ -141,8 +140,9 @@ export default function ConnectPage() {
       </p>
       <p className="mt-2 max-w-prose rounded-md bg-ink-100 p-3 text-sm text-ink-700">
         This is the other way in, for scripts and coding tools that do not run in a browser. It
-        needs the optional gateway: run <code className="rounded bg-surface px-1">make gateway</code>.
-        For people at their browser, use the extension.
+        needs the optional gateway: run{" "}
+        <code className="rounded bg-surface px-1">make gateway</code>. For people at their browser,
+        use the extension.
       </p>
 
       {state.status === "loading" && (

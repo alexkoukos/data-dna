@@ -95,7 +95,7 @@ export function RequestToolForm({
           type="submit"
           disabled={state === "busy" || !tool.trim() || !reason.trim()}
           aria-busy={state === "busy"}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#04141a] hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700 disabled:opacity-60"
         >
           {state === "busy" ? "Sending…" : "Send request"}
         </button>

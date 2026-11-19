@@ -5,7 +5,7 @@ import "@fontsource/poppins/700.css";
 import "@fontsource/poppins/600.css";
 import "@fontsource/space-grotesk/600.css";
 import "../../src/ui.css";
-import { ExternalLink, House, SendHorizontal } from "lucide-react";
+import { ExternalLink, House, SendHorizontal, X } from "lucide-react";
 import { TextureStyles } from "../../src/TextureStyles";
 import {
   AnswerActions,
@@ -70,6 +70,15 @@ function Panel() {
   }, []);
 
   useEffect(() => {
+    if (IN_TAB) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") window.close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
     // Braces matter: an effect must not return the value of scrollIntoView (a Promise in new Chrome).
     end.current?.scrollIntoView({ block: "end" });
   }, [turns, busy]);
@@ -94,6 +103,17 @@ function Panel() {
             <House size={12} aria-hidden="true" />
             Stays inside the company
           </span>
+          {!IN_TAB && (
+            <button
+              type="button"
+              onClick={() => window.close()}
+              aria-label="Close Company AI"
+              style={{ minHeight: 36, padding: "0 12px", fontSize: 13 }}
+            >
+              <X size={14} aria-hidden="true" />
+              Close
+            </button>
+          )}
           {!IN_TAB && (
             <button
               type="button"
@@ -163,4 +183,5 @@ function Panel() {
   );
 }
 
+document.body.classList.add("fit");
 createRoot(document.getElementById("root")!).render(<Panel />);

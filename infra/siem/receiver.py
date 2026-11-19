@@ -23,5 +23,5 @@ if __name__ == "__main__":
     udp = socketserver.ThreadingUDPServer(("0.0.0.0", 514), Udp)
     tcp = socketserver.ThreadingTCPServer(("0.0.0.0", 514), Tcp)
     threading.Thread(target=udp.serve_forever, daemon=True).start()
-    print("Hive demo syslog receiver listening on 514 (udp and tcp)", flush=True)
+    print("Sentry demo syslog receiver listening on 514 (udp and tcp)", flush=True)
     tcp.serve_forever()

@@ -1,18 +1,18 @@
-/* Sentry brand kit v1, night palette. Cyan is a fill (night ink on it); accent-text is the cyan that must be read. */
+/* Sentry brand kit v1, black and amber palette. Amber is a fill (ink on it); accent-text is the amber that must be read. */
 :root {
   color-scheme: dark;
-  --tint: #080c11;
-  --bg: #0e141c;
-  --subtle: #111823;
-  --muted-bg: #1b2330;
-  --line: #2f3a4a;
-  --fg: #eaf0f7;
-  --muted: #b9c4d2;
-  --subtle-fg: #9eabbc;
-  --accent: #22c5e8;
-  --accent-fill: #1fb0d0;
-  --accent-text: #67dbf5;
-  --on-accent: #04141a;
+  --tint: #0a0908;
+  --bg: #11100d;
+  --subtle: #14110e;
+  --muted-bg: #1f1b16;
+  --line: #332d26;
+  --fg: #f5f1ea;
+  --muted: #c9c2b8;
+  --subtle-fg: #b0a89d;
+  --accent: #f59e0b;
+  --accent-fill: #e9a516;
+  --accent-text: #fbbf24;
+  --on-accent: #1a1000;
 
   --mask-bg: #24163a;
   --mask-fg: #d1b3ff;
@@ -369,6 +369,11 @@ ul.events li.ev {
   font-weight: 700;
   font-size: 14px;
 }
+.avatar-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
 .ev-body {
   flex: 1;
   min-width: 0;
@@ -558,4 +563,18 @@ button.act[aria-pressed="true"] {
 .in-tab {
   max-width: 760px;
   margin: 0 auto;
+}
+
+/* The popup and the side panel fit the space they open in. Nothing scrolls except the chat itself. */
+body.fit {
+  margin: 0;
+  overflow: hidden;
+}
+body.fit .wrap {
+  overflow: hidden;
+}
+
+.actions-row button {
+  padding: 0 14px;
+  white-space: nowrap;
 }

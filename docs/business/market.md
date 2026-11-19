@@ -1,6 +1,6 @@
 # Market and the problem in numbers (T5)
 
-Written for the judges and a first customer. Every figure has a source and a caveat. Surveys and market forecasts disagree widely, so each is shown as a range or a direction, not as a fact about our own product. Nothing here is a measurement of Hive.
+Written for the judges and a first customer. Every figure has a source and a caveat. Surveys and market forecasts disagree widely, so each is shown as a range or a direction, not as a fact about our own product. Nothing here is a measurement of Sentry.
 
 ## The problem: employees already put company data into AI tools
 | Figure | What it measures | Source |

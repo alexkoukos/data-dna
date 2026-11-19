@@ -125,10 +125,10 @@ def verify(body: bytes, secret: str, signature: str) -> bool:
     return hmac.compare_digest(sign(body, secret), signature.removeprefix("sha256="))
 
 
-def syslog_message(cef: str, host: str = "hive", now: datetime | None = None) -> bytes:
+def syslog_message(cef: str, host: str = "sentry", now: datetime | None = None) -> bytes:
     """RFC 3164 frame at facility local0, severity info (<134>), with the CEF line as the text."""
     stamp = (now or datetime.now(UTC)).strftime("%b %e %H:%M:%S")
-    return f"<134>{stamp} {host} hive: {cef}".encode()
+    return f"<134>{stamp} {host} sentry: {cef}".encode()
 
 
 def send_syslog(cef: str, host: str, port: int, proto: str) -> None:

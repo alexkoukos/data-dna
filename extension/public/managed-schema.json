@@ -3,7 +3,7 @@
   "properties": {
     "brainUrl": {
       "title": "Company server address",
-      "description": "Where Sentry sends text to be checked, for example https://hive.example.com",
+      "description": "Where Sentry sends text to be checked, for example https://sentry.example.com",
       "type": "string"
     },
     "token": {

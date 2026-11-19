@@ -17,7 +17,7 @@ import { Eraser, ScanSearch } from "lucide-react";
 
 function savedNick(): string {
   try {
-    return localStorage.getItem("hive.nick") ?? "";
+    return localStorage.getItem("sentry.nick") ?? "";
   } catch {
     return "";
   }
@@ -73,7 +73,7 @@ function Verdict({
           <pre
             tabIndex={0}
             aria-label="Masked text"
-            className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-lg bg-ink-900 p-4 text-sm text-ink-50"
+            className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-lg border border-ink-300 bg-ink-100 p-4 text-sm text-ink-900"
           >
             {result.masked_text}
           </pre>
@@ -142,7 +142,7 @@ export default function BreakItPage() {
     setError(null);
     try {
       try {
-        localStorage.setItem("hive.nick", nickname.trim());
+        localStorage.setItem("sentry.nick", nickname.trim());
       } catch {
         // a private window: the nickname just is not remembered
       }

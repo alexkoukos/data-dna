@@ -504,7 +504,7 @@ export default function ChatPage() {
                                 <Tool
                                   className="w-full max-w-md"
                                   toolPart={{
-                                    type: "hive_check",
+                                    type: "sentry_check",
                                     state: "output-available",
                                     input: { message: `${asked?.text.length ?? 0} characters` },
                                     output: {

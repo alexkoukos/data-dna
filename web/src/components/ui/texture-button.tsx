@@ -19,7 +19,8 @@ const buttonVariants = cva(
       variant: {
         primary:
           "border-brand-700/50 bg-brand-600 text-ink-900 hover:bg-brand-500 active:bg-brand-700/40",
-        accent: "border-brand-600 bg-brand-600 text-primary-foreground hover:bg-brand-500 active:bg-brand-400",
+        accent:
+          "border-brand-600 bg-brand-600 text-primary-foreground hover:bg-brand-500 active:bg-brand-400",
         destructive:
           "border-block-solid bg-block-solid text-white hover:bg-block-fg active:bg-block-fg",
         secondary: "border-ink-300 bg-surface text-ink-900 hover:bg-ink-50 active:bg-ink-100",

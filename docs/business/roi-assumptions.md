@@ -1,6 +1,6 @@
 # ROI assumptions (X18)
 
-The ROI view (`GET /v1/roi`, page "ROI" in the security area) estimates the cost avoided by what Hive stopped. It is an estimate built from the assumptions below, not a measurement. The numbers are illustrative and invented for the demo. Replace them with the company's own figures before showing anyone a total. Source in code: `services/brain/src/brain/insights.py` (`UNIT_COST_EUR`, `DOC_COST_EUR`, `LIKELIHOOD`). Change this file and the code together.
+The ROI view (`GET /v1/roi`, page "ROI" in the security area) estimates the cost avoided by what Sentry stopped. It is an estimate built from the assumptions below, not a measurement. The numbers are illustrative and invented for the demo. Replace them with the company's own figures before showing anyone a total. Source in code: `services/brain/src/brain/insights.py` (`UNIT_COST_EUR`, `DOC_COST_EUR`, `LIKELIHOOD`). Change this file and the code together.
 
 ## How it is computed
 1. Take incidents in the window (default 30 days) whose outcome stopped data leaving: **Masked, Answered locally, Blocked**. Warned incidents are not counted, because the person may still have sent the message. Incidents recorded in shadow mode are shown separately as "would have stopped".

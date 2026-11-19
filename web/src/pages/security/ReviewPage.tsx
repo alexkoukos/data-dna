@@ -43,7 +43,7 @@ function Row({
       <pre
         tabIndex={0}
         aria-label="Submitted text"
-        className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-ink-900 p-3 text-sm text-ink-50"
+        className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-ink-300 bg-ink-100 p-3 text-sm text-ink-900"
       >
         {c.text}
       </pre>
@@ -57,7 +57,7 @@ function Row({
           type="button"
           disabled={busy || !reviewer.trim()}
           onClick={() => void act("approve")}
-          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#04141a] hover:bg-brand-700 disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-brand-600 px-5 text-sm font-semibold text-[#1a1000] hover:bg-brand-700 disabled:opacity-60"
         >
           Approve
         </button>

@@ -12,6 +12,8 @@ describe("App", () => {
     );
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
-    expect(within(nav).getByRole("link", { name: "Get the extension" })).toBeInTheDocument();
+    for (const name of ["How it works", "Security", "Developers", "Company AI", "Live demo"]) {
+      expect(within(nav).getByRole("link", { name })).toBeInTheDocument();
+    }
   });
 });

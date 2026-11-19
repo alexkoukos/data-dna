@@ -76,6 +76,176 @@ export default defineContentScript({
       true,
     );
 
+    // ---- files: the picker, drag and drop, and pasted files, checked before the page sees them ----
+    const READABLE = /\.(pdf|docx|txt|md|csv|json|log|png|jpe?g)$/i;
+    const MAX_FILE_BYTES = 10 * 1024 * 1024;
+    let passing = false; // set while we hand back files we already checked
+
+    async function toAttachment(file: File) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000)
+        bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return { filename: file.name, content_base64: btoa(bin) };
+    }
+
+    /** Ask the company server about the files. Calls release() to let them through, drop() to stop them. */
+    async function guardFiles(files: File[], release: () => void, drop: () => void) {
+      const list = files.filter((f) => READABLE.test(f.name) && f.size <= MAX_FILE_BYTES);
+      if (!list.length) return release();
+      overlay.chip(`Checking ${list.length === 1 ? list[0]!.name : `${list.length} files`}…`);
+      const r = await send<Partial<CheckResult>>({
+        type: "l2",
+        text: "",
+        tool: adapter!.tool,
+        url: location.href,
+        attachments: await Promise.all(list.map(toAttachment)),
+      });
+      overlay.clearChip();
+      if (!r || !r.action) {
+        // The server could not be reached: the browser cannot read a file, so it lets it through and says so.
+        overlay.note("Company server not reached, so the file was not checked.");
+        return release();
+      }
+      void send({
+        type: "event",
+        tool: adapter!.tool,
+        host: location.hostname,
+        action: r.action,
+        category: "file",
+      });
+      if (r.action === "allow") return release();
+      if (r.action === "warn" || r.action === "mask") {
+        const choice = await overlay.card({
+          action: "warn",
+          title: "Check before attaching",
+          reasons: ["This file may contain sensitive data.", ...(r.reasons ?? [])],
+          details: r.findings?.map((f) => `${label(f.category)}: ${f.preview}`),
+          buttons: [
+            { id: "remove", label: "Remove file", kind: "primary" },
+            { id: "attach", label: "Attach anyway", kind: "danger" },
+          ],
+        });
+        if (choice.id === "attach") {
+          void send({
+            type: "override",
+            tool: adapter!.tool,
+            host: location.hostname,
+            reason: "attached a file anyway from the browser",
+          });
+          release();
+        } else drop();
+        return;
+      }
+      drop();
+      const choice = await overlay.card({
+        action: "block",
+        title: "File not attached",
+        reasons: [
+          "This file is confidential and must stay inside the company.",
+          ...(r.reasons ?? []),
+        ],
+        buttons: [
+          { id: "ok", label: "Close", kind: "secondary" },
+          { id: "ask", label: "Open company AI", kind: "primary" },
+        ],
+      });
+      if (choice.id === "ask") void send({ type: "openPanel", prompt: "" });
+    }
+
+    const toTransfer = (files: File[]) => {
+      const dt = new DataTransfer();
+      for (const f of files) dt.items.add(f);
+      return dt;
+    };
+
+    document.addEventListener(
+      "change",
+      (e) => {
+        const input = e.target;
+        if (passing || !(input instanceof HTMLInputElement) || input.type !== "file") return;
+        const files = [...(input.files ?? [])];
+        if (!files.length) return;
+        e.stopImmediatePropagation();
+        void guardFiles(
+          files,
+          () => {
+            passing = true;
+            try {
+              input.dispatchEvent(new Event("change", { bubbles: true }));
+            } finally {
+              passing = false;
+            }
+          },
+          () => {
+            input.value = "";
+          },
+        );
+      },
+      true,
+    );
+
+    document.addEventListener(
+      "drop",
+      (e) => {
+        const files = [...(e.dataTransfer?.files ?? [])];
+        if (passing || !files.length) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const target = e.target as EventTarget;
+        void guardFiles(
+          files,
+          () => {
+            passing = true;
+            try {
+              target.dispatchEvent(
+                new DragEvent("drop", {
+                  bubbles: true,
+                  cancelable: true,
+                  dataTransfer: toTransfer(files),
+                }),
+              );
+            } finally {
+              passing = false;
+            }
+          },
+          () => {},
+        );
+      },
+      true,
+    );
+
+    // A pasted file (a copied PDF). Pasted text is handled above.
+    document.addEventListener(
+      "paste",
+      (e) => {
+        const files = [...(e.clipboardData?.files ?? [])];
+        if (passing || !files.length || e.clipboardData?.getData("text/plain")) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const target = e.target as EventTarget;
+        void guardFiles(
+          files,
+          () => {
+            passing = true;
+            try {
+              target.dispatchEvent(
+                new ClipboardEvent("paste", {
+                  bubbles: true,
+                  cancelable: true,
+                  clipboardData: toTransfer(files),
+                }),
+              );
+            } finally {
+              passing = false;
+            }
+          },
+          () => {},
+        );
+      },
+      true,
+    );
+
     async function guard(e: Event) {
       if (bypass) return;
       if (busy) {
