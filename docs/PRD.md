@@ -225,8 +225,7 @@ Each finding: `{entity, start, end, confidence, masked_preview}`. Never store ra
 Config in DB, editable in the dashboard, seeded from `policies.yaml`:
 
 ```yaml
-defaults:
-  on_gateway_down: { restricted: fail_closed, other: fail_open }
+# on_gateway_down is not implemented: the gateway always fails closed (503) when the brain is down.
 categories:
   greek_id:     mask
   iban:         mask

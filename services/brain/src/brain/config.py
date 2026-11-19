@@ -10,9 +10,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     litellm_master_key: str = "sk-admin-change-me"
     gateway_url: str = "http://gateway:4000"
-    local_llm_model: str = "gemma3:1b"
     local_llm_url: str = "http://ollama:11434"
-    embed_model: str = "intfloat/multilingual-e5-small"
     retention_days: int = 30
     alert_webhook_url: str = ""
     key_rpm_limit: int = 0
