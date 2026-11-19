@@ -52,7 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uvx pip-audit -r <(cd services/brain && uv export --frozen --no-dev --no-hashes --no-emit-project)
+      - run: uvx --python 3.12 pip-audit -r <(cd services/brain && uv export --frozen --no-dev --no-hashes --no-emit-project)
         shell: bash
       - run: cd web && npm ci && npm audit --omit=dev --audit-level=high
 
