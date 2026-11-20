@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { SiteFooter } from "./landing/SiteFooter";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SiteNav } from "./landing/SiteNav";
+import { useScrollOnNavigate } from "./landing/useScrollOnNavigate";
 import BreakItPage from "./pages/BreakItPage";
 import HomePage from "./pages/HomePage";
 import ExtensionPage from "./pages/ExtensionPage";
@@ -47,6 +48,7 @@ function NotFoundInApp() {
 
 export default function App() {
   const { pathname } = useLocation();
+  useScrollOnNavigate();
   // The public site has its own header and footer, and no app chrome.
   const Page = SITE_PAGES[pathname];
   // The Security page became a section of How it works.
