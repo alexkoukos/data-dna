@@ -3,7 +3,7 @@
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 
-from brain.detection.normalize import normalise
+from brain.detection.normalize import Normalised, normalise
 from brain.detection.patterns import Finding, find_patterns, mask
 from brain.documents.registry import DocMatch
 from brain.policy.engine import PRECEDENCE, Decision, Verdict, decide
@@ -32,6 +32,26 @@ def _add_without_overlap(base: list[Finding], extra: list[Finding]) -> list[Find
         if not any(f.start < b.end and b.start < f.end for b in out):
             out.append(f)
     return sorted(out, key=lambda f: f.start)
+
+
+def _view_findings(norm: Normalised, view_finders: Sequence[Finder]) -> list[Finding]:
+    """What the other readings of a text (de-spaced, decoded, ROT13...) find, once per value."""
+    found: list[Finding] = []
+    for view in norm.extra_views:
+        found.extend(find_patterns(view))
+        for vf in view_finders:
+            found.extend(vf(view))
+    for view in norm.phrase_views:
+        for vf in view_finders:
+            found.extend(vf(view))
+    seen: set[tuple[str, str]] = set()
+    out: list[Finding] = []
+    for f in found:
+        key = (f.entity, "".join(f.value.split()))
+        if key not in seen:
+            seen.add(key)
+            out.append(f)
+    return out
 
 
 HIGH_CONFIDENCE = 0.91  # a rewrite scoring below this is a likely match, not a certain one
@@ -75,6 +95,7 @@ def inspect_text(
         # ordinary secret finding, so the alarm names a leaked document, not just "a key".
         decoys = priority_finder(norm.text)
         findings = _add_without_overlap(decoys, findings)
+    exact = findings  # pattern and decoy findings, before the looser finders
     stopped = False
     if early_stop and expensive:
         found: dict[int, list[Finding]] = {
@@ -104,14 +125,12 @@ def inspect_text(
     else:
         for finder in finders:
             findings = _add_without_overlap(findings, finder(norm.text))
-    hidden: list[Finding] = []
-    for view in norm.extra_views:
-        hidden.extend(find_patterns(view))
-        for vf in view_finders:
-            hidden.extend(vf(view))
-    for view in norm.phrase_views:
-        for vf in view_finders:
-            hidden.extend(vf(view))
+    hidden = _view_findings(norm, view_finders)
+    if hidden:
+        # A value written normally ("4111 1111 1111 1111") is found again in the de-spaced copy.
+        # Only what the copies still find once the exact findings are masked was hidden. Looser
+        # finders (a phone shape over "0/9/0/9/...") do not count: spacing a value out is evasion.
+        hidden = _view_findings(normalise(mask(norm.text, exact)[0]), view_finders)
     categories = [f.category for f in findings + hidden]
     doc_matches = doc_matcher(norm.text) if doc_matcher else []
     if doc_matcher and not doc_matches and "client_name" in categories:

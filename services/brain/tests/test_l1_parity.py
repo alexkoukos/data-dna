@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from brain.detection.pipeline import inspect_text
+from brain.policy.engine import Decision
 
 FIXTURES = Path(__file__).resolve().parents[3] / "shared" / "fixtures" / "l1.json"
 CASES = [
@@ -25,3 +26,9 @@ def test_brain_matches_shared_fixture(case: dict) -> None:
     assert got == want
     for signal in case.get("signals", []):
         assert signal in result.evasion_signals
+    # A hidden value cannot be masked in place, so it warns; one written normally is masked.
+    if case.get("hidden") is True:
+        assert result.verdict.decision == Decision.WARN
+    if case.get("hidden") is False:
+        assert result.verdict.decision == Decision.MASK
+        assert all(e["value"] not in result.masked_text for e in case["expect"])

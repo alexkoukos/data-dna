@@ -51,6 +51,44 @@
       "expect": []
     },
     {
+      "name": "card spaced",
+      "text": "Charge card 4111 1111 1111 1111 for the order",
+      "expect": [
+        {
+          "entity": "CARD",
+          "value": "4111 1111 1111 1111"
+        }
+      ],
+      "hidden": false
+    },
+    {
+      "name": "card dashed",
+      "text": "Charge card 4111-1111-1111-1111 today",
+      "expect": [
+        {
+          "entity": "CARD",
+          "value": "4111-1111-1111-1111"
+        }
+      ],
+      "hidden": false
+    },
+    {
+      "name": "amex grouped",
+      "text": "Amex 3782 822463 10005 on file",
+      "expect": [
+        {
+          "entity": "CARD",
+          "value": "3782 822463 10005"
+        }
+      ],
+      "hidden": false
+    },
+    {
+      "name": "card spaced bad luhn",
+      "text": "Ref 4111 1111 1111 1112 is not a card",
+      "expect": []
+    },
+    {
       "name": "iban valid",
       "text": "Pay to GR1601101250000000012300695 today",
       "expect": [
@@ -68,7 +106,8 @@
           "entity": "IBAN",
           "value": "GR16 0110 1250 0000 0001 2300 695"
         }
-      ]
+      ],
+      "hidden": false
     },
     {
       "name": "iban bad checksum",
@@ -230,6 +269,19 @@
         }
       ],
       "hidden": true,
+      "signals": [
+        "spaced_digits"
+      ]
+    },
+    {
+      "name": "card shown and hidden",
+      "text": "Card 4111 1111 1111 1111, again 4 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1",
+      "expect": [
+        {
+          "entity": "CARD",
+          "value": "4111 1111 1111 1111"
+        }
+      ],
       "signals": [
         "spaced_digits"
       ]

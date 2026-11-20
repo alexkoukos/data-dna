@@ -1,5 +1,5 @@
 import { afmOk, amkaOk, ibanOk, luhnOk } from "./validators";
-import { DIGITS, IBAN, PATTERNS, SECRETS, SOURCE_CODE } from "./rules";
+import { CARD_GROUPED, DIGITS, IBAN, PATTERNS, SECRETS, SOURCE_CODE } from "./rules";
 import { normalise } from "./normalize";
 
 export interface Finding {
@@ -57,6 +57,18 @@ export function findPatterns(text: string): Finding[] {
         start,
         end: start + d.length,
         value: d,
+      });
+    }
+  }
+  for (const m of text.matchAll(CARD_GROUPED.rx)) {
+    if (luhnOk(m[0].replace(/[ -]/g, ""))) {
+      const start = m.index ?? 0;
+      found.push({
+        entity: CARD_GROUPED.entity,
+        category: CARD_GROUPED.category,
+        start,
+        end: start + m[0].length,
+        value: m[0],
       });
     }
   }
@@ -150,16 +162,26 @@ export interface Scan {
 
 export function scan(raw: string, clients: string[] = []): Scan {
   const norm = normalise(raw);
-  const direct = addWithoutOverlap(findPatterns(norm.text), findClients(norm.text, clients));
+  const exact = findPatterns(norm.text);
+  const direct = addWithoutOverlap(exact, findClients(norm.text, clients));
+  // A value written normally ("4111 1111 1111 1111") is found again in the de-spaced copy. Only
+  // what the copies still find once the pattern findings are masked was hidden; a
+  // second, hidden copy of a value that is also written normally is therefore still caught.
+  const rest = normalise(mask(norm.text, exact).text);
+  const seen = new Set<string>();
   const hidden: Finding[] = [];
-  for (const view of norm.views) {
-    for (const f of findPatterns(view)) hidden.push({ ...f, hidden: true });
+  for (const view of rest.views) {
+    for (const f of findPatterns(view)) {
+      const key = `${f.entity}:${f.value.replace(/\s/g, "")}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        hidden.push({ ...f, hidden: true });
+      }
+    }
   }
-  const seen = new Set(direct.map((f) => `${f.entity}:${f.value.replaceAll(" ", "")}`));
-  const extra = hidden.filter((f) => !seen.has(`${f.entity}:${f.value.replaceAll(" ", "")}`));
   return {
     text: norm.text,
-    findings: [...direct, ...extra],
+    findings: [...direct, ...hidden],
     signals: norm.signals,
     sourceCode: looksLikeSourceCode(norm.text),
   };

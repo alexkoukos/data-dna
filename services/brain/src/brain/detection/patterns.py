@@ -22,6 +22,12 @@ class Finding:
 
 
 _DIGITS = re.compile(r"(?<!\d)\d{9,19}(?!\d)")
+# A card written in its printed groups, one kind of separator throughout: 4-4-4-4(-1..3) or the
+# 4-6-4/4-6-5 of Diners and Amex. Not part of a longer spaced run of digits.
+_CARD_GROUPED = re.compile(
+    r"(?<!\w)(?<!\d[ -])(?:\d{4}([ -])\d{4}\1\d{4}\1\d{4}(?:\1\d{1,3})?|\d{4}([ -])\d{6}\2\d{4,5})"
+    r"(?!\w)(?![ -]\d)"
+)
 _IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,3})?\b")
 _SECRETS = [
     ("openai_key", re.compile(r"\bsk-(?:live-|proj-)?[A-Za-z0-9_\-]{16,}\b")),
@@ -92,6 +98,9 @@ def find_patterns(text: str) -> list[Finding]:
             found.append(Finding("AMKA", "greek_id", m.start(), m.end(), d))
         elif 13 <= len(d) <= 19 and luhn_ok(d):
             found.append(Finding("CARD", "card", m.start(), m.end(), d))
+    for m in _CARD_GROUPED.finditer(text):
+        if luhn_ok(re.sub(r"[ -]", "", m.group(0))):
+            found.append(Finding("CARD", "card", m.start(), m.end(), m.group(0)))
     for name, rx in _SECRETS:
         for m in rx.finditer(text):
             found.append(Finding(name.upper(), "secret", m.start(), m.end(), m.group(0)))
