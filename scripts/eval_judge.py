@@ -42,7 +42,7 @@ DOC_DIR = ROOT / "data" / "documents"
 PROMPTS = ROOT / "data" / "eval" / "prompts.csv"
 ATTACKS = ROOT / "data" / "eval" / "attacks.csv"
 HOLDOUT = ROOT / "services" / "brain" / "tests" / "data" / "holdout.json"
-BASE_RATE = 0.30  # share of leaks among borderline messages (PROGRESS.md)
+BASE_RATE = 0.30  # share of leaks among borderline messages
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 PHONE = re.compile(r"(?:\+30[ .-]?)?69\d{2}[ .-]?\d{6}")

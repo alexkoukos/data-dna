@@ -66,4 +66,4 @@ Test set: 639 rows (304 leaks, 335 negatives, 60 of them the original D7 negativ
 | trap_same_number | NO | 1/1 |
 | trap_similar_words | NO | 3/3 |
 
-Precision and recall are over all rows. An answer that is not valid JSON counts as NO. 'Precision at 30% leaks' re-weights the false positive rate to the real base rate. Reference from PROGRESS.md: untuned gemma3:1b gave 42 false positives out of the 60 (earlier prompt, so not exactly comparable).
+Precision and recall are over all rows. An answer that is not valid JSON counts as NO. 'Precision at 30% leaks' re-weights the false positive rate to the real base rate. Reference: untuned gemma3:1b gave 42 false positives out of the 60 (earlier prompt, so not exactly comparable).

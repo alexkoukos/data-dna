@@ -1,4 +1,4 @@
-"""Red team (TASKS.md E2): attack the safety check with known attack prompts and report what passes.
+"""Red team: attack the safety check with known attack prompts and report what passes.
 
   make redteam        (needs `make up`; Node for promptfoo; uv for garak's prompt library)
 

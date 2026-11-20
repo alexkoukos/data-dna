@@ -9,19 +9,17 @@ Deadline: Friday 20 Nov 2026, judged from the repo alone. If `docker compose up 
 
 ## Start of every session (the `/start` command does this)
 1. `git pull` on `main`.
-2. Read the newest entry at the top of `PROGRESS.md` and the task board `TASKS.md`.
-2b. After every `git pull`: if the pull touched `infra/db/`, `docker-compose.yml` or any Dockerfile, run `make reset` (it deletes only the local synthetic database) and then `make up`. Database init files run on a fresh volume only, so skipping this gives a stack that looks fine but is missing tables or databases. If the pull touched `.env.example`, compare it with your `.env` and add the new variables.
+2. After every `git pull`: if the pull touched `infra/db/`, `docker-compose.yml` or any Dockerfile, run `make reset` (it deletes only the local synthetic database) and then `make up`. Database init files run on a fresh volume only, so skipping this gives a stack that looks fine but is missing tables or databases. If the pull touched `.env.example`, compare it with your `.env` and add the new variables.
 3. Run `make doctor`. If something is missing, help the user install it before anything else.
-4. Tell the user, in simple Greek, where the project stands and which task is next for them.
+4. Tell the user, in simple Greek, where the project stands (open PRs and recent merges).
 
 ## While working
-- One task from `TASKS.md` at a time. Mark it `[~] (name)` when you start.
 - Work on a branch `task/<ID>-<short-name>` and open a PR into `main`. Never push directly to `main`.
 - Small commits that each leave tests green.
 - Before every commit: `make check`. Do not commit with failing checks; fix them or ask.
-- Never break `docker compose up --build`. Any change to Dockerfiles, compose or dependencies needs a note in `PROGRESS.md` and, if possible, a real `make up` run.
+- Never break `docker compose up --build`. Any change to Dockerfiles, compose or dependencies needs a note in the PR description and, if possible, a real `make up` run.
 - Dependencies: add with `uv add <pkg>` (in `services/brain`) or `npm install <pkg>` (in `web`) so the lock files update, and commit the lock files. Never install anything only on your machine.
-- Database changes: never edit an applied init file. Add a new numbered file in `infra/db/` and tell the team in `PROGRESS.md` to run `make reset` after pulling.
+- Database changes: never edit an applied init file. Add a new numbered file in `infra/db/` and say in the PR description that the team must run `make reset` after pulling.
 - A new compose variable goes in `.env.example` with a safe default in `docker-compose.yml`, so a fresh clone still starts.
 - Any service that depends on another must wait for it with a health check (`depends_on: condition: service_healthy`).
 - No secrets in code, tests, logs or commits. Keys live in `.env` only.
@@ -32,10 +30,8 @@ Deadline: Friday 20 Nov 2026, judged from the repo alone. If `docker compose up 
 ## End of every session (the `/handoff` command does this)
 When the task is done, or the user says they are stopping or running out of tokens:
 1. `make check`. Note anything failing.
-2. Add a new entry at the TOP of `PROGRESS.md` using its template: what was done, current state, exact next step, open problems, files touched.
-3. Update `TASKS.md` statuses.
-4. Commit, push the branch, open or update the PR, and give the user its link.
-The next person must be able to continue from the PROGRESS entry alone.
+2. Commit, push the branch, open or update the PR, and give the user its link.
+The PR description says what was done, the current state, the exact next step and open problems, so the next person can continue from it alone.
 
 ## Code conventions
 - Brain: Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2. `ruff` and `mypy --strict` must pass. Tests in `services/brain/tests`, coverage at least 80%.

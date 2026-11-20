@@ -1,4 +1,4 @@
-"""MCP proxy (TASKS.md M1): sit between an AI tool and an MCP server and check what comes back.
+"""MCP proxy: sit between an AI tool and an MCP server and check what comes back.
 
 Tool results, web pages and file contents are untrusted: they can carry instructions meant for the
 model ("ignore previous instructions ..."). This proxy forwards every MCP message unchanged except

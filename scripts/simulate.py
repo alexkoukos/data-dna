@@ -44,7 +44,7 @@ def load_prompts() -> tuple[list[str], list[str]]:
             clean = [r["text"] for r in rows if r["label"] == "clean"]
             risky = [r["text"] for r in rows if r["label"] != "clean"]
             return clean, risky
-    sys.exit("No prompts found. See TASKS.md T3, or run scripts/gen_eval_sample.py.")
+    sys.exit("No prompts found. Run scripts/gen_eval_sample.py or fill data/eval/prompts.csv.")
 
 
 def now_ms() -> int:

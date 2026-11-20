@@ -1,4 +1,4 @@
-"""Benchmark small local models (TASKS.md L1): speed and a look at the Greek answers.
+"""Benchmark small local models: speed and a look at the Greek answers.
 
 Needs an Ollama server with the models pulled:
   docker run -d --name bench-ollama -p 11434:11434 -v bench-ollama:/root/.ollama ollama/ollama

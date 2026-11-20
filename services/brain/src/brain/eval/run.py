@@ -89,7 +89,7 @@ def load_rows(data_dir: Path) -> tuple[list[Row], str]:
             ]
         if len(rows) >= MIN_ROWS:
             return rows, name
-    raise SystemExit("No evaluation prompts found. See TASKS.md T3 and scripts/gen_eval_sample.py.")
+    raise SystemExit("No evaluation prompts found. Run scripts/gen_eval_sample.py or fill data/eval/prompts.csv.")
 
 
 @dataclass
