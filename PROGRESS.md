@@ -5,6 +5,12 @@ Newest entry at the top. Every session ends with a new entry (the `/handoff` com
 Template:
 
 ```
+## 2026-11-20 10:00, Claude session, extension outcome e2e no longer depends on test order
+**Done:** The smoke job kept failing on `extension/tests/e2e/outcomes.spec.ts` (1 allow en/el, 2 mask el) with no assistant message and nothing sent. Cause, read from the failure diagnostics: the brain's session memory (`documents/session.py`) blocks the third prompt a person sends that touches a restricted document ("38% of 'Board memo' rebuilt from 4 prompts"), and every e2e sample is sent as the same person, together with the web e2e before it and retries. Whether a sample was allowed depended on what had run before. The spec now empties `session_coverage` before each test (`docker compose exec db psql`, silently skipped when there is no docker). The product rule is unchanged. The earlier brain warm-up (PR #71) was a guess and stays harmless.
+**State:** branch `task/e2e-reset-session-memory`. Extension lint, typecheck, format; outcomes spec 11/11 locally, four runs in a row.
+**Next step:** merge, then update PR #76 with main.
+**Problems / decisions needed:** the rule itself is aggressive for a real person: three prompts that each touch only 2% of a restricted document are blocked as a rebuild. Worth a look before the demo; the limit is `MAX_PROMPTS_RESTRICTED` in `session.py`.
+**Files touched:** extension/tests/e2e/outcomes.spec.ts, PROGRESS.md.
 ## 2026-11-20 09:00, Claude session, file extraction cannot tie up the worker pool
 **Done:** Security review finding on `brain/files.py`: the 60 s extraction timeout gave up on a request but not on its thread, so slow files could fill the 2-worker pool and queue new uploads behind them. Now a slot is taken before a read starts and freed only when the thread ends (not when the request gives up). With both slots taken a new file gets `503` ("The server is busy reading other files. Wait a few seconds and attach it again.") with `Retry-After: 5`, straight away. Test: `test_extract_refuses_when_every_slot_is_busy`. Also, earlier today: the extension outcome e2e warms the brain first (its check waits only 400 ms), and the sticky-footer layout from PR #72 was taken out because it made `/connect` scroll sideways at 390 px in CI.
 **State:** branch `task/extract-busy-guard`. Brain tests, ruff, mypy green.
