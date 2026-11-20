@@ -43,6 +43,25 @@ async function warmUp(request: APIRequestContext) {
 const received = async (request: APIRequestContext) =>
   (await (await request.get(`${MOCK}/api/received`)).json()) as string[];
 
+test.afterEach(async ({ context, request }, info) => {
+  if (info.status === info.expectedStatus) return;
+  for (const page of context.pages()) {
+    const text = await page.evaluate(() => document.body.innerText).catch(() => "?");
+    const shadow = await page
+      .evaluate(() =>
+        [...document.querySelectorAll("*")]
+          .map((e) => e.shadowRoot?.textContent?.trim() ?? "")
+          .filter(Boolean)
+          .join(" | "),
+      )
+      .catch(() => "?");
+    console.log(
+      `DIAG ${info.title} url=${page.url()}\nBODY: ${text.slice(0, 600)}\nSHADOW: ${shadow.slice(0, 600)}`,
+    );
+  }
+  console.log(`DIAG received: ${JSON.stringify(await received(request))}`);
+});
+
 test.beforeEach(async ({ request }) => {
   test.skip(!(await stackReady(request)), "needs the full stack: make up (brain with documents)");
   await warmUp(request);

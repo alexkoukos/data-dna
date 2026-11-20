@@ -10,20 +10,6 @@ import { useSeen } from "./Sections";
 import { SiteShell } from "./SiteShell";
 import { LANDING_ONLY } from "./mode";
 
-/** A real answer from the brain for this message (POST /v1/check, tool Claude.ai). */
-const TYPED: (string | [string, string])[] = [
-  "Please wire 12,400 EUR to ",
-  ["GR1601101250000000012300695", "IBAN"],
-  " for ",
-  ["Maria Papadopoulou", "NAME"],
-];
-const SENT = "Please wire 12,400 EUR to [IBAN_1] for [PERSON_1]";
-const CHECKS: [string, string][] = [
-  ["Your browser", "IBAN found · 2 ms"],
-  ["Your server", "Name found · 9 ms"],
-  ["Your rules", "Hide both · 1 ms"],
-];
-
 const OUTCOMES: [string, string, string][] = [
   ["allow", "Allowed", "Nothing sensitive. It goes as written."],
   ["warn", "Warned", "Looks sensitive. You confirm, or edit."],
@@ -135,50 +121,6 @@ export default function DeepDive() {
                 )}
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="section" aria-labelledby="steps-h">
-          <div className="wrap">
-            <PixelHeading as="h2" id="steps-h" mode="multi" className="font-normal">
-              Three steps. A tenth of a second.
-            </PixelHeading>
-            <ol className="steps3">
-              <li className="step3">
-                <span className="step3-n">1</span>
-                <h3>You send</h3>
-                <p className="ex-box">
-                  {TYPED.map((p, i) =>
-                    typeof p === "string" ? (
-                      <span key={i}>{p}</span>
-                    ) : (
-                      <mark key={i} className="ex-hit">
-                        {p[0]}
-                        <small>{p[1]}</small>
-                      </mark>
-                    ),
-                  )}
-                </p>
-              </li>
-              <li className="step3">
-                <span className="step3-n">2</span>
-                <h3>Sentry checks</h3>
-                <ul className="ex-checks">
-                  {CHECKS.map(([who, what]) => (
-                    <li key={who}>
-                      <b>{who}</b>
-                      <em>{what}</em>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-              <li className="step3">
-                <span className="step3-n">3</span>
-                <h3>The AI gets the safe version</h3>
-                <p className="ex-box ex-out">{SENT}</p>
-                <p className="ex-note">Your answer comes back with the real values put back.</p>
-              </li>
-            </ol>
           </div>
         </section>
 
