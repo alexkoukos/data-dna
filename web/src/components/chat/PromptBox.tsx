@@ -9,7 +9,7 @@ import {
 import { PromptSuggestion } from "@/components/ui/prompt-suggestion";
 import { TextureButton } from "@/components/ui/texture-button";
 import { suggestFor } from "../../lib/chatPrompts";
-import { TYPE_NAMES, type Attachment } from "../../lib/attachments";
+import { typeNames, type Attachment } from "../../lib/attachments";
 import { AttachmentChips } from "./AttachmentChips";
 
 interface Props {
@@ -44,6 +44,7 @@ export function PromptBox({
   onRemoveFile,
 }: Props) {
   const suggestions = busy || attachments.length ? [] : suggestFor(value);
+  const kinds = typeNames(accept.split(","));
   const reading = attachments.some((a) => a.status === "reading");
   const hasFiles = attachments.some((a) => a.status === "ready");
   const canSend = !busy && !reading && (!!value.trim() || hasFiles);
@@ -75,7 +76,7 @@ export function PromptBox({
             <div className="flex items-center gap-2">
               {onAddFiles ? (
                 <FileUpload onFilesAdded={onAddFiles} accept={accept} disabled={busy}>
-                  <PromptInputAction tooltip={`Attach files (${TYPE_NAMES})`}>
+                  <PromptInputAction tooltip={`Attach files (${kinds})`}>
                     <FileUploadTrigger asChild>
                       <TextureButton
                         variant="secondary"
@@ -94,7 +95,7 @@ export function PromptBox({
                         Drop files to attach them
                       </p>
                       <p className="mt-1 text-sm text-ink-700">
-                        {TYPE_NAMES}. They are checked before anything is sent.
+                        {kinds}. They are checked before anything is sent.
                       </p>
                     </div>
                   </FileUploadContent>
