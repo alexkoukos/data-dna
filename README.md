@@ -112,7 +112,7 @@ Measured on synthetic data. The method and the commands to reproduce each number
 | Fine-tuned judge (dna-judge): false alarms on 60 hard harmless prompts | 1 of 60 (plain Gemma: 36) | ≤ 5 |
 | Attack sets (2 × 80) | 160 of 160 as expected | |
 | Added latency, one request (p95) | 58 ms | < 100 ms |
-| Tests | 1,154 brain (89% coverage), 148 web, 48 extension | |
+| Tests | 1,154 brain (89% coverage), 148 web, 49 extension | |
 
 ## Fine-tuned model
 
