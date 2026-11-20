@@ -2236,7 +2236,9 @@
 }
 
 /* The nav bar on app pages: the .sentry scope supplies the tokens, but it must not take a whole screen */
-.sentry.nav-shell {
+/* The app's nav and footer borrow .sentry for its tokens, not its full-screen height. */
+.sentry.nav-shell,
+.sentry.foot-shell {
   min-height: 0;
   overflow: visible;
 }
