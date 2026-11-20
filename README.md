@@ -4,7 +4,7 @@
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 
-> Video: [link, added Thu 19 Nov]
+> Video: 
 
 ## The problem
 
