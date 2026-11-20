@@ -25,7 +25,7 @@ Companies cannot see which AI tools their people use, and cannot stop a client l
 
 ## Run it
 
-Requirements: Docker with Compose v2, about 2 GB of free RAM for Docker, and ports 3000, 4000 and 8001 free.
+Requirements: Docker with Compose v2, about 3 GB of free RAM for Docker, and ports 3000, 4000 and 8001 free.
 
 ```bash
 git clone <this repo>
@@ -34,7 +34,7 @@ cp .env.example .env        # optional: add OPENAI_API_KEY
 docker compose up --build
 ```
 
-Open http://localhost:3000 (app) and http://localhost:8001/docs (API). Without an OpenAI key the offline demo models answer, so everything works. There is no login: get a personal key on the Connect page (`/connect`). The first build downloads the models and takes several minutes. Afterwards the stack is healthy in about 80 seconds and idles at about 1.7 GB.
+Open http://localhost:3000 (app) and http://localhost:8001/docs (API). Without an OpenAI key the offline demo models answer, so everything works. There is no login: get a personal key on the Connect page (`/connect`). The first build downloads the models and takes several minutes. Afterwards the stack is healthy in about 80 seconds and idles at about 1.9 GB (the AI gateway, which Company Chat answers through, is about 0.75 GB of that).
 
 `make help` lists everything. The ones you need: `make up`, `make down`, `make reset` (fresh database), `make check`, `make eval`, `make e2e`. Walk through the product in [docs/DEMO.md](docs/DEMO.md).
 
