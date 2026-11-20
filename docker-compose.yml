@@ -160,7 +160,7 @@ services:
     ports:
       - "3100:3100"
 
-  # Local model (TASKS.md L1). Optional and never on the critical path: start it with `make local`.
+  # Local model. Optional and never on the critical path: start it with `make local`.
   # Without it, "answered locally" falls back to a stand-in answer, so the stack and every test
   # work the same.
   ollama:
@@ -212,7 +212,7 @@ services:
     volumes:
       - ./infra/siem/receiver.py:/receiver.py:ro
 
-  # Employee simulator (TASKS.md O3). Not started by `up`: run `make simulate`.
+  # Employee simulator. Not started by `up`: run `make simulate`.
   sim:
     profiles: ["sim"]
     image: sentry-brain

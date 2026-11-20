@@ -2,7 +2,7 @@
 
 `E5Embedder` is the real one: multilingual-e5-small, int8, about 118 MB and 4 ms a chunk. On the
 paraphrase set it found more rewrites than the MiniLM and mpnet models it replaced, at a fraction
-of the cost of e5-large (see PROGRESS.md for the comparison). `HashingEmbedder` is a deterministic
+of the cost of e5-large. `HashingEmbedder` is a deterministic
 stand-in for unit tests, so they run without downloading a model; it only knows exact word
 overlap, never paraphrase.
 """

@@ -1,4 +1,4 @@
-# Red team checks for the Sentry safety check (TASKS.md E2).
+# Red team checks for the Sentry safety check.
 # Run with: make redteam   (needs `make up`; promptfoo is fetched by npx).
 # 'flag' means the decision must not be allow; 'allow' means clean prompts must pass untouched.
 description: Sentry red team

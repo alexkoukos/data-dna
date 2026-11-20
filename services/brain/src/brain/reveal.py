@@ -1,6 +1,6 @@
 """Sealed identity: incidents show a pseudonym. A real name appears only after
 one person asks, with a reason, and a different person approves. Every step is written to the
-audit log. There is no login yet, so "person" is the name typed in; see PROGRESS.md.
+audit log. There is no login yet, so "person" is the name typed in.
 """
 
 from datetime import UTC, datetime
