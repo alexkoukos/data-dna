@@ -8,21 +8,27 @@ and the text are not stored or logged.
 
 import asyncio
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 
 from fastapi import APIRouter, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
 from brain.config import settings
-from brain.documents.chat_files import read_chat_file, suffixes
+from brain.documents.chat_files import ChatFile, read_chat_file, suffixes
 from brain.documents.extract import ExtractError
 
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-# Few workers on purpose: a file that takes too long is given up on (its thread finishes in the
-# background, bounded by the page and size caps) and cannot start an unbounded number of threads.
-_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="chat-file")
+# Few workers on purpose. A thread cannot be stopped, so a file that takes too long is given up on
+# while its thread keeps running (bounded by the page and size caps). The slots count running
+# threads, not waiting requests: a slot is freed when the thread ends, never when the request gives
+# up, so slow files can never queue up behind each other and tie the pool up. When every slot is
+# taken a new file is refused straight away with 503.
+_WORKERS = 2
+_pool = ThreadPoolExecutor(max_workers=_WORKERS, thread_name_prefix="chat-file")
+_slots = threading.BoundedSemaphore(_WORKERS)
 
 
 class FileLimits(BaseModel):
@@ -50,8 +56,14 @@ def file_limits() -> FileLimits:
     )
 
 
-def _refuse(status: int, filename: str, message: str) -> HTTPException:
-    return HTTPException(status_code=status, detail={"filename": filename, "message": message})
+def _refuse(
+    status: int, filename: str, message: str, headers: dict[str, str] | None = None
+) -> HTTPException:
+    return HTTPException(
+        status_code=status,
+        detail={"filename": filename, "message": message},
+        headers=headers,
+    )
 
 
 @router.post("/v1/files/extract", response_model=ExtractedFile)
@@ -60,19 +72,39 @@ async def extract_file(file: UploadFile, response: Response) -> ExtractedFile:
     name = (file.filename or "file").replace("\\", "/").rsplit("/", 1)[-1][:200] or "file"
     data = await file.read(settings.file_max_bytes + 1)
     response.headers["Cache-Control"] = "no-store"
-    loop = asyncio.get_running_loop()
+    if not _slots.acquire(blocking=False):
+        raise _refuse(
+            503,
+            name,
+            "The server is busy reading other files. Wait a few seconds and attach it again.",
+            {"Retry-After": "5", "Cache-Control": "no-store"},
+        )
+
+    # The slot is tied to the future, not to the function body: a done callback also runs when the
+    # future is cancelled before its thread starts (a client that hangs up), so a slot cannot leak.
     try:
+        job = _pool.submit(
+            read_chat_file,
+            name,
+            data,
+            max_bytes=settings.file_max_bytes,
+            max_chars=settings.file_max_chars,
+        )
+    except BaseException:
+        _slots.release()
+        raise
+
+    def finished(done: "Future[ChatFile]") -> None:
+        _slots.release()
+        if not done.cancelled():
+            done.exception()  # read it, so a late failure is not reported as never retrieved
+
+    job.add_done_callback(finished)
+    try:
+        # shield: a timeout or a hang-up must not cancel the job, or its result would be thrown away
+        # while its thread (if already running) carries on.
         out = await asyncio.wait_for(
-            loop.run_in_executor(
-                _pool,
-                lambda: read_chat_file(
-                    name,
-                    data,
-                    max_bytes=settings.file_max_bytes,
-                    max_chars=settings.file_max_chars,
-                ),
-            ),
-            timeout=settings.file_extract_timeout,
+            asyncio.shield(asyncio.wrap_future(job)), timeout=settings.file_extract_timeout
         )
     except TimeoutError as err:
         raise _refuse(
