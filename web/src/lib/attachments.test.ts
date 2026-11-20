@@ -5,6 +5,7 @@ import {
   fileSummary,
   precheck,
   safeName,
+  typeNames,
   uploadHint,
 } from "./attachments";
 
@@ -51,6 +52,15 @@ describe("attachments", () => {
     expect(fileSummary([{ name: "a.pdf" }])).toBe("a.pdf");
     expect(fileSummary([{ name: "a.pdf" }, { name: "b.pdf" }, { name: "c" }])).toBe(
       "a.pdf +2 more",
+    );
+  });
+});
+
+describe("accepted types in words", () => {
+  it("lists images only when the server reads them", () => {
+    expect(typeNames(DEFAULT_LIMITS.types)).toBe("PDF, Word (.docx), text, Markdown or CSV");
+    expect(typeNames([...DEFAULT_LIMITS.types, ".png", ".jpg"])).toBe(
+      "PDF, Word (.docx), text, Markdown, CSV or image (PNG, JPG)",
     );
   });
 });

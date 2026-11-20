@@ -1,7 +1,12 @@
-"""Turn an uploaded file into text: PDF, DOCX, and plain text or Markdown."""
+"""Turn an uploaded file into text: PDF (with OCR for scanned pages), DOCX, images, plain text.
+
+What a file is comes from its content, not its name, for every format that has a signature: a PDF
+named `notes.txt` is read as a PDF, so a wrong name cannot hide what a model would read.
+"""
 
 import io
 import zipfile
+from typing import Literal
 
 from docx import Document
 from docx.oxml.ns import qn
@@ -11,32 +16,90 @@ from brain.documents import ocr
 
 MAX_BYTES = 10 * 1024 * 1024
 MAX_PAGES = 200
+MAX_OCR_PAGES = 10  # scanned pages read with OCR per file: about 1 to 3 seconds each on a CPU
+MIN_PAGE_TEXT = 20  # a page with less text than this is treated as a scan
 MAX_TEXT_CHARS = 200_000
 MAX_UNPACKED_BYTES = 50 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 100
 MAX_GRID_SPAN = 1000
 MAX_DOCX_PARTS = 50_000
+TEXT_SUFFIXES = (".txt", ".md", ".csv", ".json", ".log", ".py", ".js", ".ts", ".java")
+
+Kind = Literal["pdf", "docx", "image", "text"]
 
 
 class ExtractError(ValueError):
     """The file cannot be read. The message says what to do and is safe to show."""
 
 
+class NoTextFound(ExtractError):
+    """The file was read, OCR included, and holds no text: a photo, a logo, a blank scan.
+
+    Company Chat shows the message (there is nothing to answer about). The gateway lets such a
+    file through, because nothing in it can leak; a file that could not be read at all is refused.
+    """
+
+
+def sniff(data: bytes) -> Kind | None:
+    """What the bytes really are, from their content. None for a binary format we cannot read."""
+    if data[:1024].lstrip(b"\x00\t\n\r\f ").startswith(b"%PDF-"):
+        return "pdf"
+    if data.startswith(b"PK\x03\x04"):
+        try:
+            with zipfile.ZipFile(io.BytesIO(data)) as z:
+                names = set(z.namelist())
+        except zipfile.BadZipFile:
+            return None
+        return "docx" if "word/document.xml" in names else None
+    if data.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"GIF87a", b"GIF89a", b"BM")) or (
+        data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+    ):
+        return "image"
+    if b"\x00" in data:
+        return None
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    return "text"
+
+
+def _claimed(name: str) -> Kind | None:
+    if name.endswith(".pdf"):
+        return "pdf"
+    if name.endswith(".docx"):
+        return "docx"
+    if name.endswith(ocr.IMAGE_SUFFIXES):
+        return "image"
+    if name.endswith(TEXT_SUFFIXES):
+        return "text"
+    return None
+
+
 def extract_text(filename: str, data: bytes) -> str:
     if len(data) > MAX_BYTES:
         raise ExtractError("This file is larger than 10 MB. Split it or send the relevant part.")
-    name = filename.lower()
-    if name.endswith(".pdf"):
+    claimed = _claimed(filename.lower())
+    actual = sniff(data)
+    # A PDF, Word file or image is read as what it is, whatever its name says. Text-like content
+    # under a binary name is read as that format, so a damaged file says it is damaged.
+    kind = actual if actual in ("pdf", "docx", "image") else claimed
+    if kind is None:
+        raise ExtractError(
+            "This file type is not supported. Use PDF, DOCX, TXT, Markdown or an image (PNG, JPG)."
+        )
+    if kind == "text" and actual is None:
+        raise ExtractError(
+            "This file is named as text but holds data that is not text. Check that it is the "
+            "right file, or save it again as plain text."
+        )
+    if kind == "pdf":
         return _pdf(data)
-    if name.endswith(".docx"):
+    if kind == "docx":
         return _docx(data)
-    if name.endswith(ocr.IMAGE_SUFFIXES):
+    if kind == "image":
         return _image(data)
-    if name.endswith((".txt", ".md", ".csv", ".json", ".log", ".py", ".js", ".ts", ".java")):
-        return _capped(data.decode("utf-8", errors="replace"))
-    raise ExtractError(
-        "This file type is not supported. Use PDF, DOCX, TXT, Markdown or an image (PNG, JPG)."
-    )
+    return _capped(data.decode("utf-8", errors="replace"))
 
 
 def _capped(text: str) -> str:
@@ -57,20 +120,44 @@ def _pdf_text(data: bytes, max_pages: int = MAX_PAGES) -> str:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
             raise ExtractError("This PDF is password protected. Remove the password and try again.")
-        pages = reader.pages[:max_pages]
-        text = "\n".join((p.extract_text() or "") for p in pages)
+        texts = [(p.extract_text() or "") for p in reader.pages[:max_pages]]
     except ExtractError:
         raise
     except Exception as err:  # pypdf raises many unrelated types on damaged files
         raise ExtractError(
             "This PDF could not be read. Check that the file is not damaged."
         ) from err
+    scanned = [i for i, t in enumerate(texts) if len(t.strip()) < MIN_PAGE_TEXT]
+    if scanned and ocr.available():
+        for i in scanned[:MAX_OCR_PAGES]:
+            texts[i] = "\n".join(filter(None, [texts[i], _page_ocr(reader, i)]))
+    text = "\n".join(texts)
+    if not text.strip() and ocr.available():
+        raise NoTextFound(
+            "No text was found in this PDF, even with OCR. Check that the scan is readable, or "
+            "copy the text into the message."
+        )
     if not text.strip():
         raise ExtractError(
-            "No text was found in this PDF. It may be a scan; this version cannot read images. "
-            "Copy the text into the message, or save the PDF again with selectable text."
+            "No text was found in this PDF. It may be a scan; this install cannot read "
+            "images. Copy the text into the message, or save the PDF again with selectable text."
         )
     return text
+
+
+def _page_ocr(reader: PdfReader, index: int) -> str:
+    """The text in the images of one scanned page."""
+    try:
+        images = reader.pages[index].images
+        return "\n".join(ocr.pil_text(img.image) for img in images if img.image is not None)
+    except ocr.OcrUnavailable:
+        return ""
+    except ValueError as err:
+        raise ExtractError(str(err)) from err
+    except Exception as err:  # pypdf and Pillow raise many unrelated types on damaged images
+        raise ExtractError(
+            "A scanned page in this PDF could not be read. Check that the file is not damaged."
+        ) from err
 
 
 def _check_zip(data: bytes) -> None:
@@ -139,5 +226,7 @@ def _image(data: bytes) -> str:
     except ValueError as err:
         raise ExtractError(str(err)) from err
     if not text.strip():
-        raise ExtractError("No text was found in this image.")
+        raise NoTextFound(
+            "No text was found in this image. Attach an image with readable text, or type it."
+        )
     return text

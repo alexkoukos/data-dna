@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
 from brain.config import settings
-from brain.documents.chat_files import SUFFIX_KIND, read_chat_file
+from brain.documents.chat_files import read_chat_file, suffixes
 from brain.documents.extract import ExtractError
 
 log = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def file_limits() -> FileLimits:
         max_bytes=settings.file_max_bytes,
         max_files=settings.file_max_count,
         max_chars=settings.file_max_chars,
-        types=sorted(SUFFIX_KIND),
+        types=suffixes(),
     )
 
 

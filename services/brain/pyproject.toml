@@ -32,8 +32,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# X8: read text in images. Off by default so the image stays small: uv sync --extra ocr
-ocr = ["rapidocr-onnxruntime>=1.4"]
+# X8: read text in images and scanned PDFs (RapidOCR, ONNX on CPU, no PyTorch). The Docker image
+# installs it; a local `uv sync` leaves it out unless you add `--extra ocr`.
+ocr = ["rapidocr-onnxruntime>=1.4", "opencv-python-headless>=4.8"]
 
 [dependency-groups]
 dev = [
@@ -80,3 +81,8 @@ markers = ["slow: loads the real embedding model (downloads about 220 MB on the 
 [tool.uv.sources]
 en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 el-core-news-sm = { url = "https://github.com/explosion/spacy-models/releases/download/el_core_news_sm-3.8.0/el_core_news_sm-3.8.0-py3-none-any.whl" }
+
+[tool.uv]
+# RapidOCR asks for the desktop OpenCV, which needs libGL and is not in the slim image. The headless
+# build provides the same `cv2` module without it, so the desktop one is never installed.
+override-dependencies = ["opencv-python; sys_platform == 'never'"]

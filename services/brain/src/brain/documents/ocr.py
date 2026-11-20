@@ -6,12 +6,17 @@ never silently let through unread.
 """
 
 import io
+import re
 import warnings
 from collections.abc import Callable
 from typing import Any
 
-IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".webp")
+IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".gif")
 MAX_PIXELS = 40_000_000
+# The recogniser sometimes drops the space between a label and its value ("IBANGR16...",
+# "AFM123456789"). The checks look for whole tokens, so the space is put back.
+_GLUED_IBAN = re.compile(r"(?<=[A-Za-z])(?=[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b)")
+_GLUED_NUMBER = re.compile(r"(?<=[A-Za-z]{3})(?=\d{6,})")
 _engine: Callable[..., Any] | None = None
 
 
@@ -39,6 +44,22 @@ def _load() -> Callable[..., Any]:
             ) from err
         _engine = RapidOCR()
     return _engine
+
+
+def respace(line: str) -> str:
+    """Put back a space the recogniser dropped between a label and an IBAN or a long number."""
+    return _GLUED_NUMBER.sub(" ", _GLUED_IBAN.sub(" ", line))
+
+
+def pil_text(img: Any) -> str:
+    """The text in a Pillow image (used for the page images of a scanned PDF)."""
+    import numpy as np
+
+    if img.width * img.height > MAX_PIXELS:
+        raise ValueError("A page image is too large to read. Shrink it or send fewer pages.")
+    engine = _load()
+    result, _ = engine(np.array(img.convert("RGB")))
+    return "\n".join(respace(str(row[1])) for row in (result or []))
 
 
 def image_text(data: bytes) -> str:
@@ -70,4 +91,4 @@ def image_text(data: bytes) -> str:
         ) from err
     engine = _load()
     result, _ = engine(img)
-    return "\n".join(str(row[1]) for row in (result or []))
+    return "\n".join(respace(str(row[1])) for row in (result or []))

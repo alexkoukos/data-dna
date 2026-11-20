@@ -9,8 +9,9 @@ from pypdf import PdfWriter
 
 import brain.main as main
 from brain.config import settings
+from brain.documents import ocr
 from brain.documents.chat_files import file_blocks, read_chat_file, sniff
-from brain.documents.extract import ExtractError
+from brain.documents.extract import ExtractError, extract_text
 from tests.test_extract import IBAN, docx_bytes, pdf_with_text
 
 MB = 1024 * 1024
@@ -62,7 +63,7 @@ def test_a_zip_that_is_not_a_word_file_is_not_a_docx() -> None:
         ("report.docx", pdf_with_text("hi"), "content is not a DOCX"),
         ("notes.txt", b"\x00\x01\x02binary", "content is not plain text"),
         ("tool.exe", b"MZ", "not supported"),
-        ("photo.png", b"\x89PNG\r\n", "not supported"),
+        ("anim.gif", b"GIF89a", "not supported"),
         ("noext", b"hello", "not supported"),
         ("empty.txt", b"", "empty"),
         ("blank.md", b"   \n ", "no text"),
@@ -83,9 +84,20 @@ def test_pdf_docx_and_text_are_read() -> None:
     assert read("d.csv", b"name,city\nAnna,Patras\n").startswith("name,city")
 
 
-def test_a_scanned_pdf_says_it_cannot_read_images() -> None:
+def test_a_scanned_pdf_without_ocr_says_it_cannot_read_images(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ocr, "available", lambda: False)
     with pytest.raises(ExtractError, match="may be a scan.*selectable text"):
         read("scan.pdf", blank_pdf())
+
+
+def test_a_pdf_with_nothing_to_read_says_so_even_with_ocr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ocr, "available", lambda: True)
+    with pytest.raises(ExtractError, match="even with OCR"):
+        read("blank.pdf", blank_pdf())
 
 
 def test_an_encrypted_pdf_asks_to_remove_the_password() -> None:
@@ -142,9 +154,13 @@ def client() -> TestClient:
 
 def test_limits_come_from_settings(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "file_max_count", 2)
+    monkeypatch.setattr(ocr, "available", lambda: False)
     body = client.get("/v1/files/limits").json()
     assert body["max_files"] == 2 and body["max_bytes"] == settings.file_max_bytes
     assert body["types"] == [".csv", ".docx", ".md", ".pdf", ".txt"]
+    monkeypatch.setattr(ocr, "available", lambda: True)
+    with_ocr = client.get("/v1/files/limits").json()["types"]
+    assert {".png", ".jpg", ".jpeg", ".webp"} <= set(with_ocr)
 
 
 def test_extract_returns_text_and_stores_nothing(client: TestClient) -> None:
@@ -259,3 +275,78 @@ def test_a_stopped_file_tells_the_extension_where_company_ai_is(client: TestClie
     assert r["alternative_url"] == settings.company_ai_url
     clean = client.post("/v1/check", json={"text": "Summarise this meeting"}).json()
     assert clean["alternative_url"] is None
+
+
+# --- reading by content, and OCR ---------------------------------------------------------------
+
+needs_ocr = pytest.mark.skipif(not ocr.available(), reason="OCR extra not installed")
+
+
+def text_image(*lines: str) -> "object":
+    """A white image with black text, like a screenshot or a scanned page (synthetic)."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGB", (1100, 90 + 70 * len(lines)), "white")
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default(size=36)
+    for i, line in enumerate(lines):
+        draw.text((30, 40 + 70 * i), line, fill="black", font=font)
+    return img
+
+
+def png_bytes(*lines: str) -> bytes:
+    buf = io.BytesIO()
+    text_image(*lines).save(buf, "PNG")  # type: ignore[attr-defined]
+    return buf.getvalue()
+
+
+def scanned_pdf(*lines: str) -> bytes:
+    """A PDF whose only page is an image: no text layer, like a scanner makes."""
+    buf = io.BytesIO()
+    text_image(*lines).save(buf, "PDF", resolution=150)  # type: ignore[attr-defined]
+    return buf.getvalue()
+
+
+def test_ocr_puts_back_a_dropped_space() -> None:
+    assert ocr.respace(f"IBAN{IBAN}") == f"IBAN {IBAN}"
+    assert ocr.respace("AFM123456789") == "AFM 123456789"
+    assert ocr.respace(IBAN) == IBAN
+    assert ocr.respace("Pay by Friday") == "Pay by Friday"
+
+
+def test_a_file_is_read_as_what_it_is_not_what_it_is_called() -> None:
+    assert "Quarterly budget" in extract_text("notes.txt", pdf_with_text("Quarterly budget"))
+    with pytest.raises(ExtractError, match="not text"):
+        extract_text("notes.txt", b"\x00\x01binary\xff")
+
+
+@needs_ocr
+def test_an_image_is_read_in_chat() -> None:
+    out = read_chat_file("shot.png", png_bytes(f"IBAN {IBAN}"), max_bytes=10 * MB, max_chars=30_000)
+    assert out.kind == "image" and IBAN in out.text.replace(" ", "")
+
+
+@needs_ocr
+def test_a_scanned_pdf_is_read_with_ocr() -> None:
+    text = read("scan.pdf", scanned_pdf("Classification: RESTRICTED", f"Pay {IBAN}"))
+    assert "RESTRICTED" in text and IBAN in text.replace(" ", "")
+
+
+@needs_ocr
+def test_a_stamped_scan_attached_to_inspect_is_blocked(client: TestClient) -> None:
+    import base64
+
+    data = scanned_pdf("Q4 report", "Classification: RESTRICTED")
+    r = client.post(
+        "/v1/inspect",
+        json={
+            "user_id": "u-scan",
+            "team": "Finance",
+            "messages": [{"role": "user", "content": "Summarise this"}],
+            "attachments": [
+                {"filename": "q4.pdf", "content_base64": base64.b64encode(data).decode()}
+            ],
+        },
+    ).json()
+    assert r["decision"] in ("block", "local")
+    assert any("q4.pdf is marked RESTRICTED" in reason for reason in r["reasons"])

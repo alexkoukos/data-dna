@@ -423,7 +423,16 @@ def test_a_secret_in_a_base64_text_document_is_caught_and_a_binary_image_passes(
 
     caught = send_block("text/plain", "document", b"deploy key AKIAIOSFODNN7EXAMPLE here")
     assert caught.status_code in (403, 409)
-    assert send_block("image/png", "image", bytes(range(256)) * 2).status_code == 200
+    # A real image is read (OCR); one with no text has nothing to leak and passes.
+    from io import BytesIO
+
+    from PIL import Image
+
+    blank = BytesIO()
+    Image.new("RGB", (64, 64), "white").save(blank, "PNG")
+    assert send_block("image/png", "image", blank.getvalue()).status_code == 200
+    # Bytes that are not an image the gate can read are refused, never passed unread.
+    assert send_block("image/png", "image", bytes(range(256)) * 2).status_code == 403
 
 
 def test_a_claude_code_like_request_with_a_long_system_prompt_and_tools_is_allowed(
