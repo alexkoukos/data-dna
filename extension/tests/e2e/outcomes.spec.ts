@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import type { APIRequestContext } from "@playwright/test";
 import { expect, test } from "./fixtures";
@@ -40,6 +41,29 @@ async function warmUp(request: APIRequestContext) {
   }
 }
 
+/** The brain remembers which parts of a restricted document each person has sent, and blocks the
+ *  third prompt that touches one. Every sample here is sent as the same person, so without a reset
+ *  the outcome of a test would depend on the tests (and the web e2e) that ran before it. */
+function resetSessionMemory() {
+  try {
+    execFileSync(
+      "docker",
+      [
+        "compose",
+        "exec",
+        "-T",
+        "db",
+        "sh",
+        "-c",
+        'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DELETE FROM session_coverage"',
+      ],
+      { cwd: new URL("../../../", import.meta.url), stdio: "ignore", timeout: 30_000 },
+    );
+  } catch {
+    // No docker here (a remote stack): the tests then rely on a fresh stack.
+  }
+}
+
 const received = async (request: APIRequestContext) =>
   (await (await request.get(`${MOCK}/api/received`)).json()) as string[];
 
@@ -67,6 +91,7 @@ test.afterEach(async ({ context, request }, info) => {
 test.beforeEach(async ({ request }) => {
   test.skip(!(await stackReady(request)), "needs the full stack: make up (brain with documents)");
   await warmUp(request);
+  resetSessionMemory();
   await request.delete(`${MOCK}/api/received`);
 });
 
