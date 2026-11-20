@@ -207,6 +207,9 @@ export async function sendChat(
   if (res.status === 503 && typeof fields.message === "string") {
     return { kind: "error", message: `${fields.message} ${String(fields.next ?? "")}`.trim() };
   }
+  if (res.status === 422 && fields.type === "unsupported" && typeof fields.message === "string") {
+    return { kind: "error", message: fields.message };
+  }
   return { kind: "error", message: "Something went wrong on our side. Try again in a minute." };
 }
 
