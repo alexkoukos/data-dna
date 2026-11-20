@@ -43,6 +43,8 @@ How Sentry is built, how a prompt is decided, and how the system protects the da
 5. The answer is checked too (`POST /v1/inspect-output`, streamed or not): echoed secrets and identifiers are masked, and an answer that reproduces a protected document is withheld. Tool results go through `POST /v1/inspect-tool-result`.
 6. Every non-allow decision writes an incident. Allow writes only a counter row.
 
+**Files in Company Chat.** The chat sends each attached file to `POST /v1/files/extract` (`brain/files.py`). The brain checks the content by magic bytes (PDF, DOCX, UTF-8 text), applies the size, page (50) and time limits, cuts the text to `FILE_MAX_CHARS`, and returns it without storing or logging it. The chat then puts the text inside the user message (`[File: name] … [End of file: name]`), so it reaches the model only through the gateway and `/v1/inspect`, like typed text. `/v1/inspect` also runs the stamp check (RESTRICTED, CONFIDENTIAL…) on each file block and names the file in the reason.
+
 "Send it to Company AI instead" resends a stopped message with `X-DNA-Reroute: 1`; the brain masks what must be masked and answers `local`. Injection, decoy credentials, document rebuilds and attached files are never rerouted. Setup for clients, with the exact variables: [GATEWAY_SETUP.md](GATEWAY_SETUP.md).
 
 ## 3. Detection pipeline
@@ -114,7 +116,7 @@ Defined in `services/brain/src/brain/db/tables.py`; init scripts in `infra/db/`.
 
 ## 9. Web app and extension
 
-- **Web** (`web/`): Company Chat, Connect (personal keys), Try to break it, and the security area: overview, AI tools, incidents, documents, policies, groups, history, impact, break-it review, weekly digest, ask. Tokens are in `web/src/index.css`.
+- **Web** (`web/`): Company Chat (with file upload), Connect (personal keys), Try to break it, and the security area: overview, AI tools, incidents, documents, policies, groups, history, impact, break-it review, weekly digest, ask. Tokens are in `web/src/index.css`.
 - **Extension** (`extension/`, Manifest V3, plain JavaScript): checks paste and send on `chatgpt.com` through `POST /v1/extension/inspect`, `/ack` and `GET /v1/extension/me`. The brain allows browser calls only from `chrome-extension://<EXTENSION_ID>`. It fails open if the gate is unreachable and closed if the text is refused as too long. Only text is checked; one site is covered.
 - **MCP proxy** (`scripts/mcp_proxy.py`): Model Context Protocol traffic through the same checks.
 - **SIEM** (`docs/siem/`): `GET /v1/export/incidents` (JSON lines), optional CEF syslog and HMAC-signed webhook. Events never carry prompt text or masked previews.
