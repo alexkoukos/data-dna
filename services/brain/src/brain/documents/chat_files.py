@@ -5,15 +5,13 @@ typed text before a model sees it, so a file can never reach a model unchecked. 
 stored or logged: the bytes and the text live only for the length of the request.
 """
 
-import io
 import re
-import zipfile
 from dataclasses import dataclass
-from typing import Literal
 
-from brain.documents.extract import ExtractError, _docx_text, _pdf_text
+from brain.documents import ocr
+from brain.documents.extract import ExtractError, Kind, _docx_text, _image, _pdf_text, sniff
 
-Kind = Literal["pdf", "docx", "text"]
+__all__ = ["SUFFIX_KIND", "ChatFile", "file_blocks", "read_chat_file", "sniff", "suffixes"]
 
 # What the composer accepts, and which kind of content each name must hold.
 SUFFIX_KIND: dict[str, Kind] = {
@@ -22,11 +20,24 @@ SUFFIX_KIND: dict[str, Kind] = {
     ".txt": "text",
     ".md": "text",
     ".csv": "text",
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
+    ".webp": "image",
 }
+
+
+def suffixes() -> list[str]:
+    """The names the chat accepts. Images only when OCR is installed, so the picker never offers
+    a file the server would refuse."""
+    return sorted(k for k, v in SUFFIX_KIND.items() if v != "image" or ocr.available())
+
+
 # A chat file is shorter than a registered document: fewer pages keeps a huge PDF cheap.
 MAX_CHAT_PAGES = 50
 UNSUPPORTED = (
-    "This file type is not supported here. Attach a PDF, Word (.docx), text, Markdown or CSV file."
+    "This file type is not supported here. Attach a PDF, Word (.docx), text, Markdown, CSV or "
+    "image (PNG, JPG) file."
 )
 
 
@@ -44,30 +55,10 @@ def _suffix(filename: str) -> str:
     return filename[dot:].lower() if dot > 0 else ""
 
 
-def sniff(data: bytes) -> Kind | None:
-    """What the bytes really are, from their content and not their name."""
-    if data[:1024].lstrip(b"\x00\t\n\r\f ").startswith(b"%PDF-"):
-        return "pdf"
-    if data.startswith(b"PK\x03\x04"):
-        try:
-            with zipfile.ZipFile(io.BytesIO(data)) as z:
-                names = set(z.namelist())
-        except zipfile.BadZipFile:
-            return None
-        return "docx" if "word/document.xml" in names else None
-    if b"\x00" in data:
-        return None
-    try:
-        data.decode("utf-8")
-    except UnicodeDecodeError:
-        return None
-    return "text"
-
-
 def read_chat_file(filename: str, data: bytes, *, max_bytes: int, max_chars: int) -> ChatFile:
     """Check and read one attached file. Raises ExtractError with a message safe to show."""
     claimed = SUFFIX_KIND.get(_suffix(filename))
-    if claimed is None:
+    if claimed is None or _suffix(filename) not in suffixes():
         raise ExtractError(UNSUPPORTED)
     if len(data) > max_bytes:
         raise ExtractError(
@@ -78,15 +69,17 @@ def read_chat_file(filename: str, data: bytes, *, max_bytes: int, max_chars: int
         raise ExtractError("This file is empty. Check that it is the right file.")
     actual = sniff(data)
     if actual != claimed:
+        what = {"text": "plain text", "image": "an image"}.get(claimed, f"a {claimed.upper()}")
         raise ExtractError(
-            f"This file is named .{_suffix(filename)[1:]} but its content is not "
-            f"{'a ' + claimed.upper() if claimed != 'text' else 'plain text'}. "
+            f"This file is named .{_suffix(filename)[1:]} but its content is not {what}. "
             "It may be damaged or renamed. Save it again in the right format and attach it."
         )
     if claimed == "pdf":
         text = _pdf_text(data, max_pages=MAX_CHAT_PAGES)
     elif claimed == "docx":
         text = _docx_text(data)
+    elif claimed == "image":
+        text = _image(data)
     else:
         text = data.decode("utf-8").removeprefix("﻿")
         if not text.strip():

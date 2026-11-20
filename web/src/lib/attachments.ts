@@ -38,7 +38,22 @@ export type Attachment =
   | ({ id: string; status: "ready" } & ReadFile)
   | { id: string; name: string; status: "error"; message: string };
 
-export const TYPE_NAMES = "PDF, Word (.docx), text, Markdown or CSV";
+/** The accepted kinds in words, e.g. "PDF, Word (.docx), text, Markdown, CSV or image (PNG, JPG)".
+ * Images are listed only when the server reads them (OCR installed). */
+export function typeNames(types: string[]): string {
+  const t = new Set(types.map((x) => x.toLowerCase()));
+  const names = [
+    t.has(".pdf") && "PDF",
+    t.has(".docx") && "Word (.docx)",
+    t.has(".txt") && "text",
+    t.has(".md") && "Markdown",
+    t.has(".csv") && "CSV",
+    (t.has(".png") || t.has(".jpg")) && "image (PNG, JPG)",
+  ].filter((x): x is string => !!x);
+  return names.length > 1
+    ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`
+    : (names[0] ?? "");
+}
 
 export function formatBytes(bytes: number): string {
   return bytes >= 1024 * 1024
@@ -57,7 +72,7 @@ const suffix = (name: string) => {
  */
 export function precheck(file: File, limits: FileLimits, alreadyAttached: number): string | null {
   if (!limits.types.includes(suffix(file.name)))
-    return `${file.name} was not added. Attach a ${TYPE_NAMES} file.`;
+    return `${file.name} was not added. Attach a ${typeNames(limits.types)} file.`;
   if (file.size > limits.maxBytes)
     return `${file.name} is larger than ${formatBytes(limits.maxBytes)}. Split it or attach only the part you need.`;
   if (file.size === 0) return `${file.name} is empty. Check that it is the right file.`;

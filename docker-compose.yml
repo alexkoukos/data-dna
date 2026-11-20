@@ -104,7 +104,7 @@ services:
       FILE_MAX_BYTES: ${FILE_MAX_BYTES:-10485760}
       FILE_MAX_COUNT: ${FILE_MAX_COUNT:-3}
       FILE_MAX_CHARS: ${FILE_MAX_CHARS:-30000}
-      FILE_EXTRACT_TIMEOUT: ${FILE_EXTRACT_TIMEOUT:-15}
+      FILE_EXTRACT_TIMEOUT: ${FILE_EXTRACT_TIMEOUT:-60}
     volumes:
       - models:/models
       - ./data:/data:ro

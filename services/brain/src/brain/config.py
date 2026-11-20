@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     file_max_bytes: int = 10 * 1024 * 1024
     file_max_count: int = 3
     file_max_chars: int = 30_000  # per file, passed to the model; the rest is cut with a notice
-    file_extract_timeout: float = 15.0  # seconds to read one file
+    file_extract_timeout: float = 60.0  # seconds to read one file (OCR of a scan is the slow part)
     # Split storage (brain.splitstore). Empty URLs mean the feature is off (unit tests).
     vault_a_url: str = ""
     vault_b_url: str = ""
