@@ -134,6 +134,8 @@ A watcher must keep little. Each claim below has a test that fails if it stops b
 | Incidents are deleted after `RETENTION_DAYS` (default 30). | `insights.py` (`purge_expired`) | `test_purge_deletes_old_incidents_and_their_reveal_requests` |
 | Shadow-mode changes are audited. | `settings_store.py` | `test_shadow_mode_off_enforces_again_and_the_change_is_audited` |
 
+Demo limit: there is no login, so "person" in the reveal flow is a name typed in, and the two-person check compares those strings. Production needs SSO with roles (for example `dpo` approves) and the check must compare authenticated user IDs. See `docs/THREAT_MODEL.md`.
+
 Also: keys live in `.env` only (gitleaks in CI); model answers are checked before the person sees them; the free-text analyst question is read-only over three views; Try to break it stores nothing but counters and a masked preview, and a submitted miss is a review-queue row until a security user decides.
 
 ### Split storage
