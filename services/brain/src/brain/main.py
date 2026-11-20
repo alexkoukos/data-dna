@@ -141,9 +141,10 @@ from brain.dna import store as dna_store
 from brain.dna.marks import Mark, propose_marks
 from brain.documents.chat_files import file_blocks
 from brain.documents.embeddings import E5Embedder
-from brain.documents.extract import MAX_BYTES, ExtractError, NoTextFound, extract_text
+from brain.documents.extract import MAX_BYTES, ExtractError, NoTextFound, extract_text, sniff
 from brain.documents.loader import load_documents
 from brain.documents.marking import find_marking
+from brain.documents.purify import purify
 from brain.documents.registry import (
     DocMatch,
     DocumentIndex,
@@ -589,6 +590,26 @@ def _file_block_stamps(texts: list[str]) -> list[str]:
     return out
 
 
+def _purified(req: InspectRequest) -> list[str | None]:
+    """The redrawn copy of every attached image (documents.purify), None for other files.
+
+    The gateway sends these instead of the originals, so a model gets only what a person sees:
+    no message in the pixels' lowest bits, no appended bytes, no metadata, and pixel patterns
+    tuned against one model mostly washed out. A picture that cannot be redrawn is refused.
+    """
+    out: list[str | None] = []
+    for a in req.attachments:
+        data = base64.b64decode(a.content_base64, validate=True)
+        if sniff(data) != "image":
+            out.append(None)
+            continue
+        try:
+            out.append(base64.b64encode(purify(data)).decode())
+        except ValueError as err:
+            raise HTTPException(status_code=422, detail=f"{a.filename}: {err}") from err
+    return out
+
+
 def _attribute_copy(result: InspectResult, text: str) -> str | None:
     """If the matched document carries DNA marks, name the copy this text came from."""
     engine = policy_store.engine
@@ -623,7 +644,7 @@ def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
             result.verdict.decision = Decision.BLOCK
 
 
-NEVER_REROUTE = {"injection", "hidden_text", "honeytoken"}
+NEVER_REROUTE = {"injection", "hidden_text", "hidden_data", "honeytoken"}
 
 
 def _can_reroute(
@@ -1250,6 +1271,9 @@ def inspect(
         trace=[TraceStep(**x) for x in steps],
         shadow_decision=would_have if shadow else None,
         rerouted=rerouted,
+        purified_attachments=_purified(req)
+        if req.attachments and decision != Decision.BLOCK
+        else [],
         findings=[
             FindingOut(entity=f.entity, category=f.category, masked_preview=f.masked_preview)
             for f in findings

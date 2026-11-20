@@ -708,15 +708,39 @@ def _media_blob(node: dict[str, Any], value: str) -> dict[str, str] | None:
     }
 
 
+class _MediaWriter:
+    """Puts the brain's redrawn JPEG back where an inline image was, in the same form (a data URL
+    stays a data URL, raw base64 stays raw base64 and its media type field says JPEG)."""
+
+    def __init__(self, node: dict[str, Any], key: str, was_data_url: bool) -> None:
+        self.node, self.key, self.was_data_url = node, key, was_data_url
+
+    def __call__(self, jpeg_base64: str) -> None:
+        if self.was_data_url:
+            self.node[self.key] = f"data:image/jpeg;base64,{jpeg_base64}"
+            return
+        self.node[self.key] = jpeg_base64
+        for field_name in ("media_type", "mime_type"):
+            if field_name in self.node:
+                self.node[field_name] = "image/jpeg"
+
+
 def media_attachments(data: dict[str, Any], call_type: str) -> list[dict[str, str]]:
     """Every inline file a provider would read from this request, ready for the brain.
 
     Only the exact places a provider reads media from count (see `_MEDIA_FIELDS`), in messages,
     Responses input and tool results. Raises GatewayError when there are too many to check.
     """
+    return [blob for blob, _ in _media_entries(data, call_type)]
+
+
+def _media_entries(
+    data: dict[str, Any], call_type: str
+) -> list[tuple[dict[str, str], _MediaWriter]]:
+    """`media_attachments`, each with a writer that can replace it in the request."""
     if call_type in EMBEDDING_CALLS or call_type in TEXT_CALLS:
         return []
-    found: list[dict[str, str]] = []
+    found: list[tuple[dict[str, str], _MediaWriter]] = []
 
     def walk(node: Any, path: str, part_type: Any, depth: int) -> None:
         if depth > _MAX_DEPTH:
@@ -737,13 +761,14 @@ def media_attachments(data: dict[str, Any], call_type: str) -> list[dict[str, st
                 if value and _in_media_position(part_type, here):
                     blob = _media_blob(node, value)
                     if blob is not None:
-                        found.append(blob)
+                        is_url = value[:5].lower() == "data:"
+                        found.append((blob, _MediaWriter(node, str(key), is_url)))
             elif isinstance(value, (dict, list)):
                 walk(value, here, part_type, depth + 1)
 
     walk(data, "", None, 0)
     if len(found) > MAX_ATTACHMENTS or (
-        sum(len(f["content_base64"]) for f in found) > MAX_ATTACHMENT_CHARS
+        sum(len(f["content_base64"]) for f, _ in found) > MAX_ATTACHMENT_CHARS
     ):
         raise _too_many_files()
     return found
@@ -958,7 +983,8 @@ async def apply_decision(
     # Dropping it keeps the key out of the request the model provider receives.
     data.pop("organization", None)
     slots = inspection_view(data, call_type)
-    attachments = media_attachments(data, call_type)
+    entries = _media_entries(data, call_type)
+    attachments = [blob for blob, _ in entries]
     payload: dict[str, Any] = {
         "user_id": user_id,
         "team": team,
@@ -1036,6 +1062,23 @@ async def apply_decision(
             },
         )
     reasons = verdict.get("reasons", [])
+    if attachments and decision != "block":
+        # Every image goes on as the brain's redrawn copy, never as the original: nothing in its
+        # lowest pixel bits, no appended bytes, no metadata, pixel patterns mostly washed out.
+        purified = verdict.get("purified_attachments")
+        if not isinstance(purified, list) or len(purified) != len(entries):
+            raise GatewayError(
+                503,
+                {
+                    "type": "unavailable",
+                    "message": "The safety check did not return the cleaned files, so nothing "
+                    "was sent.",
+                    "next": "Try again in a minute. If it keeps happening, tell your IT contact.",
+                },
+            )
+        for (_, write), clean in zip(entries, purified, strict=True):
+            if isinstance(clean, str) and clean:
+                write(clean)
 
     rerouted = bool(verdict.get("rerouted"))
     if rerouted:

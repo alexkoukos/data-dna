@@ -17,6 +17,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from brain.documents import hidden_data
+
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".gif")
 MAX_PIXELS = 40_000_000
 # The recogniser sometimes drops the space between a label and its value ("IBANGR16...",
@@ -61,6 +63,7 @@ def respace(line: str) -> str:
 # checks read all of it; `HIDDEN_LABEL` itself is a finding (category `hidden_text`), because text
 # drawn so a person cannot see it but a model can is how instructions are slipped to an AI.
 HIDDEN_LABEL = "[Text hard to see in this image]"
+HIDDEN_DATA_LABEL = "[Hidden data in this image]"  # a finding of its own: `hidden_data`
 CODE_LABEL = "[QR or barcode in this image]"
 META_LABEL = "[Image metadata: {}]"
 MAX_SIDE = 3000  # larger images are shrunk before reading: tiny text survives, time stays bounded
@@ -88,11 +91,14 @@ class ImageReading:
     hidden: list[str] = field(default_factory=list)
     codes: list[str] = field(default_factory=list)
     metadata: list[tuple[str, str]] = field(default_factory=list)
+    hidden_data: list[str] = field(default_factory=list)  # what the file carries besides pixels
 
     def text(self) -> str:
         parts = list(self.visible)
         if self.hidden:
             parts += [HIDDEN_LABEL, *self.hidden]
+        if self.hidden_data:
+            parts += [HIDDEN_DATA_LABEL, *self.hidden_data]
         if self.codes:
             parts += [CODE_LABEL, *self.codes]
         for key, value in self.metadata:
@@ -120,9 +126,15 @@ def _new_lines(found: list[str], known: list[str]) -> list[str]:
     return out
 
 
-def _lines(engine: Callable[..., Any], arr: Any) -> list[str]:
+def _read(engine: Callable[..., Any], arr: Any) -> tuple[list[str], list[Any]]:
+    """Lines of printed text and the boxes they were read from."""
     result, _ = engine(arr)
-    return [respace(str(row[1])) for row in (result or []) if str(row[1]).strip()]
+    rows = [row for row in (result or []) if str(row[1]).strip()]
+    return [respace(str(row[1])) for row in rows], [row[0] for row in rows]
+
+
+def _lines(engine: Callable[..., Any], arr: Any) -> list[str]:
+    return _read(engine, arr)[0]
 
 
 def _has_vertical_text(engine: Callable[..., Any], arr: Any) -> bool:
@@ -237,7 +249,11 @@ def read_pil(img: Any, metadata: list[tuple[str, str]] | None = None) -> ImageRe
             has_alpha = False
     if not has_alpha:
         base = np.array(img.convert("RGB"))
-    visible = _lines(engine, base)
+    visible, boxes = _read(engine, base)
+    from brain.documents import handwriting
+
+    if handwriting.available():  # writing the printed reader neither found nor read
+        visible += _new_lines(handwriting.read_handwriting(Image.fromarray(base), boxes), visible)
     if has_alpha:
         visible += _new_lines(_lines(engine, dark), visible)
     if _has_vertical_text(engine, base):
@@ -303,6 +319,14 @@ def _read_image(data: bytes) -> ImageReading:
                 raise animated
             meta = _metadata(opened)
             opened.load()
+            carried = hidden_data.container_findings(data)
+            if hidden_data.lossless(data):
+                share = hidden_data.lsb_payload(opened)
+                if share >= hidden_data.LSB_LIMIT:
+                    carried.append(
+                        f"the lowest bits of about {share:.0%} of the pixels look like a hidden "
+                        "message (steganography)"
+                    )
             img = ImageOps.exif_transpose(opened) or opened  # turned the way it is shown
     except (Image.DecompressionBombWarning, Image.DecompressionBombError) as err:
         raise too_big from err
@@ -312,7 +336,9 @@ def _read_image(data: bytes) -> ImageReading:
         raise damaged from err
     except Exception as err:  # Pillow raises several unrelated types on bad files
         raise damaged from err
-    return read_pil(img, meta)
+    reading = read_pil(img, meta)
+    reading.hidden_data = carried
+    return reading
 
 
 def image_text(data: bytes) -> str:

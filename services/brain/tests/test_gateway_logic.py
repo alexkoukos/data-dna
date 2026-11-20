@@ -284,6 +284,13 @@ def test_stream_withholds_everything_when_check_fails() -> None:
 # --- other ways in: Anthropic messages, responses, embeddings -----------------------------
 
 
+def _like_the_brain(verdict: dict[str, Any], sent: dict[str, Any]) -> dict[str, Any]:
+    """The brain answers one purified entry per attachment (None: not an image, sent as is)."""
+    if sent.get("attachments") and "purified_attachments" not in verdict:
+        return {**verdict, "purified_attachments": [None] * len(sent["attachments"])}
+    return verdict
+
+
 def _decide(
     data: dict[str, Any],
     call_type: str,
@@ -291,9 +298,10 @@ def _decide(
     seen: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     def handler(request: httpx.Request) -> httpx.Response:
+        sent = json.loads(request.content)
         if seen is not None:
-            seen.append(json.loads(request.content))
-        return httpx.Response(200, json=verdict)
+            seen.append(sent)
+        return httpx.Response(200, json=_like_the_brain(verdict, sent))
 
     async def go() -> dict[str, Any]:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -2044,7 +2052,9 @@ def test_acceptance_does_not_cover_the_same_unwritable_text_sent_as_new_content(
     def handler(req: httpx.Request) -> httpx.Response:
         sent = json.loads(req.content)
         if mode["v"] == "warn":
-            return httpx.Response(200, json={"decision": "warn", "reasons": ["x"]})
+            return httpx.Response(
+                200, json=_like_the_brain({"decision": "warn", "reasons": ["x"]}, sent)
+            )
         masked = [
             {"role": m["role"], "content": m["content"].replace(iban, "[IBAN_1]")}
             for m in sent["messages"]
@@ -2052,12 +2062,15 @@ def test_acceptance_does_not_cover_the_same_unwritable_text_sent_as_new_content(
         # The brain checked the message as new content, so it reports nothing as accepted.
         return httpx.Response(
             200,
-            json={
-                "decision": "mask",
-                "reasons": [],
-                "masked_messages": masked,
-                "accepted_applied": [],
-            },
+            json=_like_the_brain(
+                {
+                    "decision": "mask",
+                    "reasons": [],
+                    "masked_messages": masked,
+                    "accepted_applied": [],
+                },
+                sent,
+            ),
         )
 
     def body() -> dict[str, Any]:

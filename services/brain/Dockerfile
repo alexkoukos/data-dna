@@ -15,6 +15,8 @@ RUN uv sync --frozen --no-dev --extra ocr
 ENV PATH="/app/.venv/bin:$PATH" HF_HOME=/opt/models/hf EMBED_THREADS=4
 # Bake the embedding model (about 120 MB) into the image so the first start needs no internet.
 RUN python -c "from brain.documents.embeddings import fetch_model_files; fetch_model_files()"
+# The handwriting reader (TrOCR-small-handwritten, MIT, quantized ONNX, about 63 MB), pinned.
+RUN python -c "from brain.documents.handwriting import fetch_model_files; fetch_model_files()"
 ENV HF_HUB_OFFLINE=1
 EXPOSE 8001
 # start-period: model and NLP loading can take over a minute on a slow machine; failures in that

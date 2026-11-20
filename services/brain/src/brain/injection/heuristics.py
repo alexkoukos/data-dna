@@ -120,6 +120,16 @@ _SQUASHED: list[tuple[str, re.Pattern[str]]] = [
     ("reveal_prompt", re.compile(r"(print|reveal|show|repeat|output)(the|your)?systemprompt")),
 ]
 _HIDDEN_LABEL = "[Text hard to see in this image]"  # brain.documents.ocr.HIDDEN_LABEL
+# Labels the file readers put in front of what they found; each is a finding of its own.
+_LABELS: list[tuple[str, str, str]] = [
+    (_HIDDEN_LABEL, "HIDDEN_IMAGE_TEXT", "hidden_text"),
+    ("[Hidden data in this image]", "HIDDEN_DATA", "hidden_data"),  # documents.hidden_data
+    (
+        "[Instructions aimed at an AI in this file]",
+        "EMBEDDED_INSTRUCTIONS",
+        "embedded_instructions",
+    ),
+]
 
 
 def _squashed(text: str) -> list[Finding]:
@@ -137,13 +147,16 @@ def _squashed(text: str) -> list[Finding]:
 
 
 def _hidden_image_text(text: str) -> list[Finding]:
-    """The image reader found text drawn so a person can hardly see it (category hidden_text)."""
+    """What the file readers labelled: text a person can hardly see in an image (hidden_text),
+    data carried by an image file (hidden_data), orders to the AI inside a file
+    (embedded_instructions)."""
     out: list[Finding] = []
-    start = text.find(_HIDDEN_LABEL)
-    while start >= 0:
-        end = start + len(_HIDDEN_LABEL)
-        out.append(Finding("HIDDEN_IMAGE_TEXT", "hidden_text", start, end, _HIDDEN_LABEL))
-        start = text.find(_HIDDEN_LABEL, end)
+    for label, entity, category in _LABELS:
+        start = text.find(label)
+        while start >= 0:
+            end = start + len(label)
+            out.append(Finding(entity, category, start, end, label))
+            start = text.find(label, end)
     return out
 
 
