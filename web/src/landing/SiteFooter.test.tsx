@@ -18,7 +18,6 @@ describe("SiteFooter gate status", () => {
       </MemoryRouter>,
     );
     expect(await screen.findByText("Gate online")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
   it("says what to do when the gate is offline", async () => {

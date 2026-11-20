@@ -31,7 +31,7 @@ function GateStatus() {
   const status = useGateHealth();
   const s = STATUS[status];
   return (
-    <p role="status" className={`sfoot-status sfoot-status-${status}`}>
+    <p className={`sfoot-status sfoot-status-${status}`}>
       <span aria-hidden="true">{s.glyph}</span>
       {s.text}
     </p>
