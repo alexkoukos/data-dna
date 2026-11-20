@@ -76,7 +76,8 @@ jobs:
   # Builds every image on a native ARM runner (Apple Silicon judges). No QEMU: Node under
   # emulation crashes with "Illegal instruction" on current ubuntu runner images.
   arm64:
-    timeout-minutes: 15
+    # Native builds take about 1.5 minutes; a hang should fail fast, not look like a slow build.
+    timeout-minutes: 5
     needs: [brain, web]
     runs-on: ubuntu-24.04-arm
     steps:
