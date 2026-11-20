@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/sentry-wordmark-reverse.svg">
-    <img src="web/public/brand/sentry-wordmark.svg" alt="Sentry" width="300">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/sentry-logo-dark.png">
+    <img src="docs/media/sentry-logo.png" alt="Sentry" width="320">
   </picture>
 </p>
 
