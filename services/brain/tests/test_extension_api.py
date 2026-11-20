@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 
 import brain.main as main
+from brain.config import settings
 from brain.db import tables as t
 from brain.policy.store import PolicyStore, audit_table
 from brain.policy.store import metadata as policy_metadata
@@ -219,17 +220,44 @@ def test_ask_local_falls_back_to_a_labelled_stand_in(client: TestClient) -> None
     assert r["model"] == "stand-in"
 
 
-def test_logs_ingest_adds_squid_lines(client: TestClient, engine: sa.Engine) -> None:
-    user, team = _a_user(engine)
+def _squid_body(engine: sa.Engine) -> dict[str, object]:
+    user, _ = _a_user(engine)
     ts = datetime.now(UTC).timestamp()
     line = (
         f"{ts:.3f} 100 10.0.0.9 TCP_TUNNEL/200 5000 CONNECT chatgpt.com:443 - HIER_DIRECT/1.2.3.4 -"
     )
+    return {"format": "squid", "lines": [line], "leases": {"10.0.0.9": user}}
+
+
+def test_logs_ingest_adds_squid_lines(
+    client: TestClient, engine: sa.Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "ingest_token", "s3cret")
     r = client.post(
-        "/v1/logs/ingest", json={"format": "squid", "lines": [line], "leases": {"10.0.0.9": user}}
+        "/v1/logs/ingest",
+        json=_squid_body(engine),
+        headers={"Authorization": "Bearer s3cret"},
     )
+    assert r.status_code == 200
     assert r.json()["rows"] == 1
-    assert team  # the row is filed under the person's team
+
+
+def test_logs_ingest_refuses_a_missing_or_wrong_token(
+    client: TestClient, engine: sa.Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "ingest_token", "s3cret")
+    body = _squid_body(engine)
+    assert client.post("/v1/logs/ingest", json=body).status_code == 401
+    bad = {"Authorization": "Bearer nope"}
+    assert client.post("/v1/logs/ingest", json=body, headers=bad).status_code == 401
+
+
+def test_logs_ingest_is_off_until_a_token_is_set(
+    client: TestClient, engine: sa.Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "ingest_token", "")
+    r = client.post("/v1/logs/ingest", json=_squid_body(engine))
+    assert r.status_code == 503
 
 
 def test_inventory_says_where_each_tool_was_seen(client: TestClient, engine: sa.Engine) -> None:

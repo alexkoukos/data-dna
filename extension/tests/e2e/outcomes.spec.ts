@@ -22,11 +22,30 @@ async function stackReady(request: APIRequestContext) {
   }
 }
 
+/** The extension waits only 400 ms for the brain, so a cold brain makes it fall back to offline.
+ *  Send every sample once first so the real runs hit a warm one. */
+let warmed = false;
+async function warmUp(request: APIRequestContext) {
+  if (warmed) return;
+  warmed = true;
+  for (const lang of ["en", "el"]) {
+    for (const name of ["1-allow", "2-mask", "3-warn"]) {
+      await request
+        .post(`${BRAIN}/v1/check`, {
+          data: { text: sample(lang, name), tool: "ChatGPT", url: "https://chatgpt.com/" },
+          timeout: 30_000,
+        })
+        .catch(() => undefined);
+    }
+  }
+}
+
 const received = async (request: APIRequestContext) =>
   (await (await request.get(`${MOCK}/api/received`)).json()) as string[];
 
 test.beforeEach(async ({ request }) => {
   test.skip(!(await stackReady(request)), "needs the full stack: make up (brain with documents)");
+  await warmUp(request);
   await request.delete(`${MOCK}/api/received`);
 });
 
