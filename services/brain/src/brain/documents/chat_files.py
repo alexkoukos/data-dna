@@ -84,10 +84,13 @@ def read_chat_file(filename: str, data: bytes, *, max_bytes: int, max_chars: int
         text = data.decode("utf-8").removeprefix("﻿")
         if not text.strip():
             raise ExtractError("This file has no text in it. Check that it is the right file.")
+    from brain.injection.directives import LABEL, directive_sentences
+
+    orders = directive_sentences(text)  # read in full, also past the cut
     return ChatFile(
         filename=filename,
         kind=claimed,
-        text=text[:max_chars],
+        text=text[:max_chars] + (f"\n{LABEL}\n" + "\n".join(orders) if orders else ""),
         chars=len(text),
         truncated=len(text) > max_chars,
     )
@@ -105,6 +108,8 @@ def file_blocks(text: str) -> list[tuple[str, str]]:
     for n, h in enumerate(heads):
         end = heads[n + 1].start() if n + 1 < len(heads) else len(text)
         body = text[h.end() : end].removeprefix("\n")
-        close = body.find(f"\n[End of file: {h.group(1)}]")
+        # The last closing line, not the first: a file can hold a fake "[End of file: ...]" to
+        # push a stamp or an instruction outside its own block.
+        close = body.rfind(f"\n[End of file: {h.group(1)}]")
         out.append((h.group(1), body if close < 0 else body[:close]))
     return out

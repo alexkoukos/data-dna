@@ -11,6 +11,7 @@ from litellm.integrations.custom_guardrail import CustomGuardrail
 from collections.abc import AsyncGenerator
 
 from dna_inspect import (
+    LOCAL_MODEL,
     GatewayError,
     acceptance_scope,
     apply_decision,
@@ -18,6 +19,7 @@ from dna_inspect import (
     finalize_answer,
     rewrite_output,
     rewrite_stream,
+    stream_progressively,
 )
 
 BRAIN_URL = os.environ.get("BRAIN_URL", "http://brain:8001")
@@ -199,8 +201,30 @@ class DnaGuardrail(CustomGuardrail):
                 client=self._client,
             )
 
+        # The company's own model streams as it writes: the text never leaves the company, and
+        # each part is still checked before it is sent. Answers from outside models stay whole.
+        local = request_data.get("model") == LOCAL_MODEL
+        rewrite = stream_progressively if local else rewrite_stream
         try:
-            async for item in rewrite_stream(response, clean, filter_only):
+            async for item in rewrite(response, clean, filter_only):
                 yield item
         except GatewayError as err:
             raise HTTPException(status_code=err.status_code, detail=err.body) from err
+
+    async def async_post_call_response_headers_hook(
+        self,
+        data: dict,
+        user_api_key_dict: Any,
+        response: Any,
+        request_headers: dict[str, str] | None = None,
+        litellm_call_info: dict[str, object] | None = None,
+    ) -> dict[str, str] | None:
+        """The decision headers for streamed answers too (the success hook does not run for them),
+        so the app can show Allowed / Masked / Answered locally while the text arrives."""
+        meta = data.get("metadata") or {}
+        if "dna_decision" not in meta:
+            return None
+        return {
+            "x-dna-decision": str(meta.get("dna_decision", "allow")),
+            "x-dna-reasons": quote("; ".join(meta.get("dna_reasons") or [])),
+        }

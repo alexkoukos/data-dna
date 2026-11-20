@@ -9,6 +9,12 @@ const WHAT: Record<string, string> = {
   "client name": "a client name",
   "source code": "source code",
   injection: "instructions that try to take over the assistant",
+  "hidden data":
+    "data hidden inside an image file (steganography or extra bytes), a way to carry data out unseen",
+  "embedded instructions":
+    "instructions aimed at the AI written inside a file or picture. Check that you want the AI to follow them",
+  "hidden text":
+    "text hidden in an image: hard for a person to see, but an AI reads it. Hidden text is a common way to slip instructions to an AI",
 };
 
 /** Turns a brain reason like "Contains iban" into a sentence a person understands. */

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BrainIcon,
   FileText,
+  ImageIcon,
   CheckIcon as Check,
   CopyIcon,
   PanelLeft,
@@ -41,15 +42,17 @@ import { RequestToolForm } from "../components/RequestToolForm";
 import { OutcomeChip } from "../components/OutcomeChip";
 import { WarnCard } from "../components/WarnCard";
 import {
-  composeMessage,
   DEFAULT_LIMITS,
   fileSummary,
+  isImageName,
+  messageContent,
   precheck,
   toSent,
   uploadHint,
   type Attachment,
   type ReadFile,
 } from "../lib/attachments";
+import { dataUrlToFile, prepareImage } from "../lib/imageFiles";
 import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
 import { extractFile, fetchFileLimits } from "../lib/filesApi";
 import { PROMPT_GROUPS } from "../lib/chatPrompts";
@@ -67,12 +70,22 @@ import { collectOutcomes, outcomeText } from "../lib/toolRequestsApi";
 /** Stock portrait for the person (Unsplash). If it cannot load, the initials show instead. */
 const USER_AVATAR =
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&q=80";
-/** The company AI's avatar is the Sentry sentinel, drawn inline so it works offline. */
-const BEE_AVATAR =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="16" fill="#fffbeb"/><ellipse cx="16" cy="18" rx="8" ry="6" fill="#f59e0b"/><path d="M13 13v10M18 13v10" stroke="#262626" stroke-width="2" stroke-linecap="round"/><circle cx="24" cy="18" r="2.5" fill="#262626"/><ellipse cx="13" cy="11" rx="3.5" ry="2.5" fill="#fff" stroke="#262626" stroke-width="1"/><ellipse cx="19" cy="11" rx="3.5" ry="2.5" fill="#fff" stroke="#262626" stroke-width="1"/></svg>',
+/** The company AI's avatar: the Sentry sentinel. While an answer is on its way it thinks: the eye
+ * searches faster and a soft ring breathes behind it. Both stop for reduced motion. */
+function AiAvatar({ thinking = false }: { thinking?: boolean }) {
+  return (
+    <span
+      role="img"
+      aria-label="Company AI"
+      className={cn(
+        "ai-avatar relative flex size-8 shrink-0 items-center justify-center",
+        thinking && "is-thinking",
+      )}
+    >
+      <Sentinel size={24} className="sentinel-sm relative" />
+    </span>
   );
+}
 
 interface Pending {
   text: string;
@@ -209,6 +222,8 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
+  // The answer while it streams in, shown under the chat it belongs to.
+  const [live, setLive] = useState<{ chat: string; text: string } | null>(null);
   const [rated, setRated] = useState<number | null>(null);
   const [category, setCategory] = useState("");
   const [sidebar, setSidebar] = useState(
@@ -276,7 +291,7 @@ export default function ChatPage() {
     }
     setAttachments((all) => [...all, ...added]);
     for (const [id, f] of toRead)
-      void extractFile(f, limits).then((r) =>
+      void readAttachment(f).then((r) =>
         setAttachments((all) =>
           all.map((a) =>
             a.id !== id
@@ -289,11 +304,29 @@ export default function ChatPage() {
                     text: r.text,
                     chars: r.chars,
                     truncated: r.truncated,
+                    ...(r.image ? { image: r.image } : {}),
                   }
                 : { id, name: f.name, status: "error", message: r.message },
           ),
         ),
       );
+  };
+  /**
+   * The server reads the file. A picture is first redrawn here (see imageFiles) and the redrawn
+   * copy is what the server reads and what the model gets, so the text in the message comes from
+   * the exact picture sent. If the browser cannot redraw it, the original is read and only its
+   * text goes.
+   */
+  const readAttachment = async (f: File) => {
+    let image = isImageName(f.name) ? await prepareImage(f).catch(() => undefined) : undefined;
+    let upload = f;
+    try {
+      if (image) upload = dataUrlToFile(image, f.name);
+    } catch {
+      image = undefined;
+    }
+    const r = await extractFile(upload, limits);
+    return r.ok ? { ...r, name: f.name, ...(image ? { image } : {}) } : r;
   };
   const removeFile = (id: string) => setAttachments((all) => all.filter((a) => a.id !== id));
   const dismissHint = () => {
@@ -305,9 +338,9 @@ export default function ChatPage() {
     }
   };
   /** What the gateway checks for a turn: the typed text plus the text of its files. */
-  const contentOf = (t: StoredTurn) => {
+  const contentOf = (t: StoredTurn, withImages = false) => {
     const files = turnFiles.current.get(t.id);
-    return files ? composeMessage(t.text, files) : t.text;
+    return files ? messageContent(t.text, files, withImages) : t.text;
   };
 
   /** Sends `text` as a new turn, or retries the last question when `retry` is set. */
@@ -322,7 +355,15 @@ export default function ChatPage() {
       : (opts.files ??
         attachments.flatMap((a) =>
           a.status === "ready"
-            ? [{ name: a.name, text: a.text, chars: a.chars, truncated: a.truncated }]
+            ? [
+                {
+                  name: a.name,
+                  text: a.text,
+                  chars: a.chars,
+                  truncated: a.truncated,
+                  ...(a.image ? { image: a.image } : {}),
+                },
+              ]
             : [],
         ));
     if ((!clean && !files.length) || busy) return;
@@ -366,9 +407,11 @@ export default function ChatPage() {
         untouched.push(q, a);
     }
     const asked = base[base.length - 1];
+    // Only the newest question carries its pictures; a reroute to Company AI goes as text, since
+    // the company model reads text and a picture cannot be masked.
     const history: ChatTurn[] = [...untouched, ...(asked ? [asked] : [])].map((t) => ({
       role: t.from,
-      content: contentOf(t),
+      content: contentOf(t, t === asked && !opts.reroute),
     }));
     try {
       identity.current ??= await ensureIdentity();
@@ -377,7 +420,11 @@ export default function ChatPage() {
         void collectOutcomes(who.userId).then((rs) => {
           if (rs.length > 0) setNotices((n) => [...n, ...rs.map(outcomeText)]);
         });
-      const res = await sendChat(who, history, opts.ack, opts.reroute);
+      const chatId = id;
+      setLive({ chat: chatId, text: "" });
+      const res = await sendChat(who, history, opts.ack, opts.reroute, (text) =>
+        setLive({ chat: chatId, text }),
+      );
       if (res.kind === "answer")
         append(id, {
           from: "assistant",
@@ -410,6 +457,7 @@ export default function ChatPage() {
         failed: true,
       });
     } finally {
+      setLive(null);
       setBusy(false);
     }
   };
@@ -591,18 +639,41 @@ export default function ChatPage() {
                                   className="flex max-w-full flex-wrap justify-end gap-2"
                                   aria-label="Attached files"
                                 >
-                                  {t.files.map((f) => (
-                                    <li
-                                      key={f.name}
-                                      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-ink-200 bg-ink-50 px-3 py-1.5 text-xs text-ink-700"
-                                    >
-                                      <FileText className="size-3.5 shrink-0" aria-hidden="true" />
-                                      <span className="truncate font-medium">{f.name}</span>
-                                      {f.truncated ? (
-                                        <span className="shrink-0">· Shortened</span>
-                                      ) : null}
-                                    </li>
-                                  ))}
+                                  {t.files.map((f) => {
+                                    const picture = turnFiles.current
+                                      .get(t.id)
+                                      ?.find((x) => x.name === f.name)?.image;
+                                    return picture ? (
+                                      <li key={f.name}>
+                                        <img
+                                          src={picture}
+                                          alt={f.name}
+                                          className="max-h-40 max-w-[12rem] rounded-xl border border-ink-200 object-cover"
+                                        />
+                                      </li>
+                                    ) : (
+                                      <li
+                                        key={f.name}
+                                        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-ink-200 bg-ink-50 px-3 py-1.5 text-xs text-ink-700"
+                                      >
+                                        {isImageName(f.name) ? (
+                                          <ImageIcon
+                                            className="size-3.5 shrink-0"
+                                            aria-hidden="true"
+                                          />
+                                        ) : (
+                                          <FileText
+                                            className="size-3.5 shrink-0"
+                                            aria-hidden="true"
+                                          />
+                                        )}
+                                        <span className="truncate font-medium">{f.name}</span>
+                                        {f.truncated ? (
+                                          <span className="shrink-0">· Shortened</span>
+                                        ) : null}
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               ) : null}
                               {t.text ? (
@@ -642,7 +713,7 @@ export default function ChatPage() {
                           key={t.id}
                           className="mx-auto flex w-full max-w-3xl items-start gap-3 px-2"
                         >
-                          <MessageAvatar src={BEE_AVATAR} alt="Company AI" fallback="AI" />
+                          <AiAvatar />
                           <div className="group flex min-w-0 flex-1 flex-col gap-2">
                             {t.failed ? (
                               <SystemMessage variant="error" fill>
@@ -740,13 +811,29 @@ export default function ChatPage() {
                       );
                     })}
 
-                    {busy ? (
+                    {busy && live?.chat === activeId && live.text ? (
+                      <Message className="mx-auto flex w-full max-w-3xl items-start gap-3 px-2">
+                        <AiAvatar thinking />
+                        <div className="flex min-w-0 flex-1 flex-col gap-2">
+                          <MessageContent
+                            markdown
+                            className="streaming-caret flex-1 rounded-lg bg-transparent p-0 text-ink-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+                          >
+                            {live.text}
+                          </MessageContent>
+                          <span className="sr-only" role="status">
+                            Company AI is writing the answer
+                          </span>
+                        </div>
+                      </Message>
+                    ) : busy ? (
                       <div
                         className="mx-auto flex w-full max-w-3xl items-center gap-3 px-2 text-sm text-ink-600"
                         role="status"
                       >
-                        <Loader variant="dots" size="sm" />
-                        <ThinkingBar text="Thinking on the company server" />
+                        <AiAvatar thinking />
+                        <ThinkingBar className="w-auto" text="Thinking on the company server" />
+                        <Loader variant="typing" size="sm" />
                       </div>
                     ) : null}
 
