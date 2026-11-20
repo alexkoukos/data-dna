@@ -93,6 +93,45 @@ These were measured on 19 Nov 2026 on synthetic data. The method and every miss 
 
 To reproduce it, follow [docs/experiments/judge-finetune.md](docs/experiments/judge-finetune.md) (data in `data/finetune/`, training in `scripts/train_judge_lora.py`) and run `make judge-eval`. The judge is evaluated but not yet called in the live pipeline. The next step is to send it the borderline matches that today go to the plain local model.
 
+## The business
+
+**Employees keep their AI, the company keeps its data.** Prices, the plan and the customer numbers below are assumptions to be checked in pilots. No customer has been interviewed yet. Sources and the full analysis are in [docs/business](docs/business).
+
+**The problem.** 77% of employees who use generative AI paste data into prompts, and 82% of those pastes come from personal accounts (LayerX 2025). Shadow AI adds about USD 670,000 to the average cost of a breach, and 63% of organisations have no AI governance policy (IBM 2025). NIS2, DORA and GDPR ask the CISO for proof of control, not a policy PDF. AI-literacy duties under the AI Act (Article 4) already apply.
+
+**Who pays.** Greek companies with 50 to 1,000 staff that hold confidential client data: consultancies and IT integrators, law firms, banks, insurers and healthcare. The CISO buys and the DPO approves. The employee matters just as much: if Sentry gets in their way, they go back to personal ChatGPT. That is why it answers safely instead of blocking. System integrators are both customers and a sales channel.
+
+**Market.** About EUR 18M a year in Greece and EUR 1.1B in the EU (bottom-up: firms with 50+ staff in target sectors, at EUR 9 per office user per month). Gartner puts securing AI at about USD 4.8B worldwide in 2027. Large companies are buying their way in: SentinelOne bought Prompt Security, Check Point bought Lakera and Akamai bought LayerX. Greece is early, with 8.93% of businesses using AI against 20% across the EU.
+
+**What sets it apart.** Each part exists somewhere else on its own. No product we found combines them where the data leaves:
+
+| | Purview | LayerX / Harmonic | NordLayer | Prompt Security | EchoMark | **Sentry** |
+| --- | --- | --- | --- | --- | --- | --- |
+| Shadow AI discovery | ✓ | ✓ | ✓ | ✓ | – | ✓ |
+| Mask PII and secrets (Greek IDs with checksums) | ✓ | ✓ | ✓ | ✓ | – | ✓ |
+| Catch a **reworded** confidential document | – | ~ | – | – | – | ✓ |
+| Add up pieces **across several prompts** | – | – | – | – | – | ✓ |
+| **Answer locally** instead of blocking | – | – | – | – | – | ✓ |
+| Trace **which copy** leaked | – | – | – | – | ✓ | ✓ |
+
+Based on public pages, Nov 2026. "–" means we found no documentation for it, and "~" means partial coverage.
+
+**Pricing (proposal).** *Discover* EUR 3 per user per month (shadow AI discovery and reports). *Protect* EUR 9 (adds the gateway, extension, Company AI, masking and the local model). *Enterprise* is quoted per customer (adds traced copies, SIEM, on-prem and SSO). Annual contracts, with a minimum of 50 users. With tokens passed through at cost, AI for everyone works out at about USD 14 per user per month. ChatGPT Business costs USD 20 and doesn't check any of the data.
+
+**How we sell it.** First, 2 weeks in shadow mode on the customer's own traffic, where the dashboard shows "we would have stopped 12". Then a 30-day pilot in one team, then an annual contract and expansion. For a 200-person consultancy with NDA penalties averaging EUR 675k, the subscription pays for itself if the yearly chance of a client-data leak is above **3.2%**.
+
+**Plan.** These figures come from a financial model built on stated assumptions.
+
+| | 2027 | 2028 | 2029 |
+| --- | --- | --- | --- |
+| Customers | 8 | 28 | 69 |
+| ARR | EUR 145k | EUR 553k | EUR 1.42M |
+| Gross margin | 66% | 74% | 75% |
+
+Break-even comes at around 70 customers, in early 2030. Each customer pays back its acquisition cost in 12.3 months, and LTV/CAC is 4.9×. We plan a EUR 450k pre-seed (Feb 2027), then a EUR 1.2M seed (Sep 2028) only if we reach 20 customers, NRR of at least 100% and payback under 18 months. The critical path to the first paid contracts runs through design partners and funding, not code. That is why we raise in parallel with the pilots.
+
+**Top risks.** (1) Large vendors bundle this "for free". We answer by focusing on Greek, mid-size firms and integrations. (2) False alarms drive employees away. Shadow mode comes first, the thresholds are tunable, and we warn before we block. (3) Security sales cycles are slow. Shadow mode, integrators and the compliance report help shorten them. (4) A breach of our own system. We store no prompts, and login, a pen test and cyber insurance come before any pilot.
+
 ## Known limits
 
 - Sentry only stops traffic that goes through the gateway or the extension. Other tools show up in usage logs, but they aren't blocked.
