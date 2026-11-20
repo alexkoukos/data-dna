@@ -62,7 +62,7 @@ export default function App() {
     );
   }
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col *:min-w-0">
       <div className="sentry nav-shell">
         <SiteNav />
       </div>
