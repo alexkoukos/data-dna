@@ -88,7 +88,7 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
-      <div className="sentry dark">
+      <div className="sentry dark foot-shell">
         <SiteFooter />
       </div>
     </div>

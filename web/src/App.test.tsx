@@ -16,4 +16,15 @@ describe("App", () => {
       expect(within(nav).getByRole("link", { name })).toBeInTheDocument();
     }
   });
+
+  it("keeps the footer wrapper from taking a full screen on app pages", () => {
+    // .sentry sets min-height: 100vh; without foot-shell the footer leaves a screen of blank space.
+    render(
+      <MemoryRouter initialEntries={["/chat"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    const footer = screen.getByRole("navigation", { name: "Footer" }).closest("footer");
+    expect(footer?.parentElement).toHaveClass("sentry", "foot-shell");
+  });
 });
