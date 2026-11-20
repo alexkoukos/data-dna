@@ -105,6 +105,8 @@ def file_blocks(text: str) -> list[tuple[str, str]]:
     for n, h in enumerate(heads):
         end = heads[n + 1].start() if n + 1 < len(heads) else len(text)
         body = text[h.end() : end].removeprefix("\n")
-        close = body.find(f"\n[End of file: {h.group(1)}]")
+        # The last closing line, not the first: a file can hold a fake "[End of file: ...]" to
+        # push a stamp or an instruction outside its own block.
+        close = body.rfind(f"\n[End of file: {h.group(1)}]")
         out.append((h.group(1), body if close < 0 else body[:close]))
     return out

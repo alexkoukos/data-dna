@@ -30,6 +30,7 @@ DEFAULT_CATEGORY_ACTIONS: dict[str, Decision] = {
     "client_name": Decision.WARN,
     "source_code": Decision.WARN,
     "injection": Decision.BLOCK,
+    "hidden_text": Decision.BLOCK,
     "honeytoken": Decision.BLOCK,
 }
 

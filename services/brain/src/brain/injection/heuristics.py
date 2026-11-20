@@ -87,16 +87,82 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         re.compile(r"\b(deixe|deikse|emfanise|typose|ektypose)\b[^.\n]{0,30}system prompt", _I),
     ),
     ("greek_reveal", re.compile(r"(εμφάνισε|δείξε|τύπωσε)[^.\n]{0,30}system prompt", _I)),
+    # Instructions planted in a document or an image for whichever AI reads it.
+    (
+        "note_to_ai",
+        re.compile(
+            r"\b(note|message|instructions?)\s+(to|for)\s+(the\s+|any\s+)?"
+            r"(ai|assistant|model|llm|chatbot|language model)s?\b\s*[:,-]",
+            _I,
+        ),
+    ),
+    (
+        "ai_reading_this",
+        re.compile(
+            r"\bif you are an? (ai|assistant|language model|llm|chatbot)\b[^.\n]{0,40}"
+            r"\b(reading|processing|summari[sz]ing|seeing|analy[sz]ing)\b",
+            _I,
+        ),
+    ),
 ]
+
+# OCR reads a capital I as a small l ("lgnore"). Same length, so positions stay right.
+_OCR_FOLD = re.compile(r"\b[l1|](?=(?:gn|nstruct)[a-z])")
+# Words a recogniser glued together ("Ignoreallpreviousinstructions"), matched on letters only.
+_SQUASHED: list[tuple[str, re.Pattern[str]]] = [
+    (
+        "override_instructions",
+        re.compile(
+            r"(ignore|disregard|forget|override)(the)?(all|your|previous|prior|earlier|above)+"
+            r"(the)?(instructions?|rules|prompts?|guidelines)"
+        ),
+    ),
+    ("reveal_prompt", re.compile(r"(print|reveal|show|repeat|output)(the|your)?systemprompt")),
+]
+_HIDDEN_LABEL = "[Text hard to see in this image]"  # brain.documents.ocr.HIDDEN_LABEL
+
+
+def _squashed(text: str) -> list[Finding]:
+    """Injection phrases whose spaces were lost, mapped back to positions in the real text."""
+    pos = [i for i, c in enumerate(text) if c.isalpha()]
+    letters = "".join(text[i] for i in pos).lower()
+    out: list[Finding] = []
+    for name, rx in _SQUASHED:
+        for m in rx.finditer(letters):
+            start, end = pos[m.start()], pos[m.end() - 1] + 1
+            out.append(
+                Finding(f"INJECTION_{name.upper()}", "injection", start, end, text[start:end])
+            )
+    return out
+
+
+def _hidden_image_text(text: str) -> list[Finding]:
+    """The image reader found text drawn so a person can hardly see it (category hidden_text)."""
+    out: list[Finding] = []
+    start = text.find(_HIDDEN_LABEL)
+    while start >= 0:
+        end = start + len(_HIDDEN_LABEL)
+        out.append(Finding("HIDDEN_IMAGE_TEXT", "hidden_text", start, end, _HIDDEN_LABEL))
+        start = text.find(_HIDDEN_LABEL, end)
+    return out
 
 
 def injection_finder(text: str) -> list[Finding]:
     found = []
+    folded = _OCR_FOLD.sub("i", text)
     for name, rx in _PATTERNS:
-        for m in rx.finditer(text):
+        for m in rx.finditer(folded):
             found.append(
-                Finding(f"INJECTION_{name.upper()}", "injection", m.start(), m.end(), m.group(0))
+                Finding(
+                    f"INJECTION_{name.upper()}",
+                    "injection",
+                    m.start(),
+                    m.end(),
+                    text[m.start() : m.end()],
+                )
             )
+    found += _squashed(text)
+    found += _hidden_image_text(text)
     found.sort(key=lambda f: (f.start, -(f.end - f.start)))
     out: list[Finding] = []
     for f in found:

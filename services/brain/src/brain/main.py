@@ -620,7 +620,7 @@ def _escalate_rebuilds(req: InspectRequest, result: InspectResult) -> None:
             result.verdict.decision = Decision.BLOCK
 
 
-NEVER_REROUTE = {"injection", "honeytoken"}
+NEVER_REROUTE = {"injection", "hidden_text", "honeytoken"}
 
 
 def _can_reroute(
