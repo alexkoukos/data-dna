@@ -5,6 +5,8 @@ This is the path the chat page takes: POST /v1/files/extract, then the text insi
 /v1/chat/completions. The model is LiteLLM's mock, so no key and no network are needed.
 """
 
+import base64
+
 import httpx
 import pytest
 from openai import OpenAI, PermissionDeniedError
@@ -87,3 +89,52 @@ def test_a_clean_file_is_allowed(client: OpenAI) -> None:  # noqa: F811
     text = _extract("lunch.pdf", pdf_with_text("Team lunch on Friday at noon"))
     decision, answer = _send(client, as_message("lunch.pdf", text))
     assert decision == "allow" and "safety check" in answer
+
+
+# --- files sent straight to the gateway as binary parts (scripts, SDKs, agents) ----------------
+
+
+def _file_message(data: bytes, name: str, media: str) -> list[dict[str, object]]:
+    url = f"data:{media};base64,{base64.b64encode(data).decode()}"
+    return [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Summarise the attached file"},
+                {"type": "file", "file": {"filename": name, "file_data": url}},
+            ],
+        }
+    ]
+
+
+def test_a_stamped_pdf_file_part_is_blocked_at_the_gateway(client: OpenAI) -> None:  # noqa: F811
+    stamped = pdf_with_text(f"Classification: RESTRICTED. Pay {IBAN}")
+    with pytest.raises(PermissionDeniedError) as err:
+        client.chat.completions.create(
+            model="demo-mock", messages=_file_message(stamped, "q4.pdf", "application/pdf")
+        )
+    assert "q4.pdf" in str(err.value.body)
+
+
+def test_a_pdf_file_part_with_an_iban_asks_first(client: OpenAI) -> None:  # noqa: F811
+    with pytest.raises(Exception) as err:
+        client.chat.completions.create(
+            model="demo-mock",
+            messages=_file_message(pdf_with_text(f"Pay {IBAN}"), "pay.pdf", "application/pdf"),
+        )
+    assert getattr(err.value, "status_code", None) == 409
+
+
+def test_an_audio_file_part_is_refused(client: OpenAI) -> None:  # noqa: F811
+    with pytest.raises(PermissionDeniedError):
+        client.chat.completions.create(
+            model="demo-mock",
+            messages=_file_message(b"RIFF\x00\x00\x00\x00WAVEfmt ", "a.wav", "audio/wav"),
+        )
+
+
+def test_a_scanned_page_uploaded_in_chat_is_read_with_ocr() -> None:
+    from tests.test_chat_files import scanned_pdf
+
+    text = _extract("scan.pdf", scanned_pdf("Classification: RESTRICTED", f"Pay {IBAN}"))
+    assert "RESTRICTED" in text and IBAN in text.replace(" ", "")
