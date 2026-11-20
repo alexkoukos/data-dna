@@ -4,6 +4,7 @@ Anthropic documents and images) are read by the brain, not passed through unread
 import asyncio
 import base64
 import copy
+import io
 from typing import Any
 
 import httpx
@@ -289,3 +290,76 @@ def test_bytes_that_are_not_a_readable_image_are_refused() -> None:
     with pytest.raises(dna.GatewayError) as err:
         through_brain(chat({"type": "image_url", "image_url": {"url": url}}))
     assert err.value.status_code == 403
+
+
+# --- what goes on to the model: the redrawn copy, never the original ----------------------------
+
+
+def _png_with_secret() -> bytes:
+    """A small picture with a message appended after its end, and a text comment."""
+    from PIL import Image, PngImagePlugin
+
+    meta = PngImagePlugin.PngInfo()
+    meta.add_text("Comment", "nothing to see")
+    buf = io.BytesIO()
+    Image.new("RGB", (320, 200), (30, 110, 200)).save(buf, "PNG", pnginfo=meta)
+    return buf.getvalue()
+
+
+def test_the_model_gets_the_redrawn_jpeg_not_the_original() -> None:
+    picture = _png_with_secret()
+    data = chat(
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64(picture)}"}}
+    )
+    out = through_brain(data)
+    url = out["messages"][0]["content"][1]["image_url"]["url"]
+    assert url.startswith("data:image/jpeg;base64,")
+    sent = base64.b64decode(url.split(",", 1)[1])
+    assert sent != picture and sent.startswith(b"\xff\xd8")
+    assert b"nothing to see" not in sent  # metadata gone
+
+
+def test_an_anthropic_image_is_replaced_with_its_media_type() -> None:
+    picture = _png_with_secret()
+    data = {
+        "model": "m",
+        "max_tokens": 10,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "what is this"},
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": b64(picture),
+                        },
+                    },
+                ],
+            }
+        ],
+    }
+    out = through_brain(data, "anthropic_messages")
+    source = out["messages"][0]["content"][1]["source"]
+    assert source["media_type"] == "image/jpeg"
+    assert base64.b64decode(source["data"]).startswith(b"\xff\xd8")
+
+
+def test_a_pdf_goes_on_as_it_was() -> None:
+    pdf = pdf_with_text("Team lunch on Friday")
+    out = through_brain(chat(file_part(pdf, "lunch.pdf")))
+    assert out["messages"][0]["content"][1]["file"]["file_data"].endswith(b64(pdf))
+
+
+def test_without_the_cleaned_copies_nothing_is_sent() -> None:
+    picture = _png_with_secret()
+    data = chat(
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64(picture)}"}}
+    )
+    with pytest.raises(dna.GatewayError) as err:
+        _decide(
+            data, "completion", {"decision": "allow", "reasons": [], "purified_attachments": []}
+        )
+    assert err.value.status_code == 503
