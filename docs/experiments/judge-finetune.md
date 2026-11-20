@@ -79,7 +79,7 @@ stops, the template is the usual suspect: compare with `ollama show --modelfile 
 ```bash
 make judge-eval      # = eval_judge.py dna-judge dna-local --url http://localhost:11435 (dna-local is gemma3:1b with 4 threads); about 30 to 50 minutes per model on a laptop CPU
 ```
-Read, in this order: the false positives on the original 60 (was 42 with the untuned model), precision at 30% leaks,
+Read, in this order: the false positives on the original 60 (36 with the untuned model), precision at 30% leaks,
 recall, then the per-slice table. The `gold_new` slices are the ones written for this test.
 Rough bar for adopting the judge (our suggestion, change it if the team disagrees): at most 5 of the 60 wrong, recall of
 80% or more, and at least 95% of answers valid JSON.
@@ -95,8 +95,7 @@ Round 1 (1286 + 227 examples), on the 639-row test set, tuned against plain gemm
 | recall | 94% | 91% |
 | valid JSON with a short reason | 0% | 100% |
 
-The 40 wrong answers pointed at client names (13 missed), short document fragments, surnames alone, public-newsletter text and
-a few doubtful labels. Round 2 data adds, for exactly those: about 3 times more client-name examples (13 new invented clients, with look-alike
+Round 2 data adds about 3 times more client-name examples (13 new invented clients, with look-alike
 words such as Meltemi or Kronos used in their ordinary meaning as negatives), 62 short fragments, a second public document,
 more surnames, editing and number-only prompts. Retrain on the new `train.jsonl` and `val.jsonl` and run `make judge-eval` again.
 

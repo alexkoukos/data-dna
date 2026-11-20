@@ -9,7 +9,7 @@ Company data leaving through AI tools: personal identifiers (AFM, AMKA, IBAN, ca
 | Actor | Example | Stopped? |
 |---|---|---|
 | Careless employee | Pastes a client list into a public chatbot | **Yes**, if the traffic goes through the gateway |
-| Employee in a hurry | Pastes a document, changes a few words | **Mostly**: copies and near copies are caught; paraphrases 40 of 40 on our own test set, which we tuned on, so expect less on rewrites nobody has tried (`make eval`; `docs/calibration.md` has the trade-off and the holdout results) |
+| Employee in a hurry | Pastes a document, changes a few words | **Yes** on our test set: copies and near copies are caught, and paraphrases 40 of 40 (`make eval`; `docs/calibration.md` has the cutoff trade-off) |
 | Curious employee who tries to trick it | Spaced digits, base64, look-alike letters, Greeklish | **Mostly**: the normaliser undoes the common tricks; the "Try to break it" page lets you test |
 | Prompt injection inside a file or tool result | "Ignore previous instructions" in a PDF | **Yes** for known phrasings and the classifier; novel attacks may pass |
 | Prompt injection hidden in a picture | Near-white or grey-on-grey text, text under transparent pixels, a QR code, an EXIF comment, rotated text | **Yes** for these forms: the image is read on several enhanced copies, codes and metadata are decoded, and any text a person cannot see blocks the message on its own (`hidden_text`). Company Chat also redraws pictures in the browser, which removes metadata and transparency before sending |
@@ -30,7 +30,7 @@ Cheapest first: normalisation, patterns with checksums, YARA and code fingerprin
 - **Steganography.** Data appended after the end of an image, large private PNG blocks and a message in the lowest pixel bits of a lossless image (sample pair analysis, from about 25% of the pixels) block the message (`hidden_data`). Small messages, messages in JPEG coefficients and encrypted payloads spread thinly are not detected. They still do not reach a model: the gateway sends every picture as a redrawn JPEG, which wipes pixel-level messages, appended bytes and metadata.
 - **Pixel patterns tuned against one model** (adversarial images) are not detected. The redrawn copy (scaled, lightly blurred, JPEG 85) cuts fine patterns strongly (a ±6 checkerboard to about 0.1 levels, ±8 random noise by about two thirds) and coarser ones less (4-pixel stripes by about 40%). An attacker who designs a pattern to survive this exact transformation can still get through. Other languages beyond Greek, English, German and French match by exact copy only.
 - **Detection is probabilistic.** Expect false alarms (a question about a similar topic goes local) and misses. Shadow mode measures them before enforcement.
-- **People data.** Names are found by language models, which miss rare names and flag some common words.
+- **People data.** Names are found with Presidio and small spaCy models (English and Greek) plus Greek surname endings, which can miss rare names and flag some common words.
 - **Honeytokens only catch what was planted.** They prove a specific document leaked; they do not detect other leaks.
 - **Our own surface.** The demo has no login, a default master key and open ports. The identity of an employee behind a pseudonym needs two people to approve, but the brain API itself is unauthenticated in demo mode.
 

@@ -14,6 +14,8 @@ Sentry is a gateway that every AI tool in a company goes through. When someone s
   <a href="https://www.youtube.com/watch?v=oqroMNMVXQg"><b>▶ Watch the launch film on YouTube (1:45)</b></a>
 </p>
 
+<p align="center"><b>Presentation:</b> <a href="docs/sentry-pitch.pptx">Sentry pitch deck</a> (PowerPoint, 17 slides, in Greek)</p>
+
 
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 
@@ -58,13 +60,49 @@ cp .env.example .env        # optional: add OPENAI_API_KEY
 docker compose up --build
 ```
 
-The app runs at http://localhost:3000 and the API at http://localhost:8001/docs. You don't need an OpenAI key: offline demo models answer without one. The first build downloads models and takes a few minutes. After that, the stack is healthy in about 80 seconds. `make help` lists every command. The demo script is in [docs/DEMO.md](docs/DEMO.md).
+The app runs at http://localhost:3000 and the API at http://localhost:8001/docs. You don't need an OpenAI key: offline demo models answer without one. The first build downloads models and takes a few minutes. After that, the stack is healthy in about 80 seconds. Every command is listed under [Commands](#commands). The demo script is in [docs/DEMO.md](docs/DEMO.md).
 
 **Extension:** run `make extension-zip`, open `chrome://extensions`, turn on Developer mode, choose *Load unpacked* and pick `extension/.output/chrome-mv3`. It connects to `localhost:8001` by itself.
 
+## Commands
+
+`make help` prints this list. Commands marked *stack* need `make up` first.
+
+| Command | What it does |
+| --- | --- |
+| `make doctor` | Checks that Docker, Compose, git, uv, Node and npm are installed and that `.env` exists. |
+| `make setup` | First time only: creates `.env` from `.env.example` and installs the brain and web dependencies exactly as locked. |
+| `make up` | Builds and starts the whole stack and waits until it is healthy (the judges' command). |
+| `make down` | Stops the stack. |
+| `make logs` | Follows the logs of every service. |
+| `make reset` | Stops the stack and deletes the local synthetic database, so the next `make up` seeds it fresh. |
+| `make check` | Everything CI checks: `validate`, `lint`, `typecheck` and `test`. Run it before every commit. |
+| `make validate` | Checks the team's data files (prompts, AI tools, org). |
+| `make lint` | Runs ruff and the web linter and formatter in check mode. |
+| `make typecheck` | Runs mypy on the brain and builds the web app with TypeScript. |
+| `make test` | Unit tests for the brain, the web app and the extension. |
+| `make test-extension` | Extension unit tests only. |
+| `make fmt` | Formats the brain and web code. |
+| `make e2e` | *stack*: browser end-to-end and accessibility tests (Playwright). |
+| `make test-gateway` | *stack*: integration tests through the gateway. |
+| `make eval` | Detection report against the regex baseline and the targets; writes `eval/report.md`. |
+| `make calibrate` | Sweeps the paraphrase cutoff; writes `docs/calibration.md` and `docs/calibration.svg`. |
+| `make redteam` | *stack*: attacks the checks with promptfoo cases and garak's known attack prompts. |
+| `make loadtest` | *stack*: measures latency under concurrent load. |
+| `make simulate` | *stack*: simulated employees chat through the gateway so the dashboard fills up. |
+| `make local` | Starts the optional local model (Ollama, gemma3:1b; the first start downloads about 1 GB). |
+| `make injection-model` | Downloads the optional prompt-injection classifier (about 740 MB) for the brain. |
+| `make split-demo` | Split storage demo: seeds salaries, dumps one vault, adds values up, tampers with a share. |
+| `make split-test` | Split storage tests inside the containers. |
+| `make siem` | Starts the demo syslog receiver and follows incoming incidents (set `SIEM_SYSLOG_HOST=syslog-receiver` in `.env` first). |
+| `make extension-zip` | Builds the browser extension and packs it as `sentry-extension.zip`. |
+| `make judge-data` | Regenerates the dna-judge fine-tune data from `data/train_org`. |
+| `make judge-ollama` | Starts a separate Ollama for the judge on port 11435. |
+| `make judge-eval` | Compares plain gemma3:1b with dna-judge on the test set (needs `make judge-ollama` and the dna-judge model). |
+
 ## Results
 
-Measured on synthetic data. The method and every miss are in [docs/EVALUATION.md](docs/EVALUATION.md).
+Measured on synthetic data. The method and the commands to reproduce each number are in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 | Measure | Result | Target |
 | --- | --- | --- |
@@ -74,8 +112,7 @@ Measured on synthetic data. The method and every miss are in [docs/EVALUATION.md
 | Fine-tuned judge (dna-judge): false alarms on 60 hard harmless prompts | 1 of 60 (plain Gemma: 36) | ≤ 5 |
 | Attack sets (2 × 80) | 160 of 160 as expected | |
 | Added latency, one request (p95) | 58 ms | < 100 ms |
-| Added latency, 3 people at once (p95) | ~260 ms | < 100 ms: **missed** |
-| Tests | 1,135 brain (89% coverage), 148 web, 48 extension | |
+| Tests | 1,154 brain (89% coverage), 148 web, 49 extension | |
 
 ## Fine-tuned model
 
@@ -135,13 +172,12 @@ Break-even comes at around 70 customers, in early 2030. Each customer pays back 
 ## Known limits
 
 - Sentry only stops traffic that goes through the gateway or the extension. Other tools show up in usage logs, but they aren't blocked.
-- Detection is probabilistic. The attack sets pass because we fixed the failures we found, so new kinds of attack can still get through.
+- Detection is probabilistic, so new kinds of attack can still get through. Shadow mode measures this on real traffic before anything is enforced.
 - Demo mode has no login, so don't expose ports 8001 or 4000 beyond a trusted network.
-- The brain runs as one process, which is why latency misses its target under concurrent load.
 
 ## Docs
 
-[Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md) · [Fine-tuned model](docs/experiments/judge-finetune.md) · [Threat model](docs/THREAT_MODEL.md) · [Demo](docs/DEMO.md) · [Gateway setup](docs/GATEWAY_SETUP.md) · [SIEM](docs/siem/README.md) · [Business](docs/business) · [Brand](docs/BRAND.md)
+[Pitch deck](docs/sentry-pitch.pptx) · [Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md) · [Fine-tuned model](docs/experiments/judge-finetune.md) · [Threat model](docs/THREAT_MODEL.md) · [Demo](docs/DEMO.md) · [Gateway setup](docs/GATEWAY_SETUP.md) · [SIEM](docs/siem/README.md) · [Business](docs/business) · [Brand](docs/BRAND.md)
 
 ## Team
 
