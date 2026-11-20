@@ -75,7 +75,7 @@ These were measured on 19 Nov 2026 on synthetic data. The method and every miss 
 | Attack sets (2 × 80) | 160 of 160 as expected | |
 | Added latency, one request (p95) | 58 ms | < 100 ms |
 | Added latency, 3 people at once (p95) | ~260 ms | < 100 ms: **missed** |
-| Tests | 912 brain (88% coverage), 114 web, 5 extension | |
+| Tests (20 Nov) | 1,135 brain (86% coverage), 148 web, 48 extension | |
 
 ## Fine-tuned model
 
