@@ -1,4 +1,5 @@
 import type { Outcome } from "../components/OutcomeChip";
+import type { SentFile } from "./attachments";
 
 export interface StoredTurn {
   id: number;
@@ -7,6 +8,8 @@ export interface StoredTurn {
   outcome?: Outcome;
   reasons?: string[];
   failed?: boolean;
+  /** Names and sizes of attached files. Their text is never stored here. */
+  files?: SentFile[];
 }
 
 export interface Chat {

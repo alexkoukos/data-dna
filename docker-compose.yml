@@ -1,6 +1,7 @@
 # One command: docker compose up --build   (Netcompany rule: must build and start on Linux)
-# The product is the browser extension plus the dashboard. The LiteLLM gateway (another way in,
-# for scripts and coding tools) and the local model are optional profiles: `make gateway`, `make local`.
+# The product is the browser extension plus the dashboard. The LiteLLM gateway runs by default: Company
+# Chat (/chat) answers through it, and scripts and coding tools use it too. The local model is an
+# optional profile: `make local`.
 name: sentry
 
 services:
@@ -98,6 +99,11 @@ services:
       COMPANY_AI_URL: ${COMPANY_AI_URL:-http://localhost:3000/chat}
       WEB_URL: ${WEB_URL:-http://localhost:3000}
       SEED_ON_START: ${SEED_ON_START:-true}
+      # Files attached in Company Chat (brain/files.py)
+      FILE_MAX_BYTES: ${FILE_MAX_BYTES:-10485760}
+      FILE_MAX_COUNT: ${FILE_MAX_COUNT:-3}
+      FILE_MAX_CHARS: ${FILE_MAX_CHARS:-30000}
+      FILE_EXTRACT_TIMEOUT: ${FILE_EXTRACT_TIMEOUT:-15}
     volumes:
       - models:/models
       - ./data:/data:ro
@@ -120,7 +126,6 @@ services:
         condition: service_healthy
 
   gateway:
-    profiles: ["gateway"]
     build: ./infra/gateway
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}
@@ -144,6 +149,8 @@ services:
       - "127.0.0.1:3000:3000"
     depends_on:
       brain:
+        condition: service_healthy
+      gateway:
         condition: service_healthy
 
   # Offline stand-in for ChatGPT, for the demo and the extension tests (http://localhost:3100).

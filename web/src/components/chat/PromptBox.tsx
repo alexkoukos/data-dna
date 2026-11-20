@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
-import { ArrowUp, FileText, Plus, X } from "lucide-react";
-import { FileUpload, FileUploadTrigger } from "@/components/ui/file-upload";
+import { ArrowUp, Paperclip } from "lucide-react";
+import { FileUpload, FileUploadContent, FileUploadTrigger } from "@/components/ui/file-upload";
 import {
   PromptInput,
   PromptInputAction,
@@ -10,8 +9,8 @@ import {
 import { PromptSuggestion } from "@/components/ui/prompt-suggestion";
 import { TextureButton } from "@/components/ui/texture-button";
 import { suggestFor } from "../../lib/chatPrompts";
-
-const MAX_FILE_CHARS = 20_000;
+import { TYPE_NAMES, type Attachment } from "../../lib/attachments";
+import { AttachmentChips } from "./AttachmentChips";
 
 interface Props {
   value: string;
@@ -19,12 +18,18 @@ interface Props {
   onSend: () => void;
   busy: boolean;
   placeholder?: string;
+  attachments?: Attachment[];
+  accept?: string;
+  maxChars?: number;
+  onAddFiles?: (files: File[]) => void;
+  onRemoveFile?: (id: string) => void;
 }
 
 /**
- * The prompt input of the prompt-kit chat: a textarea with actions (add a text file, send) and an
+ * The prompt input of the prompt-kit chat: a textarea with actions (attach files, send) and an
  * autocomplete that highlights what has been typed in matching library prompts.
- * Added files are read here in the browser and become part of the message, so the usual check sees them.
+ * Files can be attached with the button (keyboard) or dropped anywhere on the page. The page reads
+ * them on the server and sends their text inside the message, so the usual check sees them.
  */
 export function PromptBox({
   value,
@@ -32,32 +37,18 @@ export function PromptBox({
   onSend,
   busy,
   placeholder = "Ask the company AI",
+  attachments = [],
+  accept = ".pdf,.docx,.txt,.md,.csv",
+  maxChars = 30_000,
+  onAddFiles,
+  onRemoveFile,
 }: Props) {
-  const [files, setFiles] = useState<string[]>([]);
-  const [fileNote, setFileNote] = useState("");
-  const textRef = useRef(value);
-  textRef.current = value;
-  const suggestions = busy ? [] : suggestFor(value);
-
-  const addFiles = async (picked: File[]) => {
-    setFileNote("");
-    let text = textRef.current;
-    const names: string[] = [];
-    for (const f of picked) {
-      if (f.size > 1_000_000 || !/\.(txt|md|csv|json|log)$/i.test(f.name)) {
-        setFileNote(
-          `${f.name} was not added. Use a text file (.txt, .md, .csv, .json, .log) under 1 MB.`,
-        );
-        continue;
-      }
-      const body = (await f.text()).slice(0, MAX_FILE_CHARS);
-      text += `${text ? "\n\n" : ""}[File: ${f.name}]\n${body}`;
-      names.push(f.name);
-    }
-    if (names.length) {
-      onChange(text);
-      setFiles((all) => [...all, ...names]);
-    }
+  const suggestions = busy || attachments.length ? [] : suggestFor(value);
+  const reading = attachments.some((a) => a.status === "reading");
+  const hasFiles = attachments.some((a) => a.status === "ready");
+  const canSend = !busy && !reading && (!!value.trim() || hasFiles);
+  const send = () => {
+    if (canSend) onSend();
   };
 
   return (
@@ -66,31 +57,15 @@ export function PromptBox({
         isLoading={busy}
         value={value}
         onValueChange={onChange}
-        onSubmit={onSend}
+        onSubmit={send}
         className="relative z-10 w-full rounded-3xl border border-ink-300 bg-surface p-0 pt-1 shadow-xs focus-within:border-ink-900"
       >
         <div className="flex flex-col">
-          {files.length ? (
-            <ul className="flex flex-wrap gap-2 px-4 pt-3" aria-label="Added files">
-              {files.map((n, i) => (
-                <li
-                  key={`${n}-${i}`}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-ink-50 py-1 pl-3 pr-1 text-xs text-ink-700"
-                >
-                  <FileText className="size-3.5" aria-hidden="true" />
-                  {n}
-                  <button
-                    type="button"
-                    aria-label={`Forget ${n} (its text stays in the message until you delete it)`}
-                    className="grid size-6 place-items-center rounded-full hover:bg-ink-200"
-                    onClick={() => setFiles((all) => all.filter((_, j) => j !== i))}
-                  >
-                    <X className="size-3" aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          <AttachmentChips
+            items={attachments}
+            maxChars={maxChars}
+            onRemove={(id) => onRemoveFile?.(id)}
+          />
           <PromptInputTextarea
             aria-label="Your question"
             placeholder={placeholder}
@@ -98,28 +73,41 @@ export function PromptBox({
           />
           <PromptInputActions className="mt-3 flex w-full items-center justify-between gap-2 px-3 pb-3">
             <div className="flex items-center gap-2">
-              <FileUpload onFilesAdded={(f) => void addFiles(f)} accept=".txt,.md,.csv,.json,.log">
-                <PromptInputAction tooltip="Add a text file">
-                  <FileUploadTrigger asChild>
-                    <TextureButton
-                      variant="secondary"
-                      size="icon"
-                      aria-label="Add a text file"
-                      className="rounded-full"
-                    >
-                      <Plus className="size-4" aria-hidden="true" />
-                    </TextureButton>
-                  </FileUploadTrigger>
-                </PromptInputAction>
-              </FileUpload>
+              {onAddFiles ? (
+                <FileUpload onFilesAdded={onAddFiles} accept={accept} disabled={busy}>
+                  <PromptInputAction tooltip={`Attach files (${TYPE_NAMES})`}>
+                    <FileUploadTrigger asChild>
+                      <TextureButton
+                        variant="secondary"
+                        size="icon"
+                        aria-label="Attach files"
+                        disabled={busy}
+                        className="rounded-full"
+                      >
+                        <Paperclip className="size-4" aria-hidden="true" />
+                      </TextureButton>
+                    </FileUploadTrigger>
+                  </PromptInputAction>
+                  <FileUploadContent className="bg-ink-50/90">
+                    <div className="rounded-3xl border-2 border-dashed border-ink-400 bg-surface px-8 py-6 text-center">
+                      <p className="text-lg font-semibold text-ink-900">
+                        Drop files to attach them
+                      </p>
+                      <p className="mt-1 text-sm text-ink-700">
+                        {TYPE_NAMES}. They are checked before anything is sent.
+                      </p>
+                    </div>
+                  </FileUploadContent>
+                </FileUpload>
+              ) : null}
             </div>
             <PromptInputAction tooltip="Send (Enter)">
               <TextureButton
                 variant="primary"
                 size="icon"
                 aria-label="Send"
-                disabled={busy || !value.trim()}
-                onClick={onSend}
+                disabled={!canSend}
+                onClick={send}
                 className="rounded-full"
               >
                 {busy ? (
@@ -132,11 +120,6 @@ export function PromptBox({
           </PromptInputActions>
         </div>
       </PromptInput>
-      {fileNote ? (
-        <p role="status" className="mt-2 px-2 text-sm text-block-fg">
-          {fileNote}
-        </p>
-      ) : null}
       {suggestions.length ? (
         <div className="mt-2 w-full space-y-1" aria-label="Suggestions">
           {suggestions.map((s) => (

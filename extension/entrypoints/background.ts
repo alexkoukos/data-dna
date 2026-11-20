@@ -1,5 +1,6 @@
 import { askLocal, checkRemote, postEvents, refreshPolicy, safeBrainUrl } from "../src/api";
 import { bumpStats, getPolicy, getSettings, saveSettings } from "../src/storage";
+import { companyChatUrl } from "../src/handoff";
 import type { Msg } from "../src/types";
 
 /** Pages the content script runs on. A message from anywhere else is ignored. */
@@ -20,6 +21,7 @@ const PAGE_MESSAGES = new Set<Msg["type"]>([
   "override",
   "askLocal",
   "openPanel",
+  "openChat",
 ]);
 
 function allowedSender(sender: chrome.runtime.MessageSender, type: Msg["type"]): boolean {
@@ -208,6 +210,12 @@ export default defineBackground(() => {
           reply({ ok: true });
           return;
         }
+        case "openChat":
+          // A stopped file: open Company Chat in a tab so the person can upload it there. No new
+          // permission is needed to open a tab.
+          await chrome.tabs.create({ url: companyChatUrl(msg.url, msg.tool, msg.file) });
+          reply({ ok: true });
+          return;
         default:
           reply(null);
       }
