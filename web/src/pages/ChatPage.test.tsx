@@ -54,6 +54,76 @@ describe("Company AI chat", () => {
     expect(screen.getByRole("button", { name: "How long do we keep data?" })).toBeInTheDocument();
   });
 
+  it("streams the answer as it is written, then shows it with the outcome", async () => {
+    const encoder = new TextEncoder();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const sse = (content: string) =>
+      encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
+    const bodies: { stream?: boolean }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/keys"))
+          return new Response(JSON.stringify({ key: "k", default_model: "m" }));
+        bodies.push(JSON.parse(String(init?.body)) as { stream?: boolean });
+        const body = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            controller.enqueue(sse("Ninety "));
+            await gate;
+            controller.enqueue(sse("days."));
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+        return new Response(body, {
+          headers: { "content-type": "text/event-stream", "x-dna-decision": "local" },
+        });
+      }),
+    );
+    render(<ChatPage />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Your question" }), "Retention?");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    // The first part shows while the rest is still being written.
+    expect(await screen.findByText("Ninety")).toBeInTheDocument();
+    expect(screen.getByText("Company AI is writing the answer")).toBeInTheDocument();
+    release();
+    expect(await screen.findByText("Ninety days.")).toBeInTheDocument();
+    expect(screen.getByText("Answered locally")).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: "Company AI" }).length).toBeGreaterThan(0);
+    expect(bodies[0]?.stream).toBe(true);
+  });
+
+  it("shows a clear error when the answer stops mid-way because it could not be checked", async () => {
+    const encoder = new TextEncoder();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/keys"))
+          return new Response(JSON.stringify({ key: "k", default_model: "m" }));
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ choices: [{ delta: { content: "Part " } }] })}\n\n` +
+                  `data: ${JSON.stringify({ error: { message: "unavailable" } })}\n\n`,
+              ),
+            );
+            controller.close();
+          },
+        });
+        return new Response(body, { headers: { "content-type": "text/event-stream" } });
+      }),
+    );
+    render(<ChatPage />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Your question" }), "Hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(
+      await screen.findByText(/could not be checked, so it was not shown/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Part")).not.toBeInTheDocument();
+  });
+
   it("deletes a chat from the history", async () => {
     answerWith("Ninety days.");
     render(<ChatPage />);
