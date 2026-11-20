@@ -7,7 +7,7 @@
 
 <p align="center"><b>Every prompt passes the gate.</b></p>
 
-Sentry is a gateway that every AI tool in a company goes through. When someone sends a prompt or a file to ChatGPT, Claude, Gemini, an SDK or an agent, Sentry checks it before it leaves. It finds client data, personal IDs, secrets and confidential documents, even when they have been reworded. For each prompt it picks one of five outcomes: **allow, mask, warn, answer with a local model, or block**. People get a reason in plain words and an approved alternative. The security team sees every decision without seeing the data. Sentry also lists which AI tools are in use, including unapproved ones. It runs on your own server, and a single `docker compose up` starts it.
+Sentry is a gateway that every AI tool in a company goes through. When someone sends a prompt or a file to ChatGPT, Claude, Gemini, an SDK or an agent, Sentry checks it before it leaves. It finds client data, personal IDs, secrets and confidential documents, even when they have been reworded. For each prompt it picks one of five outcomes: **allow, mask, warn, answer with a local model, or block**. People get a reason in plain words and an approved alternative. The security team sees every decision without seeing the data. Sentry also lists which AI tools are in use, including unapproved ones. For the borderline cases we fine-tuned our own small local model, **dna-judge** (Gemma 3 1B + LoRA). On held-out data it cut false alarms from 36 of 60 to 1 of 60. It runs on your own server, and a single `docker compose up` starts it.
 
 <p align="center">
   <a href="docs/media/sentry-launch.mp4"><img src="docs/media/sentry-launch-preview.gif" alt="Sentry launch film preview" width="720"></a><br>
@@ -32,9 +32,10 @@ Companies can't see which AI tools their people use. They also can't stop a clie
 
 1. **One endpoint.** Chat, SDKs, agents, Claude Code and MCP traffic all point at one OpenAI-compatible gateway. A browser extension covers personal ChatGPT, Claude and Gemini tabs.
 2. **Cheapest check first.** Text clean-up (look-alike letters, Greeklish, encodings), checksummed Greek IDs (AFM, AMKA, IBAN, cards), secret and code rules, then people and client names. After that come confidential-document matching that survives rewording, memory across prompts in a session, and prompt-injection checks. No paid model is needed.
-3. **Files too.** PDFs, Word files and images are read, with OCR for scans and images, and go through the same checks. A file stamped RESTRICTED or CONFIDENTIAL is blocked. A file the gate can't read is refused, not passed.
-4. **A decision with a reason.** Allow, mask (hide the values and still get an answer), warn (ask first), answer locally (the data never leaves), or block. The incident page shows which checks fired.
-5. **Fails closed.** If the brain is down, nothing passes.
+3. **Our own fine-tuned judge.** For matches that are too close to call, we trained **dna-judge**, a LoRA fine-tune of Gemma 3 1B on 1,643 invented examples (44% Greek). It runs locally on Ollama and answers YES or NO with a reason in JSON. Details are under [Fine-tuned model](#fine-tuned-model).
+4. **Files too.** PDFs, Word files and images are read, with OCR for scans and images, and go through the same checks. A file stamped RESTRICTED or CONFIDENTIAL is blocked. A file the gate can't read is refused, not passed.
+5. **A decision with a reason.** Allow, mask (hide the values and still get an answer), warn (ask first), answer locally (the data never leaves), or block. The incident page shows which checks fired.
+6. **Fails closed.** If the brain is down, nothing passes.
 
 ## What's in the box
 
@@ -69,10 +70,27 @@ These were measured on 19 Nov 2026 on synthetic data. The method and every miss 
 | Reworded document leaks caught | 100% (40 of 40); regex baseline 5% | 80% |
 | False alarms on clean prompts | 2.1% | ≤ 5% |
 | Prompts needing no LLM | 100% | 90% |
+| Fine-tuned judge (dna-judge): false alarms on 60 hard harmless prompts | 1 of 60 (plain Gemma: 36) | ≤ 5 |
 | Attack sets (2 × 80) | 160 of 160 as expected | |
 | Added latency, one request (p95) | 58 ms | < 100 ms |
 | Added latency, 3 people at once (p95) | ~260 ms | < 100 ms: **missed** |
 | Tests | 912 brain (88% coverage), 114 web, 5 extension | |
+
+## Fine-tuned model
+
+**dna-judge** is our own model, a LoRA fine-tune of Gemma 3 1B. It answers one question: does this prompt really leak this document or client? It runs on your own server through Ollama, so no data leaves.
+
+- **Training:** 1,643 training and 289 validation examples from an invented company, 30% leaks and 44% Greek. We trained on a Kaggle T4, merged the adapter and converted it to GGUF.
+- **Test:** 639 rows from two other invented companies that the model never saw during training.
+
+| | Plain Gemma 3 1B | **dna-judge** |
+| --- | --- | --- |
+| False alarms on the 60 hard harmless prompts | 36 | **1** |
+| Precision at 30% leaks | 35% | **92%** |
+| Recall | 94% | 91% |
+| Valid JSON with a reason | 0% | **100%** |
+
+To reproduce it, follow [docs/experiments/judge-finetune.md](docs/experiments/judge-finetune.md) (data in `data/finetune/`, training in `scripts/train_judge_lora.py`) and run `make judge-eval`. The judge is evaluated but not yet called in the live pipeline. The next step is to send it the borderline matches that today go to the plain local model.
 
 ## Known limits
 
@@ -83,7 +101,7 @@ These were measured on 19 Nov 2026 on synthetic data. The method and every miss 
 
 ## Docs
 
-[Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md) · [Threat model](docs/THREAT_MODEL.md) · [Demo](docs/DEMO.md) · [Gateway setup](docs/GATEWAY_SETUP.md) · [SIEM](docs/siem/README.md) · [Business](docs/business) · [Brand](docs/BRAND.md)
+[Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md) · [Fine-tuned model](docs/experiments/judge-finetune.md) · [Threat model](docs/THREAT_MODEL.md) · [Demo](docs/DEMO.md) · [Gateway setup](docs/GATEWAY_SETUP.md) · [SIEM](docs/siem/README.md) · [Business](docs/business) · [Brand](docs/BRAND.md)
 
 ## Team
 
