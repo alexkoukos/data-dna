@@ -6,9 +6,13 @@ never silently let through unread.
 """
 
 import difflib
+import hashlib
 import io
 import re
+import threading
+import time
 import warnings
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -251,8 +255,34 @@ def pil_text(img: Any) -> str:
     return read_pil(img).text()
 
 
+# Company Chat reads a picture when it is attached and the gateway reads the same bytes again when
+# it is sent. A short memory of recent readings (by content hash, in this process only, never on
+# disk) answers the second time at once.
+_CACHE_SIZE = 64
+_CACHE_SECONDS = 600.0
+_cache: OrderedDict[str, tuple[float, ImageReading]] = OrderedDict()
+_cache_lock = threading.Lock()
+
+
 def read_image(data: bytes) -> ImageReading:
-    """Open an image file safely and read it (see `read_pil`)."""
+    """Open an image file safely and read it (see `read_pil`). Recent readings are remembered."""
+    key = hashlib.sha256(data).hexdigest()
+    now = time.monotonic()
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit is not None and now - hit[0] < _CACHE_SECONDS:
+            _cache.move_to_end(key)
+            return hit[1]
+    reading = _read_image(data)
+    with _cache_lock:
+        _cache[key] = (now, reading)
+        _cache.move_to_end(key)
+        while len(_cache) > _CACHE_SIZE:
+            _cache.popitem(last=False)
+    return reading
+
+
+def _read_image(data: bytes) -> ImageReading:
     from PIL import Image, ImageOps
 
     too_big = ValueError(

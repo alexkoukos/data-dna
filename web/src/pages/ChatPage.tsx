@@ -52,7 +52,7 @@ import {
   type Attachment,
   type ReadFile,
 } from "../lib/attachments";
-import { prepareImage } from "../lib/imageFiles";
+import { dataUrlToFile, prepareImage } from "../lib/imageFiles";
 import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
 import { extractFile, fetchFileLimits } from "../lib/filesApi";
 import { PROMPT_GROUPS } from "../lib/chatPrompts";
@@ -279,33 +279,42 @@ export default function ChatPage() {
     }
     setAttachments((all) => [...all, ...added]);
     for (const [id, f] of toRead)
-      void extractFile(f, limits)
-        .then(async (r) =>
-          // An image also goes to the model as a picture, redrawn here (see imageFiles). If the
-          // browser cannot redraw it, only its text goes.
-          r.ok && isImageName(f.name)
-            ? { ...r, image: await prepareImage(f).catch(() => undefined) }
-            : r,
-        )
-        .then((r) =>
-          setAttachments((all) =>
-            all.map((a) =>
-              a.id !== id
-                ? a
-                : r.ok
-                  ? {
-                      id,
-                      status: "ready",
-                      name: r.name,
-                      text: r.text,
-                      chars: r.chars,
-                      truncated: r.truncated,
-                      ...(r.image ? { image: r.image } : {}),
-                    }
-                  : { id, name: f.name, status: "error", message: r.message },
-            ),
+      void readAttachment(f).then((r) =>
+        setAttachments((all) =>
+          all.map((a) =>
+            a.id !== id
+              ? a
+              : r.ok
+                ? {
+                    id,
+                    status: "ready",
+                    name: r.name,
+                    text: r.text,
+                    chars: r.chars,
+                    truncated: r.truncated,
+                    ...(r.image ? { image: r.image } : {}),
+                  }
+                : { id, name: f.name, status: "error", message: r.message },
           ),
-        );
+        ),
+      );
+  };
+  /**
+   * The server reads the file. A picture is first redrawn here (see imageFiles) and the redrawn
+   * copy is what the server reads and what the model gets, so the text in the message comes from
+   * the exact picture sent. If the browser cannot redraw it, the original is read and only its
+   * text goes.
+   */
+  const readAttachment = async (f: File) => {
+    let image = isImageName(f.name) ? await prepareImage(f).catch(() => undefined) : undefined;
+    let upload = f;
+    try {
+      if (image) upload = dataUrlToFile(image, f.name);
+    } catch {
+      image = undefined;
+    }
+    const r = await extractFile(upload, limits);
+    return r.ok ? { ...r, name: f.name, ...(image ? { image } : {}) } : r;
   };
   const removeFile = (id: string) => setAttachments((all) => all.filter((a) => a.id !== id));
   const dismissHint = () => {

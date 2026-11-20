@@ -33,3 +33,12 @@ export async function prepareImage(file: File): Promise<string> {
     bitmap.close();
   }
 }
+
+/** The redrawn picture as a file, so the server reads exactly what the model will get. */
+export function dataUrlToFile(dataUrl: string, name: string): File {
+  const [head, body = ""] = dataUrl.split(",", 2);
+  const type = /data:([^;]+)/.exec(head ?? "")?.[1] ?? "image/jpeg";
+  const bytes = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
+  const base = name.replace(/\.[^.]+$/, "") || "image";
+  return new File([bytes], `${base}.jpg`, { type });
+}

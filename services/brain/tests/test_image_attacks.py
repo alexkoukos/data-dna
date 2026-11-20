@@ -237,3 +237,22 @@ def test_a_chart_sent_to_the_gateway_goes_through() -> None:
     url = f"data:image/png;base64,{base64.b64encode(chart()).decode()}"
     out = through_brain(chat({"type": "image_url", "image_url": {"url": url}}))
     assert out["metadata"]["dna_decision"] == "allow"
+
+
+def test_the_same_picture_is_read_once_and_others_are_read_fresh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[int] = []
+    real = ocr._read_image
+
+    def counting(data: bytes) -> ocr.ImageReading:
+        calls.append(len(data))
+        return real(data)
+
+    monkeypatch.setattr(ocr, "_read_image", counting)
+    monkeypatch.setattr(ocr, "_cache", type(ocr._cache)())
+    picture = chart()
+    first = ocr.read_image(picture)
+    assert ocr.read_image(picture) is first  # the gateway's second look costs nothing
+    ocr.read_image(near_white())
+    assert len(calls) == 2

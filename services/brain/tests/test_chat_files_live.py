@@ -138,3 +138,38 @@ def test_a_scanned_page_uploaded_in_chat_is_read_with_ocr() -> None:
 
     text = _extract("scan.pdf", scanned_pdf("Classification: RESTRICTED", f"Pay {IBAN}"))
     assert "RESTRICTED" in text and IBAN in text.replace(" ", "")
+
+
+# --- pictures through the real gateway ----------------------------------------------------------
+
+
+def _image_message(png: bytes, question: str) -> list[dict[str, object]]:
+    url = f"data:image/png;base64,{base64.b64encode(png).decode()}"
+    return [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": question},
+                {"type": "image_url", "image_url": {"url": url}},
+            ],
+        }
+    ]
+
+
+def test_a_chart_picture_is_answered(client: OpenAI) -> None:  # noqa: F811
+    from tests.test_image_attacks import chart
+
+    raw = client.chat.completions.with_raw_response.create(
+        model="demo-mock", messages=_image_message(chart(), "Which quarter was best?")
+    )
+    assert raw.headers.get("x-dna-decision") == "allow"
+
+
+@pytest.mark.parametrize("attack", ["near_white", "qr_code", "in_metadata", "rotated"])
+def test_a_picture_carrying_an_injection_is_blocked(client: OpenAI, attack: str) -> None:  # noqa: F811
+    from tests.test_image_attacks import ATTACKS
+
+    with pytest.raises(PermissionDeniedError):
+        client.chat.completions.create(
+            model="demo-mock", messages=_image_message(ATTACKS[attack](), "Describe it")
+        )

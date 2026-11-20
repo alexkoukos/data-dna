@@ -205,7 +205,8 @@ async function waitForLimits() {
 
 describe("Company AI chat with pictures", () => {
   it("sends the picture itself with the newest question, and only its text on a reroute", async () => {
-    vi.doMock("../lib/imageFiles", () => ({
+    vi.doMock("../lib/imageFiles", async (original) => ({
+      ...(await original<typeof import("../lib/imageFiles")>()),
       prepareImage: async () => "data:image/jpeg;base64,UElD",
     }));
     vi.resetModules();
@@ -221,10 +222,14 @@ describe("Company AI chat with pictures", () => {
           return new Response(
             JSON.stringify({ max_bytes: 10_000, max_files: 3, max_chars: 30000, types: [".png"] }),
           );
-        if (url.includes("/files/extract"))
+        if (url.includes("/files/extract")) {
+          // The server reads the redrawn copy, not the original file.
+          const sentFile = (init!.body as FormData).get("file") as File;
+          expect(sentFile.type).toBe("image/jpeg");
           return new Response(
             JSON.stringify({ text: "Sales by region", chars: 15, truncated: false }),
           );
+        }
         if (url.includes("/chat/completions")) {
           bodies.push(JSON.parse(String(init?.body)) as { messages: { content: unknown }[] });
           if (first) {
