@@ -138,6 +138,7 @@ from brain.detection.pipeline import (
 from brain.detection.yara_rules import find_yara
 from brain.dna import store as dna_store
 from brain.dna.marks import Mark, propose_marks
+from brain.documents.chat_files import file_blocks
 from brain.documents.embeddings import E5Embedder
 from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
 from brain.documents.loader import load_documents
@@ -150,6 +151,7 @@ from brain.documents.registry import (
 )
 from brain.documents.session import update_coverage
 from brain.extension import router as extension_router
+from brain.files import router as files_router
 from brain.honeytokens import (
     Honeytoken,
     HoneytokenStore,
@@ -473,6 +475,7 @@ async def csrf_guard(request: Request, call_next: Callable[[Request], Any]) -> R
 
 
 app.include_router(extension_router)
+app.include_router(files_router)
 
 
 # The routes the browser extension calls from its own origin (/v1/check and friends).
@@ -561,6 +564,23 @@ def _attachment_text(req: InspectRequest, budget: int = MAX_INSPECT_CHARS) -> tu
                 ),
             ) from err
     return ("\n\n" + "\n\n".join(parts) if parts else ""), stamped
+
+
+def _file_block_stamps(texts: list[str]) -> list[str]:
+    """A reason for every file the chat placed in a message that carries a classification stamp.
+
+    Company Chat sends an attached file as text inside the message (brain.files), so the stamp
+    check that runs on `attachments` runs here too, with the file's name in the reason.
+    """
+    out: list[str] = []
+    for text in texts:
+        for name, body in file_blocks(text):
+            stamp = find_marking(body)
+            if stamp:
+                out.append(
+                    f"The file {name} is marked {stamp}; marked files stay inside the company"
+                )
+    return out
 
 
 def _attribute_copy(result: InspectResult, text: str) -> str | None:
@@ -992,6 +1012,7 @@ def inspect(
     if new_chars > MAX_INSPECT_CHARS:
         raise _too_long()
     attached, stamped = _attachment_text(req, MAX_INSPECT_CHARS - new_chars)
+    stamped += _file_block_stamps([msgs[i].content for i in new_idx])
     if new_chars + len(attached) > MAX_INSPECT_CHARS:
         raise _too_long()
     if sum(len(m.content) for m in msgs) + len(attached) > MAX_CONVERSATION_CHARS:

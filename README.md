@@ -15,6 +15,7 @@ Companies cannot see which AI tools their people use, and cannot stop a client l
 - **One gateway for every AI tool.** Chat, SDKs, agents, Claude Code and MCP traffic point at one OpenAI-compatible endpoint (LiteLLM). A browser extension covers personal ChatGPT.
 - **Detection, cheapest check first.** Text clean-up, checksummed Greek identifiers (AFM, AMKA, IBAN, cards), secret and code rules, people and client names, then confidential-document matching that survives rewording, session memory across prompts, and prompt-injection checks. No paid model is needed.
 - **Five outcomes with a reason.** Company Chat shows the outcome in words and an icon. The incident page has a "Why this decision" panel listing the checks that fired.
+- **File upload in Company Chat.** Attach or drop up to 3 PDF, Word, text, Markdown or CSV files. The brain reads them (checked by content, size, page and time limits, nothing stored) and the text goes through the same checks as a typed prompt, so the five outcomes apply to files too. When the extension stops an upload on ChatGPT it opens Company Chat, which offers to take the file instead.
 - **Shadow AI discovery.** The AI tools page lists every tool seen in usage logs as approved, tolerated or unapproved, with the approved alternative. Employees can request a new tool.
 - **Policies you can try first.** An editable policy table, shadow mode (record what would happen, change nothing), and a 14-day replay before saving.
 - **Security view.** Incidents with sealed identities (a real name needs two people), documents and marked copies that trace a leak to its recipient, teams and roles, impact, a weekly digest, and a compliance report (PDF).
@@ -24,7 +25,7 @@ Companies cannot see which AI tools their people use, and cannot stop a client l
 
 ## Run it
 
-Requirements: Docker with Compose v2, about 2 GB of free RAM for Docker, and ports 3000, 4000 and 8001 free.
+Requirements: Docker with Compose v2, about 3 GB of free RAM for Docker, and ports 3000, 4000 and 8001 free.
 
 ```bash
 git clone <this repo>
@@ -33,7 +34,7 @@ cp .env.example .env        # optional: add OPENAI_API_KEY
 docker compose up --build
 ```
 
-Open http://localhost:3000 (app) and http://localhost:8001/docs (API). Without an OpenAI key the offline demo models answer, so everything works. There is no login: get a personal key on the Connect page (`/connect`). The first build downloads the models and takes several minutes. Afterwards the stack is healthy in about 80 seconds and idles at about 1.7 GB.
+Open http://localhost:3000 (app) and http://localhost:8001/docs (API). Without an OpenAI key the offline demo models answer, so everything works. There is no login: get a personal key on the Connect page (`/connect`). The first build downloads the models and takes several minutes. Afterwards the stack is healthy in about 80 seconds and idles at about 1.9 GB (the AI gateway, which Company Chat answers through, is about 0.75 GB of that).
 
 `make help` lists everything. The ones you need: `make up`, `make down`, `make reset` (fresh database), `make check`, `make eval`, `make e2e`. Walk through the product in [docs/DEMO.md](docs/DEMO.md).
 

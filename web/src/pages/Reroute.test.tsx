@@ -31,6 +31,7 @@ function stubGateway(stop: "warn" | "block") {
       const url = String(input);
       if (url.includes("/v1/keys")) return json({ key: "sk-test", default_model: "demo-mock" });
       if (url.includes("tool-request-outcomes")) return json([]);
+      if (url.includes("/files/limits")) return json({}); // the chat falls back to its defaults
       const headers = (init?.headers ?? {}) as Record<string, string>;
       chats.push(headers);
       if (headers["X-DNA-Reroute"] === "1") {

@@ -49,11 +49,15 @@ def _capped(text: str) -> str:
 
 
 def _pdf(data: bytes) -> str:
+    return _capped(_pdf_text(data))
+
+
+def _pdf_text(data: bytes, max_pages: int = MAX_PAGES) -> str:
     try:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
             raise ExtractError("This PDF is password protected. Remove the password and try again.")
-        pages = reader.pages[:MAX_PAGES]
+        pages = reader.pages[:max_pages]
         text = "\n".join((p.extract_text() or "") for p in pages)
     except ExtractError:
         raise
@@ -63,9 +67,10 @@ def _pdf(data: bytes) -> str:
         ) from err
     if not text.strip():
         raise ExtractError(
-            "No text was found in this PDF. It may be a scan; this version cannot read images."
+            "No text was found in this PDF. It may be a scan; this version cannot read images. "
+            "Copy the text into the message, or save the PDF again with selectable text."
         )
-    return _capped(text)
+    return text
 
 
 def _check_zip(data: bytes) -> None:
@@ -86,6 +91,10 @@ def _check_zip(data: bytes) -> None:
 
 
 def _docx(data: bytes) -> str:
+    return _capped(_docx_text(data))
+
+
+def _docx_text(data: bytes) -> str:
     _check_zip(data)
     try:
         doc = Document(io.BytesIO(data))
@@ -115,8 +124,11 @@ def _docx(data: bytes) -> str:
         ) from err
     text = "\n".join(parts)
     if not text.strip():
-        raise ExtractError("No text was found in this document.")
-    return _capped(text)
+        raise ExtractError(
+            "No text was found in this document. Check that it is the right file, or paste the "
+            "text into the message."
+        )
+    return text
 
 
 def _image(data: bytes) -> str:

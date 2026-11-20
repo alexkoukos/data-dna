@@ -161,6 +161,8 @@ class CheckResponse(BaseModel):
     rewrite: str | None = None
     document: DocumentView | None = None
     alternative: str | None = None
+    # Where Company AI lives, so the extension can send a person there (with a stopped file's name).
+    alternative_url: str | None = None
     policy_version: int = 0
     evasion_signals: list[str] = Field(default_factory=list)
 
@@ -223,6 +225,9 @@ def check(
         rewrite=out.suggested_rewrite,
         document=document,
         alternative="Company AI" if out.decision in ("local", "block", "warn") else None,
+        alternative_url=(
+            settings.company_ai_url if out.decision in ("local", "block", "warn") else None
+        ),
         policy_version=_policy_version(),
         evasion_signals=out.evasion_signals,
     )
