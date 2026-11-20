@@ -268,6 +268,7 @@ def test_redrawing_puts_transparency_on_white_and_keeps_size_bounded() -> None:
     assert np.array(clean.convert("L")).min() > 240  # transparent became white, not black
 
 
+@needs_ocr
 def test_purified_copies_come_back_for_images_only() -> None:
     from fastapi.testclient import TestClient
 

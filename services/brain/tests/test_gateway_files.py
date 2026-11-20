@@ -306,6 +306,7 @@ def _png_with_secret() -> bytes:
     return buf.getvalue()
 
 
+@pytest.mark.skipif(not ocr.available(), reason="OCR extra not installed")
 def test_the_model_gets_the_redrawn_jpeg_not_the_original() -> None:
     picture = _png_with_secret()
     data = chat(
@@ -319,6 +320,7 @@ def test_the_model_gets_the_redrawn_jpeg_not_the_original() -> None:
     assert b"nothing to see" not in sent  # metadata gone
 
 
+@pytest.mark.skipif(not ocr.available(), reason="OCR extra not installed")
 def test_an_anthropic_image_is_replaced_with_its_media_type() -> None:
     picture = _png_with_secret()
     data = {
