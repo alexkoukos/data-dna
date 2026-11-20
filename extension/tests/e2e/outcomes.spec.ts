@@ -50,8 +50,10 @@ test.afterEach(async ({ context, request }, info) => {
     const shadow = await page
       .evaluate(() =>
         [...document.querySelectorAll("*")]
-          .map((e) => e.shadowRoot?.textContent?.trim() ?? "")
-          .filter(Boolean)
+          .flatMap((e) => [
+            ...(e.shadowRoot?.querySelectorAll(".card, .chip, .banner, .note") ?? []),
+          ])
+          .map((e) => e.textContent?.replace(/\s+/g, " ").trim() ?? "")
           .join(" | "),
       )
       .catch(() => "?");
