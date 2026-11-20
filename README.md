@@ -40,7 +40,7 @@ Companies can't see which AI tools their people use. They also can't stop a clie
 
 ## What's in the box
 
-- **Company Chat** with file upload. It shows each outcome with an icon and text.
+- **Company Chat** with file upload and pictures the model can see. It shows each outcome with an icon and text. Every picture is read the way a model would see it first: text a person can't see (near-white, low contrast, under transparency), rotated text, QR codes and metadata are all checked, and hidden text or an injection blocks the message.
 - **Browser extension** (Chrome, Edge, Brave; MV3). It checks paste, send and file attach on ChatGPT, Claude and Gemini. When a prompt is blocked, it opens Company AI so the person can still get an answer.
 - **Shadow AI discovery.** Every tool seen in usage logs is listed as approved, tolerated or unapproved. Employees can request new tools.
 - **Policies you can try first.** An editable policy table, shadow mode, and a 14-day replay before you save.
