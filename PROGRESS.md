@@ -5,6 +5,13 @@ Newest entry at the top. Every session ends with a new entry (the `/handoff` com
 Template:
 
 ```
+## 2026-11-20 11:00, Claude session, three sample prompts moved off the matcher's cutoff
+**Done:** The smoke job still failed now and then on the extension outcome tests, after the session-memory reset. Real cause, measured in the brain container: the document matcher calls a chunk a paraphrase at cosine 0.88 (0.86 across languages), and three sample prompts sat exactly on that line: `en/1-allow` (margin 0.001 below the cutoff), `el/1-allow` (0.000) and `el/2-mask` (0.000). On one machine they pass, on another a rounding difference tips them into "Answered locally". Those are exactly the three tests that failed in CI. The product is fine; the samples were borderline. New samples: `en/1-allow` and `el/1-allow` are a short poem prompt (margins 0.084 and 0.050); `el/2-mask` is under 10 words, so it is never embedded (the matcher skips prompts under `MIN_WORDS_TO_EMBED`), still holds a tax number and an IBAN, and is masked. All other samples have a margin of at least 0.02.
+**State:** branch `task/safer-e2e-samples`. Outcomes spec 11/11 twice locally, web ExtensionPage test green.
+**Next step:** merge, then update PR #76 with main.
+**Problems / decisions needed:** the e5 scores are compressed: almost any Greek sentence scores 0.83 to 0.87 against some English chunk, so ordinary Greek prompts can be sent to "Answered locally" by a lucky match (about 2% of one document). A Greek prompt with a tax number and an IBAN always sits within 0.015 of the cross-language cutoff. Worth knowing before a Greek live demo: keep demo prompts short or clearly on topic. Not changed.
+**Files touched:** samples/{en/1-allow,el/1-allow,el/2-mask}.txt, samples/README.md, PROGRESS.md.
+
 ## 2026-11-20 10:00, Claude session, extension outcome e2e no longer depends on test order
 **Done:** The smoke job kept failing on `extension/tests/e2e/outcomes.spec.ts` (1 allow en/el, 2 mask el) with no assistant message and nothing sent. Cause, read from the failure diagnostics: the brain's session memory (`documents/session.py`) blocks the third prompt a person sends that touches a restricted document ("38% of 'Board memo' rebuilt from 4 prompts"), and every e2e sample is sent as the same person, together with the web e2e before it and retries. Whether a sample was allowed depended on what had run before. The spec now empties `session_coverage` before each test (`docker compose exec db psql`, silently skipped when there is no docker). The product rule is unchanged. The earlier brain warm-up (PR #71) was a guess and stays harmless.
 **State:** branch `task/e2e-reset-session-memory`. Extension lint, typecheck, format; outcomes spec 11/11 locally, four runs in a row.
