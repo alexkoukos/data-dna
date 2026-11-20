@@ -72,14 +72,14 @@ def extract_text(filename: str, data: bytes) -> str:
     if len(data) > MAX_BYTES:
         raise ExtractError("This file is larger than 10 MB. Split it or send the relevant part.")
     claimed = _claimed(filename.lower())
-    if claimed is None:
-        raise ExtractError(
-            "This file type is not supported. Use PDF, DOCX, TXT, Markdown or an image (PNG, JPG)."
-        )
     actual = sniff(data)
     # A PDF, Word file or image is read as what it is, whatever its name says. Text-like content
     # under a binary name is read as that format, so a damaged file says it is damaged.
     kind = actual if actual in ("pdf", "docx", "image") else claimed
+    if kind is None:
+        raise ExtractError(
+            "This file type is not supported. Use PDF, DOCX, TXT, Markdown or an image (PNG, JPG)."
+        )
     if kind == "text" and actual is None:
         raise ExtractError(
             "This file is named as text but holds data that is not text. Check that it is the "

@@ -636,6 +636,118 @@ def _sweep(
             _sweep(value, covered, out, depth + 1, here, part_type)
 
 
+# Inline files (PDF, Word, images, audio) the provider reads at a media position. They go to the
+# brain as attachments, so their text is checked too; what the brain cannot read is refused.
+MAX_ATTACHMENTS = 10  # the brain's own limit per request
+MAX_ATTACHMENT_CHARS = 13_000_000  # base64 in total, under the brain's 15 MB request limit
+_MEDIA_SUFFIX = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/bmp": ".bmp",
+}
+_SAFE_NAME = re.compile(r"[^A-Za-z0-9 ._()\-]+")
+
+
+def _too_many_files() -> GatewayError:
+    return GatewayError(
+        403,
+        {
+            "type": "block",
+            "message": "This request carries more files than the company gateway can check at "
+            f"once (at most {MAX_ATTACHMENTS}, about 10 MB in total).",
+            "reasons": ["Too many or too large files to check"],
+            "approved_alternative": "Send fewer or smaller files in each request.",
+        },
+    )
+
+
+def _attachment_name(node: dict[str, Any], media: str) -> str:
+    """A display name for the file. The brain reads the content, so a wrong name hides nothing."""
+    raw = node.get("filename") if isinstance(node.get("filename"), str) else ""
+    name = _SAFE_NAME.sub("_", raw.replace("\\", "/").rsplit("/", 1)[-1]).strip()[:100]
+    suffix = _MEDIA_SUFFIX.get(media, "")
+    if not name:
+        return f"attachment{suffix or '.bin'}"
+    return name if "." in name[1:] or not suffix else name + suffix
+
+
+def _media_blob(node: dict[str, Any], value: str) -> dict[str, str] | None:
+    """The inline file at a media position as an attachment, or None when there is no inline file
+    to read (a web address, or text that is already checked as text)."""
+    m = _DATA_URL.fullmatch(value) if value[:5].lower() == "data:" else None
+    if m is not None:
+        media = m.group(1).strip().lower()
+        if media == "" or _textual_media(media):
+            return None  # decoded and checked as text by _data_url_texts
+        if ";base64" in m.group(2).lower():
+            raw = _strict_b64decode(m.group(3))
+            if raw is None:
+                raise _unreadable_document()
+        else:
+            raw = unquote_to_bytes(m.group(3))
+    else:
+        if re.match(r"[a-z][a-z0-9+.\-]*://", value[:16], re.IGNORECASE):
+            return None  # a web address: the provider fetches it, there is nothing inline
+        media = str(node.get("media_type") or node.get("mime_type") or "").strip().lower()
+        if not media and isinstance(node.get("format"), str):
+            media = f"audio/{node['format'].lower()}"
+        if _textual_media(media):
+            return None  # an Anthropic text document, decoded into its own slot
+        raw = _strict_b64decode(value)
+        if raw is None:
+            raise _unreadable_document()
+    return {
+        "filename": _attachment_name(node, media),
+        "content_base64": base64.b64encode(raw).decode(),
+    }
+
+
+def media_attachments(data: dict[str, Any], call_type: str) -> list[dict[str, str]]:
+    """Every inline file a provider would read from this request, ready for the brain.
+
+    Only the exact places a provider reads media from count (see `_MEDIA_FIELDS`), in messages,
+    Responses input and tool results. Raises GatewayError when there are too many to check.
+    """
+    if call_type in EMBEDDING_CALLS or call_type in TEXT_CALLS:
+        return []
+    found: list[dict[str, str]] = []
+
+    def walk(node: Any, path: str, part_type: Any, depth: int) -> None:
+        if depth > _MAX_DEPTH:
+            return
+        if isinstance(node, dict):
+            if _PART.fullmatch(path):
+                part_type = node.get("type")
+            items: Any = node.items()
+        elif isinstance(node, list):
+            items = enumerate(node)
+        else:
+            return
+        for key, value in items:
+            if depth == 0 and isinstance(key, str) and key not in ("messages", "input"):
+                continue
+            here = f"{path}[{key}]" if isinstance(node, list) else f"{path}.{key}".lstrip(".")
+            if isinstance(value, str) and isinstance(node, dict):
+                if value and _in_media_position(part_type, here):
+                    blob = _media_blob(node, value)
+                    if blob is not None:
+                        found.append(blob)
+            elif isinstance(value, (dict, list)):
+                walk(value, here, part_type, depth + 1)
+
+    walk(data, "", None, 0)
+    if len(found) > MAX_ATTACHMENTS or (
+        sum(len(f["content_base64"]) for f in found) > MAX_ATTACHMENT_CHARS
+    ):
+        raise _too_many_files()
+    return found
+
+
 def _requester_metadata(data: dict[str, Any]) -> list[tuple[str, Any]]:
     """What the person put in `metadata`, without the fields the gateway adds to it."""
     found: list[tuple[str, Any]] = []
@@ -845,12 +957,17 @@ async def apply_decision(
     # Dropping it keeps the key out of the request the model provider receives.
     data.pop("organization", None)
     slots = inspection_view(data, call_type)
-    payload = {
+    attachments = media_attachments(data, call_type)
+    payload: dict[str, Any] = {
         "user_id": user_id,
         "team": team,
         "model": str(data.get("model", "default")),
         "messages": [{"role": s.role, "content": s.text} for s in slots],
     }
+    if attachments:
+        # The files themselves: the brain reads their text (OCR for images and scans) and checks
+        # it with the messages. A file it cannot read is refused below, never let through unread.
+        payload["attachments"] = attachments
     accepted = [i for i, s in enumerate(slots) if ACCEPTED.has(accept_scope, s)]
     accepted_ids = {id(slots[i]) for i in accepted}
     if accepted:
@@ -860,9 +977,8 @@ async def apply_decision(
     try:
         # A long chat is worked out once and remembered, so only its first request is slow.
         size = sum(len(m["content"]) for m in payload["messages"])
-        resp = await client.post(
-            f"{brain_url}/v1/inspect", json=payload, timeout=min(120.0, 10.0 + size / 5000)
-        )
+        wait = 120.0 if attachments else min(120.0, 10.0 + size / 5000)
+        resp = await client.post(f"{brain_url}/v1/inspect", json=payload, timeout=wait)
         if resp.status_code == 413:
             raise GatewayError(
                 413,
@@ -870,6 +986,18 @@ async def apply_decision(
                     "type": "block",
                     "message": "This request is too large to check, so it was not sent.",
                     "next": "Shorten it or split it.",
+                },
+            )
+        if resp.status_code == 422 and attachments:
+            raise GatewayError(
+                403,
+                {
+                    "type": "block",
+                    "message": "A file in this request could not be checked, so nothing was "
+                    f"sent: {_brain_detail(resp)}",
+                    "reasons": ["An attached file could not be read by the safety check"],
+                    "approved_alternative": "Send the file as PDF, Word, plain text or an image "
+                    "(PNG, JPG), or paste the text you need.",
                 },
             )
         if resp.status_code == 422:
