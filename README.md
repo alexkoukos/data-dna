@@ -64,7 +64,7 @@ The app runs at http://localhost:3000 and the API at http://localhost:8001/docs.
 
 ## Results
 
-These were measured on 19 Nov 2026 on synthetic data. The method and every miss are in [docs/EVALUATION.md](docs/EVALUATION.md).
+Measured on synthetic data. The method and every miss are in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 | Measure | Result | Target |
 | --- | --- | --- |
@@ -75,7 +75,7 @@ These were measured on 19 Nov 2026 on synthetic data. The method and every miss 
 | Attack sets (2 × 80) | 160 of 160 as expected | |
 | Added latency, one request (p95) | 58 ms | < 100 ms |
 | Added latency, 3 people at once (p95) | ~260 ms | < 100 ms: **missed** |
-| Tests | 912 brain (88% coverage), 114 web, 5 extension | |
+| Tests | 1,135 brain (89% coverage), 148 web, 48 extension | |
 
 ## Fine-tuned model
 
@@ -91,7 +91,7 @@ These were measured on 19 Nov 2026 on synthetic data. The method and every miss 
 | Recall | 94% | 91% |
 | Valid JSON with a reason | 0% | **100%** |
 
-To reproduce it, follow [docs/experiments/judge-finetune.md](docs/experiments/judge-finetune.md) (data in `data/finetune/`, training in `scripts/train_judge_lora.py`) and run `make judge-eval`. The judge is evaluated but not yet called in the live pipeline. The next step is to send it the borderline matches that today go to the plain local model.
+To reproduce it, follow [docs/experiments/judge-finetune.md](docs/experiments/judge-finetune.md) (data in `data/finetune/`, training in `scripts/train_judge_lora.py`) and run `make judge-eval`. The judge is evaluated but not called in the live pipeline: the brain decides without a model call.
 
 ## The business
 
@@ -114,7 +114,7 @@ To reproduce it, follow [docs/experiments/judge-finetune.md](docs/experiments/ju
 | **Answer locally** instead of blocking | – | – | – | – | – | ✓ |
 | Trace **which copy** leaked | – | – | – | – | ✓ | ✓ |
 
-Based on public pages, Nov 2026. "–" means we found no documentation for it, and "~" means partial coverage.
+Based on public product pages. "–" means we found no documentation for it, and "~" means partial coverage.
 
 **Pricing (proposal).** *Discover* EUR 3 per user per month (shadow AI discovery and reports). *Protect* EUR 9 (adds the gateway, extension, Company AI, masking and the local model). *Enterprise* is quoted per customer (adds traced copies, SIEM, on-prem and SSO). Annual contracts, with a minimum of 50 users. With tokens passed through at cost, AI for everyone works out at about USD 14 per user per month. ChatGPT Business costs USD 20 and doesn't check any of the data.
 

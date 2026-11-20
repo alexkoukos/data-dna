@@ -1,8 +1,8 @@
 # Train the borderline judge
 
 Goal: a small local model that answers YES or NO, in JSON, to "does this prompt really leak this candidate?",
-so the brain can sort the borderline matches that today only send a message to the local model. The untuned
-gemma3:1b said YES to 42 of 60 harmless questions (PROGRESS.md, 2026-11-14), so we teach it with LoRA.
+so the brain can sort the borderline matches that otherwise send a message to the local model. The untuned
+gemma3:1b said YES to 42 of 60 harmless questions, so we teach it with LoRA.
 
 Everything below was written without a GPU on the dev machine: the data steps are tested, the Kaggle and GGUF
 steps are not. Do the short trial run (step 3) before the full one.
@@ -109,7 +109,7 @@ more surnames, editing and number-only prompts. Retrain on the new `train.jsonl`
 - Regenerate with `python3 scripts/gen_finetune.py` (it refuses any overlap with the test data), retrain, re-evaluate.
 Never train on `test.jsonl` or on anything in `data/eval/`.
 
-## Using it later
-Nothing in the brain calls the judge yet (the judge is "evaluated, not adopted"). If it passes step 5, the brain builds the
+## Calling it
+The brain does not call the judge (it is evaluated, not adopted). A caller builds the
 input with `judge_format.build_input(prompt, candidate)` and sends it to the gateway's local route. The candidate is
 the `DocMatch` of a borderline paraphrase (plus the matched chunk text) or a `Finding`. Cache answers by hash.

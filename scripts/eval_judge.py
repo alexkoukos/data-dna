@@ -295,8 +295,8 @@ def report(all_metrics: list[tuple[str, dict]], cases: list[dict]) -> str:
         lines.append(f"| {sl} | {kind} | " + " | ".join(
             f"{m['by_slice'][sl][0]}/{m['by_slice'][sl][1]}" for _, m in all_metrics) + " |")
     lines += ["", "Precision and recall are over all rows. An answer that is not valid JSON counts as NO. 'Precision at 30% leaks' "
-              "re-weights the false positive rate to the real base rate. Reference from PROGRESS.md: untuned gemma3:1b gave "
-              "42 false positives out of the 60 (earlier prompt, so not exactly comparable).", ""]
+              "re-weights the false positive rate to the real base rate. For reference, untuned gemma3:1b with an older prompt "
+              "gave 42 false positives out of the 60 (not exactly comparable).", ""]
     return "\n".join(lines)
 
 
