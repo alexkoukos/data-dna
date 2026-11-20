@@ -62,7 +62,7 @@ export default function App() {
     );
   }
   return (
-    <div className="flex min-h-screen flex-col *:min-w-0">
+    <div className="min-h-screen">
       <div className="sentry nav-shell">
         <SiteNav />
       </div>
@@ -88,7 +88,7 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
         </Route>
       </Routes>
-      <div className="sentry dark foot-shell mt-auto">
+      <div className="sentry dark">
         <SiteFooter />
       </div>
     </div>
