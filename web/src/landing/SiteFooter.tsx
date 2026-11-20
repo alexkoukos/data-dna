@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Sentinel } from "@/components/Sentinel";
+import { useGateHealth, type GateHealth } from "@/lib/healthApi";
 import "./landing.css";
 import { LANDING_ONLY } from "./mode";
 
@@ -17,6 +18,26 @@ const APP: [string, string][] = [
   ["Connect a tool", "/connect"],
 ];
 
+// Text and glyph carry the meaning; the color only repeats it.
+const STATUS: Record<GateHealth, { glyph: string; text: string }> = {
+  checking: { glyph: "…", text: "Checking the gate" },
+  online: { glyph: "●", text: "Gate online" },
+  degraded: { glyph: "▲", text: "Gate online, database unreachable. Run make up." },
+  offline: { glyph: "■", text: "Gate offline. Start it with make up." },
+};
+
+/** Live gate health. Not shown on the public site, which has no brain behind it. */
+function GateStatus() {
+  const status = useGateHealth();
+  const s = STATUS[status];
+  return (
+    <p role="status" className={`sfoot-status sfoot-status-${status}`}>
+      <span aria-hidden="true">{s.glyph}</span>
+      {s.text}
+    </p>
+  );
+}
+
 /** The footer on every page: the logo and every page, one click away. */
 export function SiteFooter() {
   return (
@@ -28,6 +49,7 @@ export function SiteFooter() {
             <span>Sentry</span>
           </Link>
           <p>Your data stays yours. Sentry holds the gate.</p>
+          {LANDING_ONLY ? null : <GateStatus />}
         </div>
         <nav aria-label="Footer" className="sfoot-cols">
           <div>

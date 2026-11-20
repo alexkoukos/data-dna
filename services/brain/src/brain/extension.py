@@ -6,6 +6,7 @@ time, never page or prompt text.
 """
 
 import hashlib
+import hmac
 import logging
 import secrets
 import time
@@ -569,8 +570,20 @@ class LogsIn(BaseModel):
 
 
 @router.post("/v1/logs/ingest")
-def ingest_logs(req: LogsIn) -> dict[str, int]:
-    """Add proxy or DNS log lines to the inventory. Same matching as the start-up seed."""
+def ingest_logs(req: LogsIn, authorization: str | None = Header(default=None)) -> dict[str, int]:
+    """Add proxy or DNS log lines to the inventory. Same matching as the start-up seed.
+
+    Needs "Authorization: Bearer <INGEST_TOKEN>": the lease map decides who the traffic is filed
+    under, so an anonymous caller must never reach it. Off (503) until a token is set.
+    """
+    token = settings.ingest_token
+    if not token:
+        raise HTTPException(
+            status_code=503,
+            detail="Log ingest is off. Set INGEST_TOKEN in .env and restart the brain.",
+        )
+    if not hmac.compare_digest(authorization or "", f"Bearer {token}"):
+        raise HTTPException(status_code=401, detail="Log ingest needs the ingest token.")
     engine = _engine()
     if engine is None:
         return {"rows": 0}
