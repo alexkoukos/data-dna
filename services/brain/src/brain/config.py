@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     hmac_key_file: str = "/var/dna/keys/hmac_key"
     # Bearer token for /v1/vault/*. Empty = those routes answer 503 (off until you set one).
     vault_api_token: str = ""
+    # Bearer token for POST /v1/logs/ingest. Empty = that route answers 503 (off until you set one).
+    ingest_token: str = ""
     # X30: where new incidents are pushed. Everything is off until a value is set.
     siem_syslog_host: str = ""
     siem_syslog_port: int = 514

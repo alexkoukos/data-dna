@@ -75,6 +75,7 @@ services:
       VAULT_B_URL: postgresql://${VAULT_B_USER:-vault_b}:${VAULT_B_PASSWORD:-change-me-b}@vault-b:5432/vault
       HMAC_KEY_FILE: ${HMAC_KEY_FILE:-/var/dna/keys/hmac_key}
       VAULT_API_TOKEN: ${VAULT_API_TOKEN:-}
+      INGEST_TOKEN: ${INGEST_TOKEN:-}
       DATABASE_URL: postgresql+psycopg://${DB_USER:-dna}:${DB_PASSWORD:-change-me}@db:5432/${DB_NAME:-dna}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-admin-change-me}
