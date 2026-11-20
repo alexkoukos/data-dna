@@ -224,11 +224,12 @@ def read_pil(img: Any, metadata: list[tuple[str, str]] | None = None) -> ImageRe
     hidden under transparent pixels); turned copies when the text runs vertically. Text found
     only by the extra passes is reported as hidden.
     """
+    engine = _load()  # first, so a missing OCR extra (and its cv2) is refused with a next step
+
     import cv2
     import numpy as np
     from PIL import Image
 
-    engine = _load()
     if img.width * img.height > MAX_PIXELS:
         raise ValueError("An image is too large to read. Shrink it or send fewer pages.")
     if max(img.size) > MAX_SIDE:
