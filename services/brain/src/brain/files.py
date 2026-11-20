@@ -9,13 +9,13 @@ and the text are not stored or logged.
 import asyncio
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 
 from fastapi import APIRouter, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
 from brain.config import settings
-from brain.documents.chat_files import read_chat_file, suffixes
+from brain.documents.chat_files import ChatFile, read_chat_file, suffixes
 from brain.documents.extract import ExtractError
 
 log = logging.getLogger(__name__)
@@ -93,7 +93,13 @@ async def extract_file(file: UploadFile, response: Response) -> ExtractedFile:
     except BaseException:
         _slots.release()
         raise
-    job.add_done_callback(lambda f: (_slots.release(), f.cancelled() or f.exception()))
+
+    def finished(done: "Future[ChatFile]") -> None:
+        _slots.release()
+        if not done.cancelled():
+            done.exception()  # read it, so a late failure is not reported as never retrieved
+
+    job.add_done_callback(finished)
     try:
         # shield: a timeout or a hang-up must not cancel the job, or its result would be thrown away
         # while its thread (if already running) carries on.
