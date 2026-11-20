@@ -2,6 +2,7 @@
 
 import io
 import zipfile
+from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -206,6 +207,52 @@ def test_extract_gives_up_on_a_slow_file(
     monkeypatch.setattr(settings, "file_extract_timeout", 0.05)
     r = client.post("/v1/files/extract", files={"file": ("a.txt", b"hello")})
     assert r.status_code == 422 and "too long to read" in r.json()["detail"]["message"]
+
+
+@pytest.fixture(autouse=True)
+def _slots_free_after_each_test() -> Iterator[None]:
+    """A timed-out read keeps its worker thread, and so its slot, until it ends. Wait for that."""
+    import time
+
+    import brain.files as files
+
+    yield
+    held = 0
+    deadline = time.time() + 5
+    while held < files._WORKERS and time.time() < deadline:
+        if files._slots.acquire(blocking=False):
+            held += 1
+        else:
+            time.sleep(0.02)
+    for _ in range(held):
+        files._slots.release()
+
+
+def test_extract_refuses_when_every_slot_is_busy(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Slow files hold their slots until the thread ends, so the next file is turned away."""
+    import threading
+
+    import brain.files as files
+
+    release = threading.Event()
+
+    def stuck(*_: object, **__: object) -> None:
+        release.wait(5)
+
+    monkeypatch.setattr(files, "read_chat_file", stuck)
+    monkeypatch.setattr(settings, "file_extract_timeout", 0.05)
+    try:
+        for _ in range(files._WORKERS):
+            r = client.post("/v1/files/extract", files={"file": ("a.txt", b"hello")})
+            assert r.status_code == 422  # gave up, but the thread still holds its slot
+        busy = client.post("/v1/files/extract", files={"file": ("a.txt", b"hello")})
+        assert busy.status_code == 503
+        assert busy.headers["Retry-After"] == "5"
+        assert "busy" in busy.json()["detail"]["message"]
+    finally:
+        release.set()  # the fixture above waits until both threads have ended
 
 
 # --- the file inside the message goes through /v1/inspect like typed text ----------------------
