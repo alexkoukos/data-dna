@@ -40,6 +40,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from brain import (
     alerts,
+    api_docs,
     breakit,
     coaching,
     compliance,
@@ -311,7 +312,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 _attempts = breakit.AttemptLog()
 
-app = FastAPI(title="Sentry brain", version="0.1.0", lifespan=lifespan)
+# docs_url=None: /docs is the branded page from brain.api_docs, not FastAPI's stock one.
+app = FastAPI(title="Sentry brain", version="0.1.0", lifespan=lifespan, docs_url=None)
+api_docs.install(app)
 app.include_router(vault_router)
 
 
