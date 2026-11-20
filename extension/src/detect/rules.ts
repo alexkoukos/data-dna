@@ -27,6 +27,12 @@ export const IBAN = {
   lengths: raw.iban.lengths as Record<string, number>,
 };
 
+export const CARD_GROUPED = {
+  entity: raw.cardGrouped.entity,
+  category: raw.cardGrouped.category,
+  rx: compile(raw.cardGrouped.regex),
+};
+
 export const DIGITS = {
   rx: compile(raw.digits.regex),
   checks: raw.digits.checks.map((c): DigitCheck => ({

@@ -27,6 +27,9 @@ IBAN = iban_with_check("GR", "01101250000000012300695")
 IBAN_SPACED = " ".join(IBAN[i : i + 4] for i in range(0, len(IBAN), 4))
 BAD_IBAN = IBAN[:-1] + ("0" if IBAN[-1] != "0" else "1")
 CARD = "4111111111111111"
+CARD_SPACED = " ".join(CARD[i : i + 4] for i in range(0, 16, 4))
+AMEX = "378282246310005"
+AMEX_GROUPED = f"{AMEX[:4]} {AMEX[4:10]} {AMEX[10:]}"
 OPENAI = "sk-proj-" + "Ab3dE6gH9jK2mN5pQ8sT"
 AWS = "AKIA" + "ABCDEFGHIJ234567"
 GH = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
@@ -54,8 +57,20 @@ add("afm bad checksum", "Ο ΑΦΜ είναι 123456789 αλλά είναι λά
 add("amka valid", f"AMKA {AMKA} for the new hire", [("AMKA", AMKA)])
 add("card valid", f"Charge card {CARD} for the order", [("CARD", CARD)])
 add("card bad luhn", "Order number 4111111111111112 is not a card", [])
+# Written in its printed groups: found in the text itself, so it is masked in place.
+add(
+    "card spaced", f"Charge card {CARD_SPACED} for the order", [("CARD", CARD_SPACED)], hidden=False
+)
+add(
+    "card dashed",
+    f"Charge card {CARD_SPACED.replace(' ', '-')} today",
+    [("CARD", CARD_SPACED.replace(" ", "-"))],
+    hidden=False,
+)
+add("amex grouped", f"Amex {AMEX_GROUPED} on file", [("CARD", AMEX_GROUPED)], hidden=False)
+add("card spaced bad luhn", "Ref 4111 1111 1111 1112 is not a card", [])
 add("iban valid", f"Pay to {IBAN} today", [("IBAN", IBAN)])
-add("iban spaced", f"Pay to {IBAN_SPACED} today", [("IBAN", IBAN_SPACED)])
+add("iban spaced", f"Pay to {IBAN_SPACED} today", [("IBAN", IBAN_SPACED)], hidden=False)
 add("iban bad checksum", f"Pay to {BAD_IBAN} today", [])
 add("openai key", f"export OPENAI_API_KEY={OPENAI}", [("OPENAI_KEY", OPENAI)])
 add("aws key", f"aws_access_key_id = {AWS}", [("AWS_ACCESS_KEY", AWS)])
@@ -84,12 +99,20 @@ add(
     f"IBAN {IBAN} and AFM {AFM2}",
     [("IBAN", IBAN), ("AFM", AFM2)],
 )
-# Evasion: the value is read from a hidden view, so it cannot be masked in place.
+# Evasion: the value is read from a hidden view, so it cannot be masked in place. `hidden: false`
+# above means the opposite: a value written normally is found again in a de-spaced view, and that
+# second find must not count as hidden.
 add(
     "afm spaced digits",
     "tax id " + " ".join(AFM2),
     [("AFM", AFM2)],
     hidden=True,
+    signals=["spaced_digits"],
+)
+add(
+    "card shown and hidden",
+    f"Card {CARD_SPACED}, again " + " ".join(CARD),
+    [("CARD", CARD_SPACED)],  # the same card twice: once visible, once hidden
     signals=["spaced_digits"],
 )
 add(

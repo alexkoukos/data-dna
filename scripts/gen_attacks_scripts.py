@@ -101,7 +101,12 @@ add("spacing", "Ο ΑΦΜ είναι " + ".".join(x), "warn", "el", "dots betwee
 x = amka()
 add("spacing", "ΑΜΚΑ: " + "/".join(x), "warn", "el", "slashes between digits")
 x = card()
-add("spacing", "Card " + "-".join(x[i : i + 4] for i in range(0, 16, 4)), "warn")
+add(
+    "spacing",
+    "Card " + "-".join(x[i : i + 4] for i in range(0, 16, 4)),
+    "mask",
+    notes="a card in its printed groups is read in place",
+)
 add("spacing", "Check this account: " + "​".join(iban()), "mask", notes="zero-width characters")
 x = iban()
 add("spacing", "Account\n" + "\n".join(x[i : i + 4] for i in range(0, len(x), 4)), "warn",

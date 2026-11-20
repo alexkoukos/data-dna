@@ -27,6 +27,7 @@ describe("L1 matches the shared fixtures (the brain test reads the same file)", 
     expect(got).toEqual(want);
     for (const s of c.signals ?? []) expect(result.signals).toContain(s);
     if (c.hidden) expect(result.findings.every((f) => f.hidden)).toBe(true);
+    if (c.hidden === false) expect(result.findings.some((f) => f.hidden)).toBe(false);
   });
 });
 
@@ -38,6 +39,14 @@ describe("mask and unmask", () => {
     expect(masked.text).toBe("IBAN [IBAN_1] and AFM [AFM_1] ok");
     expect(unmask(`Sent to [IBAN_1] for [AFM_1]`, masked.placeholders)).toBe(
       "Sent to GR1601101250000000012300695 for 123456783",
+    );
+  });
+
+  it("masks a card written in groups and keeps a hidden second copy apart", () => {
+    const r = scan("Card 4111 1111 1111 1111, again 4 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1");
+    expect(r.findings.map((f) => f.hidden ?? false)).toEqual([false, true]);
+    expect(mask(r.text, r.findings).text).toBe(
+      "Card [CARD_1], again 4 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1",
     );
   });
 

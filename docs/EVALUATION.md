@@ -24,10 +24,10 @@ How we measured accuracy and speed, and what the numbers are. Every figure comes
 | Attack set `attacks.csv` | 80 of 80 as expected | | `make eval` |
 | Attack set `attacks_scripts.csv` | 80 of 80 as expected | | `make eval` |
 | False alarms on clean look-alikes | 0.0% | 5% | `make eval` |
-| Decision equals the label's expected decision | 93.8% | | `make eval` |
+| Decision equals the label's expected decision | 94.4% | | `make eval` |
 | Added latency, one request at a time (p50 / p95) | 20.8 / 58.0 ms | p95 under 100 ms | `make eval` |
 | promptfoo curated cases | 25 of 25 | | `make redteam` |
-| Unit tests | 1,136 brain (89% coverage with the OCR extra; 57 need the running stack), 148 web, 48 extension (43 + 5 node) | | `make check` |
+| Unit tests | 1,154 brain (89% coverage with the OCR extra; 57 need the running stack), 148 web, 48 extension (43 + 5 node) | | `make check` |
 
 Detection tables by leak type and language are in [`eval/report.md`](../eval/report.md); the red-team run is in [`eval/redteam/report.md`](../eval/redteam/report.md). Both are committed.
 
