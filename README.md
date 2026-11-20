@@ -10,7 +10,7 @@
 Sentry is a gateway that every AI tool in a company goes through. When someone sends a prompt or a file to ChatGPT, Claude, Gemini, an SDK or an agent, Sentry checks it before it leaves. It finds client data, personal IDs, secrets and confidential documents, even when they have been reworded. For each prompt it picks one of five outcomes: **allow, mask, warn, answer with a local model, or block**. People get a reason in plain words and an approved alternative. The security team sees every decision without seeing the data. Sentry also lists which AI tools are in use, including unapproved ones. It runs on your own server, and a single `docker compose up` starts it.
 
 <p align="center">
-  <a href="docs/media/sentry-launch.mp4"><img src="docs/media/sentry-launch-poster.jpg" alt="Watch the launch film (1:45)" width="720"></a><br>
+  <a href="docs/media/sentry-launch.mp4"><img src="docs/media/sentry-launch-preview.gif" alt="Sentry launch film preview" width="720"></a><br>
   <a href="docs/media/sentry-launch.mp4"><b>▶ Watch the launch film (1:45)</b></a>
 </p>
 
