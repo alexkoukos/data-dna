@@ -7,7 +7,7 @@ How Sentry is built, how a prompt is decided, and how the system protects the da
 ```
  Employee --> web (React) ---------+
  SDKs, agents, Claude Code --------+--> gateway (LiteLLM) --> cloud model | local model
- Browser extension (chatgpt.com) --+        |  pre-call and post-call guardrail
+ Browser extension ----------------+        |  pre-call and post-call guardrail
                                             v
                                         brain (FastAPI) --> db (Postgres 16 + pgvector)
                                             |
@@ -21,9 +21,10 @@ How Sentry is built, how a prompt is decided, and how the system protects the da
 | `brain` | Detection pipeline, policy engine, incidents, analyst questions, API docs at `/docs` (a Sentry-branded page, `brain/api_docs/`). | 8001 |
 | `db` | Postgres 16 with pgvector. Seeded with a synthetic company. | internal |
 | `vault-a`, `vault-b` | Two separate Postgres instances for split storage (section 5). | internal |
+| `mock-ai` | Offline stand-in for ChatGPT, used by the extension tests and the demo. | 3100 |
 | `ollama` | Optional local model (`make local`). Without it, "answered locally" returns a stand-in answer. | 11434 |
 
-`docker-compose.yml` starts everything with health checks; `brain` waits for the database and both vaults. Ports bind to `127.0.0.1`. With no `OPENAI_API_KEY` the demo models `demo-mock`, `demo-echo` and `demo-leaky` answer offline.
+`docker-compose.yml` starts everything with health checks; `brain` waits for the database and both vaults. Ports bind to `127.0.0.1`, except the offline `mock-ai` stand-in. With no `OPENAI_API_KEY` the demo models `demo-mock`, `demo-echo` and `demo-leaky` answer offline.
 
 ## 2. Request flow
 
@@ -58,7 +59,7 @@ Cheapest first (`services/brain/src/brain/detection/pipeline.py`). When a cheap 
 | 3. Identifiers | AFM, AMKA, IBAN, cards with checksums; ADT, plates, Greek phones, passport and GEMI next to their names. | `patterns.py`, `validators.py` |
 | 4. Secrets and code | Key and credential rules (YARA), source-code fingerprints (winnowing). | `yara_rules.py`, `code_fingerprint.py`, `rules/` |
 | 5. Prompt injection | Phrase heuristics (English, Greek, Greeklish) plus an optional classifier (`protectai/deberta-v3-base-prompt-injection-v2`, ONNX, `make injection-model`). | `injection/` |
-| 6. People | Names, emails, phones (surname endings and a surname list, no model call). | `entities.py` |
+| 6. People | Names, emails, phones: Presidio with small spaCy models (English and Greek), plus Greek surname endings for names in Latin letters. No LLM call. | `entities.py`, `greeklish.py` |
 | 7. Client names | Accent- and case-insensitive match against the client list. | `entities.py` |
 | 8. Documents | Registered confidential documents, matched even when reworded (section 4). | `documents/` |
 
