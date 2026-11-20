@@ -89,6 +89,26 @@ jobs:
       - run: docker buildx build --platform linux/arm64 infra/gateway
       - run: docker buildx build --platform linux/arm64 mock-ai
 
+  # Starts the whole stack on a native ARM runner, as judges on Apple Silicon will. Not a required
+  # check yet: it is new and loads the OCR and handwriting models. 15 minutes is a first guess.
+  arm64-stack:
+    timeout-minutes: 15
+    needs: [brain, web]
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: chmod -R a+w data/eval # the non-root brain writes approved break-it rows here
+      - run: docker compose up --build -d --wait
+      - run: curl -fsS http://localhost:8001/healthz && curl -fsS http://localhost:3000/ >/dev/null
+      # OCR on ARM: the brain reads the synthetic chart used by web/e2e/chat-images.spec.ts.
+      - run: |
+          out=$(curl -fsS --retry 3 --max-time 120 -F "file=@web/e2e/fixtures/chart.png;type=image/png" \
+            http://localhost:8001/v1/files/extract)
+          echo "$out"
+          grep -q "Quarterly sales" <<<"$out"
+      - if: failure()
+        run: docker compose logs
+
   secrets:
     runs-on: ubuntu-latest
     permissions:
