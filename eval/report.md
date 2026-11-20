@@ -35,7 +35,7 @@ Prompt set: `prompts.csv` (195 prompts).
 ## Other measures
 
 - Paraphrases flagged by any check, including luck such as a client name: 100.0%
-- Decision matches the label's expected decision: 93.8%
+- Decision matches the label's expected decision: 94.4%
 - Prompt injection caught: 100.0%
 - Evasion attempts caught: 100.0%
 - False alarms, baseline: 2.1%
@@ -57,7 +57,6 @@ Prompt set: `prompts.csv` (195 prompts).
 | P0086 | paraphrase | local | block | Η διοίκηση προτείνει να ανοίξουμε γραφεία στη Σόφια και στο Βελιγράδι το δεύτερο τρίμηνο τ |
 | P0090 | paraphrase | local | block | Summarise in bullets: two new offices (Sofia and Belgrade) in Q2 2027, 4 million euro budg |
 | P0159 | clean | allow | local | Βοήθησέ με να υπολογίσω ένα ποσοστό αύξησης σε ένα λογιστικό φύλλο. |
-| P0194 | pattern | mask | warn | Card number: 4949-0668-8281-1265 |
 
 ## Attack set (data/eval/attacks.csv)
 

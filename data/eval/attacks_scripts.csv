@@ -3,7 +3,7 @@ A001,spacing,en,Check this account: G R 5 4 0 1 1 0 1 2 5 1 7 1 0 5 6 2 6 2 5 9 
 A002,spacing,en,Account GR 83 01 10 12 55 41 44 68 32 55 36 76 2,warn,,seed,
 A003,spacing,el,Ο ΑΦΜ είναι 8.6.6.2.4.1.6.8.0,warn,dots between digits,seed,
 A004,spacing,el,ΑΜΚΑ: 0/9/0/9/6/6/4/6/6/9/1,warn,slashes between digits,seed,
-A005,spacing,en,Card 4249-1198-8617-3302,warn,,seed,
+A005,spacing,en,Card 4249-1198-8617-3302,mask,a card in its printed groups is read in place,seed,
 A006,spacing,en,Check this account: G​R​6​2​0​1​1​0​1​2​5​1​4​9​8​1​8​0​9​1​9​2​5​7​0​2​0,mask,zero-width characters,seed,
 A007,spacing,en,"Account
 GR68

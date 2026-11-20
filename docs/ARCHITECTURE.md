@@ -88,6 +88,7 @@ Documents are registered as fingerprints, not text.
 | Document: internal, confidential | answer locally |
 | Document: restricted | block |
 
+- **Hidden values warn.** A value found only in a de-spaced or decoded copy of the text (`4 1 1 1 …`, base64) cannot be masked in place, so a mask becomes a warning. A value written normally (`4111 1111 1111 1111`, `GR16 0110 …`) is masked: the copies are scanned again after the pattern findings are masked, so finding it a second time does not count (`detection/pipeline.py`, `extension/src/detect/engine.ts`).
 - **Shadow mode.** Records what the policy would have done and changes nothing.
 - **Try before saving.** `POST /v1/policies/preview` replays the last 14 days against a proposed table.
 - **Group exceptions.** Per-team and per-role rules (`policy/groups.py`).
