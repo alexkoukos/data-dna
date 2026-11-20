@@ -1,4 +1,5 @@
 import type { Outcome } from "../components/OutcomeChip";
+import type { ContentPart } from "./attachments";
 
 export interface Identity {
   userId: string;
@@ -9,7 +10,8 @@ export interface Identity {
 
 export interface ChatTurn {
   role: "user" | "assistant";
-  content: string;
+  /** Text, or text and images (the newest question with an attached picture). */
+  content: string | ContentPart[];
 }
 
 export type ChatResult =

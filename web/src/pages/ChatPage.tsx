@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BrainIcon,
   FileText,
+  ImageIcon,
   CheckIcon as Check,
   CopyIcon,
   PanelLeft,
@@ -41,15 +42,17 @@ import { RequestToolForm } from "../components/RequestToolForm";
 import { OutcomeChip } from "../components/OutcomeChip";
 import { WarnCard } from "../components/WarnCard";
 import {
-  composeMessage,
   DEFAULT_LIMITS,
   fileSummary,
+  isImageName,
+  messageContent,
   precheck,
   toSent,
   uploadHint,
   type Attachment,
   type ReadFile,
 } from "../lib/attachments";
+import { prepareImage } from "../lib/imageFiles";
 import { ensureIdentity, sendChat, type ChatTurn, type Identity } from "../lib/chatApi";
 import { extractFile, fetchFileLimits } from "../lib/filesApi";
 import { PROMPT_GROUPS } from "../lib/chatPrompts";
@@ -276,24 +279,33 @@ export default function ChatPage() {
     }
     setAttachments((all) => [...all, ...added]);
     for (const [id, f] of toRead)
-      void extractFile(f, limits).then((r) =>
-        setAttachments((all) =>
-          all.map((a) =>
-            a.id !== id
-              ? a
-              : r.ok
-                ? {
-                    id,
-                    status: "ready",
-                    name: r.name,
-                    text: r.text,
-                    chars: r.chars,
-                    truncated: r.truncated,
-                  }
-                : { id, name: f.name, status: "error", message: r.message },
+      void extractFile(f, limits)
+        .then(async (r) =>
+          // An image also goes to the model as a picture, redrawn here (see imageFiles). If the
+          // browser cannot redraw it, only its text goes.
+          r.ok && isImageName(f.name)
+            ? { ...r, image: await prepareImage(f).catch(() => undefined) }
+            : r,
+        )
+        .then((r) =>
+          setAttachments((all) =>
+            all.map((a) =>
+              a.id !== id
+                ? a
+                : r.ok
+                  ? {
+                      id,
+                      status: "ready",
+                      name: r.name,
+                      text: r.text,
+                      chars: r.chars,
+                      truncated: r.truncated,
+                      ...(r.image ? { image: r.image } : {}),
+                    }
+                  : { id, name: f.name, status: "error", message: r.message },
+            ),
           ),
-        ),
-      );
+        );
   };
   const removeFile = (id: string) => setAttachments((all) => all.filter((a) => a.id !== id));
   const dismissHint = () => {
@@ -305,9 +317,9 @@ export default function ChatPage() {
     }
   };
   /** What the gateway checks for a turn: the typed text plus the text of its files. */
-  const contentOf = (t: StoredTurn) => {
+  const contentOf = (t: StoredTurn, withImages = false) => {
     const files = turnFiles.current.get(t.id);
-    return files ? composeMessage(t.text, files) : t.text;
+    return files ? messageContent(t.text, files, withImages) : t.text;
   };
 
   /** Sends `text` as a new turn, or retries the last question when `retry` is set. */
@@ -322,7 +334,15 @@ export default function ChatPage() {
       : (opts.files ??
         attachments.flatMap((a) =>
           a.status === "ready"
-            ? [{ name: a.name, text: a.text, chars: a.chars, truncated: a.truncated }]
+            ? [
+                {
+                  name: a.name,
+                  text: a.text,
+                  chars: a.chars,
+                  truncated: a.truncated,
+                  ...(a.image ? { image: a.image } : {}),
+                },
+              ]
             : [],
         ));
     if ((!clean && !files.length) || busy) return;
@@ -366,9 +386,11 @@ export default function ChatPage() {
         untouched.push(q, a);
     }
     const asked = base[base.length - 1];
+    // Only the newest question carries its pictures; a reroute to Company AI goes as text, since
+    // the company model reads text and a picture cannot be masked.
     const history: ChatTurn[] = [...untouched, ...(asked ? [asked] : [])].map((t) => ({
       role: t.from,
-      content: contentOf(t),
+      content: contentOf(t, t === asked && !opts.reroute),
     }));
     try {
       identity.current ??= await ensureIdentity();
@@ -591,18 +613,41 @@ export default function ChatPage() {
                                   className="flex max-w-full flex-wrap justify-end gap-2"
                                   aria-label="Attached files"
                                 >
-                                  {t.files.map((f) => (
-                                    <li
-                                      key={f.name}
-                                      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-ink-200 bg-ink-50 px-3 py-1.5 text-xs text-ink-700"
-                                    >
-                                      <FileText className="size-3.5 shrink-0" aria-hidden="true" />
-                                      <span className="truncate font-medium">{f.name}</span>
-                                      {f.truncated ? (
-                                        <span className="shrink-0">· Shortened</span>
-                                      ) : null}
-                                    </li>
-                                  ))}
+                                  {t.files.map((f) => {
+                                    const picture = turnFiles.current
+                                      .get(t.id)
+                                      ?.find((x) => x.name === f.name)?.image;
+                                    return picture ? (
+                                      <li key={f.name}>
+                                        <img
+                                          src={picture}
+                                          alt={f.name}
+                                          className="max-h-40 max-w-[12rem] rounded-xl border border-ink-200 object-cover"
+                                        />
+                                      </li>
+                                    ) : (
+                                      <li
+                                        key={f.name}
+                                        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-ink-200 bg-ink-50 px-3 py-1.5 text-xs text-ink-700"
+                                      >
+                                        {isImageName(f.name) ? (
+                                          <ImageIcon
+                                            className="size-3.5 shrink-0"
+                                            aria-hidden="true"
+                                          />
+                                        ) : (
+                                          <FileText
+                                            className="size-3.5 shrink-0"
+                                            aria-hidden="true"
+                                          />
+                                        )}
+                                        <span className="truncate font-medium">{f.name}</span>
+                                        {f.truncated ? (
+                                          <span className="shrink-0">· Shortened</span>
+                                        ) : null}
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               ) : null}
                               {t.text ? (

@@ -1,5 +1,5 @@
-import { AlertCircle, FileText, LoaderCircle, X } from "lucide-react";
-import type { Attachment } from "../../lib/attachments";
+import { AlertCircle, FileText, ImageIcon, LoaderCircle, X } from "lucide-react";
+import { isImageName, type Attachment } from "../../lib/attachments";
 
 interface Props {
   items: Attachment[];
@@ -31,6 +31,10 @@ export function AttachmentChips({ items, maxChars, onRemove }: Props) {
               <LoaderCircle className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
             ) : a.status === "error" ? (
               <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
+            ) : a.status === "ready" && a.image ? (
+              <img src={a.image} alt="" className="size-7 shrink-0 rounded-md object-cover" />
+            ) : isImageName(a.name) ? (
+              <ImageIcon className="size-3.5 shrink-0" aria-hidden="true" />
             ) : (
               <FileText className="size-3.5 shrink-0" aria-hidden="true" />
             )}

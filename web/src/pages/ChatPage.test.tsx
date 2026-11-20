@@ -154,7 +154,9 @@ describe("Company AI chat with files", () => {
     const sent = calls.find((c) => c.url.includes("/chat/completions"))!;
     const message = (JSON.parse(String(sent.body)) as { messages: { content: string }[] })
       .messages[0]!.content;
-    expect(message).toContain("Summarise it\n\n[File: report.pdf]\n");
+    expect(message).toMatch(
+      /^Summarise it\n\nThe attached files follow\..*\n\n\[File: report\.pdf\]\n/s,
+    );
     expect(message).toContain("[End of file: report.pdf]");
     expect(screen.getByText("· report.pdf")).toBeInTheDocument(); // on the outcome chip
     expect(screen.getByText("Masked")).toBeInTheDocument();
@@ -200,3 +202,62 @@ async function waitForLimits() {
   // the limits request resolves on the next tick
   await new Promise((r) => setTimeout(r, 0));
 }
+
+describe("Company AI chat with pictures", () => {
+  it("sends the picture itself with the newest question, and only its text on a reroute", async () => {
+    vi.doMock("../lib/imageFiles", () => ({
+      prepareImage: async () => "data:image/jpeg;base64,UElD",
+    }));
+    vi.resetModules();
+    const { default: Page } = await import("./ChatPage");
+    const bodies: { messages: { content: unknown }[] }[] = [];
+    let first = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/keys"))
+          return new Response(JSON.stringify({ key: "k", default_model: "m" }));
+        if (url.includes("/files/limits"))
+          return new Response(
+            JSON.stringify({ max_bytes: 10_000, max_files: 3, max_chars: 30000, types: [".png"] }),
+          );
+        if (url.includes("/files/extract"))
+          return new Response(
+            JSON.stringify({ text: "Sales by region", chars: 15, truncated: false }),
+          );
+        if (url.includes("/chat/completions")) {
+          bodies.push(JSON.parse(String(init?.body)) as { messages: { content: unknown }[] });
+          if (first) {
+            first = false;
+            return new Response(
+              JSON.stringify({
+                error: { provider_specific_fields: { type: "warn", reasons: ["Contains iban"] } },
+              }),
+              { status: 409 },
+            );
+          }
+          return new Response(JSON.stringify({ choices: [{ message: { content: "Done." } }] }), {
+            headers: { "x-dna-decision": "rerouted" },
+          });
+        }
+        return new Response("[]");
+      }),
+    );
+    render(<Page />);
+    await new Promise((r) => setTimeout(r, 0));
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await userEvent.upload(input, new File(["\x89PNG"], "chart.png", { type: "image/png" }));
+    expect(await screen.findByText("· Ready")).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: "Your question" }), "What is this?");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    // The picture shows in the conversation (this visit only).
+    expect(await screen.findByRole("img", { name: "chart.png" })).toBeInTheDocument();
+    const sent = bodies[0]!.messages.at(-1)!.content as { type: string }[];
+    expect(sent.map((p) => p.type)).toEqual(["text", "image_url"]);
+    await userEvent.click(await screen.findByRole("button", { name: /Company AI instead/ }));
+    expect(await screen.findByText("Done.")).toBeInTheDocument();
+    expect(typeof bodies[1]!.messages.at(-1)!.content).toBe("string");
+    expect(localStorage.getItem("sentry.chats")).not.toContain("UElD");
+    vi.doUnmock("../lib/imageFiles");
+  });
+});
