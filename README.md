@@ -14,6 +14,10 @@ Sentry is a gateway that every AI tool in a company goes through. When someone s
   <a href="docs/media/sentry-launch.mp4"><b>▶ Watch the launch film (1:45)</b></a>
 </p>
 
+
+Uploading sentry-launch.mp4…
+
+
 Netcompany Hackathon Athens 2026, Challenge 3: Shadow AI protection and Data Protection.
 
 ## Why
