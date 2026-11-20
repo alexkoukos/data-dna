@@ -38,7 +38,7 @@ model_list:
     litellm_params:
       model: openai/local-standin
       api_key: not-used
-      mock_response: "Answered on this machine. Your message never left the company."
+      mock_response: "The local model is not running, so this is a stand-in reply, not a real answer. Your message never left the company."
 
 router_settings:
   num_retries: 0

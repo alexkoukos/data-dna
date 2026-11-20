@@ -2620,3 +2620,38 @@ def test_a_masked_field_does_not_excuse_a_value_split_across_other_fields() -> N
         dna.clean_arguments('{"k": "SECRET", "a": "AL", "b": "PHA"}', leaf, whole)
     )
     assert cleaned == "{}" and notice == dna.WITHHELD_ARGUMENTS
+
+
+def _png_request() -> dict[str, Any]:
+    png = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64).decode()
+    return {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "explain"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{png}"}},
+                ],
+            }
+        ],
+    }
+
+
+def test_local_decision_with_image_is_refused() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"decision": "local", "reasons": ["x"], "purified_attachments": [None]}
+        )
+
+    async def go() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await dna.apply_decision(
+                _png_request(), user_id="u1", team="t1", headers=None,
+                brain_url="http://brain", client=client,
+            )  # fmt: skip
+
+    with pytest.raises(dna.GatewayError) as err:
+        asyncio.run(go())
+    assert err.value.status_code == 422
+    assert err.value.body["type"] == "unsupported"

@@ -774,6 +774,34 @@ def _media_entries(
     return found
 
 
+_IMAGE_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"BM")
+
+
+def _is_image(blob: dict[str, str]) -> bool:
+    """True when the attachment's own bytes are a picture (the name is not trusted)."""
+    first = blob["content_base64"][:48]
+    try:
+        head = base64.b64decode(first + "=" * (-len(first) % 4))
+    except ValueError:
+        return False
+    return head.startswith(_IMAGE_MAGIC) or (head[:4] == b"RIFF" and head[8:12] == b"WEBP")
+
+
+def _refuse_images_for_local(attachments: list[dict[str, str]]) -> None:
+    """The local model reads text only. Say so instead of returning an answer that ignores the
+    picture. Nothing leaves the company: the request is not sent anywhere."""
+    if any(_is_image(a) for a in attachments):
+        raise GatewayError(
+            422,
+            {
+                "type": "unsupported",
+                "message": "The local model cannot read images. Your message was not sent "
+                "anywhere. Describe the image in text, or remove it and ask again.",
+                "reasons": ["Image sent to a text-only local model"],
+            },
+        )
+
+
 def _requester_metadata(data: dict[str, Any]) -> list[tuple[str, Any]]:
     """What the person put in `metadata`, without the fields the gateway adds to it."""
     found: list[tuple[str, Any]] = []
@@ -1102,6 +1130,7 @@ async def apply_decision(
         for slot, new_text in changes:
             if slot.write is not None:
                 slot.write(new_text)
+        _refuse_images_for_local(attachments)
         data["model"] = LOCAL_MODEL
         for k in _ROUTER_KEYS:
             data.pop(k, None)
@@ -1157,6 +1186,7 @@ async def apply_decision(
             },
         )
     elif decision == "local":
+        _refuse_images_for_local(attachments)
         data["model"] = LOCAL_MODEL
         for k in _ROUTER_KEYS:
             data.pop(k, None)
