@@ -117,7 +117,7 @@ Defined in `services/brain/src/brain/db/tables.py`; init scripts in `infra/db/`.
 ## 9. Web app and extension
 
 - **Web** (`web/`): Company Chat (with file upload), Connect (personal keys), Try to break it, and the security area: overview, AI tools, incidents, documents, policies, groups, history, impact, break-it review, weekly digest, ask. Tokens are in `web/src/index.css`.
-- **Extension** (`extension/`, Manifest V3, plain JavaScript): checks paste and send on `chatgpt.com` through `POST /v1/extension/inspect`, `/ack` and `GET /v1/extension/me`. The brain allows browser calls only from `chrome-extension://<EXTENSION_ID>`. It fails open if the gate is unreachable and closed if the text is refused as too long. Only text is checked; one site is covered.
+- **Extension** (`extension/`, Manifest V3, TypeScript with WXT): checks paste, send and file attach on ChatGPT, Claude and Gemini. A first check runs in the browser with no network (shared rules from `shared/fixtures/l1.json`), then `POST /v1/check` on the brain; the stricter answer wins. It also uses `/v1/policy` (ETag), `/v1/events` (counts, no text), `/v1/pair` and `/v1/ask-local`. If the brain does not answer within 400 ms, the policy's fail mode decides per category. It connects to `http://localhost:8001` by itself on install; IT can set the address with a Chrome policy (`deploy/`).
 - **MCP proxy** (`scripts/mcp_proxy.py`): Model Context Protocol traffic through the same checks.
 - **SIEM** (`docs/siem/`): `GET /v1/export/incidents` (JSON lines), optional CEF syslog and HMAC-signed webhook. Events never carry prompt text or masked previews.
 

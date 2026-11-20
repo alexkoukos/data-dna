@@ -1,6 +1,6 @@
 # Evaluation
 
-How we measured accuracy and speed, what the numbers are, and where Sentry still fails. Every figure comes from a command in the last column of the first table; run it to check. All data is synthetic (`gen_org.py --seed 42`). Latest run: 19 Nov 2026, Linux, Docker.
+How we measured accuracy and speed, what the numbers are, and where Sentry still fails. Every figure comes from a command in the last column of the first table; run it to check. All data is synthetic (`gen_org.py --seed 42`). Measured on Linux, Docker.
 
 ## Method
 
@@ -28,7 +28,7 @@ How we measured accuracy and speed, what the numbers are, and where Sentry still
 | Added latency, one request at a time (p50 / p95) | 20.8 / 58.0 ms | p95 under 100 ms | `make eval` |
 | Latency under load, 3 people for 15 s (p50 / p95) | about 117 / 254 to 277 ms, 0 errors | p95 under 100 ms: **missed** | `make loadtest` (3 runs) |
 | promptfoo curated cases | 25 of 25 | | `make redteam` |
-| Unit tests (20 Nov) | 1,135 brain (86% coverage; 57 need the running stack), 148 web, 48 extension (43 + 5 node) | | `make check` |
+| Unit tests | 1,135 brain (89% coverage with the OCR extra; 57 need the running stack), 148 web, 48 extension (43 + 5 node) | | `make check` |
 
 Detection tables by leak type and language are in [`eval/report.md`](../eval/report.md); the red-team run is in [`eval/redteam/report.md`](../eval/redteam/report.md). Both are committed.
 

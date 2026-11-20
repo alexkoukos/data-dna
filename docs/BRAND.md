@@ -15,7 +15,7 @@ The product is **Sentry** (πύλη), and in plain words it is **the gate**. Say
 | The gate masked 2 card numbers. | The system sanitized the data. |
 | Gate address | Gateway URL |
 
-"Gateway" stays only inside code and API paths (`gateway/`, `/gateway/v1`). Anything a person reads says "the gate". The repo and some internal names still say Sentry; they are being renamed as files are touched.
+"Gateway" stays only inside code and API paths (`gateway/`, `/gateway/v1`). Anything a person reads says "the gate".
 
 ## Idea
 

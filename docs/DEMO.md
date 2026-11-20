@@ -2,7 +2,7 @@
 
 Run order for the judges. Each step is 30 seconds or less. Step numbers are the ones `docs/BRIEF_MAP.md` points at.
 
-**About the times.** "System" is the time from the click until the answer is on screen, measured on 17 Nov 2026 by a scripted browser (Playwright, Chromium) on a fresh `docker compose down -v` and start, on WSL 2 Linux. It does not include your hands. "Hands" is the time we budget for talking and clicking; it is a target, not a measurement, so run the script once yourself and write your own time in the last column before the demo.
+**About the times.** "System" is the time from the click until the answer is on screen, measured by a scripted browser (Playwright, Chromium) on a fresh `docker compose down -v` and start, on WSL 2 Linux. It does not include your hands. "Hands" is the time we budget for talking and clicking; it is a target, not a measurement, so run the script once yourself and write your own time in the last column before the demo.
 
 ## Before the demo
 
