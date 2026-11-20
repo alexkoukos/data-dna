@@ -260,6 +260,7 @@ export default function ChatPage() {
 
   /** Checks each file, then has the server read it. Ready files go out with the next message. */
   const addFiles = (picked: File[]) => {
+    if (hint) dismissHint(); // the banner has done its job once a file is on its way
     let count = attachments.filter((a) => a.status !== "error").length;
     const added: Attachment[] = [];
     const toRead: [string, File][] = [];
@@ -491,10 +492,7 @@ export default function ChatPage() {
               tool={hint.tool}
               file={hint.file}
               accept={accept}
-              onFiles={(f) => {
-                addFiles(f);
-                dismissHint();
-              }}
+              onFiles={addFiles}
               onDismiss={dismissHint}
             />
           ) : null}
@@ -798,6 +796,11 @@ export default function ChatPage() {
                     onChange={setDraft}
                     onSend={() => void send(draft)}
                     busy={busy}
+                    attachments={attachments}
+                    accept={accept}
+                    maxChars={limits.maxChars}
+                    onAddFiles={addFiles}
+                    onRemoveFile={removeFile}
                   />
                 </div>
               </div>

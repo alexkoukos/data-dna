@@ -29,7 +29,8 @@ function pdfWithText(text: string): Buffer {
   return Buffer.from(out, "latin1");
 }
 
-const composerInput = (page: Page) => page.locator('input[type="file"]').first();
+// The composer's picker. With the hand-off banner open, the banner has its own picker first.
+const composerInput = (page: Page) => page.locator('input[type="file"]').last();
 
 async function seriousViolations(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -54,6 +55,8 @@ test("a file with an IBAN is masked, answered, and the outcome names the file", 
   const saved = await page.evaluate(() => localStorage.getItem("sentry.chats") ?? "");
   expect(saved).toContain("pay.txt");
   expect(saved).not.toContain(IBAN);
+  // The composer under the conversation takes files too.
+  await expect(page.getByRole("button", { name: "Attach files" })).toBeVisible();
 });
 
 test("a clean PDF is allowed and can be sent with no typed question", async ({ page }) => {
@@ -91,12 +94,15 @@ for (const vp of [
     await expect(page.getByRole("region", { name: "Upload the file here instead" })).toContainText(
       "You tried to upload q4-report.pdf to ChatGPT.",
     );
+    expect(await seriousViolations(page)).toEqual([]); // with the banner open
     await composerInput(page).setInputFiles({
       name: "notes.md",
       mimeType: "text/markdown",
       buffer: Buffer.from("# Notes\nNothing sensitive here."),
     });
     await expect(page.getByText("· Ready")).toBeVisible();
+    // Attaching a file closes the banner: it has done its job.
+    await expect(page.getByRole("region", { name: "Upload the file here instead" })).toBeHidden();
     await page.waitForLoadState("networkidle");
     expect(await seriousViolations(page)).toEqual([]);
     const overflow = await page.evaluate(

@@ -121,7 +121,7 @@ describe("Company AI chat with files", () => {
             }),
           );
         if (url.includes("/files/extract")) {
-          const file = (init?.body as FormData).get("file") as File;
+          const file = (init!.body as FormData).get("file") as File;
           if (file.name === "scan.pdf")
             return new Response(
               JSON.stringify({
@@ -162,6 +162,8 @@ describe("Company AI chat with files", () => {
     expect(screen.queryByRole("button", { name: "Remove report.pdf" })).not.toBeInTheDocument();
     expect(localStorage.getItem("sentry.chats")).toContain("report.pdf");
     expect(localStorage.getItem("sentry.chats")).not.toContain("GR1601101250000000012300695");
+    // The composer under the conversation takes files too.
+    expect(screen.getByRole("button", { name: "Attach files" })).toBeInTheDocument();
   });
 
   it("explains files it cannot take, and keeps the limit on the number of files", async () => {
