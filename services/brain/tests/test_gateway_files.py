@@ -266,3 +266,26 @@ def test_a_screenshot_of_a_stamped_page_is_blocked() -> None:
     with pytest.raises(dna.GatewayError) as err:
         through_brain(chat({"type": "image_url", "image_url": {"url": url}}))
     assert err.value.status_code == 403
+
+
+def test_an_image_with_no_text_passes_because_nothing_in_it_can_leak() -> None:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 64), "white").save(buf, "PNG")
+    url = f"data:image/png;base64,{b64(buf.getvalue())}"
+    if ocr.available():
+        out = through_brain(chat({"type": "image_url", "image_url": {"url": url}}))
+        assert out["metadata"]["dna_decision"] == "allow"
+    else:  # without OCR the image cannot be read, so it is refused
+        with pytest.raises(dna.GatewayError):
+            through_brain(chat({"type": "image_url", "image_url": {"url": url}}))
+
+
+def test_bytes_that_are_not_a_readable_image_are_refused() -> None:
+    url = f"data:image/png;base64,{b64(bytes(range(256)) * 2)}"
+    with pytest.raises(dna.GatewayError) as err:
+        through_brain(chat({"type": "image_url", "image_url": {"url": url}}))
+    assert err.value.status_code == 403

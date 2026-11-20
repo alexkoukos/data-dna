@@ -140,7 +140,7 @@ from brain.dna import store as dna_store
 from brain.dna.marks import Mark, propose_marks
 from brain.documents.chat_files import file_blocks
 from brain.documents.embeddings import E5Embedder
-from brain.documents.extract import MAX_BYTES, ExtractError, extract_text
+from brain.documents.extract import MAX_BYTES, ExtractError, NoTextFound, extract_text
 from brain.documents.loader import load_documents
 from brain.documents.marking import find_marking
 from brain.documents.registry import (
@@ -546,7 +546,10 @@ def _attachment_text(req: InspectRequest, budget: int = MAX_INSPECT_CHARS) -> tu
             )
         try:
             data = base64.b64decode(a.content_base64, validate=True)
-            parts.append(extract_text(a.filename, data))
+            try:
+                parts.append(extract_text(a.filename, data))
+            except NoTextFound:
+                parts.append("")  # read in full (OCR too) and empty: a photo or a blank scan
             budget -= len(parts[-1])
             stamp = find_marking(parts[-1])
             if stamp:

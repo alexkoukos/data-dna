@@ -32,6 +32,14 @@ class ExtractError(ValueError):
     """The file cannot be read. The message says what to do and is safe to show."""
 
 
+class NoTextFound(ExtractError):
+    """The file was read, OCR included, and holds no text: a photo, a logo, a blank scan.
+
+    Company Chat shows the message (there is nothing to answer about). The gateway lets such a
+    file through, because nothing in it can leak; a file that could not be read at all is refused.
+    """
+
+
 def sniff(data: bytes) -> Kind | None:
     """What the bytes really are, from their content. None for a binary format we cannot read."""
     if data[:1024].lstrip(b"\x00\t\n\r\f ").startswith(b"%PDF-"):
@@ -124,12 +132,14 @@ def _pdf_text(data: bytes, max_pages: int = MAX_PAGES) -> str:
         for i in scanned[:MAX_OCR_PAGES]:
             texts[i] = "\n".join(filter(None, [texts[i], _page_ocr(reader, i)]))
     text = "\n".join(texts)
-    if not text.strip():
-        raise ExtractError(
+    if not text.strip() and ocr.available():
+        raise NoTextFound(
             "No text was found in this PDF, even with OCR. Check that the scan is readable, or "
             "copy the text into the message."
-            if ocr.available()
-            else "No text was found in this PDF. It may be a scan; this install cannot read "
+        )
+    if not text.strip():
+        raise ExtractError(
+            "No text was found in this PDF. It may be a scan; this install cannot read "
             "images. Copy the text into the message, or save the PDF again with selectable text."
         )
     return text
@@ -216,5 +226,7 @@ def _image(data: bytes) -> str:
     except ValueError as err:
         raise ExtractError(str(err)) from err
     if not text.strip():
-        raise ExtractError("No text was found in this image.")
+        raise NoTextFound(
+            "No text was found in this image. Attach an image with readable text, or type it."
+        )
     return text
