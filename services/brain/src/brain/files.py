@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
 from brain.config import settings
-from brain.documents.chat_files import ChatFile, read_chat_file, suffixes
+from brain.documents.chat_files import read_chat_file, suffixes
 from brain.documents.extract import ExtractError
 
 log = logging.getLogger(__name__)
@@ -80,21 +80,25 @@ async def extract_file(file: UploadFile, response: Response) -> ExtractedFile:
             {"Retry-After": "5", "Cache-Control": "no-store"},
         )
 
-    def work() -> ChatFile:
-        try:
-            return read_chat_file(
-                name,
-                data,
-                max_bytes=settings.file_max_bytes,
-                max_chars=settings.file_max_chars,
-            )
-        finally:
-            _slots.release()
-
-    loop = asyncio.get_running_loop()
+    # The slot is tied to the future, not to the function body: a done callback also runs when the
+    # future is cancelled before its thread starts (a client that hangs up), so a slot cannot leak.
     try:
+        job = _pool.submit(
+            read_chat_file,
+            name,
+            data,
+            max_bytes=settings.file_max_bytes,
+            max_chars=settings.file_max_chars,
+        )
+    except BaseException:
+        _slots.release()
+        raise
+    job.add_done_callback(lambda f: (_slots.release(), f.cancelled() or f.exception()))
+    try:
+        # shield: a timeout or a hang-up must not cancel the job, or its result would be thrown away
+        # while its thread (if already running) carries on.
         out = await asyncio.wait_for(
-            loop.run_in_executor(_pool, work), timeout=settings.file_extract_timeout
+            asyncio.shield(asyncio.wrap_future(job)), timeout=settings.file_extract_timeout
         )
     except TimeoutError as err:
         raise _refuse(
