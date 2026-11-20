@@ -68,11 +68,59 @@ interface GatewayError {
 
 const OUTCOMES: Outcome[] = ["allow", "mask", "warn", "local", "block", "rerouted"];
 
+const CHECK_FAILED = "The answer could not be checked, so it was not shown. Try again in a minute.";
+
+/**
+ * Read a streamed answer (server-sent events) and report the text so far after every piece.
+ * The gateway sends only text it has already checked; an error event mid-way withholds the rest.
+ */
+async function readStream(
+  body: ReadableStream<Uint8Array>,
+  onText: (soFar: string) => void,
+): Promise<{ text: string } | { error: string }> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (value) buffer += decoder.decode(value, { stream: true });
+    if (done) buffer += decoder.decode();
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = done ? "" : (events.pop() ?? "");
+    for (const event of events) {
+      const data = event
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trim())
+        .join("\n");
+      if (!data || data === "[DONE]") continue;
+      let chunk: { choices?: { delta?: { content?: string | null } }[]; error?: unknown };
+      try {
+        chunk = JSON.parse(data) as typeof chunk;
+      } catch {
+        continue;
+      }
+      if (chunk.error) {
+        void reader.cancel().catch(() => undefined);
+        return { error: CHECK_FAILED };
+      }
+      const piece = chunk.choices?.[0]?.delta?.content;
+      if (piece) {
+        text += piece;
+        onText(text);
+      }
+    }
+    if (done) return { text };
+  }
+}
+
 export async function sendChat(
   identity: Identity,
   history: ChatTurn[],
   ack?: string,
   reroute = false,
+  onText?: (soFar: string) => void,
 ): Promise<ChatResult> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -87,7 +135,12 @@ export async function sendChat(
     res = await fetch("/gateway/v1/chat/completions", {
       method: "POST",
       headers,
-      body: JSON.stringify({ model: identity.model, messages: history }),
+      // With a listener the answer streams: the company's own model sends text as it writes it.
+      body: JSON.stringify({
+        model: identity.model,
+        messages: history,
+        ...(onText ? { stream: true } : {}),
+      }),
     });
   } catch {
     return {
@@ -97,12 +150,26 @@ export async function sendChat(
   }
 
   if (res.ok) {
-    const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const decision = res.headers.get("x-dna-decision") ?? "allow";
     const outcome = OUTCOMES.includes(decision as Outcome) ? (decision as Outcome) : "allow";
     const reasons = decodeURIComponent(res.headers.get("x-dna-reasons") ?? "")
       .split("; ")
       .filter(Boolean);
+    const streamed = (res.headers.get("content-type") ?? "").includes("text/event-stream");
+    if (streamed && res.body && onText) {
+      let read: { text: string } | { error: string };
+      try {
+        read = await readStream(res.body, onText);
+      } catch {
+        return {
+          kind: "error",
+          message: "The connection dropped before the answer finished. Try again.",
+        };
+      }
+      if ("error" in read) return { kind: "error", message: read.error };
+      return { kind: "answer", text: read.text, outcome, reasons };
+    }
+    const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     return { kind: "answer", text: body.choices?.[0]?.message?.content ?? "", outcome, reasons };
   }
 

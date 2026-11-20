@@ -67,12 +67,22 @@ import { collectOutcomes, outcomeText } from "../lib/toolRequestsApi";
 /** Stock portrait for the person (Unsplash). If it cannot load, the initials show instead. */
 const USER_AVATAR =
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&q=80";
-/** The company AI's avatar is the Sentry sentinel, drawn inline so it works offline. */
-const BEE_AVATAR =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="16" fill="#fffbeb"/><ellipse cx="16" cy="18" rx="8" ry="6" fill="#f59e0b"/><path d="M13 13v10M18 13v10" stroke="#262626" stroke-width="2" stroke-linecap="round"/><circle cx="24" cy="18" r="2.5" fill="#262626"/><ellipse cx="13" cy="11" rx="3.5" ry="2.5" fill="#fff" stroke="#262626" stroke-width="1"/><ellipse cx="19" cy="11" rx="3.5" ry="2.5" fill="#fff" stroke="#262626" stroke-width="1"/></svg>',
+/** The company AI's avatar: the Sentry sentinel. While an answer is on its way it thinks: the eye
+ * searches faster and a soft ring breathes behind it. Both stop for reduced motion. */
+function AiAvatar({ thinking = false }: { thinking?: boolean }) {
+  return (
+    <span
+      role="img"
+      aria-label="Company AI"
+      className={cn(
+        "ai-avatar relative flex size-8 shrink-0 items-center justify-center",
+        thinking && "is-thinking",
+      )}
+    >
+      <Sentinel size={24} className="sentinel-sm relative" />
+    </span>
   );
+}
 
 interface Pending {
   text: string;
@@ -209,6 +219,8 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
+  // The answer while it streams in, shown under the chat it belongs to.
+  const [live, setLive] = useState<{ chat: string; text: string } | null>(null);
   const [rated, setRated] = useState<number | null>(null);
   const [category, setCategory] = useState("");
   const [sidebar, setSidebar] = useState(
@@ -377,7 +389,11 @@ export default function ChatPage() {
         void collectOutcomes(who.userId).then((rs) => {
           if (rs.length > 0) setNotices((n) => [...n, ...rs.map(outcomeText)]);
         });
-      const res = await sendChat(who, history, opts.ack, opts.reroute);
+      const chatId = id;
+      setLive({ chat: chatId, text: "" });
+      const res = await sendChat(who, history, opts.ack, opts.reroute, (text) =>
+        setLive({ chat: chatId, text }),
+      );
       if (res.kind === "answer")
         append(id, {
           from: "assistant",
@@ -410,6 +426,7 @@ export default function ChatPage() {
         failed: true,
       });
     } finally {
+      setLive(null);
       setBusy(false);
     }
   };
@@ -642,7 +659,7 @@ export default function ChatPage() {
                           key={t.id}
                           className="mx-auto flex w-full max-w-3xl items-start gap-3 px-2"
                         >
-                          <MessageAvatar src={BEE_AVATAR} alt="Company AI" fallback="AI" />
+                          <AiAvatar />
                           <div className="group flex min-w-0 flex-1 flex-col gap-2">
                             {t.failed ? (
                               <SystemMessage variant="error" fill>
@@ -740,13 +757,29 @@ export default function ChatPage() {
                       );
                     })}
 
-                    {busy ? (
+                    {busy && live?.chat === activeId && live.text ? (
+                      <Message className="mx-auto flex w-full max-w-3xl items-start gap-3 px-2">
+                        <AiAvatar thinking />
+                        <div className="flex min-w-0 flex-1 flex-col gap-2">
+                          <MessageContent
+                            markdown
+                            className="streaming-caret flex-1 rounded-lg bg-transparent p-0 text-ink-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+                          >
+                            {live.text}
+                          </MessageContent>
+                          <span className="sr-only" role="status">
+                            Company AI is writing the answer
+                          </span>
+                        </div>
+                      </Message>
+                    ) : busy ? (
                       <div
                         className="mx-auto flex w-full max-w-3xl items-center gap-3 px-2 text-sm text-ink-600"
                         role="status"
                       >
-                        <Loader variant="dots" size="sm" />
-                        <ThinkingBar text="Thinking on the company server" />
+                        <AiAvatar thinking />
+                        <ThinkingBar className="w-auto" text="Thinking on the company server" />
+                        <Loader variant="typing" size="sm" />
                       </div>
                     ) : null}
 

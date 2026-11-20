@@ -171,6 +171,100 @@ def test_stream_cleans_text_split_across_chunks() -> None:
     assert out[-1].choices[0].finish_reason == "stop"
 
 
+def _progressive(chunks: list[_Obj], transform: Any, **kw: Any) -> list[_Obj]:
+    async def source() -> Any:
+        for c in chunks:
+            yield c
+
+    async def go() -> list[_Obj]:
+        return [c async for c in dna.stream_progressively(source(), transform, **kw)]
+
+    return asyncio.run(go())
+
+
+def _deltas(out: list[_Obj]) -> list[str | None]:
+    return [c.choices[0].delta.content for c in out]
+
+
+async def _same(text: str) -> str:
+    return text
+
+
+def test_progressive_stream_sends_text_before_the_answer_ends() -> None:
+    words = [_chunk(f"word{n} ") for n in range(12)]
+    out = _progressive([_chunk(""), *words, _chunk(None, "stop")], _same, hold=10, every=10)
+    texts = [t for t in _deltas(out) if t]
+    assert len(texts) > 2  # it really streams, not one block at the end
+    assert "".join(texts) == "".join(f"word{n} " for n in range(12))
+    assert out[-1].choices[0].finish_reason == "stop"
+
+
+def test_progressive_stream_never_shows_a_value_split_across_chunks() -> None:
+    async def transform(text: str) -> str:
+        return text.replace("GR1601101250000000012300695", "[IBAN]")
+
+    parts = ["Pay GR160110", "12500000", "00012300695 ", "by Friday ", "please."]
+    out = _progressive([_chunk(p) for p in parts] + [_chunk(None, "stop")], transform, every=1)
+    shown = "".join(t for t in _deltas(out) if t)
+    assert shown == "Pay [IBAN] by Friday please."
+    assert "GR16" not in shown
+
+
+def test_progressive_stream_ends_with_the_checked_answer_when_it_changes_late() -> None:
+    async def transform(text: str) -> str:
+        return "WITHHELD" if "board memo" in text else text
+
+    parts = ["The quarterly ", "numbers look fine. ", "Here is the ", "board memo."]
+    out = _progressive(
+        [_chunk(p) for p in parts] + [_chunk(None, "stop")], transform, hold=0, every=1
+    )
+    shown = "".join(t for t in _deltas(out) if t)
+    assert shown.endswith("\n\nWITHHELD")
+    assert "board memo" not in shown
+
+
+def test_progressive_stream_withholds_the_rest_when_the_check_fails() -> None:
+    calls = 0
+
+    async def transform(text: str) -> str:
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise dna.GatewayError(503, {"type": "unavailable"})
+        return text
+
+    seen: list[str] = []
+
+    async def go() -> None:
+        async def source() -> Any:
+            for p in ["first part ", "second part ", "third"]:
+                yield _chunk(p)
+
+        async for c in dna.stream_progressively(source(), transform, hold=0, every=1):
+            seen.append(c.choices[0].delta.content)
+
+    with pytest.raises(dna.GatewayError):
+        asyncio.run(go())
+    assert "".join(seen) == "first part "
+
+
+def test_progressive_stream_without_a_finish_chunk_still_sends_the_rest() -> None:
+    out = _progressive([_chunk("short answer")], _same, hold=64, every=1)
+    assert "".join(t for t in _deltas(out) if t) == "short answer"
+
+
+def test_progressive_stream_checks_tool_arguments_at_the_end() -> None:
+    call = _Obj(index=0, function=_Obj(arguments='{"to": "x"}'))
+    tool = _Obj(choices=[_Obj(delta=_Obj(content=None, tool_calls=[call]), finish_reason=None)])
+
+    async def transform(text: str) -> str:
+        return text.upper()
+
+    out = _progressive([_chunk("ok"), tool, _chunk(None, "stop")], transform, every=1)
+    assert call.function.arguments == '{"TO": "X"}'
+    assert out.index(tool) < len(out) - 1  # the finish chunk still comes last
+
+
 def test_stream_without_text_passes_through() -> None:
     async def transform(text: str) -> str:
         raise AssertionError("should not be called")
