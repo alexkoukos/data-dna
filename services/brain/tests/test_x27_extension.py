@@ -199,11 +199,22 @@ def test_other_routes_get_no_cors_headers() -> None:
     assert "access-control-allow-origin" not in r.headers
 
 
-def test_card_number_warns(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_card_number_in_groups_is_masked(monkeypatch: pytest.MonkeyPatch) -> None:
     _as(monkeypatch)
     r = client.post(
         "/v1/extension/inspect",
         json={"text": "Charge 4111 1111 1111 1111 please"},
+        headers={"Authorization": "Bearer k"},
+    )
+    assert r.json()["decision"] == "mask"
+    assert r.json()["masked_text"] == "Charge [CARD_1] please"
+
+
+def test_card_number_typed_one_digit_at_a_time_warns(monkeypatch: pytest.MonkeyPatch) -> None:
+    _as(monkeypatch)
+    r = client.post(
+        "/v1/extension/inspect",
+        json={"text": "Charge " + " ".join("4111111111111111") + " please"},
         headers={"Authorization": "Bearer k"},
     )
     assert r.json()["decision"] == "warn"
