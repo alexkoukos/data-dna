@@ -77,6 +77,13 @@ def _claimed(name: str) -> Kind | None:
 
 
 def extract_text(filename: str, data: bytes) -> str:
+    """The text of a file, then any orders to an AI found in it (see injection.directives)."""
+    from brain.injection.directives import with_directives
+
+    return with_directives(_extract_text(filename, data))
+
+
+def _extract_text(filename: str, data: bytes) -> str:
     if len(data) > MAX_BYTES:
         raise ExtractError("This file is larger than 10 MB. Split it or send the relevant part.")
     claimed = _claimed(filename.lower())

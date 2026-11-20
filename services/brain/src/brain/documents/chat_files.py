@@ -84,10 +84,13 @@ def read_chat_file(filename: str, data: bytes, *, max_bytes: int, max_chars: int
         text = data.decode("utf-8").removeprefix("﻿")
         if not text.strip():
             raise ExtractError("This file has no text in it. Check that it is the right file.")
+    from brain.injection.directives import LABEL, directive_sentences
+
+    orders = directive_sentences(text)  # read in full, also past the cut
     return ChatFile(
         filename=filename,
         kind=claimed,
-        text=text[:max_chars],
+        text=text[:max_chars] + (f"\n{LABEL}\n" + "\n".join(orders) if orders else ""),
         chars=len(text),
         truncated=len(text) > max_chars,
     )

@@ -10,6 +10,8 @@ export const CATEGORY_LABEL: Record<string, string> = {
   client_name: "a client name",
   source_code: "source code",
   injection: "hidden instructions aimed at the AI",
+  hidden_data: "data hidden inside an image file, a way to carry data out unseen",
+  embedded_instructions: "instructions aimed at the AI written inside the file",
   hidden_text: "text hidden in an image, which an AI can read but a person can hardly see",
   honeytoken: "a decoy credential from a protected document",
 };
