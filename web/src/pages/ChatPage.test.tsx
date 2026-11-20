@@ -54,6 +54,76 @@ describe("Company AI chat", () => {
     expect(screen.getByRole("button", { name: "How long do we keep data?" })).toBeInTheDocument();
   });
 
+  it("streams the answer as it is written, then shows it with the outcome", async () => {
+    const encoder = new TextEncoder();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const sse = (content: string) =>
+      encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
+    const bodies: { stream?: boolean }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/keys"))
+          return new Response(JSON.stringify({ key: "k", default_model: "m" }));
+        bodies.push(JSON.parse(String(init?.body)) as { stream?: boolean });
+        const body = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            controller.enqueue(sse("Ninety "));
+            await gate;
+            controller.enqueue(sse("days."));
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+        return new Response(body, {
+          headers: { "content-type": "text/event-stream", "x-dna-decision": "local" },
+        });
+      }),
+    );
+    render(<ChatPage />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Your question" }), "Retention?");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    // The first part shows while the rest is still being written.
+    expect(await screen.findByText("Ninety")).toBeInTheDocument();
+    expect(screen.getByText("Company AI is writing the answer")).toBeInTheDocument();
+    release();
+    expect(await screen.findByText("Ninety days.")).toBeInTheDocument();
+    expect(screen.getByText("Answered locally")).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: "Company AI" }).length).toBeGreaterThan(0);
+    expect(bodies[0]?.stream).toBe(true);
+  });
+
+  it("shows a clear error when the answer stops mid-way because it could not be checked", async () => {
+    const encoder = new TextEncoder();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/keys"))
+          return new Response(JSON.stringify({ key: "k", default_model: "m" }));
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ choices: [{ delta: { content: "Part " } }] })}\n\n` +
+                  `data: ${JSON.stringify({ error: { message: "unavailable" } })}\n\n`,
+              ),
+            );
+            controller.close();
+          },
+        });
+        return new Response(body, { headers: { "content-type": "text/event-stream" } });
+      }),
+    );
+    render(<ChatPage />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Your question" }), "Hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(
+      await screen.findByText(/could not be checked, so it was not shown/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Part")).not.toBeInTheDocument();
+  });
+
   it("deletes a chat from the history", async () => {
     answerWith("Ninety days.");
     render(<ChatPage />);
@@ -154,7 +224,9 @@ describe("Company AI chat with files", () => {
     const sent = calls.find((c) => c.url.includes("/chat/completions"))!;
     const message = (JSON.parse(String(sent.body)) as { messages: { content: string }[] })
       .messages[0]!.content;
-    expect(message).toContain("Summarise it\n\n[File: report.pdf]\n");
+    expect(message).toMatch(
+      /^Summarise it\n\nThe attached files follow\..*\n\n\[File: report\.pdf\]\n/s,
+    );
     expect(message).toContain("[End of file: report.pdf]");
     expect(screen.getByText("· report.pdf")).toBeInTheDocument(); // on the outcome chip
     expect(screen.getByText("Masked")).toBeInTheDocument();
@@ -200,3 +272,67 @@ async function waitForLimits() {
   // the limits request resolves on the next tick
   await new Promise((r) => setTimeout(r, 0));
 }
+
+describe("Company AI chat with pictures", () => {
+  it("sends the picture itself with the newest question, and only its text on a reroute", async () => {
+    vi.doMock("../lib/imageFiles", async (original) => ({
+      ...(await original<typeof import("../lib/imageFiles")>()),
+      prepareImage: async () => "data:image/jpeg;base64,UElD",
+    }));
+    vi.resetModules();
+    const { default: Page } = await import("./ChatPage");
+    const bodies: { messages: { content: unknown }[] }[] = [];
+    let first = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/keys"))
+          return new Response(JSON.stringify({ key: "k", default_model: "m" }));
+        if (url.includes("/files/limits"))
+          return new Response(
+            JSON.stringify({ max_bytes: 10_000, max_files: 3, max_chars: 30000, types: [".png"] }),
+          );
+        if (url.includes("/files/extract")) {
+          // The server reads the redrawn copy, not the original file.
+          const sentFile = (init!.body as FormData).get("file") as File;
+          expect(sentFile.type).toBe("image/jpeg");
+          return new Response(
+            JSON.stringify({ text: "Sales by region", chars: 15, truncated: false }),
+          );
+        }
+        if (url.includes("/chat/completions")) {
+          bodies.push(JSON.parse(String(init?.body)) as { messages: { content: unknown }[] });
+          if (first) {
+            first = false;
+            return new Response(
+              JSON.stringify({
+                error: { provider_specific_fields: { type: "warn", reasons: ["Contains iban"] } },
+              }),
+              { status: 409 },
+            );
+          }
+          return new Response(JSON.stringify({ choices: [{ message: { content: "Done." } }] }), {
+            headers: { "x-dna-decision": "rerouted" },
+          });
+        }
+        return new Response("[]");
+      }),
+    );
+    render(<Page />);
+    await new Promise((r) => setTimeout(r, 0));
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await userEvent.upload(input, new File(["\x89PNG"], "chart.png", { type: "image/png" }));
+    expect(await screen.findByText("· Ready")).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: "Your question" }), "What is this?");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    // The picture shows in the conversation (this visit only).
+    expect(await screen.findByRole("img", { name: "chart.png" })).toBeInTheDocument();
+    const sent = bodies[0]!.messages.at(-1)!.content as { type: string }[];
+    expect(sent.map((p) => p.type)).toEqual(["text", "image_url"]);
+    await userEvent.click(await screen.findByRole("button", { name: /Company AI instead/ }));
+    expect(await screen.findByText("Done.")).toBeInTheDocument();
+    expect(typeof bodies[1]!.messages.at(-1)!.content).toBe("string");
+    expect(localStorage.getItem("sentry.chats")).not.toContain("UElD");
+    vi.doUnmock("../lib/imageFiles");
+  });
+});

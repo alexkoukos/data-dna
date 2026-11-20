@@ -68,6 +68,9 @@ class InspectResponse(BaseModel):
     shadow_decision: str | None = None
     suggested_rewrite: str | None = None
     rerouted: bool = False
+    # One entry per attachment: the redrawn JPEG (base64) the gateway sends instead of an image,
+    # or None for a file that is not an image. Empty when nothing was attached or it is blocked.
+    purified_attachments: list[str | None] = Field(default_factory=list)
 
 
 class UnmaskRequest(BaseModel):

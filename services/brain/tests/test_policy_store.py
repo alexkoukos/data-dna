@@ -26,7 +26,9 @@ def test_seed_matches_defaults() -> None:
 
 def test_seed_if_empty_runs_once() -> None:
     store = _store()
-    assert store.seed_if_empty() == 12
+    assert (
+        store.seed_if_empty() == 15
+    )  # 12 categories (image and file checks included), 3 sensitivities
     assert store.seed_if_empty() == 0
 
 

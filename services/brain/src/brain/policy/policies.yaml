@@ -10,6 +10,9 @@ categories:
   client_name: warn
   source_code: warn
   injection: block
+  hidden_data: block # data carried inside an image file (steganography, appended bytes)
+  embedded_instructions: warn # orders to the AI written inside a file or picture
+  hidden_text: block # text in an image drawn so a person cannot see it, but a model can
   honeytoken: block # a decoy planted in a document: that document has leaked
 documents:
   sensitivity:
