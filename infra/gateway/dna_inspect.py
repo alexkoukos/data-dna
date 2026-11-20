@@ -7,6 +7,7 @@ Pure logic, no LiteLLM imports, so it can be unit tested without the gateway ima
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import json
 import re
@@ -1700,3 +1701,120 @@ async def rewrite_stream(
             # A later chunk that ends the answer keeps its place, without text.
             setattr(holder[0], holder[1], "")
             yield chunk
+
+
+# Streaming the local model's answer as it is written. The last characters stay back until a later
+# check has seen what follows them, so a value split across chunks is never shown half-checked.
+STREAM_HOLD_CHARS = 64
+STREAM_CHECK_EVERY = 40
+
+
+def _has_side_channel(chunk: Any) -> bool:
+    """Reasoning, refusal, thinking or tool-call text: checked once at the end, never streamed."""
+    choices = getattr(chunk, "choices", None)
+    delta = getattr(choices[0], "delta", None) if choices else None
+    if delta is None:
+        return False
+    names = ("reasoning_content", "refusal", "thinking_blocks", "tool_calls", "function_call")
+    return any(getattr(delta, name, None) for name in names)
+
+
+async def stream_progressively(
+    chunks: AsyncIterator[Any],
+    transform: Callable[[str], Awaitable[str]],
+    filter_only: Callable[[str], Awaitable[str]] | None = None,
+    *,
+    hold: int = STREAM_HOLD_CHARS,
+    every: int = STREAM_CHECK_EVERY,
+) -> AsyncIterator[Any]:
+    """Stream a chat answer from the company's own model while it is being written.
+
+    Used only when the gate chose "local": the text never leaves the company. Every check runs on
+    the whole answer so far and only checked text is sent, minus the last `hold` characters. The
+    full answer is checked once more at the end. If that last check changes text already sent
+    (an answer that turned into a protected document is withheld whole), the checked version
+    follows after a blank line, so what the person ends with is always the checked answer.
+    """
+    raw = ""
+    shown = ""
+    checked = 0
+    seen_text = False
+    spare: tuple[Any, tuple[Any, str]] | None = None  # a text chunk not sent yet, to carry text
+    last_text: Any = None  # the shape to copy if no chunk is left to carry the rest
+    ending: list[Any] = []  # chunks that must come after the last text, in their order
+    async for chunk in chunks:
+        holder = _text_holder(chunk)
+        choices = getattr(chunk, "choices", None)
+        finish = getattr(choices[0], "finish_reason", None) if choices else None
+        if _has_side_channel(chunk) or finish:
+            if holder is not None:
+                raw += getattr(holder[0], holder[1])
+                setattr(holder[0], holder[1], "")
+            ending.append(chunk)
+            continue
+        if holder is None:
+            if seen_text:
+                ending.append(chunk)
+            else:
+                yield chunk  # the role chunk opens the stream at once
+            continue
+        seen_text = True
+        raw += getattr(holder[0], holder[1])
+        spare = (chunk, holder)
+        last_text = chunk
+        if len(raw) - checked < every:
+            continue
+        checked = len(raw)
+        cleaned = await transform(raw)
+        safe = cleaned[: max(0, len(cleaned) - hold)]
+        if len(safe) > len(shown) and safe.startswith(shown):
+            setattr(holder[0], holder[1], safe[len(shown) :])
+            shown = safe
+            spare = None
+            yield chunk
+    cleaned = await transform(raw) if raw else ""
+    rest = cleaned[len(shown) :] if cleaned.startswith(shown) else "\n\n" + cleaned
+    notices = await _clean_side_channels(ending, transform, filter_only)
+    if notices:
+        rest = "\n".join(x for x in (rest, *notices) if x)
+    if rest:
+        if spare is not None:
+            setattr(spare[1][0], spare[1][1], rest)
+            yield spare[0]
+        else:
+            carrier = next((c for c in ending if _text_holder(c) is not None), None)
+            if carrier is not None:
+                holder = _text_holder(carrier)
+                assert holder is not None
+                setattr(holder[0], holder[1], rest)
+            else:
+                ending.insert(0, _text_chunk_like([last_text, *ending], rest))
+    for chunk in ending:
+        yield chunk
+
+
+def _text_chunk_like(chunks: list[Any], text: str) -> Any:
+    """A text chunk for the rest of the answer when no chunk is left to carry it.
+
+    A chunk the client already reads is copied, so the new one has the same shape."""
+    for chunk in chunks:
+        choices = getattr(chunk, "choices", None)
+        delta = getattr(choices[0], "delta", None) if choices else None
+        if delta is not None:
+            twin = copy.deepcopy(chunk)
+            twin_delta = twin.choices[0].delta
+            twin_delta.content = text
+            for name in ("reasoning_content", "refusal", "thinking_blocks", "tool_calls"):
+                if hasattr(twin_delta, name):
+                    setattr(twin_delta, name, None)
+            if hasattr(twin.choices[0], "finish_reason"):
+                twin.choices[0].finish_reason = None
+            return twin
+    raise GatewayError(
+        503,
+        {
+            "type": "unavailable",
+            "message": "The answer could not be checked, so it was not shown.",
+            "next": "Try again in a minute. If it keeps happening, tell your IT contact.",
+        },
+    )
