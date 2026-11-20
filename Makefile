@@ -12,7 +12,7 @@ doctor: ## Check that your machine has the right tools
 
 setup: ## First time: install all dependencies exactly as locked
 	@test -f .env || cp .env.example .env
-	cd services/brain && uv sync --frozen
+	cd services/brain && uv sync --frozen --extra ocr
 	cd web && npm ci
 
 up: ## Build and start everything (the judges' command)

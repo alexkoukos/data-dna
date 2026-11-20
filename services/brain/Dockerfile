@@ -6,11 +6,12 @@ WORKDIR /app
 
 FROM base AS deps
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+# The OCR extra (RapidOCR, ONNX on CPU) reads scanned PDFs and images; its models ship in the wheel.
+RUN uv sync --frozen --no-dev --no-install-project --extra ocr
 
 FROM deps AS runtime
 COPY src ./src
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra ocr
 ENV PATH="/app/.venv/bin:$PATH" HF_HOME=/opt/models/hf EMBED_THREADS=4
 # Bake the embedding model (about 120 MB) into the image so the first start needs no internet.
 RUN python -c "from brain.documents.embeddings import fetch_model_files; fetch_model_files()"
@@ -23,7 +24,7 @@ CMD ["uvicorn", "brain.main:app", "--host", "0.0.0.0", "--port", "8001"]
 
 # Test image: the runtime plus dev dependencies and tests (compose service `splitstore-tests`).
 FROM runtime AS test
-RUN uv sync --frozen
+RUN uv sync --frozen --extra ocr
 COPY tests ./tests
 
 # Keep the runtime image the default (last) target. Runs as an unprivileged user. The code, the
