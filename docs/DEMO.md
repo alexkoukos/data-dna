@@ -35,7 +35,7 @@ Close on `/security` (the overview) while you say the numbers from `docs/BRIEF_M
 | --- | --- | --- |
 | Any | The page shows an error | Refresh once. If the brain is down the gateway refuses to answer (fail closed) rather than let data through; say so, it is the intended behaviour, then `make up` again. |
 | 1, 2, 3, 6 (chat) | No OpenAI key or no internet | Nothing in the demo needs the internet. Without a key the chat uses the offline `demo-mock` model, which always answers. This is the default. |
-| 3 | The local model is slow or not running | The local model (Ollama, `make local`) is optional and is not on the critical path. Without it a "local" outcome returns a stand-in answer ("Answered on this machine. Your message never left the company.") and the detection result is unchanged. Do not start `make local` before the demo. |
+| 3 | The local model is slow or not running | The local model (Ollama, `make local`) is optional and is not on the critical path. Without it a "local" outcome returns a stand-in answer ("The local model is not running, so this is a stand-in reply, not a real answer. Your message never left the company.") and the detection result is unchanged. Do not start `make local` before the demo. |
 | 4 | Typed question is not matched | Press the first preset button instead; it needs no model. If a judge types a different question and no model is available, the page says to use a preset question or set a key. |
 | 5 | The judge finds a real miss | Say it is a known limit, show the table in `eval/report.md`, and move on. Do not try to patch it live. |
 | 6 | Switch looks stuck | Reload `/security/policies` and check the switch reads off before moving on. |
