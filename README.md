@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/28ea8b21-5d6c-4e76-8cf2-d9d4433fb7b9
+
 # Sentry
 
 **Every prompt passes the gate.** Sentry (πύλη, "the gate") is one gateway that every AI tool in a company goes through. It finds which AI tools are in use, catches sensitive data before it leaves, even when rewritten, and decides per prompt: **allow, mask, warn, answer with a local model, or block**.
