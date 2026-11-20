@@ -1,12 +1,51 @@
 import { Link } from "react-router-dom";
+import { AppCard } from "../components/AppCard";
 import { Sentinel } from "../components/Sentinel";
 
 const TOOLS = [
-  { to: "/extension", name: "Get the extension", text: "Install it in Chrome." },
-  { to: "/break-it", name: "Try to break it", text: "Paste something risky and watch." },
-  { to: "/chat", name: "Company AI", text: "Ask the model that never leaves your server." },
-  { to: "/security", name: "Security", text: "Incidents, policies and proof." },
-  { to: "/connect", name: "Connect a tool", text: "Send events from your own tools." },
+  {
+    to: "/extension",
+    name: "Get the extension",
+    text: "Install it in Chrome.",
+    points: ["Checks paste, send and files", "ChatGPT, Claude and Gemini", "Connects by itself"],
+    cta: "Install it",
+  },
+  {
+    to: "/break-it",
+    name: "Try to break it",
+    text: "Paste something risky and watch.",
+    points: ["Hide data any way you like", "See which check caught it", "Report what got through"],
+    cta: "Try it",
+  },
+  {
+    to: "/chat",
+    name: "Company AI",
+    text: "Ask the model that never leaves your server.",
+    points: [
+      "Every message checked first",
+      "Attach PDF, Word or images",
+      "Private data stays masked",
+    ],
+    cta: "Open the chat",
+  },
+  {
+    to: "/security",
+    name: "Security",
+    text: "Incidents, policies and proof.",
+    points: [
+      "Every decision with a reason",
+      "Policies you can try first",
+      "A compliance report (PDF)",
+    ],
+    cta: "Open the security view",
+  },
+  {
+    to: "/connect",
+    name: "Connect a tool",
+    text: "Send events from your own tools.",
+    points: ["Get a personal key", "One OpenAI-compatible address", "See it connect live"],
+    cta: "Connect",
+  },
 ];
 
 /** Presentational: the front door. One primary action (start the demo), the story in three steps. */
@@ -47,16 +86,10 @@ export default function HomePage() {
         <h2 id="tools-h" className="text-lg font-semibold text-ink-900">
           Everything in the app
         </h2>
-        <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {TOOLS.map((t) => (
             <li key={t.to}>
-              <Link
-                to={t.to}
-                className="flex h-full min-h-11 flex-col rounded-lg border border-ink-200 bg-surface p-4 hover:border-brand-600"
-              >
-                <span className="font-semibold text-ink-900">{t.name}</span>
-                <span className="mt-1 text-sm text-ink-600">{t.text}</span>
-              </Link>
+              <AppCard {...t} />
             </li>
           ))}
         </ul>
