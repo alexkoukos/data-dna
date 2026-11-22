@@ -1258,6 +1258,9 @@ def inspect(
         # X19: a warning also offers a safe rewrite, and we count how often it is shown.
         suggestion = first.masked[-1]
         background.add_task(_count_coaching, coaching.SHOWN)
+        if session_id is None and placeholders:
+            # So the extension can restore the real values in the answer if the rewrite is used.
+            session_id = sessions.create(req.user_id, placeholders)
     warned = sorted(
         {i for p in passes if p.result.verdict.decision == Decision.WARN for i in p.indexes}
     )

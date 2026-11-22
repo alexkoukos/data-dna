@@ -158,6 +158,18 @@ def test_a_warning_offers_a_safe_rewrite_and_counts_acceptance(client: TestClien
     assert stats["shown"] >= 1 and stats["accepted"] == 1 and 0 < stats["acceptance_rate"] <= 1
 
 
+def test_a_warn_with_a_rewrite_gives_the_placeholders_to_restore_the_answer(
+    client: TestClient,
+) -> None:
+    client.put(
+        "/v1/policies",
+        json={"scope": "category", "key": "iban", "action": "warn", "updated_by": "t"},
+    )
+    out = client.post("/v1/check", json={"text": f"Pay {IBAN} now"}).json()
+    assert out["action"] == "warn" and "[IBAN" in out["rewrite"]
+    assert IBAN in out["placeholders"].values()
+
+
 # X15 alerts ----------------------------------------------------------------------------------
 def test_alerts_are_off_without_a_url_and_only_for_critical() -> None:
     assert alerts.notify("block", ["injection"], "u", "T", url="") is False

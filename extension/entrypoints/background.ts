@@ -1,4 +1,11 @@
-import { askLocal, checkRemote, postEvents, refreshPolicy, safeBrainUrl } from "../src/api";
+import {
+  askLocal,
+  checkRemote,
+  postEvents,
+  postRewriteUsed,
+  refreshPolicy,
+  safeBrainUrl,
+} from "../src/api";
 import { bumpStats, getPolicy, getSettings, saveSettings } from "../src/storage";
 import { companyChatUrl } from "../src/handoff";
 import type { Msg } from "../src/types";
@@ -19,6 +26,7 @@ const PAGE_MESSAGES = new Set<Msg["type"]>([
   "visit",
   "event",
   "override",
+  "rewriteUsed",
   "askLocal",
   "openPanel",
   "openChat",
@@ -189,6 +197,9 @@ export default defineBackground(() => {
             reason: msg.reason,
           });
           reply({ ok: true });
+          return;
+        case "rewriteUsed":
+          reply({ ok: await postRewriteUsed() });
           return;
         case "askLocal":
           reply(await askLocal(msg.prompt));

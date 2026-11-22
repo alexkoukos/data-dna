@@ -128,6 +128,19 @@ export async function postEvents(events: unknown[]): Promise<boolean> {
   }
 }
 
+/** The person chose the safer version. The server keeps only a count. */
+export async function postRewriteUsed(): Promise<boolean> {
+  try {
+    const res = await fetch(await url("/v1/coaching/accepted"), {
+      method: "POST",
+      headers: await headers(),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function askLocal(
   prompt: string,
 ): Promise<{ answer: string; ready: boolean; model?: string }> {
