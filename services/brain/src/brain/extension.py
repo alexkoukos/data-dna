@@ -20,6 +20,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Engine
 
+from brain import coaching
 from brain.api.schemas import Attachment, InspectRequest, Message
 from brain.config import settings
 from brain.db import tables as t
@@ -331,6 +332,22 @@ class ExtEvent(BaseModel):
 
 class EventsIn(BaseModel):
     events: list[ExtEvent] = Field(max_length=1000)
+
+
+@router.post("/v1/coaching/used")
+def rewrite_used(
+    background: BackgroundTasks,
+    authorization: str | None = Header(default=None),
+    x_demo_user: str | None = Header(default=None),
+) -> dict[str, str]:
+    """The person chose the safer version in the extension. Counted only for a known person, so a
+    web page cannot inflate the count. The dashboard's own button uses /v1/coaching/accepted."""
+    from brain.main import _count_coaching
+
+    if identify(authorization, x_demo_user).user == "anonymous":
+        return {"status": "ignored"}
+    background.add_task(_count_coaching, coaching.ACCEPTED)
+    return {"status": "counted"}
 
 
 @router.post("/v1/events")
