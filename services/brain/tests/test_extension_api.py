@@ -272,3 +272,16 @@ def test_inventory_says_where_each_tool_was_seen(client: TestClient, engine: sa.
     client.post("/v1/events", headers={"X-Demo-User": user}, json={"events": [event]})
     after = {x["name"]: x["sources"] for x in client.get("/v1/inventory").json()}
     assert after["DeepSeek"] == ["extension", "logs"]
+
+
+def test_using_the_safer_version_is_counted_only_for_a_known_person(
+    client: TestClient, engine: sa.Engine
+) -> None:
+    user, _ = _a_user(engine)
+    code = client.post("/v1/pair/code", json={"user": user}).json()["code"]
+    token = client.post("/v1/pair", json={"code": code}).json()["token"]
+    before = client.get("/v1/coaching").json()["accepted"]
+    assert client.post("/v1/coaching/used").json() == {"status": "ignored"}
+    ok = client.post("/v1/coaching/used", headers={"Authorization": f"Bearer {token}"})
+    assert ok.json() == {"status": "counted"}
+    assert client.get("/v1/coaching").json()["accepted"] == before + 1
