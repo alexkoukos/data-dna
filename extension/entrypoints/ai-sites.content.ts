@@ -387,7 +387,22 @@ export default defineContentScript({
           ],
         });
         if (choice.id === "rewrite" && r.rewrite) {
-          if (a.setText(r.rewrite)) resubmit(a);
+          if (!a.setText(r.rewrite)) {
+            // Same rule as masking: if we cannot replace the text, we do not send the original.
+            await overlay.card({
+              action: "warn",
+              title: "I could not use the safer version.",
+              reasons: [
+                "I could not replace your message on this page, so nothing was sent.",
+                "Remove the sensitive values yourself, then send again.",
+              ],
+              buttons: [{ id: "edit", label: "Edit message", kind: "primary" }],
+            });
+            return;
+          }
+          if (r.placeholders) unmasker.remember(r.placeholders);
+          void send({ type: "rewriteUsed" });
+          resubmit(a);
         } else if (choice.id === "send") {
           void send({
             type: "override",

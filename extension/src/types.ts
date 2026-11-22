@@ -62,6 +62,7 @@ export type Msg =
       offline?: boolean;
     }
   | { type: "visit"; tool: string; host: string }
+  | { type: "rewriteUsed" }
   | { type: "openPanel"; prompt: string }
   | { type: "openChat"; tool: string; file: string; url?: string }
   | { type: "askLocal"; prompt: string }
