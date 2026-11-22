@@ -62,7 +62,7 @@ def test_masked_prompt_is_answered(client: OpenAI) -> None:
 
 
 def test_warn_returns_409_and_ack_proceeds(client: OpenAI) -> None:
-    risky = "AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695"
+    risky = "AMKA 01011990123 card 4 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 IBAN GR1601101250000000012300695"
     with pytest.raises(Exception) as err:
         _ask(client, risky)
     assert getattr(err.value, "status_code", None) == 409
@@ -135,7 +135,7 @@ def test_outcome_masked(client: OpenAI) -> None:
 
 
 def test_outcome_warned(client: OpenAI) -> None:
-    risky = "AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695"
+    risky = "AMKA 01011990123 card 4 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 IBAN GR1601101250000000012300695"
     with pytest.raises(Exception) as err:
         _decision(client, risky)
     assert getattr(err.value, "status_code", None) == 409
@@ -499,7 +499,7 @@ def _chat(who: OpenAI, messages: list[dict[str, str]], ack: bool = False) -> htt
 
 def test_an_acked_warning_is_not_repeated_for_the_same_history() -> None:
     me = _new_client()
-    risky = "AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695"
+    risky = "AMKA 01011990123 card 4 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 IBAN GR1601101250000000012300695"
     first = [{"role": "user", "content": risky}]
     assert _chat(me, first).status_code == 409
     assert _chat(me, first, ack=True).status_code == 200
@@ -594,7 +594,7 @@ def test_streamed_responses_events_from_litellm_are_cleaned() -> None:
 
 def test_the_master_key_is_never_remembered() -> None:
     admin = OpenAI(base_url=f"{GATEWAY}/v1", api_key=MASTER, max_retries=0)
-    risky = "AMKA 01011990123 card 4111 1111 1111 1111 IBAN GR1601101250000000012300695"
+    risky = "AMKA 01011990123 card 4 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 IBAN GR1601101250000000012300695"
     first = [{"role": "user", "content": risky}]
     assert _chat(admin, first, ack=True).status_code == 200
     second = [*first, {"role": "assistant", "content": "Noted."}]
